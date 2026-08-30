@@ -54,12 +54,14 @@
 *{box-sizing:border-box}html{scroll-behavior:smooth}
 body{margin:0;font-family:var(--font);background:var(--bg-base);color:var(--text-primary);font-size:16px;line-height:1.5;min-height:100vh;padding-bottom:28px}
 body.has-tabbar{padding-bottom:100px}
+#paneScore .panel,#paneSquads .panel,#paneMore .panel,#uwmPaneScore .panel,#uwmPaneSquads .panel,#uwmPaneMore .panel{padding:10px 12px!important;margin-top:4px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .hidden{display:none!important}
 .top-nav{position:sticky;top:0;z-index:90;background:rgba(11,15,25,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:12px 18px}
 .top-nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand-logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.15rem;color:var(--primary)}
 .brand-logo .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);flex-shrink:0}
+.nav-ver{font-size:10px;font-weight:700;color:var(--text-muted);margin-left:6px;padding:2px 8px;border-radius:999px;border:1px solid var(--border-subtle);letter-spacing:0;white-space:nowrap}
 .wrap{max-width:1050px;margin:20px auto;padding:0 16px}
 .panel{
   background:var(--bg-surface);
@@ -172,7 +174,7 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 
 
 /* Segmented control */
-.sc-team-tabs,.tab-group{display:flex;flex-wrap:wrap;background:var(--bg-base);padding:4px;border-radius:12px;gap:4px;margin:12px 0 16px}
+.sc-team-tabs,.tab-group{display:flex;flex-wrap:nowrap;background:var(--bg-base);padding:4px;border-radius:12px;gap:4px;margin:8px 0 10px}
 .sc-team-tabs button,.tab-group .tab-btn{flex:1;min-width:90px;min-height:44px;padding:10px 12px;border-radius:8px;border:none;font-size:.875rem;font-weight:600;color:var(--text-secondary);background:transparent;box-shadow:none}
 .sc-team-tabs button.btn-ok,.sc-team-tabs button[aria-selected="true"],.tab-group .tab-btn.active{
   background:var(--accent-cyan)!important;color:#fff!important;box-shadow:0 2px 8px var(--accent-cyan-glow)!important;border:none!important;
@@ -189,7 +191,7 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .sc-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:0 0 8px}
 .sc-table-head,.sc-table-row{
   display:grid;grid-template-columns:minmax(0,1.6fr) 0.45fr 0.45fr 0.4fr 0.4fr 0.55fr;
-  gap:4px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--border-subtle);
+  gap:4px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--border-subtle);
 }
 .sc-table-head{color:var(--text-muted);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-bottom:6px}
 .sc-table-row{background:transparent}
@@ -286,8 +288,8 @@ img.squad-photo{display:block;background:var(--sec)}
 body.has-hub-tabbar .wrap{padding-bottom:96px}
 body.has-hub-tabbar #screenHome .hub-tabs,
 body.has-hub-tabbar #screenUserHome .hub-tabs{display:none!important}
-.sc-team-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-.sc-team-tabs button{flex:1;min-width:100px;min-height:48px;font-weight:700}
+.sc-team-tabs{display:flex;flex-wrap:nowrap;gap:6px;margin:8px 0 10px}
+.sc-team-tabs button{flex:1 1 0;min-width:0;min-height:42px;font-weight:700;font-size:.8rem;padding:8px 6px}
 .sc-summary{text-align:center;padding:14px 12px;border-radius:16px;border:1px solid var(--border);background:linear-gradient(135deg,rgba(14,165,233,.12),rgba(15,23,42,.6));margin:10px 0 14px}
 .sc-summary .sc-main{font-size:1.45rem;font-weight:900;letter-spacing:-.02em}
 .sc-summary .sc-sub{color:var(--muted);font-size:13px;margin-top:6px;font-weight:600}
@@ -319,10 +321,10 @@ button:active{transform:scale(.98)}
 <div id="live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 <div id="liveSoft" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-<header class="top-nav hidden" role="banner" id="topNavBar">
+<header class="top-nav hidden" role="banner" id="topNavBar" aria-label="App bar">
   <div class="top-nav-inner">
-    <div class="brand-logo"><span class="dot" aria-hidden="true"></span> Cric360 Live</div>
-    <button type="button" id="btnNavSettings" class="btn-sec" style="min-height:40px;padding:8px 14px;font-size:13px" aria-haspopup="dialog">Settings</button>
+        <div class="brand-logo" aria-hidden="true"><span class="dot"></span> Cric360 Live</div>
+    <button type="button" id="btnNavSettings" class="btn-sec" style="min-height:40px;padding:8px 14px;font-size:13px" aria-haspopup="dialog" aria-label="Settings">Settings</button>
   </div>
 </header>
 
@@ -411,12 +413,11 @@ button:active{transform:scale(.98)}
 
 <section id="uwmPaneScore" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec" id="uwmScoreBack" aria-label="Back to Live">Back</button>
-    <h2 id="uwmScoreH" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Scorecard</h2>
+    <h2 id="uwmScoreH" class="sr-only" tabindex="-1">Scorecard</h2>
     <div class="sc-team-tabs" role="tablist" aria-label="Team scorecard">
       <button type="button" role="tab" id="uwmScTeamA" class="btn-ok" aria-selected="true">Team A</button>
       <button type="button" role="tab" id="uwmScTeamB" class="btn-sec" aria-selected="false">Team B</button>
-      <button type="button" role="tab" id="uwmScSplit" class="btn-sec" aria-selected="false" style="flex:1 1 100%">Split view</button>
+      <button type="button" role="tab" id="uwmScSplit" class="btn-sec" aria-selected="false">Split</button>
     </div>
     <div id="uwmScBody"></div>
   </div>
@@ -424,8 +425,7 @@ button:active{transform:scale(.98)}
 
 <section id="uwmPaneSquads" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec" id="uwmSquadsBack" aria-label="Back to Live">Back</button>
-    <h2 id="uwmSquadsH" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Squads</h2>
+    <h2 id="uwmSquadsH" class="sr-only" tabindex="-1">Squads</h2>
     <div id="uwmSquadsPre" class="hidden"></div>
     <div id="uwmSquadsLive" class="hidden">
       <div class="row" style="margin:10px 0" role="group" aria-label="Squad view mode">
@@ -443,8 +443,7 @@ button:active{transform:scale(.98)}
 
 <section id="uwmPaneMore" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec" id="uwmMoreBack" aria-label="Back to Live">Back</button>
-    <h2 tabindex="-1">Overs</h2>
+    <h2 class="sr-only" tabindex="-1">Overs</h2>
     <div id="uwmOversList"></div>
   </div>
 </section>
@@ -474,15 +473,13 @@ button:active{transform:scale(.98)}
 </section>
 <section id="uwaPaneSquads" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec" id="uwaSquadsBack" aria-label="Back to Live">Back</button>
-    <h2 id="uwaSquadsH" tabindex="-1">Squads</h2>
+<h2 id="uwaSquadsH" tabindex="-1">Squads</h2>
     <div id="uwaTeamCards" class="squad-grid" style="margin-top:12px"></div>
   </div>
 </section>
 <section id="uwaPaneMore" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec" id="uwaMoreBack" aria-label="Back to Live">Back</button>
-    <h2 tabindex="-1">More</h2>
+<h2 tabindex="-1">More</h2>
     <p style="color:var(--muted)">Viewer mode — watch only. Use Live for the current player and Squads for team lists.</p>
   </div>
 </section>
@@ -582,12 +579,11 @@ button:active{transform:scale(.98)}
 
 <section id="paneScore" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec tabBack" data-tab="tabLive" aria-label="Back to Live">Back</button>
-    <h2 id="batHeader" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Scorecard</h2>
+    <h2 id="batHeader" class="sr-only" tabindex="-1">Scorecard</h2>
     <div class="sc-team-tabs" role="tablist" aria-label="Team scorecard">
       <button type="button" role="tab" id="scTeamA" class="btn-ok" aria-selected="true">Team A</button>
       <button type="button" role="tab" id="scTeamB" class="btn-sec" aria-selected="false">Team B</button>
-      <button type="button" role="tab" id="scSplitView" class="btn-sec" aria-selected="false" style="flex:1 1 100%">Split view</button>
+      <button type="button" role="tab" id="scSplitView" class="btn-sec" aria-selected="false">Split</button>
     </div>
     <div id="scSingle" class="sc-single">
       <div id="scBatSummary" class="sc-summary" tabindex="0" role="status"></div>
@@ -603,8 +599,7 @@ button:active{transform:scale(.98)}
 
 <section id="paneSquads" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec tabBack" data-tab="tabLive" aria-label="Back to Live">Back</button>
-    <h2 id="matchSquadsH" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Squads</h2>
+    <h2 id="matchSquadsH" class="sr-only" tabindex="-1">Squads</h2>
     <div id="matchSquadsPre" class="hidden" style="margin-top:12px"></div>
     <div id="matchSquadsLive" class="hidden">
       <div class="row" style="margin:10px 0" role="group" aria-label="Squad view mode">
@@ -618,7 +613,6 @@ button:active{transform:scale(.98)}
 
 <section id="paneMore" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <button type="button" class="btn-sec tabBack" data-tab="tabLive" aria-label="Back to Live">Back</button>
     <h2 tabindex="-1">Match Controls</h2>
     <button type="button" id="btnEndInnings" class="btn-block" style="background:linear-gradient(135deg,#d97706,#b45309)">End Innings</button>
     <button type="button" id="btnStart2nd" class="btn-block btn-ok hidden">Start 2nd Innings</button>
@@ -656,6 +650,7 @@ button:active{transform:scale(.98)}
     <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
     <h2 id="aboutHeading" tabindex="-1">About</h2>
     <p><strong>Cric360 Live</strong></p>
+    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.08.30.1.13</span></p>
     <p style="color:var(--muted)">Uninterrupted live with 360 dimensions</p>
     <p style="margin-top:14px"><strong>Developed and owned by</strong> Cric360</p>
     <p style="color:var(--muted)">Contact: <a href="mailto:cricthreesixty@gmail.com">cricthreesixty@gmail.com</a></p>
@@ -1086,16 +1081,14 @@ button:active{transform:scale(.98)}
 
 <section id="aucPaneSquads" class="wrap hidden" role="tabpanel" aria-labelledby="aucTabSquads">
   <div class="panel">
-    <button type="button" class="btn-sec" id="aucSquadsBack" aria-label="Back to Live tab">Back</button>
-    <h2 tabindex="-1" id="aucSquadsH">Squads</h2>
+<h2 tabindex="-1" id="aucSquadsH">Squads</h2>
     <div id="aucTeamCards" class="squad-grid" style="margin-top:12px"></div>
   </div>
 </section>
 
 <section id="aucPaneMore" class="wrap hidden" role="tabpanel" aria-labelledby="aucTabMore">
   <div class="panel">
-    <button type="button" class="btn-sec" id="aucMoreBack" aria-label="Back to Live tab">Back</button>
-    <h2 tabindex="-1">More</h2>
+<h2 tabindex="-1">More</h2>
     <label for="aucMoreSearch">Search players</label>
     <input id="aucMoreSearch" type="text" autocomplete="off" />
     <div id="aucMoreSearchHits" style="margin-bottom:12px"></div>
@@ -1138,6 +1131,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
+const APP_VERSION = "2026.08.30.1.13";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1268,7 +1262,7 @@ function buildFullExportPayload(match){
   return {
     exportedAt: new Date().toISOString(),
     app: 'Cric360 Live',
-    version: '2026.08.29.1.11',
+    version: '2026.08.30.1.13',
     format: 'cric360-full-v1',
     type: m.type === 'auction' ? 'auction' : 'match',
     // Canonical full document (inject this on import)
@@ -1539,6 +1533,13 @@ function showScreen(id){
     const mt=$('matchTabbar'), at=$('aucTabbar');
     if(mt) mt.classList.toggle('hidden', !adminMatch);
     if(at) at.classList.toggle('hidden', !adminAuc);
+    const tn=$('topNavBar');
+    if(tn){
+      // Hide app bar inside live match/auction so focus starts on content
+      const hideBar = adminMatch || adminAuc || userMatch || userAuc;
+      tn.classList.toggle('hidden', hideBar || !(hubHome || id==='screenSettings' || id==='screenUserMatches' || id==='screenUserAuctions' || id==='screenUserMore'));
+      if(hubHome || id==='screenSettings') tn.classList.remove('hidden');
+    }
   }catch(e){}
 }
 function openDlg(id){
@@ -1930,6 +1931,63 @@ function ballEventTag(b){
   return {cls:'', text:''};
 }
 
+
+/* Global over-expand (viewer + admin) — survives re-renders */
+document.addEventListener('click', function(ev){
+  const btn = ev.target && ev.target.closest && (
+    ev.target.closest('[data-exp-over-uwm]') ||
+    ev.target.closest('[data-exp-over-more]') ||
+    ev.target.closest('[data-exp-over]')
+  );
+  if(!btn) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  let kind = 'live', key, panelId, store, overs, prefix;
+  if(btn.hasAttribute('data-exp-over-uwm')){
+    kind='uwm'; key=btn.getAttribute('data-exp-over-uwm');
+    panelId='expOverUwm'+key; store='_expOversUwm';
+    overs=(window._uwmMatch&&window._uwmMatch.completedOvers)||[];
+  } else if(btn.hasAttribute('data-exp-over-more')){
+    kind='more'; key=btn.getAttribute('data-exp-over-more');
+    panelId='expOverMore'+key; store='_expOversMore';
+    try{ overs=(typeof M==='function'&&M()&&M().completedOvers)||[]; }catch(e){ overs=[]; }
+  } else {
+    kind='live'; key=btn.getAttribute('data-exp-over');
+    panelId='expOverIdx'+key; store='_expOvers';
+    try{ overs=(typeof M==='function'&&M()&&M().completedOvers)||[]; }catch(e){ overs=[]; }
+  }
+  if(!window[store]) window[store]={};
+  const panel=document.getElementById(panelId);
+  if(!panel) return;
+  const o=overs[Number(key)]||{};
+  const onum=(o.num!=null?o.num:(Number(key)+1));
+  const label='Over '+onum+' – '+(o.bowlerName||'');
+  const open=!panel.classList.contains('hidden');
+  if(open){
+    panel.classList.add('hidden'); panel.innerHTML='';
+    btn.setAttribute('aria-expanded','false');
+    btn.textContent='Expand '+label;
+    delete window[store][key];
+  } else {
+    const balls=o.balls||[];
+    let html='';
+    try{
+      if(typeof formatBallRow==='function' && balls.length){
+        html=balls.slice().reverse().map(function(b,i){ return formatBallRow(b,i,balls); }).join('');
+      } else if(balls.length){
+        html=balls.slice().reverse().map(function(b){
+          return '<div class="ball-row" tabindex="0" aria-label="'+(b.text||'')+'">'+(b.text||'')+'</div>';
+        }).join('');
+      } else html='<p style="color:var(--muted);margin:0">No balls</p>';
+    }catch(e){ html='<p style="color:var(--muted)">Could not load balls</p>'; }
+    panel.innerHTML=html;
+    panel.classList.remove('hidden');
+    btn.setAttribute('aria-expanded','true');
+    btn.textContent='Collapse '+label;
+    window[store][key]=true;
+  }
+}, true);
+
 function a11yLabelOnly(el){
   if(!el) return;
   try{
@@ -1949,12 +2007,16 @@ function formatBallRow(b, i, overBalls){
   else if(b.type==='wide') label='Wd';
   else if(b.type==='noball') label='Nb';
   else label=String((i!=null?i:0)+1);
-  const main=b.text||'';
+  let main=b.text||'';
   const tag=ballEventTag(b);
-  // Single SR announcement — do not repeat badge text in aria if already in main
+  // Drop trailing event word from main if badge shows it (no visual double FOUR)
+  if(tag.text && main){
+    const re = new RegExp('\\b'+tag.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','ig');
+    main = main.replace(re,'').replace(/\s{2,}/g,' ').trim();
+  }
   let aria = main ? (label+': '+main) : label;
+  if(tag.text) aria += (main ? ', ' : ': ') + tag.text;
   if(b.desc) aria += '. '+b.desc;
-  else if(tag.text && main && main.toUpperCase().indexOf(tag.text) < 0) aria += '. '+tag.text;
   aria = aria.replace(/"/g,'&quot;');
   let h='<div class="ball-row" role="listitem" tabindex="0" aria-label="'+aria+'">';
   h+='<span class="ball-tag" aria-hidden="true">'+label+'</span>';
@@ -3895,8 +3957,8 @@ function switchAucTab(which){
 $('aucTabLive').onclick=()=>switchAucTab('aucTabLive');
 $('aucTabSquads').onclick=()=>switchAucTab('aucTabSquads');
 $('aucTabMore').onclick=()=>switchAucTab('aucTabMore');
-$('aucSquadsBack').onclick=()=>switchAucTab('aucTabLive');
-$('aucMoreBack').onclick=()=>switchAucTab('aucTabLive');
+if($('aucSquadsBack'))$('aucSquadsBack').onclick=()=>switchAucTab('aucTabLive');
+if($('aucMoreBack'))$('aucMoreBack').onclick=()=>switchAucTab('aucTabLive');
 if($('aucMoreSearch')) $('aucMoreSearch').oninput=()=>renderAucMore();
 
 $('aucBtnSearch').onclick=()=>openAucSearchDialog();
@@ -4165,6 +4227,7 @@ if ($('btnSetAbout')) $('btnSetAbout').onclick = () => {
   if ($('panelAccount')) $('panelAccount').classList.add('hidden');
   if ($('panelCommentary')) $('panelCommentary').classList.add('hidden');
   if ($('panelAbout')) $('panelAbout').classList.remove('hidden');
+  try{ if($('aboutVersion')&&typeof APP_VERSION!=='undefined') $('aboutVersion').textContent=APP_VERSION; }catch(e){}
   focusEl($('aboutHeading') || $('panelAbout').querySelector('h2'));
 };
 if ($('ttsToggle')) {
@@ -4475,13 +4538,46 @@ function watchMatch(id) {
         return '<li role="listitem" aria-label="'+p.name+'">'+p.name+' · '+fmtOvers(p.bowlBalls)+'-'+(p.bowlRuns||0)+'-'+(p.wickets||0)+'</li>';
       }).join('') || '<li style="color:var(--muted)">—</li>';
     }
-    if($('uwmOversList')){
-      $('uwmOversList').innerHTML = (m.completedOvers||[]).map(o=>{
-        return '<button type="button" class="list-btn" aria-label="Over '+o.num+'">Over '+o.num+' · '+(o.bowlerName||'')+'</button>';
-      }).join('') || '<p style="color:var(--muted)">No completed overs yet</p>';
-    }
+        if($('uwmOversList')) paintUwmOversList(m);
+
   });
   focusEl($('uwmTitle'));
+}
+
+
+function paintUwmOversList(m){
+  const box=$('uwmOversList');
+  if(!box) return;
+  const oversV=(m&&m.completedOvers)||[];
+  if(!window._expOversUwm) window._expOversUwm={};
+  if(!oversV.length){
+    box.innerHTML='<p style="color:var(--muted)">No completed overs yet</p>';
+    return;
+  }
+  let uh='';
+  oversV.forEach(function(o, idx){
+    const key=String(idx);
+    const isOpen=!!window._expOversUwm[key];
+    const onum=(o.num!=null?o.num:(idx+1));
+    const label='Over '+onum+' – '+(o.bowlerName||'');
+    uh+='<div class="over-card" style="margin-bottom:8px">';
+    uh+='<button type="button" class="list-btn" data-exp-over-uwm="'+key+'" aria-expanded="'+(isOpen?'true':'false')+'" aria-controls="expOverUwm'+key+'">'+(isOpen?'Collapse ':'Expand ')+label+'</button>';
+    uh+='<div id="expOverUwm'+key+'" class="'+(isOpen?'':'hidden')+'" role="region" aria-label="'+label+' details" style="padding:10px 12px;font-size:13px;border:1px solid var(--border-subtle);border-radius:10px;margin-top:4px;background:var(--bg-surface-elevated)"></div>';
+    uh+='</div>';
+  });
+  box.innerHTML=uh;
+  oversV.forEach(function(o, idx){
+    const key=String(idx);
+    if(!window._expOversUwm[key]) return;
+    const panel=$('expOverUwm'+key);
+    if(!panel) return;
+    const balls=o.balls||[];
+    try{
+      panel.innerHTML=balls.length&&typeof formatBallRow==='function'
+        ? balls.slice().reverse().map(function(b,i){return formatBallRow(b,i,balls);}).join('')
+        : (balls.length?'<p>'+balls.length+' balls</p>':'<p style="color:var(--muted);margin:0">No balls</p>');
+    }catch(e){ panel.innerHTML='<p style="color:var(--muted)">No balls</p>'; }
+  });
 }
 
 function switchUwmTab(which){
@@ -4502,6 +4598,13 @@ function switchUwmTab(which){
   });
   document.body.classList.remove('has-hub-tabbar');
   document.body.classList.add('has-tabbar');
+  if($('topNavBar')) $('topNavBar').classList.add('hidden');
+  if($('hubTabbarUser')) $('hubTabbarUser').classList.add('hidden');
+  if(which==='uwmTabMore'){
+    try{ paintUwmOversList(window._uwmMatch); }catch(e){}
+    const first=$('uwmOversList')&&$('uwmOversList').querySelector('button');
+    focusEl(first||($('uwmPaneMore')&&$('uwmPaneMore').querySelector('h2,button')));
+  }
 }
 
 function renderViewerScorecard(){

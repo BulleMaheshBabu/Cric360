@@ -198,21 +198,24 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="firebase-config.js"></script>
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30",
+  authDomain: "auctiontracker360.firebaseapp.com",
+  projectId: "auctiontracker360",
+  storageBucket: "auctiontracker360.firebasestorage.app",
+  messagingSenderId: "1035286573847",
+  appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
+  measurementId: "G-MTYE09EDSY"
+};
 const SUPER_ADMIN = "maheshdhoni7633@gmail.com";
 let auth;
 try {
-  const firebaseConfig = window.FIREBASE_CONFIG;
-  if (!firebaseConfig || !firebaseConfig.apiKey) {
-    throw new Error('Firebase config missing. Deploy with build.sh / Render env vars.');
-  }
   firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (pe) {}
 } catch (e) {
-  console.error(e);
-  document.getElementById('screenBoot').innerHTML = '<p style="color:#f43f5e;text-align:center">Could not start. Firebase config missing or invalid.</p>';
+  document.getElementById('screenBoot').innerHTML = '<p style="color:#f43f5e;text-align:center">Could not start. Check connection and refresh.</p>';
 }
 function $(id){ return document.getElementById(id); }
 function show(id){

@@ -648,9 +648,16 @@ a{color:var(--primary)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
 <script>
-const firebaseConfig = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) ? window.FIREBASE_CONFIG : null;
+const firebaseConfig = {
+  apiKey: "AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30",
+  authDomain: "auctiontracker360.firebaseapp.com",
+  projectId: "auctiontracker360",
+  storageBucket: "auctiontracker360.firebasestorage.app",
+  messagingSenderId: "1035286573847",
+  appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
+  measurementId: "G-MTYE09EDSY"
+};
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
 const ADMIN_NOTIFY_EMAIL = "maheshdhoni7633@gmail.com";
 
@@ -1387,11 +1394,7 @@ function canCreate(){
 function isVirtual(){ return T && T.mode==='virtual'; }
 
 try{
-  if (!firebaseConfig || !firebaseConfig.apiKey) {
-    console.error('Firebase config missing — set Render env vars and Build Command: bash build.sh');
-  } else {
-    firebase.initializeApp(firebaseConfig);
-  }
+  firebase.initializeApp(firebaseConfig);
   auth=firebase.auth();
   db=firebase.firestore();
   // Same domain as hub → reuse Google session (no second login when already signed in)

@@ -523,13 +523,14 @@ button:active{transform:scale(.98)}
       </div>
     </div>
   </div></div>
-  <nav class="tabbar" role="tablist" aria-label="Match tabs">
+</section>
+
+<nav class="tabbar hidden" id="matchTabbar" role="tablist" aria-label="Match tabs">
     <button type="button" role="tab" id="tabLive" class="active" aria-selected="true" aria-controls="screenLive">Live</button>
     <button type="button" role="tab" id="tabScore" aria-selected="false" aria-controls="paneScore">Scorecard</button>
     <button type="button" role="tab" id="tabSquads" aria-selected="false" aria-controls="paneSquads">Squads</button>
     <button type="button" role="tab" id="tabMore" aria-selected="false" aria-controls="paneMore">More</button>
   </nav>
-</section>
 
 <section id="paneScore" class="wrap hidden" role="tabpanel">
   <div class="panel">
@@ -1027,12 +1028,13 @@ button:active{transform:scale(.98)}
       </div>
     </div>
   </div></div>
-  <nav class="tabbar" id="aucTabbar" role="tablist" aria-label="Auction tabs">
+</section>
+
+<nav class="tabbar hidden" id="aucTabbar" role="tablist" aria-label="Auction tabs">
     <button type="button" role="tab" id="aucTabLive" class="active" aria-selected="true" aria-controls="screenAuction">Live</button>
     <button type="button" role="tab" id="aucTabSquads" aria-selected="false" aria-controls="aucPaneSquads">Squads</button>
     <button type="button" role="tab" id="aucTabMore" aria-selected="false" aria-controls="aucPaneMore">More</button>
   </nav>
-</section>
 
 <section id="aucPaneSquads" class="wrap hidden" role="tabpanel" aria-labelledby="aucTabSquads">
   <div class="panel">
@@ -1075,19 +1077,23 @@ button:active{transform:scale(.98)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
 <script>
 
-/* ========== FIREBASE + ROLES (config from firebase-config.js / Render env) ========== */
-const firebaseConfig = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) ? window.FIREBASE_CONFIG : null;
+/* ========== FIREBASE + ROLES (same project as Auction Tracker 360) ========== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30",
+  authDomain: "auctiontracker360.firebaseapp.com",
+  projectId: "auctiontracker360",
+  storageBucket: "auctiontracker360.firebasestorage.app",
+  messagingSenderId: "1035286573847",
+  appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
+  measurementId: "G-MTYE09EDSY"
+};
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
 try {
-  if (!firebaseConfig || !firebaseConfig.apiKey) {
-    throw new Error('Firebase config missing — set Render env vars and Build Command: bash build.sh');
-  }
   firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   db = firebase.firestore();
@@ -1469,15 +1475,22 @@ function showScreen(id){
     const el=$(s); if(el) el.classList.add('hidden');
   });
   const t=$(id); if(t) t.classList.remove('hidden');
-  const matchTabs = (id==='screenLive'||id==='paneScore'||id==='paneSquads'||id==='paneMore'||id==='screenAuction'||id==='aucPaneSquads'||id==='aucPaneMore'||id==='screenUserWatchAuction'||id==='uwaPaneSquads'||id==='uwaPaneMore'||id==='screenUserWatchMatch'||id==='uwmPaneScore'||id==='uwmPaneSquads'||id==='uwmPaneMore');
+  const adminMatch = (id==='screenLive'||id==='paneScore'||id==='paneSquads'||id==='paneMore');
+  const adminAuc = (id==='screenAuction'||id==='aucPaneSquads'||id==='aucPaneMore'||id==='aucPaneResults');
+  const userMatch = (id==='screenUserWatchMatch'||id==='uwmPaneScore'||id==='uwmPaneSquads'||id==='uwmPaneMore');
+  const userAuc = (id==='screenUserWatchAuction'||id==='uwaPaneSquads'||id==='uwaPaneMore');
+  const matchTabs = adminMatch || adminAuc || userMatch || userAuc;
   document.body.classList.toggle('has-tabbar', matchTabs);
   const hubHome = (id==='screenHome' || id==='screenUserHome');
   document.body.classList.toggle('has-hub-tabbar', hubHome);
-  // Bottom hub tabs live outside screens — show only on home
   try{
     const ua=$('hubTabbarUser'), aa=$('hubTabbarAdmin');
     if(ua) ua.classList.toggle('hidden', !(hubHome && id==='screenUserHome'));
     if(aa) aa.classList.toggle('hidden', !(hubHome && id==='screenHome'));
+    // External match/auction tabbars (must stay visible across tab switches)
+    const mt=$('matchTabbar'), at=$('aucTabbar');
+    if(mt) mt.classList.toggle('hidden', !adminMatch);
+    if(at) at.classList.toggle('hidden', !adminAuc);
   }catch(e){}
 }
 function openDlg(id){
@@ -2315,9 +2328,6 @@ if($('scTeamB')) $('scTeamB').onclick=()=>setScorecardMode('teamB');
 if($('scSplitView')) $('scSplitView').onclick=()=>setScorecardMode('split');
 
 function switchTab(tabId){
-  document.querySelectorAll('#screenLive ~ .tabbar button, #screenLive .tabbar button, nav.tabbar button').forEach(btn=>{
-    if(!btn.closest('#screenLive') && btn.id && !['tabLive','tabScore','tabSquads','tabMore'].includes(btn.id)) return;
-  });
   ['tabLive','tabScore','tabSquads','tabMore'].forEach(id=>{
     const b=$(id); if(!b) return;
     const on=id===tabId;
@@ -2329,6 +2339,8 @@ function switchTab(tabId){
   if($('paneSquads')) $('paneSquads').classList.add('hidden');
   if($('paneMore')) $('paneMore').classList.add('hidden');
   document.body.classList.add('has-tabbar');
+  if($('matchTabbar')) $('matchTabbar').classList.remove('hidden');
+  if($('aucTabbar')) $('aucTabbar').classList.add('hidden');
   if(tabId==='tabLive'){
     if($('screenLive')) $('screenLive').classList.remove('hidden');
     focusEl($('liveMatchTitle'));
@@ -3715,16 +3727,18 @@ function renderAucMore(){
 }
 
 function switchAucTab(which){
-  const map={aucTabLive:'screenAuction',aucTabSquads:'aucPaneSquads',aucTabMore:'aucPaneMore'};
   ['aucTabLive','aucTabSquads','aucTabMore'].forEach(id=>{
+    if(!$(id)) return;
     const on=id===which;
     $(id).classList.toggle('active',on);
     $(id).setAttribute('aria-selected',on?'true':'false');
   });
-  $('screenAuction').classList.toggle('hidden', which!=='aucTabLive');
-  $('aucPaneSquads').classList.toggle('hidden', which!=='aucTabSquads');
-  $('aucPaneMore').classList.toggle('hidden', which!=='aucTabMore');
+  if($('screenAuction')) $('screenAuction').classList.toggle('hidden', which!=='aucTabLive');
+  if($('aucPaneSquads')) $('aucPaneSquads').classList.toggle('hidden', which!=='aucTabSquads');
+  if($('aucPaneMore')) $('aucPaneMore').classList.toggle('hidden', which!=='aucTabMore');
   document.body.classList.add('has-tabbar');
+  if($('aucTabbar')) $('aucTabbar').classList.remove('hidden');
+  if($('matchTabbar')) $('matchTabbar').classList.add('hidden');
   if(which==='aucTabSquads'){ renderAucSquads(); focusEl($('aucSquadsH')); }
   else if(which==='aucTabMore'){ renderAucMore(); focusEl($('aucPaneMore').querySelector('h2')); }
   else focusEl($('aucLiveTitle'));

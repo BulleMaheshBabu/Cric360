@@ -390,7 +390,7 @@ button:active{transform:scale(.98)}
     <h1 id="uwmTitle" tabindex="-1">Match</h1>
     <p id="uwmSub" style="color:var(--muted)"></p>
     <div id="uwmPaneLive">
-      <div id="uwmScore" class="score-line" tabindex="0" role="status" aria-live="polite">0 for 0</div>
+      <div id="uwmScore" class="score-line" tabindex="0" role="text">0 for 0</div>
       <div class="batter-row">
         <div id="uwmBoxLeft" class="batter-box striker-box" tabindex="0"><div class="bn" id="uwmStriker">—</div><div class="bs" id="uwmStrikerStats"></div></div>
         <div id="uwmBoxRight" class="batter-box non-box" tabindex="0"><div class="bn" id="uwmNon">—</div><div class="bs" id="uwmNonStats"></div></div>
@@ -473,14 +473,19 @@ button:active{transform:scale(.98)}
 </section>
 <section id="uwaPaneSquads" class="wrap hidden" role="tabpanel">
   <div class="panel">
-<h2 id="uwaSquadsH" tabindex="-1">Squads</h2>
+<h2 id="uwaSquadsH" class="sr-only" tabindex="-1">Squads</h2>
     <div id="uwaTeamCards" class="squad-grid" style="margin-top:12px"></div>
   </div>
 </section>
 <section id="uwaPaneMore" class="wrap hidden" role="tabpanel">
   <div class="panel">
-<h2 tabindex="-1">More</h2>
-    <p style="color:var(--muted)">Viewer mode — watch only. Use Live for the current player and Squads for team lists.</p>
+    <h2 class="sr-only" tabindex="-1">Lists</h2>
+    <button type="button" class="list-btn" id="uwaBtnSold" aria-expanded="false">Sold list</button>
+    <div id="uwaSoldList" class="hidden" role="region" aria-label="Sold players" style="margin:6px 0 12px"></div>
+    <button type="button" class="list-btn" id="uwaBtnUnsold" aria-expanded="false">Unsold list</button>
+    <div id="uwaUnsoldList" class="hidden" role="region" aria-label="Unsold players" style="margin:6px 0 12px"></div>
+    <button type="button" class="list-btn" id="uwaBtnRemain" aria-expanded="false">Remaining list</button>
+    <div id="uwaRemainList" class="hidden" role="region" aria-label="Remaining players" style="margin:6px 0 12px"></div>
   </div>
 </section>
 
@@ -533,8 +538,8 @@ button:active{transform:scale(.98)}
       <div style="color:var(--muted);margin-top:12px;font-size:14px" id="resultBannerClosure"></div>
     </div>
     <div id="scoringUI" class="hidden">
-      <div id="scoreLine" class="score-line" tabindex="0" role="status" aria-live="polite" aria-label="Score">0/0 (0.0 ov)</div>
-      <div id="rateLine" style="text-align:center;font-size:14px;font-weight:700;color:var(--primary);margin-top:-4px" aria-live="polite"></div>
+      <div id="scoreLine" class="score-line" tabindex="0" role="text" aria-label="Score">0/0 (0.0 ov)</div>
+      <div id="rateLine" style="text-align:center;font-size:14px;font-weight:700;color:var(--primary);margin-top:-4px" tabindex="0"></div>
       <div id="targetLine" class="hidden" style="text-align:center;color:var(--muted);font-size:13px;margin-top:2px"></div>
       <div id="inningsLine" class="hidden"></div>
       <div class="batter-row">
@@ -650,12 +655,12 @@ button:active{transform:scale(.98)}
     <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
     <h2 id="aboutHeading" tabindex="-1">About</h2>
     <p><strong>Cric360 Live</strong></p>
-    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.08.30.1.13</span></p>
+    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.08.30.1.14</span></p>
     <p style="color:var(--muted)">Uninterrupted live with 360 dimensions</p>
     <p style="margin-top:14px"><strong>Developed and owned by</strong> Cric360</p>
     <p style="color:var(--muted)">Contact: <a href="mailto:cricthreesixty@gmail.com">cricthreesixty@gmail.com</a></p>
     <p style="color:var(--muted);font-size:13px;margin-top:16px">Saves in this browser and, when you are admin and online, mirrors live matches and auctions to the cloud for viewers.</p>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.08.30.1.17</p>
+    
   </div>
 </section>
 
@@ -1081,7 +1086,7 @@ button:active{transform:scale(.98)}
 
 <section id="aucPaneSquads" class="wrap hidden" role="tabpanel" aria-labelledby="aucTabSquads">
   <div class="panel">
-<h2 tabindex="-1" id="aucSquadsH">Squads</h2>
+<h2 class="sr-only" tabindex="-1" id="aucSquadsH">Squads</h2>
     <div id="aucTeamCards" class="squad-grid" style="margin-top:12px"></div>
   </div>
 </section>
@@ -1131,7 +1136,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
-const APP_VERSION = "2026.08.30.1.13";
+const APP_VERSION = "2026.08.30.1.14";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1262,7 +1267,7 @@ function buildFullExportPayload(match){
   return {
     exportedAt: new Date().toISOString(),
     app: 'Cric360 Live',
-    version: '2026.08.30.1.13',
+    version: '2026.08.30.1.14',
     format: 'cric360-full-v1',
     type: m.type === 'auction' ? 'auction' : 'match',
     // Canonical full document (inject this on import)
@@ -1991,8 +1996,8 @@ document.addEventListener('click', function(ev){
 function a11yLabelOnly(el){
   if(!el) return;
   try{
-    Array.from(el.children||[]).forEach(function(c){
-      if(c.tagName==='BUTTON') return; // keep injury buttons operable + labeled
+    Array.from(el.querySelectorAll('*')).forEach(function(c){
+      if(c.tagName==='BUTTON' || c.closest('button')) return;
       c.setAttribute('aria-hidden','true');
     });
   }catch(e){}
@@ -2002,11 +2007,11 @@ function formatBallRow(b, i, overBalls){
   let label;
   if(b.type==='comment') label='Update';
   else if(b.type==='force_bowler') label='Change';
-  else if(b.legal&&b.legalBallNo!=null) label=String(b.legalBallNo);
-  else if(b.overStr) label=b.overStr;
+  else if(b.overStr) label=String(b.overStr);
   else if(b.type==='wide') label='Wd';
   else if(b.type==='noball') label='Nb';
-  else label=String((i!=null?i:0)+1);
+  else if(b.legal&&b.legalBallNo!=null) label=String(b.legalBallNo);
+  else label='';
   let main=b.text||'';
   const tag=ballEventTag(b);
   // Drop trailing event word from main if badge shows it (no visual double FOUR)
@@ -2063,7 +2068,7 @@ if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='tea
 if($('scoreLine')){
   const ov=fmtOvers(m.totalBalls||0);
   const sl=(m.totalScore||0)+'/'+(m.wickets||0)+' ('+ov+' ov)';
-  $('scoreLine').textContent=sl;
+  $('scoreLine').innerHTML='<span aria-hidden="true">'+sl+'</span>';
   $('scoreLine').setAttribute('aria-label', (m.totalScore||0)+' for '+(m.wickets||0)+' in '+ov+' overs');
 }
 const maxB=maxOvers(m.matchType)*6;
@@ -2072,16 +2077,16 @@ const crr = balls>0 ? ((m.totalScore||0)/(balls/6)).toFixed(2) : '0.00';
 const proj = balls>0 ? Math.round(((m.totalScore||0)/(balls/6))*maxOvers(m.matchType)) : 0;
 if($('rateLine')){
   if(m.currentInnings===1){
-    $('rateLine').textContent = 'CRR '+crr+' · Proj '+proj;
+    $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · Proj '+proj+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', projected '+proj+' runs');
   } else if(m.currentInnings===2 && m.target){
     const need=Math.max(0, m.target-(m.totalScore||0));
     const left=Math.max(0, maxB-balls);
     const rrr = left>0 ? (need/(left/6)).toFixed(2) : '—';
-    $('rateLine').textContent = 'CRR '+crr+' · Need '+need+' · RRR '+rrr;
+    $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · Need '+need+' · RRR '+rrr+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', need '+need+' runs, required rate '+rrr);
   } else {
-    $('rateLine').textContent = 'CRR '+crr;
+    $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr);
   }
 }
@@ -2118,6 +2123,8 @@ if(bwl){
 a11yLabelOnly($('boxLeft'));
 a11yLabelOnly($('boxRight'));
 a11yLabelOnly($('boxBowler'));
+a11yLabelOnly($('scoreLine'));
+a11yLabelOnly($('rateLine'));
 // Past overs: expand buttons (stable index ids + remember open state)
 if($('pastOversLive')){
   if(!window._expOvers) window._expOvers = {};
@@ -4452,7 +4459,7 @@ function watchMatch(id) {
       const rrr = left>0 ? (need/(left/6)).toFixed(2) : '—';
       rateExtra += ' · Need '+need+' · RRR '+rrr;
     }
-    $('uwmScore').textContent = scoreLine + rateExtra;
+    $('uwmScore').innerHTML='<span aria-hidden="true">'+scoreLine + rateExtra+'</span>';
     $('uwmScore').setAttribute('aria-label', (m.totalScore||0)+' for '+(m.wickets||0)+' in '+ov+' overs'+rateExtra);
     const bat = m.battingTeam==='teamA'?m.teamA:m.teamB;
     const str = bat && bat.squad && m.strikerId ? bat.squad.find(p=>p.id===m.strikerId) : null;
@@ -4811,6 +4818,43 @@ function wireSquadToggles(){
 }
 wireSquadToggles();
 
+
+function paintUwaLists(){
+  const a=window._uwaAuction; if(!a) return;
+  const players=a.players||[];
+  const sold=players.filter(function(p){ return p.sold||p.status==='sold'; });
+  const unsold=players.filter(function(p){ return p.unsold||p.status==='unsold'; });
+  const rem=players.filter(function(p){ return !p.sold&&!p.unsold&&p.status!=='sold'&&p.status!=='unsold'; });
+  function fill(id, arr, kind){
+    const el=$(id); if(!el) return;
+    if(!arr.length){ el.innerHTML='<p style="color:var(--muted);padding:8px">None</p>'; return; }
+    el.innerHTML=arr.map(function(p){
+      const name=p.name||'Player';
+      const extra=kind==='sold'?((p.team?(' to '+p.team):'')+(p.price!=null?(' for '+p.price):'')):(p.role?(' · '+p.role):'');
+      const lab=name+extra;
+      return '<div class="squad-player" role="listitem" tabindex="0" aria-label="'+lab.replace(/"/g,'')+'"><div class="nm" aria-hidden="true">'+name+extra+'</div></div>';
+    }).join('');
+  }
+  fill('uwaSoldList', sold, 'sold');
+  fill('uwaUnsoldList', unsold, 'unsold');
+  fill('uwaRemainList', rem, 'rem');
+  if($('uwaBtnSold')) $('uwaBtnSold').textContent='Sold list · '+sold.length;
+  if($('uwaBtnUnsold')) $('uwaBtnUnsold').textContent='Unsold list · '+unsold.length;
+  if($('uwaBtnRemain')) $('uwaBtnRemain').textContent='Remaining list · '+rem.length;
+}
+function wireUwaListToggle(btnId, panelId){
+  const btn=$(btnId), panel=$(panelId);
+  if(!btn||!panel) return;
+  btn.onclick=function(){
+    const open=!panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', open);
+    btn.setAttribute('aria-expanded', open?'false':'true');
+  };
+}
+wireUwaListToggle('uwaBtnSold','uwaSoldList');
+wireUwaListToggle('uwaBtnUnsold','uwaUnsoldList');
+wireUwaListToggle('uwaBtnRemain','uwaRemainList');
+
 function switchUwaTab(which){
   ['uwaTabLive','uwaTabSquads','uwaTabMore'].forEach(id=>{
     const b=$(id); if(!b) return;
@@ -4821,16 +4865,37 @@ function switchUwaTab(which){
   if($('screenUserWatchAuction')) $('screenUserWatchAuction').classList.remove('hidden');
   const livePane=$('uwaLivePane');
   if(livePane) livePane.classList.toggle('hidden', which!=='uwaTabLive');
-  // hide outer panel body sections carefully
   if($('uwaPaneSquads')) $('uwaPaneSquads').classList.toggle('hidden', which!=='uwaTabSquads');
   if($('uwaPaneMore')) $('uwaPaneMore').classList.toggle('hidden', which!=='uwaTabMore');
+  // Hide auction title/back block when not on Live (stops stacked headings)
+  try{
+    const wrap=$('screenUserWatchAuction')&&$('screenUserWatchAuction').querySelector('.wrap');
+    if(wrap){
+      const panel=wrap.querySelector('.panel');
+      if(panel){
+        Array.from(panel.children).forEach(function(ch){
+          if(ch.id==='uwaLivePane') return;
+          if(ch.id==='uwaTitle'||ch.id==='uwaSub'||(ch.tagName==='BUTTON'&&ch.id==='btnBackUwa')||ch.tagName==='H1'||ch.tagName==='P'){
+            ch.classList.toggle('hidden', which!=='uwaTabLive');
+          }
+        });
+        // back + h1 + p are first children
+        const kids=panel.children;
+        if(kids[0]) kids[0].classList.toggle('hidden', which!=='uwaTabLive');
+        if(kids[1]) kids[1].classList.toggle('hidden', which!=='uwaTabLive');
+        if(kids[2]&&kids[2].id==='uwaSub') kids[2].classList.toggle('hidden', which!=='uwaTabLive');
+      }
+    }
+  }catch(e){}
+  if($('topNavBar')) $('topNavBar').classList.add('hidden');
   document.body.classList.add('has-tabbar');
   document.body.classList.remove('has-hub-tabbar');
   if(which==='uwaTabSquads'){
     try{ renderUserAuctionSquads(); }catch(e){}
-    focusEl($('uwaSquadsH'));
+    focusEl($('uwaTeamCards')&&$('uwaTeamCards').querySelector('button'));
   } else if(which==='uwaTabMore'){
-    focusEl($('uwaPaneMore')&&$('uwaPaneMore').querySelector('h2'));
+    try{ paintUwaLists(); }catch(e){}
+    focusEl($('uwaBtnSold')||($('uwaPaneMore')&&$('uwaPaneMore').querySelector('button')));
   } else {
     focusEl($('uwaTitle'));
   }
@@ -4838,19 +4903,38 @@ function switchUwaTab(which){
 function renderUserAuctionSquads(){
   const a = window._uwaAuction; if(!a) return;
   const box=$('uwaTeamCards'); if(!box) return;
-  box.innerHTML='';
-  (a.teams||[]).forEach(team=>{
-    const card=document.createElement('button');
-    card.type='button'; card.className='list-btn';
-    const n=(team.players||team.squad||[]).length;
-    card.innerHTML='<strong>'+(team.name||'Team')+'</strong><div style="color:var(--muted);font-size:13px">'+n+' players</div>';
-    card.onclick=()=>{
-      const list=(team.players||team.squad||[]);
-      alert((team.name||'Team')+':\\n'+list.map(p=>p.name||p).join('\\n'));
-    };
-    box.appendChild(card);
+  const teams=a.teams||[];
+  if(!teams.length){ box.innerHTML='<p style="color:var(--muted)">No team squads yet</p>'; return; }
+  let html='';
+  teams.forEach(function(team, ti){
+    const list=(team.players||team.squad||[]);
+    const n=list.length;
+    const tid='uwaSquadExp'+ti;
+    html+='<div class="over-card" style="margin-bottom:8px">';
+    html+='<button type="button" class="list-btn" data-uwa-squad="'+ti+'" aria-expanded="false" aria-controls="'+tid+'" aria-label="'+(team.name||'Team')+', '+n+' players">'+(team.name||'Team')+' · '+n+' players</button>';
+    html+='<div id="'+tid+'" class="hidden" role="region" aria-label="'+(team.name||'Team')+' squad" style="padding:8px 10px;border:1px solid var(--border-subtle);border-radius:10px;margin-top:4px">';
+    if(!list.length) html+='<p style="color:var(--muted);margin:0">No players</p>';
+    else list.forEach(function(p){
+      const name=(p&&p.name)?p.name:String(p);
+      const role=(p&&(p.role||p.type))||'';
+      const price=(p&&p.price!=null&&p.price!=='')?(' · '+p.price):'';
+      const lab=name+(role?(', '+role):'')+price;
+      html+='<div class="squad-player" role="listitem" tabindex="0" aria-label="'+lab.replace(/"/g,'')+'"><div class="nm" aria-hidden="true">'+name+'</div>'+(role||price?('<div class="rl" aria-hidden="true">'+role+price+'</div>'):'')+'</div>';
+    });
+    html+='</div></div>';
   });
-  if(!(a.teams||[]).length) box.innerHTML='<p style="color:var(--muted)">No team squads yet</p>';
+  box.innerHTML=html;
+  box.querySelectorAll('[data-uwa-squad]').forEach(function(btn){
+    btn.onclick=function(ev){
+      ev.preventDefault();
+      const id=btn.getAttribute('aria-controls');
+      const panel=document.getElementById(id);
+      if(!panel) return;
+      const open=!panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', open);
+      btn.setAttribute('aria-expanded', open?'false':'true');
+    };
+  });
 }
 if($('uwaTabLive')) $('uwaTabLive').onclick=()=>switchUwaTab('uwaTabLive');
 if($('uwaTabSquads')) $('uwaTabSquads').onclick=()=>switchUwaTab('uwaTabSquads');

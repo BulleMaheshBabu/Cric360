@@ -184,6 +184,54 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .stat-section-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--accent-gold);font-weight:700;margin:16px 0 8px}
 .player-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-subtle);font-size:.9rem}
 .player-row:last-child{border-bottom:none}
+
+/* Cricbuzz-style scorecard table */
+.sc-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:0 0 8px}
+.sc-table-head,.sc-table-row{
+  display:grid;grid-template-columns:minmax(0,1.6fr) 0.45fr 0.45fr 0.4fr 0.4fr 0.55fr;
+  gap:4px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--border-subtle);
+}
+.sc-table-head{color:var(--text-muted);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-bottom:6px}
+.sc-table-row{background:transparent}
+.sc-table-row:focus-within,.sc-table-row:focus{background:rgba(0,180,216,.08);outline:none}
+.sc-table-row .c-name{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sc-table-row .c-name .sub{display:block;font-weight:500;font-size:.72rem;color:var(--text-muted);margin-top:2px}
+.sc-table-row .c-num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.sc-table.bowl .sc-table-head,.sc-table.bowl .sc-table-row{
+  grid-template-columns:minmax(0,1.6fr) 0.5fr 0.4fr 0.45fr 0.4fr 0.55fr;
+}
+.sc-panel-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent-gold);font-weight:700;margin:12px 0 6px}
+.sc-extras{color:var(--text-muted);font-size:.78rem;padding:6px 4px;border-bottom:1px solid var(--border-subtle)}
+.sc-total-row{font-weight:800;padding:10px 6px;border-top:1px solid var(--border-focus);margin-top:4px;display:flex;justify-content:space-between;gap:8px}
+/* Squad split chart */
+.squad-split{
+  display:grid;grid-template-columns:1fr 1fr;gap:0;
+  border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;
+  background:var(--bg-surface);margin-top:10px;
+}
+.squad-col{min-width:0;padding:0}
+.squad-col + .squad-col{border-left:2px solid var(--border-focus)}
+.squad-col-head{
+  padding:10px 10px 8px;font-weight:800;font-size:.9rem;
+  background:rgba(0,180,216,.12);border-bottom:1px solid var(--border-subtle);
+  text-align:center;
+}
+.squad-col-sub{font-size:.7rem;font-weight:600;color:var(--text-muted);margin-top:2px}
+.squad-player{
+  display:flex;align-items:center;gap:8px;padding:9px 10px;
+  border-bottom:1px solid var(--border-subtle);min-height:44px;
+  background:var(--bg-surface);
+}
+.squad-player:last-child{border-bottom:none}
+.squad-player:focus{outline:2px solid var(--accent-cyan);outline-offset:-2px;background:rgba(0,180,216,.1)}
+.squad-player img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.squad-player .nm{font-weight:700;font-size:.82rem;line-height:1.25}
+.squad-player .rl{font-size:.7rem;color:var(--text-muted);font-weight:600}
+@media(max-width:360px){
+  .sc-table-head,.sc-table-row{font-size:.72rem;padding:6px 2px;gap:2px}
+  .squad-player .nm{font-size:.75rem}
+}
+
 .player-name{font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:6px}
 .player-name.on-strike{color:var(--ok-bright)}
 .player-detail{font-size:.8rem;color:var(--text-muted);margin-top:2px}
@@ -364,7 +412,7 @@ button:active{transform:scale(.98)}
 <section id="uwmPaneScore" class="wrap hidden" role="tabpanel">
   <div class="panel">
     <button type="button" class="btn-sec" id="uwmScoreBack" aria-label="Back to Live">Back</button>
-    <h2 id="uwmScoreH" tabindex="-1">Scorecard</h2>
+    <h2 id="uwmScoreH" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Scorecard</h2>
     <div class="sc-team-tabs" role="tablist" aria-label="Team scorecard">
       <button type="button" role="tab" id="uwmScTeamA" class="btn-ok" aria-selected="true">Team A</button>
       <button type="button" role="tab" id="uwmScTeamB" class="btn-sec" aria-selected="false">Team B</button>
@@ -377,14 +425,14 @@ button:active{transform:scale(.98)}
 <section id="uwmPaneSquads" class="wrap hidden" role="tabpanel">
   <div class="panel">
     <button type="button" class="btn-sec" id="uwmSquadsBack" aria-label="Back to Live">Back</button>
-    <h2 id="uwmSquadsH" tabindex="-1">Squads</h2>
+    <h2 id="uwmSquadsH" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Squads</h2>
     <div id="uwmSquadsPre" class="hidden"></div>
     <div id="uwmSquadsLive" class="hidden">
       <div class="row" style="margin:10px 0" role="group" aria-label="Squad view mode">
         <button type="button" id="uwmBtnPlaying11" class="btn-ok" style="flex:1" aria-pressed="true">Playing 11</button>
         <button type="button" id="uwmBtnFullSquad" class="btn-sec" style="flex:1" aria-pressed="false">Full squad</button>
       </div>
-      <div id="uwmSquadsSplit" class="batter-row" style="grid-template-columns:1fr 1fr;gap:12px"></div>
+      <div id="uwmSquadsSplit" class="squad-split" role="group" aria-label="Team squads"></div>
     </div>
     <div class="hidden">
       <ul id="uwmBatList" class="plain" role="list"></ul>
@@ -535,7 +583,7 @@ button:active{transform:scale(.98)}
 <section id="paneScore" class="wrap hidden" role="tabpanel">
   <div class="panel">
     <button type="button" class="btn-sec tabBack" data-tab="tabLive" aria-label="Back to Live">Back</button>
-    <h2 id="batHeader" tabindex="-1">Scorecard</h2>
+    <h2 id="batHeader" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Scorecard</h2>
     <div class="sc-team-tabs" role="tablist" aria-label="Team scorecard">
       <button type="button" role="tab" id="scTeamA" class="btn-ok" aria-selected="true">Team A</button>
       <button type="button" role="tab" id="scTeamB" class="btn-sec" aria-selected="false">Team B</button>
@@ -556,14 +604,14 @@ button:active{transform:scale(.98)}
 <section id="paneSquads" class="wrap hidden" role="tabpanel">
   <div class="panel">
     <button type="button" class="btn-sec tabBack" data-tab="tabLive" aria-label="Back to Live">Back</button>
-    <h2 id="matchSquadsH" tabindex="-1">Squads</h2>
+    <h2 id="matchSquadsH" class="sc-panel-title" tabindex="-1" style="margin-top:4px">Squads</h2>
     <div id="matchSquadsPre" class="hidden" style="margin-top:12px"></div>
     <div id="matchSquadsLive" class="hidden">
       <div class="row" style="margin:10px 0" role="group" aria-label="Squad view mode">
         <button type="button" id="btnViewPlaying11" class="btn-ok" style="flex:1" aria-pressed="true">Playing 11</button>
         <button type="button" id="btnViewFullSquad" class="btn-sec" style="flex:1" aria-pressed="false">Full squad</button>
       </div>
-      <div id="matchSquadsSplit" class="batter-row" style="grid-template-columns:1fr 1fr;gap:12px"></div>
+      <div id="matchSquadsSplit" class="squad-split" role="group" aria-label="Team squads"></div>
     </div>
   </div>
 </section>
@@ -1881,6 +1929,17 @@ function ballEventTag(b){
   if(typeof b.runs==='number') return {cls:'', text:String(b.runs)};
   return {cls:'', text:''};
 }
+
+function a11yLabelOnly(el){
+  if(!el) return;
+  try{
+    Array.from(el.children||[]).forEach(function(c){
+      if(c.tagName==='BUTTON') return; // keep injury buttons operable + labeled
+      c.setAttribute('aria-hidden','true');
+    });
+  }catch(e){}
+}
+
 function formatBallRow(b, i, overBalls){
   let label;
   if(b.type==='comment') label='Update';
@@ -1892,10 +1951,14 @@ function formatBallRow(b, i, overBalls){
   else label=String((i!=null?i:0)+1);
   const main=b.text||'';
   const tag=ballEventTag(b);
-  const aria=label+': '+main+(b.desc?('. '+b.desc):'');
-  let h='<div class="ball-row" role="listitem" tabindex="0" aria-label="'+aria.replace(/"/g,'&quot;')+'">';
+  // Single SR announcement — do not repeat badge text in aria if already in main
+  let aria = main ? (label+': '+main) : label;
+  if(b.desc) aria += '. '+b.desc;
+  else if(tag.text && main && main.toUpperCase().indexOf(tag.text) < 0) aria += '. '+tag.text;
+  aria = aria.replace(/"/g,'&quot;');
+  let h='<div class="ball-row" role="listitem" tabindex="0" aria-label="'+aria+'">';
   h+='<span class="ball-tag" aria-hidden="true">'+label+'</span>';
-  h+='<div class="ball-desc">'+main+(b.desc?('<div style="font-size:12px;color:var(--text-muted);margin-top:2px">'+b.desc+'</div>'):'')+'</div>';
+  h+='<div class="ball-desc" aria-hidden="true">'+main+(b.desc?('<div style="font-size:12px;color:var(--text-muted);margin-top:2px">'+b.desc+'</div>'):'')+'</div>';
   if(tag.text) h+='<span class="ball-tag '+tag.cls+'" aria-hidden="true">'+tag.text+'</span>';
   h+='</div>';
   return h;
@@ -1990,6 +2053,9 @@ if(bwl){
   if($('bowlerStats'))$('bowlerStats').textContent='';
   if($('boxBowler'))$('boxBowler').setAttribute('aria-label','Bowler '+bwl.name+', '+fmtOvers(bwl.bowlBalls)+' overs, '+bwl.bowlRuns+' runs, '+bwl.wickets+' wickets');
 }
+a11yLabelOnly($('boxLeft'));
+a11yLabelOnly($('boxRight'));
+a11yLabelOnly($('boxBowler'));
 // Past overs: expand buttons (stable index ids + remember open state)
 if($('pastOversLive')){
   if(!window._expOvers) window._expOvers = {};
@@ -2048,7 +2114,7 @@ if($('pastOversLive')){
         btn.setAttribute('aria-expanded','true');
         btn.textContent='Collapse '+label;
         window._expOvers[key]=true;
-        try{ panel.querySelector('[tabindex],.ball-row') && panel.querySelector('[tabindex],.ball-row').focus(); }catch(e){}
+        /* keep focus on expand button for SR stability */
       }
     };
   });
@@ -2080,8 +2146,69 @@ else {
 if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(b=>b.type!=='comment'&&b.type!=='force_bowler').length);
 }
 $('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnings===1));$('btnStart2nd').classList.toggle('hidden',m.status!=='innings_break');
-const ol=$('oversList');const overs=m.completedOvers||[];if(!overs.length)ol.innerHTML='<p style="color:var(--muted)">No overs completed yet</p>';
-else ol.innerHTML=overs.map(o=>'<button type="button" class="list-btn" onclick="showOverDetail('+o.num+')" aria-label="Over '+o.num+', bowled by '+o.bowlerName+'">Over '+o.num+' – '+o.bowlerName+'</button>').join('');
+const ol=$('oversList');
+if(ol){
+  const oversMore=m.completedOvers||[];
+  if(!window._expOversMore) window._expOversMore = {};
+  if(!oversMore.length){
+    ol.innerHTML='<p style="color:var(--muted)">No overs completed yet</p>';
+  } else {
+    let oh='';
+    oversMore.forEach((o, idx)=>{
+      const key=String(idx);
+      const isOpen=!!window._expOversMore[key];
+      const onum=(o.num!=null?o.num:(idx+1));
+      const label='Over '+onum+' – '+(o.bowlerName||'');
+      oh+='<div class="over-card" style="margin-bottom:8px" data-over-more="'+key+'">';
+      oh+='<button type="button" class="list-btn" data-exp-over-more="'+key+'" aria-expanded="'+(isOpen?'true':'false')+'" aria-controls="expOverMore'+key+'" aria-label="'+(isOpen?'Collapse ':'Expand ')+label+'">'+(isOpen?'Collapse ':'Expand ')+label+'</button>';
+      oh+='<div id="expOverMore'+key+'" class="'+(isOpen?'':'hidden')+'" role="region" aria-label="'+label+' details" style="padding:10px 12px;font-size:13px;border:1px solid var(--border-subtle);border-radius:10px;margin-top:4px;background:var(--bg-surface-elevated)"></div>';
+      oh+='</div>';
+    });
+    ol.innerHTML=oh;
+    oversMore.forEach((o, idx)=>{
+      const key=String(idx);
+      if(!window._expOversMore[key]) return;
+      const panel=$('expOverMore'+key);
+      if(panel){
+        const balls=o.balls||[];
+        panel.innerHTML=balls.length
+          ? balls.slice().reverse().map((b,i)=>formatBallRow(b,i,balls)).join('')
+          : '<p style="color:var(--muted);margin:0">No balls logged</p>';
+      }
+    });
+    ol.querySelectorAll('[data-exp-over-more]').forEach(btn=>{
+      btn.onclick=function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        const key=btn.getAttribute('data-exp-over-more');
+        const panel=$('expOverMore'+key);
+        if(!panel) return;
+        const o=oversMore[Number(key)];
+        const onum=(o&&o.num!=null?o.num:(Number(key)+1));
+        const label='Over '+onum+' – '+(o&&o.bowlerName||'');
+        const open=!panel.classList.contains('hidden');
+        if(open){
+          panel.classList.add('hidden');
+          panel.innerHTML='';
+          btn.setAttribute('aria-expanded','false');
+          btn.textContent='Expand '+label;
+          btn.setAttribute('aria-label','Expand '+label);
+          delete window._expOversMore[key];
+        } else {
+          const balls=(o&&o.balls)||[];
+          panel.innerHTML=balls.length
+            ? balls.slice().reverse().map((b,i)=>formatBallRow(b,i,balls)).join('')
+            : '<p style="color:var(--muted);margin:0">No balls logged</p>';
+          panel.classList.remove('hidden');
+          btn.setAttribute('aria-expanded','true');
+          btn.textContent='Collapse '+label;
+          btn.setAttribute('aria-label','Collapse '+label);
+          window._expOversMore[key]=true;
+        }
+      };
+    });
+  }
+}
 renderScorecard()}
 
 
@@ -2124,11 +2251,20 @@ function renderScorecard(){
   function crrVal(runs, balls){
     return balls>0 ? ((runs)/(balls/6)).toFixed(2) : '0.00';
   }
+  function sr(n){ const b=n.balls||0; return b>0?(((n.runs||0)/b)*100).toFixed(1):'0.0'; }
+  function batHead(){
+    return '<div class="sc-table-head" aria-hidden="true"><span>Batter</span><span class="c-num">R</span><span class="c-num">B</span><span class="c-num">4s</span><span class="c-num">6s</span><span class="c-num">SR</span></div>';
+  }
+  function bowlHead(){
+    return '<div class="sc-table-head" aria-hidden="true"><span>Bowler</span><span class="c-num">O</span><span class="c-num">M</span><span class="c-num">R</span><span class="c-num">W</span><span class="c-num">ER</span></div>';
+  }
   function playerRows(squad, strikerId, nonStrikerId, teamKey, showAll){
-    let html='';
+    let html=batHead();
     const admin = typeof isAdmin==='function' && isAdmin();
+    let any=false;
     (squad||[]).forEach(p=>{
       if(!showAll && !admin && (p.balls||0)===0&&!p.isOut&&!p.retiredHurt&&p.id!==strikerId&&p.id!==nonStrikerId) return;
+      any=true;
       const on=p.id===strikerId;
       let detail='';
       if(p.isOut) detail = p.dismissal || 'out';
@@ -2136,36 +2272,42 @@ function renderScorecard(){
       else if(on) detail = 'on strike';
       else if(p.id===nonStrikerId) detail = 'non-striker';
       else detail = 'not out';
-      const label=p.name+', '+(p.runs||0)+' runs, '+(p.balls||0)+' balls, 4s '+(p.fours||0)+', 6s '+(p.sixes||0)+', '+detail;
+      const R=p.runs||0, B=p.balls||0, F=p.fours||0, S=p.sixes||0, SR=sr(p);
+      const label=p.name+', '+R+' runs, '+B+' balls, '+F+' fours, '+S+' sixes, strike rate '+SR+', '+detail;
       const star = on ? ' <span aria-hidden="true" style="color:var(--accent-gold)">★</span>' : '';
-      html+='<li role="listitem" class="player-row">';
-      html+='<div style="display:flex;gap:10px;align-items:flex-start;min-width:0;flex:1" tabindex="0" aria-label="'+label+'">';
-      if(p.photoUrl) html+='<img src="'+p.photoUrl+'" alt="" aria-hidden="true" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0" />';
-      html+='<div><div class="player-name'+(on?' on-strike':'')+'">'+p.name+star+(p.isOut?' †':'')+(p.retiredHurt&&!p.isOut?' ♯':'')+'</div>';
-      html+='<div class="player-detail">'+detail+( (p.fours||p.sixes) ? (' · 4s '+(p.fours||0)+' · 6s '+(p.sixes||0)) : '' )+'</div></div></div>';
-      html+='<div class="player-stats" aria-hidden="true">'+(p.runs||0)+' <span class="balls-muted">('+(p.balls||0)+')</span></div>';
-      if(admin && teamKey){
-        html+='<button type="button" class="btn-sec" style="min-height:36px;padding:6px 10px;font-size:12px;border:1px solid var(--border-subtle)!important" data-edit-player="'+p.id+'" data-team="'+teamKey+'" aria-label="Edit '+p.name+'">Edit</button>';
-      }
-      html+='</li>';
+      html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      html+='<div class="c-name'+(on?' on-strike':'')+'">'+p.name+star+(p.isOut?' †':'')+(p.retiredHurt&&!p.isOut?' ♯':'');
+      html+='<span class="sub" aria-hidden="true">'+detail+'</span></div>';
+      html+='<span class="c-num" aria-hidden="true">'+R+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+B+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+F+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+S+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+SR+'</span>';
+      html+='</div>';
     });
-    return html||'<li style="color:var(--text-muted);padding:10px 0">No batters yet</li>';
+    if(!any) html+='<div style="color:var(--text-muted);padding:10px 6px">No batters yet</div>';
+    return html;
   }
   function bowlRows(squad, teamKey){
-    let html='';
+    let html=bowlHead();
     const admin = typeof isAdmin==='function' && isAdmin();
+    let any=false;
     (squad||[]).forEach(p=>{
       if(!admin && (p.bowlBalls||0)===0&&(p.bowlRuns||0)===0&&(p.wickets||0)===0) return;
-      const label=p.name+', '+fmtOvers(p.bowlBalls||0)+' overs, '+(p.bowlRuns||0)+' runs, '+(p.wickets||0)+' wickets, economy '+eco(p.bowlRuns||0,p.bowlBalls||0);
-      html+='<li role="listitem" class="player-row">';
-      html+='<div style="display:flex;gap:10px;align-items:center;min-width:0;flex:1" tabindex="0" aria-label="'+label+'">';
-      if(p.photoUrl) html+='<img src="'+p.photoUrl+'" alt="" aria-hidden="true" style="width:32px;height:32px;border-radius:50%;object-fit:cover"/>';
-      html+='<div><div class="player-name">'+p.name+'</div><div class="player-detail">Eco '+eco(p.bowlRuns||0,p.bowlBalls||0)+'</div></div></div>';
-      html+='<div class="player-stats" aria-hidden="true">'+fmtOvers(p.bowlBalls||0)+'-'+(p.bowlRuns||0)+'-'+(p.wickets||0)+'</div>';
-      if(admin && teamKey) html+='<button type="button" class="btn-sec" style="min-height:36px;padding:6px 10px;font-size:12px;border:1px solid var(--border-subtle)!important" data-edit-player="'+p.id+'" data-team="'+teamKey+'" aria-label="Edit '+p.name+'">Edit</button>';
-      html+='</li>';
+      any=true;
+      const O=fmtOvers(p.bowlBalls||0), M=p.maidens||0, R=p.bowlRuns||0, W=p.wickets||0, ER=eco(p.bowlRuns||0,p.bowlBalls||0);
+      const label=p.name+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wickets, economy '+ER;
+      html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      html+='<div class="c-name">'+p.name+'</div>';
+      html+='<span class="c-num" aria-hidden="true">'+O+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+M+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+R+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+W+'</span>';
+      html+='<span class="c-num" aria-hidden="true">'+ER+'</span>';
+      html+='</div>';
     });
-    return html||'<li style="color:var(--text-muted);padding:10px 0">No bowling figures yet</li>';
+    if(!any) html+='<div style="color:var(--text-muted);padding:10px 6px">No bowling figures yet</div>';
+    return html;
   }
 
   /** Snapshot for a team batting innings: totals + squads for bat/bowl */
@@ -2250,13 +2392,18 @@ function renderScorecard(){
       $('scBatSummary').innerHTML = summaryHtml(d);
       $('scBatSummary').setAttribute('aria-label', d.label+' '+((d.runs||0)+'/'+(d.wkts||0)+' in '+fmtOvers(d.balls||0)+' overs, CRR '+crrVal(d.runs||0,d.balls||0)));
     }
-    if($('scBatTitle')){ $('scBatTitle').textContent = d.label+' — Batting'; $('scBatTitle').className='stat-section-title'; }
-    if($('scBowlTitle')){ $('scBowlTitle').textContent = (d.bowlTeam&&d.bowlTeam.name||'Opposition')+' — Bowling'; $('scBowlTitle').className='stat-section-title'; }
+    if($('scBatTitle')){ $('scBatTitle').textContent = d.label+' — Batting'; $('scBatTitle').className='sc-panel-title'; }
+    if($('scBowlTitle')){ $('scBowlTitle').textContent = (d.bowlTeam&&d.bowlTeam.name||'Opposition')+' — Bowling'; $('scBowlTitle').className='sc-panel-title'; }
+    batList.className='sc-table plain';
+    batList.setAttribute('role','list');
     batList.innerHTML = playerRows(d.batTeam&&d.batTeam.squad, d.strikerId, d.nonStrikerId, d.batKey, true);
     if($('extrasLine') && d.extras){
       const et=(d.extras.wide||0)+(d.extras.noball||0)+(d.extras.bye||0)+(d.extras.legbye||0);
+      $('extrasLine').className='sc-extras';
       $('extrasLine').textContent = et ? ('Extras '+et+' (wd '+(d.extras.wide||0)+', nb '+(d.extras.noball||0)+', b '+(d.extras.bye||0)+', lb '+(d.extras.legbye||0)+')') : '';
-    } else if($('extrasLine')) $('extrasLine').textContent='';
+    } else if($('extrasLine')){ $('extrasLine').textContent=''; }
+    bowlList.className='sc-table bowl plain';
+    bowlList.setAttribute('role','list');
     bowlList.innerHTML = bowlRows(d.bowlTeam&&d.bowlTeam.squad, d.bowlKey);
   }
 
@@ -2267,10 +2414,10 @@ function renderScorecard(){
     function card(d){
       return '<div class="sc-card" role="region" aria-label="'+d.label+' scorecard">'+
         '<div class="sc-summary">'+summaryHtml(d)+'</div>'+
-        '<h3 tabindex="-1">'+d.label+' — Batting</h3>'+
-        '<ul class="plain" role="list">'+playerRows(d.batTeam&&d.batTeam.squad,d.strikerId,d.nonStrikerId,d.batKey,true)+'</ul>'+
-        '<h3 style="margin-top:14px" tabindex="-1">'+(d.bowlTeam&&d.bowlTeam.name||'')+' — Bowling</h3>'+
-        '<ul class="plain" role="list">'+bowlRows(d.bowlTeam&&d.bowlTeam.squad,d.bowlKey)+'</ul></div>';
+        '<div class="sc-panel-title" tabindex="-1">'+d.label+' — Batting</div>'+
+        '<div class="sc-table" role="list">'+playerRows(d.batTeam&&d.batTeam.squad,d.strikerId,d.nonStrikerId,d.batKey,true)+'</div>'+
+        '<div class="sc-panel-title" style="margin-top:14px" tabindex="-1">'+(d.bowlTeam&&d.bowlTeam.name||'')+' — Bowling</div>'+
+        '<div class="sc-table bowl" role="list">'+bowlRows(d.bowlTeam&&d.bowlTeam.squad,d.bowlKey)+'</div></div>';
     }
     box.innerHTML = card(a)+card(b);
   }
@@ -2354,6 +2501,7 @@ function switchTab(tabId){
     focusEl($('matchSquadsH'));
   } else {
     if($('paneMore')) $('paneMore').classList.remove('hidden');
+    try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
     focusEl($('paneMore')&&$('paneMore').querySelector('h2'));
   }
 }
@@ -4364,23 +4512,34 @@ function renderViewerScorecard(){
   const prevF = window._scTeamFocus;
   // Build using same helpers by calling into a shared paint via DOM of uwmScBody
   function crrVal(runs, balls){ return balls>0 ? ((runs)/(balls/6)).toFixed(2) : '0.00'; }
+  function sr(p){ const b=p.balls||0; return b>0?(((p.runs||0)/b)*100).toFixed(1):'0.0'; }
   function rowsBat(squad, sid, nid){
-    let h='';
+    let h='<div class="sc-table-head" aria-hidden="true"><span>Batter</span><span class="c-num">R</span><span class="c-num">B</span><span class="c-num">4s</span><span class="c-num">6s</span><span class="c-num">SR</span></div>';
+    let any=false;
     (squad||[]).forEach(p=>{
       if((p.balls||0)===0&&!p.isOut&&!p.retiredHurt&&p.id!==sid&&p.id!==nid) return;
+      any=true;
       const on=p.id===sid;
-      let how=p.isOut?(p.dismissal||'out'):(p.retiredHurt?'retired hurt':(on?'on strike ★':''));
-      h+='<li role="listitem" tabindex="0" style="padding:8px 0;border-bottom:1px solid var(--border)"><strong>'+p.name+(on?' ★':'')+'</strong> '+(p.runs||0)+'('+(p.balls||0)+')'+(how?(' · '+how):'')+'</li>';
+      let how=p.isOut?(p.dismissal||'out'):(p.retiredHurt?'retired hurt':(on?'on strike':(p.id===nid?'non-striker':'not out')));
+      const R=p.runs||0,B=p.balls||0,F=p.fours||0,S=p.sixes||0,SR=sr(p);
+      const label=p.name+', '+R+' runs, '+B+' balls, '+F+' fours, '+S+' sixes, strike rate '+SR+', '+how;
+      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub" aria-hidden="true">'+how+'</span></div><span class="c-num" aria-hidden="true">'+R+'</span><span class="c-num" aria-hidden="true">'+B+'</span><span class="c-num" aria-hidden="true">'+F+'</span><span class="c-num" aria-hidden="true">'+S+'</span><span class="c-num" aria-hidden="true">'+SR+'</span></div>';
     });
-    return h||'<li style="color:var(--muted)">—</li>';
+    if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
+    return h;
   }
   function rowsBowl(squad){
-    let h='';
+    let h='<div class="sc-table-head" aria-hidden="true"><span>Bowler</span><span class="c-num">O</span><span class="c-num">M</span><span class="c-num">R</span><span class="c-num">W</span><span class="c-num">ER</span></div>';
+    let any=false;
     (squad||[]).forEach(p=>{
       if(!(p.bowlBalls||p.bowlRuns||p.wickets)) return;
-      h+='<li role="listitem" tabindex="0" style="padding:8px 0;border-bottom:1px solid var(--border)"><strong>'+p.name+'</strong> '+fmtOvers(p.bowlBalls||0)+'-'+(p.bowlRuns||0)+'-'+(p.wickets||0)+'</li>';
+      any=true;
+      const O=fmtOvers(p.bowlBalls||0),M=p.maidens||0,R=p.bowlRuns||0,W=p.wickets||0,ER=eco(p.bowlRuns||0,p.bowlBalls||0);
+      const label=p.name+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wickets, economy '+ER;
+      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div class="c-name">'+(p.name||'')+'</div><span class="c-num" aria-hidden="true">'+O+'</span><span class="c-num" aria-hidden="true">'+M+'</span><span class="c-num" aria-hidden="true">'+R+'</span><span class="c-num" aria-hidden="true">'+W+'</span><span class="c-num" aria-hidden="true">'+ER+'</span></div>';
     });
-    return h||'<li style="color:var(--muted)">—</li>';
+    if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
+    return h;
   }
   function data(focusKey){
     const other=focusKey==='teamA'?'teamB':'teamA';
@@ -4397,7 +4556,7 @@ function renderViewerScorecard(){
   function card(d){
     const main=(d.runs||0)+'/'+(d.wkts||0)+' ('+fmtOvers(d.balls||0)+' ov)';
     const sub=d.notYet?'Yet to bat':('CRR '+crrVal(d.runs,d.balls));
-    return '<div class="sc-card"><div class="sc-summary"><div class="sc-main">'+d.label+' · '+main+'</div><div class="sc-sub">'+sub+'</div></div><h3>'+d.label+' — Batting</h3><ul class="plain">'+rowsBat(d.bat&&d.bat.squad,d.sid,d.nid)+'</ul><h3 style="margin-top:12px">'+(d.bowl&&d.bowl.name||'')+' — Bowling</h3><ul class="plain">'+rowsBowl(d.bowl&&d.bowl.squad)+'</ul></div>';
+    return '<div class="sc-card"><div class="sc-summary"><div class="sc-main">'+d.label+' · '+main+'</div><div class="sc-sub">'+sub+'</div></div><div class="sc-panel-title">'+d.label+' — Batting</div><div class="sc-table" role="list">'+rowsBat(d.bat&&d.bat.squad,d.sid,d.nid)+'</div><div class="sc-panel-title" style="margin-top:12px">'+(d.bowl&&d.bowl.name||'')+' — Bowling</div><div class="sc-table bowl" role="list">'+rowsBowl(d.bowl&&d.bowl.squad)+'</div></div>';
   }
   if(!window._uwmScMode) window._uwmScMode = m.battingTeam||'teamA';
   const mode=window._uwmScMode;
@@ -4518,12 +4677,19 @@ function renderMatchSquadsPane(mode){
       const p11=list.filter(p=>p.inPlaying11);
       if(p11.length) list=p11;
     }
-    let h='<div class="batter-box" style="text-align:left"><div class="bn">'+(team.name||'')+'</div><div class="bs">'+(modePlay?'Playing XI':'Full squad')+' · '+list.length+'</div><ul class="plain" style="margin-top:8px">';
+    let h='<div class="squad-col" role="list" aria-label="'+(team.name||'')+' '+(modePlay?'Playing XI':'Full squad')+'">';
+    h+='<div class="squad-col-head">'+(team.name||'')+'<div class="squad-col-sub">'+(modePlay?'Playing XI':'Full squad')+' · '+list.length+'</div></div>';
     list.forEach(p=>{
-      h+='<li style="padding:8px 0">'+(p.photoUrl?'<img src="'+p.photoUrl+'" alt="" class="squad-photo" style="width:28px;height:28px;display:inline-block;vertical-align:middle;margin-right:6px" />':'')+'<strong>'+p.name+'</strong>'+(p.role?(' · '+p.role):'')+'</li>';
+      const role=p.role||p.type||'';
+      const label=(p.name||'Player')+(role?(', '+role):'');
+      h+='<div class="squad-player" role="listitem" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      if(p.photoUrl) h+='<img src="'+p.photoUrl+'" alt="" aria-hidden="true" />';
+      h+='<div><div class="nm" aria-hidden="true">'+(p.name||'')+'</div>'+(role?('<div class="rl" aria-hidden="true">'+role+'</div>'):'')+'</div></div>';
     });
-    return h+'</ul></div>';
+    if(!list.length) h+='<div class="squad-player" style="color:var(--text-muted)">No players</div>';
+    return h+'</div>';
   }
+  split.className='squad-split';
   split.innerHTML = col(m.teamA)+col(m.teamB);
 }
 function wireSquadToggles(){

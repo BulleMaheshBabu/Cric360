@@ -3,35 +3,60 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Cric360 Telugu YT – Tools</title>
+<title>Cric360 – Tools</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0b1326;--card:rgba(30,41,59,.72);--border:rgba(56,189,248,.22);
-  --text:#dae2fd;--muted:#bec8d2;--primary:#38bdf8;--primary-bright:#89ceff;
-  --ok:#10b981;--danger:#f43f5e;--sec:#222a3d;--shadow:0 16px 48px rgba(0,0,0,.45);
+  --bg:#0b1326;--card:rgba(30,41,59,.78);--border:rgba(56,189,248,.28);
+  --text:#e8eefc;--muted:#a8b4c8;--primary:#38bdf8;--primary-bright:#7dd3fc;
+  --ok:#00e676;--danger:#f43f5e;--sec:#1e293b;--shadow:0 16px 48px rgba(0,0,0,.45);
+  --accent-auction:#38bdf8;--accent-live:#00e676;
 }
 *{box-sizing:border-box}
 body{
   margin:0;min-height:100dvh;font-family:'Plus Jakarta Sans',system-ui,sans-serif;
   background:
-    radial-gradient(900px 480px at 12% -8%,rgba(14,165,233,.16),transparent 55%),
-    radial-gradient(700px 400px at 95% 8%,rgba(16,185,129,.1),transparent 50%),
+    radial-gradient(900px 480px at 12% -8%,rgba(14,165,233,.18),transparent 55%),
+    radial-gradient(700px 400px at 95% 8%,rgba(0,230,118,.1),transparent 50%),
     #0f172a;
   color:var(--text);line-height:1.5;
 }
-.wrap{max-width:520px;margin:0 auto;padding:28px 16px 56px}
+.wrap{max-width:520px;margin:0 auto;padding:20px 16px 48px}
 .panel{
   background:var(--card);border:1px solid var(--border);border-radius:20px;
-  padding:28px 20px;box-shadow:var(--shadow);backdrop-filter:blur(16px);
+  padding:22px 18px 28px;box-shadow:var(--shadow);backdrop-filter:blur(16px);
 }
-h1{
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-bottom:18px;min-height:44px;
+}
+.brand{
   font-family:'Space Grotesk','Plus Jakarta Sans',system-ui,sans-serif;
-  font-size:1.65rem;font-weight:700;letter-spacing:-.03em;margin:0 0 12px;text-align:center;
-  background:linear-gradient(90deg,#c9e6ff,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent;
+  font-size:1.45rem;font-weight:700;letter-spacing:-.03em;margin:0;
+  background:linear-gradient(90deg,#e0f2fe,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent;
 }
-.welcome{text-align:center;margin:0 0 8px;font-size:15px;font-weight:700;line-height:1.45}
-.welcome-sub{color:var(--muted);text-align:center;margin:0 0 20px;font-size:14px;line-height:1.55}
+.brand:focus{outline:none}
+.brand:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
+.user-pill{
+  display:inline-flex;align-items:center;gap:8px;max-width:52%;
+  padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;
+  background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:var(--primary-bright);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.user-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0;box-shadow:0 0 8px var(--ok)}
+.tagline{
+  text-align:center;margin:0 0 8px;font-size:15px;font-weight:700;line-height:1.4;color:var(--text);
+}
+.tagline-sub{
+  color:var(--muted);text-align:center;margin:0 0 16px;font-size:13px;line-height:1.5;font-weight:500;
+}
+.feature-strip{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 22px;list-style:none;padding:0;
+}
+.feature-strip li{
+  font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;
+  background:rgba(15,23,42,.7);border:1px solid var(--border);color:var(--primary-bright);
+}
 .hidden{display:none!important}
 button{
   font-family:inherit;font-size:1rem;font-weight:700;border-radius:14px;
@@ -41,29 +66,58 @@ button{
 button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .btn-ok{
   background:linear-gradient(135deg,#0ea5e9,#0284c7);border-color:transparent;color:#001e2f;font-weight:800;
-  box-shadow:0 4px 24px rgba(14,165,233,.3);
+  box-shadow:0 4px 24px rgba(14,165,233,.35);
 }
 .btn-sec{background:transparent;border:1px solid var(--border);color:var(--primary-bright)}
 .btn-block{width:100%;display:block;margin-top:12px}
 .tool-card{
-  display:block;width:100%;text-align:left;margin-top:14px;padding:20px 18px;
+  display:block;width:100%;text-align:left;margin-top:14px;padding:0;
   border-radius:18px;border:1px solid var(--border);
-  background:linear-gradient(145deg,rgba(15,23,42,.95),rgba(30,41,59,.75));
+  background:linear-gradient(145deg,rgba(15,23,42,.98),rgba(30,41,59,.8));
   text-decoration:none;color:inherit;box-shadow:0 8px 28px rgba(0,0,0,.35);
+  overflow:hidden;position:relative;
 }
 .tool-card:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
-.tool-card:hover{border-color:var(--primary)}
+.tool-card:hover{border-color:var(--primary);transform:translateY(-1px);transition:border-color .15s,transform .15s}
+.tool-card.card-auction{border-left:4px solid var(--accent-auction)}
+.tool-card.card-live{border-left:4px solid var(--accent-live)}
+.tool-card-inner{padding:18px 16px 16px}
+.tool-card-head{display:flex;align-items:flex-start;gap:12px}
+.tool-icon{
+  flex-shrink:0;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;line-height:1;
+  background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);
+}
+.card-live .tool-icon{background:rgba(0,230,118,.12);border-color:rgba(0,230,118,.3)}
 .tool-card strong{
-  display:block;font-size:1.2rem;font-weight:800;color:var(--primary-bright);letter-spacing:-.02em;
+  display:block;font-size:1.15rem;font-weight:800;color:var(--primary-bright);letter-spacing:-.02em;margin:0;
 }
-.tool-card span{display:block;margin-top:10px;font-size:14px;color:var(--muted);font-weight:500;line-height:1.5}
-.badge{
-  display:inline-block;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;
-  background:rgba(16,185,129,.18);color:#4edea3;margin-top:12px;letter-spacing:.04em;text-transform:uppercase;
+.card-live strong{color:#5eead4}
+.tool-card .desc{display:block;margin-top:8px;font-size:13px;color:var(--muted);font-weight:500;line-height:1.5}
+.tool-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.cta{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:40px;padding:8px 16px;border-radius:999px;font-size:13px;font-weight:800;
+  letter-spacing:.04em;text-transform:uppercase;
+  background:linear-gradient(135deg,#00e676,#00c853);color:#003d1a;
+  box-shadow:0 4px 16px rgba(0,230,118,.35);
 }
+.card-auction .cta{
+  background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#002033;
+  box-shadow:0 4px 16px rgba(14,165,233,.4);
+}
+.cta-chevron{font-size:16px;opacity:.9}
+.pill-tag{
+  font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;
+  background:rgba(56,189,248,.15);color:var(--primary-bright);letter-spacing:.03em;text-transform:uppercase;
+}
+.card-live .pill-tag{background:rgba(0,230,118,.15);color:#5eead4}
 #authError{color:var(--danger);font-weight:600;min-height:1.3em;margin-top:12px;text-align:center}
-.user-line{font-size:13px;color:var(--muted);text-align:center;margin-top:18px}
-.hub-status{color:var(--muted);text-align:center;font-size:13px;margin:0 0 4px}
+.auth-brand{text-align:center;margin-bottom:8px}
+.auth-brand .brand{font-size:1.75rem}
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;
+}
 </style>
 </head>
 <body>
@@ -73,55 +127,92 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 </section>
 
 <section id="screenAuth" class="panel hidden" role="region" aria-labelledby="authTitle">
-  <h1 id="authTitle" tabindex="-1">Welcome</h1>
-  <p class="welcome">Welcome to the world's most customizable cricketing tool!</p>
-  <p class="welcome-sub">Enjoy live matches, auctions, trackers, and much more — from local to international coverage of cricketing action, powered with 360-degree angles.</p>
+  <div class="auth-brand">
+    <h1 id="authTitle" class="brand" tabindex="-1">Cric360</h1>
+  </div>
+  <p class="tagline">Live matches, auctions, and tournament tracking — in one place.</p>
+  <p class="tagline-sub">From club games to full tournament coverage, with screen-reader friendly tools.</p>
+  <ul class="feature-strip" aria-label="Highlights">
+    <li>Live scoring</li>
+    <li>Player auctions</li>
+    <li>Match tracking</li>
+  </ul>
   <button type="button" id="btnGoogle" class="btn-ok btn-block" aria-label="Sign in with Google">Sign in with Google</button>
   <p id="authError" role="alert"></p>
 </section>
 
 <section id="screenHub" class="panel hidden" role="region" aria-labelledby="hubTitle">
-  <h1 id="hubTitle" tabindex="-1">Welcome</h1>
-  <p class="welcome">Welcome to the world's most customizable cricketing tool!</p>
-  <p class="welcome-sub">Enjoy live matches, auctions, trackers, and much more — from local to international coverage of cricketing action, powered with 360-degree angles.</p>
-  <p class="hub-status" id="hubSub"></p>
+  <div class="topbar">
+    <h1 id="hubTitle" class="brand" tabindex="-1">Cric360</h1>
+    <div class="user-pill" id="userPill" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="hubSub">Signed in</span>
+    </div>
+  </div>
 
-  <a class="tool-card" href="auctiontracker360.html" aria-label="Auction Tracker 360. Run and view live club cricket auctions">
-    <strong>Auction Tracker 360</strong>
-    <span>Run and view live auctions of your club cricket tournaments with ease. Track every bid, every player, and every moment in real time.</span>
-    <span class="badge">Open</span>
+  <p class="tagline">Choose a tool to get started</p>
+  <p class="tagline-sub">Live scoring, player auctions, and tournament tracking for your cricket events.</p>
+  <ul class="feature-strip" aria-hidden="true">
+    <li>Live scoring</li>
+    <li>Player auctions</li>
+    <li>Match tracking</li>
+  </ul>
+
+  <a class="tool-card card-auction" href="auctiontracker360.html"
+     aria-label="Auction Tracker 360. Run and view live club cricket auctions. Open tool.">
+    <div class="tool-card-inner">
+      <div class="tool-card-head">
+        <span class="tool-icon" aria-hidden="true">🔨</span>
+        <div>
+          <strong>Auction Tracker 360</strong>
+          <span class="desc">Run live club auctions. Track every bid, player, and purse in real time.</span>
+        </div>
+      </div>
+      <div class="tool-card-foot">
+        <span class="pill-tag">Auctions</span>
+        <span class="cta">Open <span class="cta-chevron" aria-hidden="true">→</span></span>
+      </div>
+    </div>
   </a>
 
-  <a class="tool-card" href="cric360live.html" aria-label="Cric360. Host or watch live matches and player auctions">
-    <strong>Cric360</strong>
-    <span>Host or watch live events of cricket matches and player auctions. Experience the thrill of cricket like never before with Cric360.</span>
-    <span class="badge" id="badgeCric">Open</span>
+  <a class="tool-card card-live" href="cric360live.html"
+     aria-label="Cric360 Live. Host or watch live matches and simple player auctions. Open tool.">
+    <div class="tool-card-inner">
+      <div class="tool-card-head">
+        <span class="tool-icon" aria-hidden="true">🏏</span>
+        <div>
+          <strong>Cric360 Live</strong>
+          <span class="desc">Host or watch live matches and player auctions with ball-by-ball updates.</span>
+        </div>
+      </div>
+      <div class="tool-card-foot">
+        <span class="pill-tag" id="badgeCric">Matches</span>
+        <span class="cta">Open <span class="cta-chevron" aria-hidden="true">→</span></span>
+      </div>
+    </div>
   </a>
 
-  <p class="user-line" id="userLine"></p>
-  <button type="button" id="btnSignOut" class="btn-sec btn-block" aria-label="Sign out">Sign out</button>
+  <p class="sr-only" id="userLine"></p>
+  <button type="button" id="btnSignOut" class="btn-sec btn-block" aria-label="Sign out" style="margin-top:20px">Sign out</button>
 </section>
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30",
-  authDomain: "auctiontracker360.firebaseapp.com",
-  projectId: "auctiontracker360",
-  storageBucket: "auctiontracker360.firebasestorage.app",
-  messagingSenderId: "1035286573847",
-  appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
-  measurementId: "G-MTYE09EDSY"
-};
 const SUPER_ADMIN = "maheshdhoni7633@gmail.com";
 let auth;
 try {
+  const firebaseConfig = window.FIREBASE_CONFIG;
+  if (!firebaseConfig || !firebaseConfig.apiKey) {
+    throw new Error('Firebase config missing. Deploy with build.sh / Render env vars.');
+  }
   firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (pe) {}
 } catch (e) {
-  document.getElementById('screenBoot').innerHTML = '<p style="color:#f43f5e;text-align:center">Could not start. Check connection and refresh.</p>';
+  console.error(e);
+  document.getElementById('screenBoot').innerHTML = '<p style="color:#f43f5e;text-align:center">Could not start. Firebase config missing or invalid.</p>';
 }
 function $(id){ return document.getElementById(id); }
 function show(id){
@@ -151,9 +242,11 @@ auth.onAuthStateChanged(u => {
     return;
   }
   const admin = (u.email || '').toLowerCase() === SUPER_ADMIN;
-  $('hubSub').textContent = admin ? 'Signed in as admin' : 'Signed in';
+  const short = admin ? 'Admin' : ((u.email || 'User').split('@')[0]);
+  $('hubSub').textContent = short;
+  $('userPill').setAttribute('aria-label', admin ? 'Signed in as admin' : ('Signed in as ' + (u.email || 'user')));
   $('userLine').textContent = u.email || '';
-  if ($('badgeCric')) $('badgeCric').textContent = admin ? 'Admin' : 'Open';
+  if ($('badgeCric')) $('badgeCric').textContent = admin ? 'Admin' : 'Matches';
   show('screenHub');
   setTimeout(() => $('hubTitle').focus(), 50);
 });

@@ -1,12 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Cric360 — Tools</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Cric360 Telugu YT – Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1326;--card:rgba(30,41,59,.72);--border:rgba(56,189,248,.22);
+  --text:#dae2fd;--muted:#bec8d2;--primary:#38bdf8;--primary-bright:#89ceff;
+  --ok:#10b981;--danger:#f43f5e;--sec:#222a3d;--shadow:0 16px 48px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100dvh;font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  background:
+    radial-gradient(900px 480px at 12% -8%,rgba(14,165,233,.16),transparent 55%),
+    radial-gradient(700px 400px at 95% 8%,rgba(16,185,129,.1),transparent 50%),
+    #0f172a;
+  color:var(--text);line-height:1.5;
+}
+.wrap{max-width:520px;margin:0 auto;padding:28px 16px 56px}
+.panel{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:28px 20px;box-shadow:var(--shadow);backdrop-filter:blur(16px);
+}
+h1{
+  font-family:'Space Grotesk','Plus Jakarta Sans',system-ui,sans-serif;
+  font-size:1.65rem;font-weight:700;letter-spacing:-.03em;margin:0 0 12px;text-align:center;
+  background:linear-gradient(90deg,#c9e6ff,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.welcome{text-align:center;margin:0 0 8px;font-size:15px;font-weight:700;line-height:1.45}
+.welcome-sub{color:var(--muted);text-align:center;margin:0 0 20px;font-size:14px;line-height:1.55}
+.hidden{display:none!important}
+button{
+  font-family:inherit;font-size:1rem;font-weight:700;border-radius:14px;
+  border:1px solid var(--border);min-height:52px;padding:12px 18px;cursor:pointer;
+  background:var(--sec);color:var(--text);
+}
+button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn-ok{
+  background:linear-gradient(135deg,#0ea5e9,#0284c7);border-color:transparent;color:#001e2f;font-weight:800;
+  box-shadow:0 4px 24px rgba(14,165,233,.3);
+}
+.btn-sec{background:transparent;border:1px solid var(--border);color:var(--primary-bright)}
+.btn-block{width:100%;display:block;margin-top:12px}
+.tool-card{
+  display:block;width:100%;text-align:left;margin-top:14px;padding:20px 18px;
+  border-radius:18px;border:1px solid var(--border);
+  background:linear-gradient(145deg,rgba(15,23,42,.95),rgba(30,41,59,.75));
+  text-decoration:none;color:inherit;box-shadow:0 8px 28px rgba(0,0,0,.35);
+}
+.tool-card:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.tool-card:hover{border-color:var(--primary)}
+.tool-card strong{
+  display:block;font-size:1.2rem;font-weight:800;color:var(--primary-bright);letter-spacing:-.02em;
+}
+.tool-card span{display:block;margin-top:10px;font-size:14px;color:var(--muted);font-weight:500;line-height:1.5}
+.badge{
+  display:inline-block;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;
+  background:rgba(16,185,129,.18);color:#4edea3;margin-top:12px;letter-spacing:.04em;text-transform:uppercase;
+}
+#authError{color:var(--danger);font-weight:600;min-height:1.3em;margin-top:12px;text-align:center}
+.user-line{font-size:13px;color:var(--muted);text-align:center;margin-top:18px}
+.hub-status{color:var(--muted);text-align:center;font-size:13px;margin:0 0 4px}
+</style>
 </head>
 <body>
-<p>Loading full deploy… If you see this, open the latest push with complete index.html.</p>
-<script>location.replace('./index.html');</script>
+<main class="wrap">
+<section id="screenBoot" class="panel" role="status" aria-live="polite">
+  <p style="text-align:center;font-weight:700;margin:0">Starting…</p>
+</section>
+
+<section id="screenAuth" class="panel hidden" role="region" aria-labelledby="authTitle">
+  <h1 id="authTitle" tabindex="-1">Welcome</h1>
+  <p class="welcome">Welcome to the world's most customizable cricketing tool!</p>
+  <p class="welcome-sub">Enjoy live matches, auctions, trackers, and much more — from local to international coverage of cricketing action, powered with 360-degree angles.</p>
+  <button type="button" id="btnGoogle" class="btn-ok btn-block" aria-label="Sign in with Google">Sign in with Google</button>
+  <p id="authError" role="alert"></p>
+</section>
+
+<section id="screenHub" class="panel hidden" role="region" aria-labelledby="hubTitle">
+  <h1 id="hubTitle" tabindex="-1">Welcome</h1>
+  <p class="welcome">Welcome to the world's most customizable cricketing tool!</p>
+  <p class="welcome-sub">Enjoy live matches, auctions, trackers, and much more — from local to international coverage of cricketing action, powered with 360-degree angles.</p>
+  <p class="hub-status" id="hubSub"></p>
+
+  <a class="tool-card" href="auctiontracker360.html" aria-label="Auction Tracker 360. Run and view live club cricket auctions">
+    <strong>Auction Tracker 360</strong>
+    <span>Run and view live auctions of your club cricket tournaments with ease. Track every bid, every player, and every moment in real time.</span>
+    <span class="badge">Open</span>
+  </a>
+
+  <a class="tool-card" href="cric360live.html" aria-label="Cric360. Host or watch live matches and player auctions">
+    <strong>Cric360</strong>
+    <span>Host or watch live events of cricket matches and player auctions. Experience the thrill of cricket like never before with Cric360.</span>
+    <span class="badge" id="badgeCric">Open</span>
+  </a>
+
+  <p class="user-line" id="userLine"></p>
+  <button type="button" id="btnSignOut" class="btn-sec btn-block" aria-label="Sign out">Sign out</button>
+</section>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30",
+  authDomain: "auctiontracker360.firebaseapp.com",
+  projectId: "auctiontracker360",
+  storageBucket: "auctiontracker360.firebasestorage.app",
+  messagingSenderId: "1035286573847",
+  appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
+  measurementId: "G-MTYE09EDSY"
+};
+const SUPER_ADMIN = "maheshdhoni7633@gmail.com";
+let auth;
+try {
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (pe) {}
+} catch (e) {
+  document.getElementById('screenBoot').innerHTML = '<p style="color:#f43f5e;text-align:center">Could not start. Check connection and refresh.</p>';
+}
+function $(id){ return document.getElementById(id); }
+function show(id){
+  ['screenBoot','screenAuth','screenHub'].forEach(s => $(s).classList.add('hidden'));
+  $(id).classList.remove('hidden');
+}
+$('btnGoogle').onclick = async () => {
+  $('authError').textContent = '';
+  try {
+    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  } catch (e) {
+    let msg = (e && e.message) || 'Sign-in failed';
+    if (e && e.code === 'auth/popup-closed-by-user') msg = 'Sign-in was cancelled.';
+    if (e && e.code === 'auth/popup-blocked') {
+      try { await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); return; }
+      catch (e2) { msg = (e2 && e2.message) || msg; }
+    }
+    if (e && e.code === 'auth/unauthorized-domain') msg = 'Add this domain in Firebase Authentication → Authorized domains.';
+    $('authError').textContent = msg;
+  }
+};
+$('btnSignOut').onclick = () => auth.signOut();
+auth.onAuthStateChanged(u => {
+  if (!u) {
+    show('screenAuth');
+    setTimeout(() => $('authTitle').focus(), 50);
+    return;
+  }
+  const admin = (u.email || '').toLowerCase() === SUPER_ADMIN;
+  $('hubSub').textContent = admin ? 'Signed in as admin' : 'Signed in';
+  $('userLine').textContent = u.email || '';
+  if ($('badgeCric')) $('badgeCric').textContent = admin ? 'Admin' : 'Open';
+  show('screenHub');
+  setTimeout(() => $('hubTitle').focus(), 50);
+});
+</script>
 </body>
 </html>

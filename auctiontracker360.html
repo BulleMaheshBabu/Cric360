@@ -428,7 +428,7 @@ a{color:var(--primary)}
   </div></div>
   <nav class="tabbar" role="tablist" aria-label="Viewer tabs">
     <button type="button" role="tab" id="wTabLive" class="active" aria-selected="true">Live</button>
-    <button type="button" role="tab" id="wTabSquads" aria-selected="false">Squads</button>
+    <button type="button" role="tab" id="wTabSquads" aria-selected="false" aria-label="Teams">Teams</button>
     <button type="button" role="tab" id="wTabLists" aria-selected="false">More</button>
   </nav>
 </section>
@@ -541,7 +541,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.08.31.1.17</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.08.31.2.1</p>
   </div>
 </section>
 
@@ -596,7 +596,7 @@ a{color:var(--primary)}
       </div>
     </div>
     <div id="tabSquads" class="panel hidden" role="region" aria-labelledby="sqTitle">
-      <h1 id="sqTitle">Squads</h1>
+      <h1 id="sqTitle" tabindex="-1">Teams</h1>
       <div id="sqBody"></div>
     </div>
     <div id="tabTools" class="panel hidden" role="region" aria-labelledby="toolsTitle">
@@ -628,7 +628,7 @@ a{color:var(--primary)}
   </div>
   <nav class="tabbar" role="tablist" aria-label="Auction tabs">
     <button type="button" role="tab" id="tabBtnAuction" class="active" aria-selected="true">Auction</button>
-    <button type="button" role="tab" id="tabBtnSquads" aria-selected="false">Squads</button>
+    <button type="button" role="tab" id="tabBtnSquads" aria-selected="false" aria-label="Teams">Teams</button>
     <button type="button" role="tab" id="tabBtnTools" aria-selected="false">More</button>
   </nav>
 </section>
@@ -1328,10 +1328,12 @@ function isUiLocked(){
   if(window._modalOpen || (typeof isConfirmOpen==='function' && isConfirmOpen())) return true;
   if(typeof isMsgPanelOpen==='function' && isMsgPanelOpen()) return true;
   if(typeof isSoldFormOpen==='function' && isSoldFormOpen()) return true;
+  if($('squadAddOverlay') && !$('squadAddOverlay').classList.contains('hidden')) return true;
+  if($('squadPriceOverlay') && !$('squadPriceOverlay').classList.contains('hidden')) return true;
   const ae=document.activeElement;
-  if(ae && (ae.id==='msgText'||ae.id==='sTeam'||ae.id==='sPrice'||ae.id==='ultimateBid'||ae.id==='addQ'||ae.id==='addPrice'||ae.id==='addSel')) return true;
+  if(ae && (ae.id==='msgText'||ae.id==='sTeam'||ae.id==='sPrice'||ae.id==='ultimateBid'||ae.id==='addQ'||ae.id==='addPrice'||ae.id==='addSel'||ae.id==='chgPriceInput')) return true;
   if(ae && (ae.tagName==='SELECT'||ae.tagName==='TEXTAREA'||ae.tagName==='INPUT')) return true;
-  if(window._squadBusy) return true;
+  if(window._squadBusy || window._squadPending) return true;
   return false;
 }
 /** Run async work with user-visible error handling */
@@ -2032,9 +2034,14 @@ function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInte
 
 function applyAuctionData(data){
   if(data.presence) window._lastPresence=data.presence;
+  // While host is editing squads (add / change price / remove), do NOT wipe local teams+players
+  // from a concurrent snapshot — that was discarding Add player and Change price before save finished.
+  const preserveSquad = !!(window._squadBusy || window._squadPending || (typeof isUiLocked==='function' && isUiLocked() && ($('squadAddOverlay') && !$('squadAddOverlay').classList.contains('hidden'))));
+  const keepTeams = preserveSquad && T && T.teams ? T.teams : (data.teams||[]);
+  const keepPlayers = preserveSquad && T && T.players ? T.players : (data.players||[]);
   T={
     title:data.title, mode:data.mode||'physical', status:data.status||'live',
-    teams:data.teams||[], players:data.players||[], meta:data.meta||{currentIndex:0},
+    teams:keepTeams, players:keepPlayers, meta:data.meta||{currentIndex:0},
     activeColumns:data.activeColumns||activeCols, rules:data.rules||null,
     bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
     pendingCoOrganisers:data.pendingCoOrganisers||[], coOrganiserIds:data.coOrganiserIds||[],
@@ -3748,9 +3755,10 @@ function renderAuction(opts){
     return;
   }
   if(helperMode){
-    box.innerHTML='<p style="text-align:center;font-size:13px;font-weight:700;color:var(--muted)">HELPER · SQUADS ONLY</p>'+
-      '<div class="player-stage"><p style="margin:0;font-size:13px;font-weight:700;color:var(--muted)">NOW AUCTIONING</p>'+
-      '<h2 class="player-name" id="pName" tabindex="-1">'+(p.name||'')+'</h2></div>'+recentCardHtml(recent);
+    const helpSpoken='Now auctioning '+(p.name||'Unnamed')+', '+(idx+1)+' of '+((T.players||[]).length);
+    box.innerHTML='<p style="text-align:center;font-size:13px;font-weight:700;color:var(--muted)" aria-hidden="true">HELPER · TEAMS ONLY</p>'+
+      '<div class="player-stage"><p style="margin:0;font-size:13px;font-weight:700;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
+      '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+helpSpoken.replace(/"/g,'')+'">'+helpSpoken+'</h2></div>'+recentCardHtml(recent);
     focusEl($('pName'));
     if($('btnEndAuction')) $('btnEndAuction').classList.add('hidden');
     return;
@@ -3761,7 +3769,7 @@ function renderAuction(opts){
   box.innerHTML=
     '<div class="player-stage" id="playerCard">'+
     '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-    '<h2 class="player-name" id="pName" tabindex="-1">'+physSpoken+'</h2></div>'+
+    '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+physSpoken.replace(/"/g,'')+'">'+physSpoken+'</h2></div>'+
     '<div id="bidRegion" class="btn-stack">'+
     '<button type="button" id="btnSold" class="btn-ok btn-block" aria-label="Sold">Sold</button>'+
     '<button type="button" id="btnUnsold" class="btn-danger btn-block" aria-label="Unsold">Unsold</button></div>'+
@@ -3862,7 +3870,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     box.innerHTML=
       '<div class="player-stage" id="playerCard">'+
       '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-      '<h2 class="player-name" id="pName" tabindex="-1">'+playerSpoken+'</h2>'+
+      '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+String(playerSpoken).replace(/"/g,'')+'">'+playerSpoken+'</h2>'+
       '<p class="lead-line">'+lead+'</p>'+
       '<p class="timer-box warn" role="status">Waiting for host</p></div>'+
       (isHost?'<div id="hostDecisionMount"></div>':'')+
@@ -3956,7 +3964,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   box.innerHTML=
     '<div class="auc-player-line player-stage" id="playerCard" style="padding:14px 12px">'+
     '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-    '<h2 class="player-name" id="pName" tabindex="-1">'+playerSpoken+'</h2>'+
+    '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+String(playerSpoken).replace(/"/g,'')+'">'+playerSpoken+'</h2>'+
     '<p class="lead-line" id="leadLine" style="margin:8px 0 0;padding:8px;font-size:0.95rem">'+leadText+'</p>'+
     '</div>'+
     '<p class="timer-box" id="pTimer" role="timer" aria-label="Time remaining '+sec+' seconds"><span aria-hidden="true">'+sec+'s</span><span class="sr-only">Time remaining '+sec+' seconds</span></p>'+
@@ -4862,24 +4870,97 @@ async function saveSquadEdits(){
   if(!T||!db||!user) throw new Error('Not signed in or auction not ready');
   if(!auctionId) throw new Error('Auction id missing — cannot save');
   window._squadBusy=true;
+  window._squadPending=true;
+  // Snapshot of local state at save time (immune to concurrent applyAuctionData races)
+  const teamsSnap = JSON.parse(JSON.stringify(T.teams||[]));
+  const playersSnap = JSON.parse(JSON.stringify(T.players||[]));
   const payload={
-    teams: JSON.parse(JSON.stringify(T.teams||[])),
-    players: JSON.parse(JSON.stringify(T.players||[])),
+    teams: teamsSnap,
+    players: playersSnap,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   try{
     await db.collection('auctions').doc(auctionId).set(payload,{merge:true});
+    // Re-apply saved snapshot so UI cannot flash older remote data
+    if(T){ T.teams = JSON.parse(JSON.stringify(teamsSnap)); T.players = JSON.parse(JSON.stringify(playersSnap)); }
     clearAppError();
   }finally{
-    window._squadBusy=false;
+    // Brief hold so the echo snapshot does not clobber before merge lands
+    setTimeout(function(){ window._squadBusy=false; window._squadPending=false; }, 400);
   }
+}
+
+
+function openChangePriceDialog(teamIndex, playerIndex, pname, pprice){
+  const t=T && T.teams && T.teams[teamIndex];
+  if(!t || !t.players || !t.players[playerIndex]) return;
+  window._squadBusy=true;
+  window._squadPending=true;
+  let overlay=$('squadPriceOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='squadPriceOverlay';
+    overlay.className='modal';
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    overlay.setAttribute('aria-labelledby','squadPriceTitle');
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove('hidden');
+  overlay.innerHTML=
+    '<div class="modal-box">'+
+    '<h2 id="squadPriceTitle" tabindex="-1">Change price</h2>'+
+    '<p style="font-weight:700">'+String(pname||'Player').replace(/</g,'')+'</p>'+
+    '<p style="color:var(--muted);font-size:14px">Current price '+pprice+' · Purse remaining '+t.remaining+'</p>'+
+    '<label for="chgPriceInput">New price</label>'+
+    '<input id="chgPriceInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="New price for '+String(pname||'').replace(/"/g,'')+'" value="'+String(pprice)+'" />'+
+    '<div class="btn-stack">'+
+    '<button type="button" id="btnChgPriceSave" class="btn-ok btn-block">Save price</button>'+
+    '<button type="button" id="btnChgPriceCancel" class="btn-sec btn-block">Cancel</button>'+
+    '</div></div>';
+  focusEl($('squadPriceTitle'));
+  setTimeout(function(){ const i=$('chgPriceInput'); if(i){ i.focus(); i.select(); } }, 80);
+  function closePrice(){
+    overlay.classList.add('hidden');
+    overlay.innerHTML='';
+    window._squadBusy=false;
+    window._squadPending=false;
+  }
+  $('btnChgPriceCancel').onclick=closePrice;
+  $('btnChgPriceSave').onclick=async function(){
+    const btn=$('btnChgPriceSave');
+    if(btn) btn.disabled=true;
+    try{
+      const team = (T.teams||[])[teamIndex];
+      if(!team || !team.players || !team.players[playerIndex]){ alert('Player not found'); return; }
+      const pl = team.players[playerIndex];
+      const np=parseInt(String(($('chgPriceInput')&&$('chgPriceInput').value)||'').replace(/\D/g,''),10);
+      if(!np||np<=0){ alert('Enter a valid price'); return; }
+      const old=Number(pl.price)||0;
+      const d=np-old;
+      if(d>Number(team.remaining||0)){ alert('Not enough purse. Remaining: '+team.remaining); return; }
+      team.remaining=Number(team.remaining||0)-d;
+      pl.price=np;
+      squadView=teamIndex;
+      await saveSquadEdits();
+      closePrice();
+      renderSquads();
+      announce((pname||'Player')+' price updated to '+np);
+    }catch(e){
+      safeAlert(e);
+      if(btn) btn.disabled=false;
+    }
+  };
 }
 
 function openAddPlayerDialog(teamIndex){
   const t=T && T.teams && T.teams[teamIndex];
-  if(!t) return;
+  if(!t){ alert('Team not found'); return; }
+  if(!canEditSquads()){ alert('You cannot edit squads'); return; }
   window._squadBusy=true;
-  // Modal panel inside confirm-style overlay
+  window._squadPending=true;
+  const teamId = t.id;
+  const teamName = t.name || 'Team';
   let overlay=$('squadAddOverlay');
   if(!overlay){
     overlay=document.createElement('div');
@@ -4893,14 +4974,14 @@ function openAddPlayerDialog(teamIndex){
   overlay.classList.remove('hidden');
   overlay.innerHTML=
     '<div class="modal-box">'+
-    '<h2 id="squadAddTitle" tabindex="-1">Add player to '+t.name+'</h2>'+
+    '<h2 id="squadAddTitle" tabindex="-1">Add player to '+teamName+'</h2>'+
     '<label for="addQ">Search player</label>'+
-    '<input id="addQ" type="search" autocomplete="off" placeholder="Type name" aria-label="Search player" />'+
+    '<input id="addQ" type="search" autocomplete="off" placeholder="Type name" aria-label="Search player by name" />'+
     '<label for="addSel">Player</label>'+
     '<select id="addSel" aria-label="Matching players" style="width:100%;min-height:48px"></select>'+
     '<p id="addStatus" style="color:var(--muted);font-size:14px;font-weight:700" role="status"></p>'+
     '<label for="addPrice">Price</label>'+
-    '<input id="addPrice" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Price" placeholder="Enter price" />'+
+    '<input id="addPrice" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Enter price" placeholder="Enter price" />'+
     '<div class="btn-stack">'+
     '<button type="button" id="btnAddPlayerSave" class="btn-ok btn-block">Add to squad</button>'+
     '<button type="button" id="btnAddPlayerCancel" class="btn-sec btn-block">Cancel</button>'+
@@ -4910,22 +4991,25 @@ function openAddPlayerDialog(teamIndex){
     const q=String(($('addQ')&&$('addQ').value)||'').toLowerCase().trim();
     const sel=$('addSel'); if(!sel) return;
     sel.innerHTML='';
-    const matches=(T.players||[]).filter(function(p){
-      if(q && (p.name||'').toLowerCase().indexOf(q)<0) return false;
-      return true;
-    }).slice(0,40);
-    if(!matches.length){
+    const matches=[];
+    (T.players||[]).forEach(function(p, idx){
+      if(q && (p.name||'').toLowerCase().indexOf(q)<0) return;
+      matches.push({p:p, idx:idx});
+    });
+    const limited=matches.slice(0,50);
+    if(!limited.length){
       const o=document.createElement('option');
       o.value=''; o.textContent='No matches';
       sel.appendChild(o);
       if($('addStatus')) $('addStatus').textContent='';
       return;
     }
-    matches.forEach(function(p){
+    limited.forEach(function(m){
       const o=document.createElement('option');
-      o.value=String((T.players||[]).indexOf(p));
-      const st=playerStatusLabel(p);
-      o.textContent=(p.name||'Player')+' — '+st;
+      o.value=String(m.idx);
+      const st=playerStatusLabel(m.p);
+      o.textContent=(m.p.name||'Player')+' — '+st;
+      o.setAttribute('aria-label', (m.p.name||'Player')+', '+st);
       sel.appendChild(o);
     });
     updateStatus();
@@ -4941,47 +5025,70 @@ function openAddPlayerDialog(teamIndex){
   focusEl($('squadAddTitle'));
   setTimeout(function(){ if($('addQ')) focusEl($('addQ')); }, 80);
 
-  $('btnAddPlayerCancel').onclick=function(){
+  function closeAdd(){
     overlay.classList.add('hidden');
     overlay.innerHTML='';
     window._squadBusy=false;
-    focusEl($('btnOpenAddPlayer')||$('sqDet'));
-  };
+    window._squadPending=false;
+    try{ focusEl($('btnOpenAddPlayer')||$('sqDet')); }catch(e){}
+  }
+  $('btnAddPlayerCancel').onclick=closeAdd;
+
   $('btnAddPlayerSave').onclick=async function(){
+    const btn=$('btnAddPlayerSave');
+    if(btn) btn.disabled=true;
     try{
+      // Resolve team by id (index may be stale after remote sync)
+      const team = (T.teams||[]).find(function(x){ return x.id===teamId; }) || (T.teams||[])[teamIndex];
+      if(!team){ alert('Team not found — go back and open the squad again'); return; }
       const ix=parseInt($('addSel')&&$('addSel').value,10);
-      if(isNaN(ix)||ix<0){ alert('Choose a player'); return; }
+      if(isNaN(ix)||ix<0||!T.players[ix]){ alert('Choose a player from the list'); return; }
       const mp=T.players[ix];
-      if(!mp){ alert('Player not found'); return; }
+      // Already on THIS team?
+      const alreadyHere=(team.players||[]).some(function(sp){
+        return (mp.serial && sp.serial===mp.serial) || (sp.name===mp.name);
+      });
+      if(alreadyHere){ alert((mp.name||'Player')+' is already in '+team.name); return; }
+      // Already sold to another team?
       if(mp.sold){
-        alert((mp.name||'Player')+' is already in a team. Remove them from that squad first, or pick another player.');
+        let other='';
+        (T.teams||[]).forEach(function(tm){
+          (tm.players||[]).forEach(function(sp){
+            if((mp.serial && sp.serial===mp.serial) || (sp.name===mp.name)) other=tm.name;
+          });
+        });
+        alert((mp.name||'Player')+' is already in '+(other||'another team')+'. Remove them from that squad first.');
         return;
       }
-      const price=parseInt(String($('addPrice')&&$('addPrice').value||'').replace(/\D/g,''),10);
-      if(!price||price<0){ alert('Enter price'); return; }
-      if(price>Number(t.remaining||0)){ alert('Not enough purse. Remaining: '+t.remaining); return; }
-      if(typeof isTeamAtMax==='function' && isTeamAtMax(t)){
-        alert('Maximum players filled for '+t.name+'. Unable to proceed.');
+      const price=parseInt(String(($('addPrice')&&$('addPrice').value)||'').replace(/\D/g,''),10);
+      if(!price || price<=0){ alert('Enter a valid price'); return; }
+      if(price>Number(team.remaining||0)){ alert('Not enough purse. Remaining: '+team.remaining); return; }
+      if(typeof isTeamAtMax==='function' && isTeamAtMax(team)){
+        alert('Maximum players filled for '+team.name+'. Unable to proceed.');
         return;
       }
-      // Move from another unsold/remaining into this squad
-      t.players=t.players||[];
-      t.players.push({
-        name:mp.name, serial:mp.serial, gamerId:mp.gamerId, state:mp.state,
+      team.players=team.players||[];
+      team.players.push({
+        name:mp.name, serial:mp.serial||'', gamerId:mp.gamerId||'', state:mp.state||'',
         price:price
       });
-      t.remaining=Number(t.remaining||0)-price;
-      if(typeof getTeamMax==='function' && getTeamMax(t)>0 && t.players.length>=getTeamMax(t)) t.maxReached=true;
+      team.remaining=Number(team.remaining||0)-price;
+      if(typeof getTeamMax==='function' && getTeamMax(team)>0 && team.players.length>=getTeamMax(team)) team.maxReached=true;
       mp.sold=true; mp.unsold=false;
+      // Keep squad view on this team after re-render
+      squadView = (T.teams||[]).findIndex(function(x){ return x.id===team.id; });
+      if(squadView<0) squadView=teamIndex;
       await saveSquadEdits();
       overlay.classList.add('hidden');
       overlay.innerHTML='';
-      window._squadBusy=false;
       renderSquads();
-      announce(mp.name+' added to '+t.name+' for '+price);
+      announce((mp.name||'Player')+' added to '+team.name+' for '+price);
     }catch(e){
-      window._squadBusy=false;
       safeAlert(e);
+    }finally{
+      if(btn) btn.disabled=false;
+      // saveSquadEdits clears busy after short delay; if error, clear now
+      if(window._squadPending){ /* leave timer in saveSquadEdits */ }
     }
   };
 }
@@ -5055,29 +5162,7 @@ function renderSquads(){
       ed.textContent='Change price';
       ed.setAttribute('aria-label','Change price for '+pname+', currently '+pprice);
       ed.onclick=function(){
-        const raw=prompt('New price for '+pname, String(pprice));
-        if(raw===null) return;
-        const np=parseInt(String(raw).replace(/\D/g,''),10);
-        if(!np||np<0){ alert('Enter a valid price'); return; }
-        const old=Number(pprice)||0;
-        const d=np-old;
-        if(d>Number(t.remaining||0)){ alert('Not enough purse. Remaining: '+t.remaining); return; }
-        t.remaining=Number(t.remaining||0)-d;
-        pl.price=np;
-        // Keep master list price in sync if present
-        const mp=(T.players||[]).find(function(x){
-          return (pl.serial && x.serial===pl.serial) || x.name===pl.name;
-        });
-        saveSquadEdits().then(function(){
-          renderSquads();
-          announce(pname+' price updated to '+np);
-        }).catch(function(e){
-          // rollback local
-          t.remaining=Number(t.remaining||0)+d;
-          pl.price=old;
-          safeAlert(e);
-          renderSquads();
-        });
+        openChangePriceDialog(teamIndex, pi, pname, pprice);
       };
 
       const rm=document.createElement('button');
@@ -5086,6 +5171,7 @@ function renderSquads(){
       rm.setAttribute('aria-label','Remove '+pname+' from squad');
       rm.onclick=function(){
         ask('Remove player?','Remove '+pname+' from '+t.name+' and return '+pprice+' to purse?', function(){
+          window._squadBusy=true; window._squadPending=true;
           const priceBack=Number(pl.price)||0;
           t.remaining=Number(t.remaining||0)+priceBack;
           t.players.splice(pi,1);
@@ -5101,7 +5187,6 @@ function renderSquads(){
             announce(pname+' removed');
           }).catch(function(e){
             safeAlert(e);
-            // reload from last good state via live listener — force refresh
             renderSquads();
           });
         });

@@ -321,10 +321,10 @@ button:active{transform:scale(.98)}
 <div id="live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 <div id="liveSoft" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-<header class="top-nav hidden" role="banner" id="topNavBar" aria-label="App bar">
+<header class="top-nav hidden" role="banner" id="topNavBar" aria-hidden="true" inert>
   <div class="top-nav-inner">
         <div class="brand-logo" aria-hidden="true"><span class="dot"></span> Cric360 Live</div>
-    <button type="button" id="btnNavSettings" class="btn-sec" style="min-height:40px;padding:8px 14px;font-size:13px" aria-haspopup="dialog" aria-label="Settings">Settings</button>
+    <span class="nav-ver" id="navVersionHint" aria-hidden="true"></span>
   </div>
 </header>
 
@@ -337,7 +337,7 @@ button:active{transform:scale(.98)}
 <section id="screenAuth" class="wrap panel hidden" role="region" aria-labelledby="authTitle">
   <h1 id="authTitle" tabindex="-1" style="font-weight:900;letter-spacing:-.03em">Cric360 Live</h1>
   <p style="color:var(--muted);text-align:center;margin-top:-8px">Uninterrupted live with 360 dimensions</p>
-  <p style="text-align:center;margin:16px 0">Sign in with Google to continue. If you already signed in on the tools home page, go back and open Cric360 again — it should open without asking again.</p>
+  <p style="text-align:center;margin:16px 0">Sign in with Google to continue. If you already signed in on the Cric360 home page, go back and open this tool again — it should open without asking again.</p>
   <button type="button" id="btnGoogle" class="btn-ok btn-block" aria-label="Sign in with Google">Sign in with Google</button>
   <a href="index.html" class="btn-sec btn-block" style="display:block;text-align:center;text-decoration:none;line-height:28px;margin-top:12px" aria-label="Back to tool selection">Back to tools</a>
   <p id="authError" role="alert" style="color:var(--danger);font-weight:600;min-height:1.3em;margin-top:12px"></p>
@@ -345,8 +345,7 @@ button:active{transform:scale(.98)}
 
 <!-- USER HOME (non-admin) -->
 <section id="screenUserHome" class="wrap panel hidden" role="region" aria-labelledby="userHomeTitle">
-  <h1 id="userHomeTitle" tabindex="-1">Matches</h1>
-  <p id="userHomeSub" class="sr-only">Live matches list</p>
+  <h1 id="userHomeTitle" class="sr-only" tabindex="-1">Matches</h1>
   <div id="hubUserPaneMatches">
     <div id="userMatchesList"><p style="color:var(--muted)">Loading…</p></div>
   </div>
@@ -365,7 +364,7 @@ button:active{transform:scale(.98)}
 
 <section id="screenUserMatches" class="wrap panel hidden" role="region" aria-labelledby="userMatchesTitle">
   <button type="button" class="btn-sec" id="btnBackUserMatches" aria-label="Back">Back</button>
-  <h2 id="userMatchesTitle" tabindex="-1">Live matches</h2>
+  <h2 id="userMatchesTitle" class="sr-only" tabindex="-1">Live matches</h2>
   <div id="userMatchesList"></div>
 </section>
 
@@ -379,8 +378,7 @@ button:active{transform:scale(.98)}
   <button type="button" class="btn-sec" id="btnBackUserMore" aria-label="Back">Back</button>
   <h2 id="userMoreTitle" tabindex="-1">More</h2>
   <button type="button" id="btnUserSettings2" class="btn-ok btn-block" aria-label="Settings">Settings</button>
-  <p style="color:var(--muted);font-size:13px;margin-top:16px">Signed in as <span id="userEmailLabel"></span></p>
-  <button type="button" id="btnUserSignOut2" class="btn-sec btn-block" aria-label="Sign out">Sign out</button>
+  <p class="sr-only">Open Settings for account, commentary and about.</p>
 </section>
 
 <!-- USER LIVE MATCH VIEWER (read-only) -->
@@ -441,7 +439,15 @@ button:active{transform:scale(.98)}
 
 <section id="uwmPaneMore" class="wrap hidden" role="tabpanel" aria-label="More">
   <div class="panel">
+    <button type="button" id="uwmBtnSettings" class="btn-ok btn-block" style="margin-bottom:14px" aria-label="Settings">Settings</button>
     <div id="uwmOversList"></div>
+    <div id="uwmOverDetail" class="hidden" role="region" aria-label="Over detail">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px">
+        <h2 id="uwmOverDetailH" tabindex="-1" style="margin:0;font-size:1.05rem"></h2>
+        <button type="button" id="uwmOverDetailClose" class="btn-sec" aria-label="Close over">Close</button>
+      </div>
+      <div id="uwmOverDetailBody"></div>
+    </div>
   </div>
 </section>
 
@@ -496,7 +502,7 @@ button:active{transform:scale(.98)}
 
 
 <section id="screenHome" class="wrap panel hidden" role="region" aria-labelledby="homeTitle">
-  <h1 id="homeTitle" tabindex="-1">Matches</h1>
+  <h1 id="homeTitle" class="sr-only" tabindex="-1">Matches</h1>
   <div id="hubAdminPaneMatches">
     <div style="text-align:center;padding:12px 0 8px">
       <button type="button" id="btnCreateMatch" class="btn-ok" aria-label="Create Match">Create Match</button>
@@ -621,6 +627,7 @@ button:active{transform:scale(.98)}
 
 <section id="paneMore" class="wrap hidden" role="tabpanel" aria-label="More">
   <div class="panel">
+    <button type="button" id="btnMoreSettings" class="btn-ok btn-block" style="margin-bottom:14px" aria-label="Settings">Settings</button>
     <h2 tabindex="-1">Match Controls</h2>
     <button type="button" id="btnEndInnings" class="btn-block" style="background:linear-gradient(135deg,#d97706,#b45309)">End Innings</button>
     <button type="button" id="btnStart2nd" class="btn-block btn-ok hidden">Start 2nd Innings</button>
@@ -658,11 +665,11 @@ button:active{transform:scale(.98)}
     <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
     <h2 id="aboutHeading" tabindex="-1">About</h2>
     <p><strong>Cric360 Live</strong></p>
-    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.08.30.1.15</span></p>
+    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.08.31.1.17</span></p>
     <p style="color:var(--muted)">Uninterrupted live with 360 dimensions</p>
     <p style="margin-top:14px"><strong>Developed and owned by</strong> Cric360</p>
     <p style="color:var(--muted)">Contact: <a href="mailto:cricthreesixty@gmail.com">cricthreesixty@gmail.com</a></p>
-    <p style="color:var(--muted);font-size:13px;margin-top:16px">Saves in this browser and, when you are admin and online, mirrors live matches and auctions to the cloud for viewers.</p>
+    
     
   </div>
 </section>
@@ -1138,7 +1145,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
-const APP_VERSION = "2026.08.30.1.15";
+const APP_VERSION = "2026.08.31.1.17";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1269,7 +1276,7 @@ function buildFullExportPayload(match){
   return {
     exportedAt: new Date().toISOString(),
     app: 'Cric360 Live',
-    version: '2026.08.30.1.15',
+    version: '2026.08.31.1.17',
     format: 'cric360-full-v1',
     type: m.type === 'auction' ? 'auction' : 'match',
     // Canonical full document (inject this on import)
@@ -2023,15 +2030,19 @@ function formatBallRow(b, i, overBalls){
   else label='';
   let main=b.text||'';
   const tag=ballEventTag(b);
-  // Drop trailing event word from main if badge shows it (no visual double FOUR)
+  // Remove leading over number from body so SR does not hear "4.0 4.0"
+  if(label && main){
+    main = main.replace(new RegExp('^\\s*'+label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*'),'').trim();
+    main = main.replace(/^\d+\.\d+\s*/,'').trim();
+  }
   if(tag.text && main){
     const re = new RegExp('\\b'+tag.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','ig');
     main = main.replace(re,'').replace(/\s{2,}/g,' ').trim();
   }
-  let aria = main ? (label+': '+main) : label;
-  if(tag.text) aria += (main ? ', ' : ': ') + tag.text;
+  let aria = label ? (label + (main ? ', '+main : '')) : main;
+  if(tag.text) aria += (aria ? ', ' : '') + tag.text;
   if(b.desc) aria += '. '+b.desc;
-  aria = aria.replace(/"/g,'&quot;');
+  aria = (aria||'Ball').replace(/"/g,'&quot;');
   let h='<div class="ball-row" role="listitem" tabindex="0" aria-label="'+aria+'">';
   h+='<span class="ball-tag" aria-hidden="true">'+label+'</span>';
   h+='<div class="ball-desc" aria-hidden="true">'+main+(b.desc?('<div style="font-size:12px;color:var(--text-muted);margin-top:2px">'+b.desc+'</div>'):'')+'</div>';
@@ -2113,7 +2124,7 @@ if(m.currentInnings===2&&m.target){
   tgt.classList.add('hidden');
 }
 if(str && $('boxLeft')){
-  const lab='Striker '+str.name+', '+str.runs+' runs, '+str.balls+' balls, strike rate '+sr(str.runs,str.balls);
+  const lab='Striker '+str.name+', '+str.runs+' runs, '+str.balls+' balls, '+(str.fours||0)+' fours, '+(str.sixes||0)+' sixes, strike rate '+sr(str.runs,str.balls);
   const vis='<div aria-hidden="true"><div class="bn">'+(str.photoUrl?'<img src="'+str.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />':'')+'★ '+str.name+'</div><div class="bs">'+str.runs+' ('+str.balls+')</div></div>';
   const inj=$('btnInjStriker');
   $('boxLeft').innerHTML=vis+(inj?inj.outerHTML:'');
@@ -2122,7 +2133,7 @@ if(str && $('boxLeft')){
   if($('btnInjStriker')) $('btnInjStriker').onclick=()=>openForceBatterDlg('striker');
 }
 if(non && $('boxRight')){
-  const lab='Non-striker '+non.name+', '+non.runs+' runs, '+non.balls+' balls, strike rate '+sr(non.runs,non.balls);
+  const lab='Non-striker '+non.name+', '+non.runs+' runs, '+non.balls+' balls, '+(non.fours||0)+' fours, '+(non.sixes||0)+' sixes, strike rate '+sr(non.runs,non.balls);
   const vis='<div aria-hidden="true"><div class="bn">'+(non.photoUrl?'<img src="'+non.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />':'')+non.name+'</div><div class="bs">'+non.runs+' ('+non.balls+')</div></div>';
   const inj=$('btnInjNon');
   $('boxRight').innerHTML=vis+(inj?inj.outerHTML:'');
@@ -2229,63 +2240,21 @@ $('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnin
 const ol=$('oversList');
 if(ol){
   const oversMore=m.completedOvers||[];
-  if(!window._expOversMore) window._expOversMore = {};
   if(!oversMore.length){
     ol.innerHTML='<p style="color:var(--muted)">No overs completed yet</p>';
   } else {
-    let oh='';
-    oversMore.forEach((o, idx)=>{
-      const key=String(idx);
-      const isOpen=!!window._expOversMore[key];
+    ol.innerHTML='';
+    oversMore.forEach(function(o, idx){
       const onum=(o.num!=null?o.num:(idx+1));
       const label='Over '+onum+' – '+(o.bowlerName||'');
-      oh+='<div class="over-card" style="margin-bottom:8px" data-over-more="'+key+'">';
-      oh+='<button type="button" class="list-btn" data-exp-over-more="'+key+'" aria-expanded="'+(isOpen?'true':'false')+'" aria-controls="expOverMore'+key+'" aria-label="'+(isOpen?'Collapse ':'Expand ')+label+'">'+(isOpen?'Collapse ':'Expand ')+label+'</button>';
-      oh+='<div id="expOverMore'+key+'" class="'+(isOpen?'':'hidden')+'" role="region" aria-label="'+label+' details" style="padding:10px 12px;font-size:13px;border:1px solid var(--border-subtle);border-radius:10px;margin-top:4px;background:var(--bg-surface-elevated)"></div>';
-      oh+='</div>';
-    });
-    ol.innerHTML=oh;
-    oversMore.forEach((o, idx)=>{
-      const key=String(idx);
-      if(!window._expOversMore[key]) return;
-      const panel=$('expOverMore'+key);
-      if(panel){
-        const balls=o.balls||[];
-        panel.innerHTML=balls.length
-          ? balls.slice().reverse().map((b,i)=>formatBallRow(b,i,balls)).join('')
-          : '<p style="color:var(--muted);margin:0">No balls logged</p>';
-      }
-    });
-    ol.querySelectorAll('[data-exp-over-more]').forEach(btn=>{
-      btn.onclick=function(ev){
-        ev.preventDefault();
-        ev.stopPropagation();
-        const key=btn.getAttribute('data-exp-over-more');
-        const panel=$('expOverMore'+key);
-        if(!panel) return;
-        const o=oversMore[Number(key)];
-        const onum=(o&&o.num!=null?o.num:(Number(key)+1));
-        const label='Over '+onum+' – '+(o&&o.bowlerName||'');
-        const open=!panel.classList.contains('hidden');
-        if(open){
-          panel.classList.add('hidden');
-          panel.innerHTML='';
-          btn.setAttribute('aria-expanded','false');
-          btn.textContent='Expand '+label;
-          btn.setAttribute('aria-label','Expand '+label);
-          delete window._expOversMore[key];
-        } else {
-          const balls=(o&&o.balls)||[];
-          panel.innerHTML=balls.length
-            ? balls.slice().reverse().map((b,i)=>formatBallRow(b,i,balls)).join('')
-            : '<p style="color:var(--muted);margin:0">No balls logged</p>';
-          panel.classList.remove('hidden');
-          btn.setAttribute('aria-expanded','true');
-          btn.textContent='Collapse '+label;
-          btn.setAttribute('aria-label','Collapse '+label);
-          window._expOversMore[key]=true;
-        }
-      };
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='list-btn';
+      btn.style.textAlign='left';
+      btn.setAttribute('aria-label', label);
+      btn.innerHTML='<strong>'+label+'</strong>';
+      btn.onclick=function(){ showOverDetail(onum); };
+      ol.appendChild(btn);
     });
   }
 }
@@ -2356,8 +2325,8 @@ function renderScorecard(){
       const label=p.name+', '+R+' runs, '+B+' balls, '+F+' fours, '+S+' sixes, strike rate '+SR+', '+detail;
       const star = on ? ' <span aria-hidden="true" style="color:var(--accent-gold)">★</span>' : '';
       html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
-      html+='<div class="c-name'+(on?' on-strike':'')+'">'+p.name+star+(p.isOut?' †':'')+(p.retiredHurt&&!p.isOut?' ♯':'');
-      html+='<span class="sub" aria-hidden="true">'+detail+'</span></div>';
+      html+='<div class="c-name'+(on?' on-strike':'')+'" aria-hidden="true">'+p.name+star+(p.isOut?' †':'')+(p.retiredHurt&&!p.isOut?' ♯':'');
+      html+='<span class="sub">'+detail+'</span></div>';
       html+='<span class="c-num" aria-hidden="true">'+R+'</span>';
       html+='<span class="c-num" aria-hidden="true">'+B+'</span>';
       html+='<span class="c-num" aria-hidden="true">'+F+'</span>';
@@ -2378,7 +2347,7 @@ function renderScorecard(){
       const O=fmtOvers(p.bowlBalls||0), M=p.maidens||0, R=p.bowlRuns||0, W=p.wickets||0, ER=eco(p.bowlRuns||0,p.bowlBalls||0);
       const label=p.name+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wickets, economy '+ER;
       html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
-      html+='<div class="c-name">'+p.name+'</div>';
+      html+='<div class="c-name" aria-hidden="true">'+p.name+'</div>';
       html+='<span class="c-num" aria-hidden="true">'+O+'</span>';
       html+='<span class="c-num" aria-hidden="true">'+M+'</span>';
       html+='<span class="c-num" aria-hidden="true">'+R+'</span>';
@@ -4116,37 +4085,50 @@ window.openMatch = async function(id){
 
 
 /* ========== AUTH + USER / ADMIN ENTRY ========== */
+function friendlyAuthMsg(e){
+  if(!e) return 'Sign-in failed. Please try again.';
+  const c = e.code || '';
+  if(c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return 'Sign-in was cancelled.';
+  if(c === 'auth/popup-blocked') return 'Pop-up was blocked. Trying full-screen sign-in.';
+  if(c === 'auth/unauthorized-domain') return 'This website is not allowed for Google sign-in yet.';
+  if(c === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
+  return 'Could not sign in. Please try again.';
+}
+function cricGoogleProvider(forcePick){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    if(forcePick) provider.setCustomParameters({ prompt: 'select_account' });
+  } catch(x){}
+  return provider;
+}
 $('btnGoogle').onclick = async () => {
   $('authError').textContent = '';
   if (!auth) {
     $('authError').textContent = 'Sign-in is not ready. Refresh the page.';
     return;
   }
+  try { if(typeof announce==='function') announce('Loading accounts for Cric360. Please wait.'); } catch(x){}
   try {
-    // Do NOT force select_account — reuses existing Google session (same as Tracker)
-    const provider = new firebase.auth.GoogleAuthProvider();
-    await auth.signInWithPopup(provider);
+    await auth.signInWithPopup(cricGoogleProvider(false));
   } catch (e) {
-    let msg = (e && e.message) || 'Sign-in failed';
-    const code = (e && e.code) || '';
-    if (code === 'auth/popup-closed-by-user') msg = 'Sign-in was cancelled.';
-    if (code === 'auth/popup-blocked') {
+    let msg = friendlyAuthMsg(e);
+    if ((e && e.code) === 'auth/popup-blocked') {
       try {
-        await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+        try { if(typeof announce==='function') announce('Opening full-screen sign-in for Cric360.'); } catch(x){}
+        await auth.signInWithRedirect(cricGoogleProvider(false));
         return;
-      } catch (e2) { msg = (e2 && e2.message) || msg; }
+      } catch (e2) { msg = friendlyAuthMsg(e2); }
     }
-    if (code === 'auth/unauthorized-domain') msg = 'This domain is not allowed for Google sign-in. Add it in Firebase Authentication → Authorized domains.';
-    if (code === 'auth/network-request-failed') msg = 'Network problem during sign-in. Check your connection.';
     $('authError').textContent = msg;
   }
 };
 
-
 function signOutAll() {
+  if(!confirm('Are you sure you want to sign out from this account?')) return;
   if (matchWatchUnsub) { try { matchWatchUnsub(); } catch(e){} matchWatchUnsub = null; }
   if (auctionWatchUnsub) { try { auctionWatchUnsub(); } catch(e){} auctionWatchUnsub = null; }
   if (liveListUnsub) { try { liveListUnsub(); } catch(e){} liveListUnsub = null; }
+  try { if(typeof announce==='function') announce('Signing out.'); } catch(x){}
   auth.signOut();
 }
 
@@ -4263,11 +4245,13 @@ if ($('voiceSelect')) {
 }
 if ($('btnSettingsSignOut')) $('btnSettingsSignOut').onclick = () => signOutAll();
 if ($('btnSwitchAccount')) $('btnSwitchAccount').onclick = async () => {
+  if(!confirm('Switch Google account? You will be signed out first.')) return;
   try {
+    try { if(typeof announce==='function') announce('Loading accounts for Cric360.'); } catch(x){}
     await auth.signOut();
-    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    await auth.signInWithPopup(cricGoogleProvider(true));
   } catch (e) {
-    try { await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); } catch (e2) { alert((e2 && e2.message) || 'Could not switch account'); }
+    try { await auth.signInWithRedirect(cricGoogleProvider(true)); } catch (e2) { alert(friendlyAuthMsg(e2)); }
   }
 };
 // Settings back -> More tab (not home root without more)
@@ -4353,12 +4337,14 @@ if ($('btnBackUserAuctions')) $('btnBackUserAuctions').onclick = () => { if (liv
 if ($('btnBackUserMore')) $('btnBackUserMore').onclick = () => { showScreen('screenUserHome'); setHubTab('user','hubUserMore'); };
 if ($('btnUserSettings')) $('btnUserSettings').onclick = openSettingsMenu;
 if ($('btnUserSettings2')) $('btnUserSettings2').onclick = openSettingsMenu;
+if ($('uwmBtnSettings')) $('uwmBtnSettings').onclick = openSettingsMenu;
+if ($('btnMoreSettings')) $('btnMoreSettings').onclick = openSettingsMenu;
 
 function listenUserMatches() {
   if (liveListUnsub) { try{liveListUnsub();}catch(e){} liveListUnsub=null; }
   const box = $('userMatchesList');
   if (!box) return;
-  box.innerHTML = '<p style="color:var(--muted)">Loading live matches…</p>';
+  box.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
   if (!db) { box.innerHTML = '<p style="color:var(--muted)">Cloud not available</p>'; return; }
   liveListUnsub = db.collection('cric360_matches')
     .where('status', 'in', ['live', 'innings_break', 'innings_ending'])
@@ -4374,7 +4360,7 @@ function listenUserMatches() {
         btn.type = 'button';
         btn.className = 'list-btn';
         const title = (m.teamA && m.teamA.name ? m.teamA.name : '?') + ' vs ' + (m.teamB && m.teamB.name ? m.teamB.name : '?');
-        btn.setAttribute('aria-label', 'Watch ' + title + ', ' + (m.totalScore||0) + ' for ' + (m.wickets||0));
+        btn.setAttribute('aria-label', title + ', ' + (m.totalScore||0) + ' for ' + (m.wickets||0) + ', ' + (m.status||''));
         btn.innerHTML = '<strong>'+title+'</strong><div style="color:var(--muted);font-size:13px">'+(m.series||'')+' · '+m.totalScore+'/'+m.wickets+' ('+fmtOvers(m.totalBalls||0)+') · '+m.status+'</div>';
         btn.onclick = () => watchMatch(doc.id);
         box.appendChild(btn);
@@ -4479,12 +4465,12 @@ function watchMatch(id) {
     const bwl = bowlSide && bowlSide.squad && m.currentBowlerId ? bowlSide.squad.find(p=>p.id===m.currentBowlerId) : null;
     if(str && $('uwmBoxLeft')){
       $('uwmBoxLeft').innerHTML='<div aria-hidden="true"><div class="bn">'+(str.photoUrl?'<img src="'+str.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:6px;vertical-align:middle"/>':'')+str.name+'</div><div class="bs">'+(str.runs||0)+' ('+(str.balls||0)+')</div></div>';
-      $('uwmBoxLeft').setAttribute('aria-label','Striker '+str.name+', '+(str.runs||0)+' runs, '+(str.balls||0)+' balls');
+      $('uwmBoxLeft').setAttribute('aria-label','Striker '+str.name+', '+(str.runs||0)+' runs, '+(str.balls||0)+' balls, '+(str.fours||0)+' fours, '+(str.sixes||0)+' sixes, strike rate '+sr(str.runs||0,str.balls||0));
       $('uwmBoxLeft').setAttribute('role','text');
     }
     if(non && $('uwmBoxRight')){
       $('uwmBoxRight').innerHTML='<div aria-hidden="true"><div class="bn">'+(non.photoUrl?'<img src="'+non.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:6px;vertical-align:middle"/>':'')+non.name+'</div><div class="bs">'+(non.runs||0)+' ('+(non.balls||0)+')</div></div>';
-      $('uwmBoxRight').setAttribute('aria-label','Non-striker '+non.name+', '+(non.runs||0)+' runs, '+(non.balls||0)+' balls');
+      $('uwmBoxRight').setAttribute('aria-label','Non-striker '+non.name+', '+(non.runs||0)+' runs, '+(non.balls||0)+' balls, '+(non.fours||0)+' fours, '+(non.sixes||0)+' sixes, strike rate '+sr(non.runs||0,non.balls||0));
       $('uwmBoxRight').setAttribute('role','text');
     }
     if(bwl && $('uwmBowler')){
@@ -4567,37 +4553,50 @@ function watchMatch(id) {
 function paintUwmOversList(m){
   const box=$('uwmOversList');
   if(!box) return;
+  const detail=$('uwmOverDetail');
+  if(detail) detail.classList.add('hidden');
+  box.classList.remove('hidden');
   const oversV=(m&&m.completedOvers)||[];
-  if(!window._expOversUwm) window._expOversUwm={};
   if(!oversV.length){
     box.innerHTML='<p style="color:var(--muted)">No completed overs yet</p>';
     return;
   }
-  let uh='';
+  box.innerHTML='';
   oversV.forEach(function(o, idx){
-    const key=String(idx);
-    const isOpen=!!window._expOversUwm[key];
     const onum=(o.num!=null?o.num:(idx+1));
     const label='Over '+onum+' – '+(o.bowlerName||'');
-    uh+='<div class="over-card" style="margin-bottom:8px">';
-    uh+='<button type="button" class="list-btn" data-exp-over-uwm="'+key+'" aria-expanded="'+(isOpen?'true':'false')+'" aria-controls="expOverUwm'+key+'">'+(isOpen?'Collapse ':'Expand ')+label+'</button>';
-    uh+='<div id="expOverUwm'+key+'" class="'+(isOpen?'':'hidden')+'" role="region" aria-label="'+label+' details" style="padding:10px 12px;font-size:13px;border:1px solid var(--border-subtle);border-radius:10px;margin-top:4px;background:var(--bg-surface-elevated)"></div>';
-    uh+='</div>';
-  });
-  box.innerHTML=uh;
-  oversV.forEach(function(o, idx){
-    const key=String(idx);
-    if(!window._expOversUwm[key]) return;
-    const panel=$('expOverUwm'+key);
-    if(!panel) return;
-    const balls=o.balls||[];
-    try{
-      panel.innerHTML=balls.length&&typeof formatBallRow==='function'
-        ? balls.slice().reverse().map(function(b,i){return formatBallRow(b,i,balls);}).join('')
-        : (balls.length?'<p>'+balls.length+' balls</p>':'<p style="color:var(--muted);margin:0">No balls</p>');
-    }catch(e){ panel.innerHTML='<p style="color:var(--muted)">No balls</p>'; }
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='list-btn';
+    btn.style.textAlign='left';
+    btn.setAttribute('aria-label', label+', '+(o.balls||[]).length+' balls');
+    btn.innerHTML='<strong>'+label+'</strong><div style="color:var(--muted);font-size:13px;margin-top:4px">'+(o.balls||[]).length+' balls</div>';
+    btn.onclick=function(){ openUwmOverDetail(o, onum); };
+    box.appendChild(btn);
   });
 }
+function openUwmOverDetail(o, onum){
+  const box=$('uwmOversList');
+  const detail=$('uwmOverDetail');
+  if(box) box.classList.add('hidden');
+  if(detail) detail.classList.remove('hidden');
+  const label='Over '+onum+' – '+(o&&o.bowlerName||'');
+  if($('uwmOverDetailH')) $('uwmOverDetailH').textContent=label;
+  const body=$('uwmOverDetailBody');
+  if(!body) return;
+  const balls=(o&&o.balls)||[];
+  try{
+    body.innerHTML=balls.length&&typeof formatBallRow==='function'
+      ? balls.slice().reverse().map(function(b,i){return formatBallRow(b,i,balls);}).join('')
+      : '<p style="color:var(--muted)">No balls</p>';
+  }catch(e){ body.innerHTML='<p style="color:var(--muted)">No balls</p>'; }
+  focusEl($('uwmOverDetailClose')||$('uwmOverDetailH'));
+}
+if($('uwmOverDetailClose')) $('uwmOverDetailClose').onclick=function(){
+  if($('uwmOverDetail')) $('uwmOverDetail').classList.add('hidden');
+  if($('uwmOversList')) $('uwmOversList').classList.remove('hidden');
+  focusEl($('uwmOversList')&&$('uwmOversList').querySelector('button'));
+};
 
 function switchUwmTab(which){
   ['uwmTabLive','uwmTabScore','uwmTabSquads','uwmTabMore'].forEach(id=>{
@@ -4645,7 +4644,7 @@ function renderViewerScorecard(){
       let how=p.isOut?(p.dismissal||'out'):(p.retiredHurt?'retired hurt':(on?'on strike':(p.id===nid?'non-striker':'not out')));
       const R=p.runs||0,B=p.balls||0,F=p.fours||0,S=p.sixes||0,SR=sr(p);
       const label=p.name+', '+R+' runs, '+B+' balls, '+F+' fours, '+S+' sixes, strike rate '+SR+', '+how;
-      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub" aria-hidden="true">'+how+'</span></div><span class="c-num" aria-hidden="true">'+R+'</span><span class="c-num" aria-hidden="true">'+B+'</span><span class="c-num" aria-hidden="true">'+F+'</span><span class="c-num" aria-hidden="true">'+S+'</span><span class="c-num" aria-hidden="true">'+SR+'</span></div>';
+      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div class="c-name" aria-hidden="true">'+(p.name||'')+(on?' ★':'')+'<span class="sub">'+how+'</span></div><span class="c-num" aria-hidden="true">'+R+'</span><span class="c-num" aria-hidden="true">'+B+'</span><span class="c-num" aria-hidden="true">'+F+'</span><span class="c-num" aria-hidden="true">'+S+'</span><span class="c-num" aria-hidden="true">'+SR+'</span></div>';
     });
     if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
     return h;
@@ -4658,7 +4657,7 @@ function renderViewerScorecard(){
       any=true;
       const O=fmtOvers(p.bowlBalls||0),M=p.maidens||0,R=p.bowlRuns||0,W=p.wickets||0,ER=eco(p.bowlRuns||0,p.bowlBalls||0);
       const label=p.name+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wickets, economy '+ER;
-      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div class="c-name">'+(p.name||'')+'</div><span class="c-num" aria-hidden="true">'+O+'</span><span class="c-num" aria-hidden="true">'+M+'</span><span class="c-num" aria-hidden="true">'+R+'</span><span class="c-num" aria-hidden="true">'+W+'</span><span class="c-num" aria-hidden="true">'+ER+'</span></div>';
+      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div class="c-name" aria-hidden="true">'+(p.name||'')+'</div><span class="c-num" aria-hidden="true">'+O+'</span><span class="c-num" aria-hidden="true">'+M+'</span><span class="c-num" aria-hidden="true">'+R+'</span><span class="c-num" aria-hidden="true">'+W+'</span><span class="c-num" aria-hidden="true">'+ER+'</span></div>';
     });
     if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
     return h;
@@ -4805,8 +4804,9 @@ function renderMatchSquadsPane(mode){
       const role=p.role||p.type||'';
       const label=(p.name||'Player')+(role?(', '+role):'');
       h+='<div class="squad-player" role="listitem" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
-      if(p.photoUrl) h+='<img src="'+p.photoUrl+'" alt="" aria-hidden="true" />';
-      h+='<div><div class="nm" aria-hidden="true">'+(p.name||'')+'</div>'+(role?('<div class="rl" aria-hidden="true">'+role+'</div>'):'')+'</div></div>';
+      h+='<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;width:100%">';
+      if(p.photoUrl) h+='<img src="'+p.photoUrl+'" alt="" />';
+      h+='<div><div class="nm">'+(p.name||'')+'</div>'+(role?('<div class="rl">'+role+'</div>'):'')+'</div></div></div>';
     });
     if(!list.length) h+='<div class="squad-player" style="color:var(--text-muted)">No players</div>';
     return h+'</div>';

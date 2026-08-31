@@ -37,7 +37,7 @@ body{
 }
 .brand:focus{outline:none}
 .brand:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
-.user-pill{
+.user-pill{border:none;cursor:pointer;font:inherit;appearance:none;-webkit-appearance:none;
   display:inline-flex;align-items:center;gap:8px;max-width:52%;
   padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;
   background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:var(--primary-bright);
@@ -144,10 +144,10 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 <section id="screenHub" class="panel hidden" role="region" aria-labelledby="hubTitle">
   <div class="topbar">
     <h1 id="hubTitle" class="brand" tabindex="-1">Cric360</h1>
-    <div class="user-pill" id="userPill" role="status" aria-live="polite">
+    <button type="button" class="user-pill" id="userPill" aria-label="Signed in. Double tap to sign out.">
       <span class="dot" aria-hidden="true"></span>
       <span id="hubSub">Signed in</span>
-    </div>
+    </button>
   </div>
 
   <p class="tagline">Choose a tool to get started</p>
@@ -193,7 +193,7 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
   </a>
 
   <p class="sr-only" id="userLine"></p>
-  <button type="button" id="btnSignOut" class="btn-sec btn-block" aria-label="Sign out" style="margin-top:20px">Sign out</button>
+  <div id="hubLive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 </section>
 </main>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -222,22 +222,54 @@ function show(id){
   ['screenBoot','screenAuth','screenHub'].forEach(s => $(s).classList.add('hidden'));
   $(id).classList.remove('hidden');
 }
+function announce(msg){
+  const el = $('hubLive');
+  if(!el) return;
+  el.textContent = '';
+  setTimeout(function(){ el.textContent = msg || ''; }, 30);
+}
+function friendlyAuthError(e){
+  if(!e) return 'Sign-in failed. Please try again.';
+  const c = e.code || '';
+  if(c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return 'Sign-in was cancelled.';
+  if(c === 'auth/popup-blocked') return 'Pop-up was blocked. Trying full-screen sign-in.';
+  if(c === 'auth/unauthorized-domain') return 'This website is not allowed for Google sign-in yet. Ask the admin to allow the domain.';
+  if(c === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
+  // Never read raw Firebase / API paths to the user
+  return 'Could not sign in. Please try again.';
+}
+function googleProvider(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  // Prefer account picker; app name shown by Google comes from OAuth consent screen (set to Cric360 Telugu in Google Cloud)
+  try { provider.setCustomParameters({ prompt: 'select_account' }); } catch (x) {}
+  return provider;
+}
 $('btnGoogle').onclick = async () => {
   $('authError').textContent = '';
+  announce('Loading accounts for Cric360. Please wait.');
   try {
-    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    await auth.signInWithPopup(googleProvider());
   } catch (e) {
-    let msg = (e && e.message) || 'Sign-in failed';
-    if (e && e.code === 'auth/popup-closed-by-user') msg = 'Sign-in was cancelled.';
+    let msg = friendlyAuthError(e);
     if (e && e.code === 'auth/popup-blocked') {
-      try { await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); return; }
-      catch (e2) { msg = (e2 && e2.message) || msg; }
+      try {
+        announce('Opening full-screen sign-in for Cric360.');
+        await auth.signInWithRedirect(googleProvider());
+        return;
+      } catch (e2) { msg = friendlyAuthError(e2); }
     }
-    if (e && e.code === 'auth/unauthorized-domain') msg = 'Add this domain in Firebase Authentication → Authorized domains.';
     $('authError').textContent = msg;
+    announce(msg);
   }
 };
-$('btnSignOut').onclick = () => auth.signOut();
+function confirmSignOut(){
+  if(!confirm('Are you sure you want to sign out from this account?')) return;
+  announce('Signing out.');
+  auth.signOut();
+}
+if($('userPill')){
+  $('userPill').onclick = confirmSignOut;
+}
 auth.onAuthStateChanged(u => {
   if (!u) {
     show('screenAuth');
@@ -247,7 +279,8 @@ auth.onAuthStateChanged(u => {
   const admin = (u.email || '').toLowerCase() === SUPER_ADMIN;
   const short = admin ? 'Admin' : ((u.email || 'User').split('@')[0]);
   $('hubSub').textContent = short;
-  $('userPill').setAttribute('aria-label', admin ? 'Signed in as admin' : ('Signed in as ' + (u.email || 'user')));
+  const lab = (admin ? 'Signed in as admin. ' : ('Signed in as ' + (u.email || 'user') + '. ')) + 'Double tap to sign out.';
+  $('userPill').setAttribute('aria-label', lab);
   $('userLine').textContent = u.email || '';
   if ($('badgeCric')) $('badgeCric').textContent = admin ? 'Admin' : 'Matches';
   show('screenHub');

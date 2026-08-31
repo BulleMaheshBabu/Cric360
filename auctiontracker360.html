@@ -541,7 +541,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.08.29.1.48</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.08.31.1.17</p>
   </div>
 </section>
 
@@ -1208,7 +1208,7 @@ function friendlyError(e){
     'auth/popup-closed-by-user': 'Sign-in was cancelled.',
     'auth/popup-blocked': 'Pop-up blocked. Allow pop-ups for this site and try again.',
     'auth/cancelled-popup-request': 'Sign-in was cancelled.',
-    'auth/unauthorized-domain': 'This website domain is not allowed for Google sign-in. Add it in Firebase Authentication settings.',
+    'auth/unauthorized-domain': 'This website is not allowed for Google sign-in yet. Ask the administrator to enable the domain.',
     'auth/network-request-failed': 'Network problem during sign-in. Check your connection.',
     'auth/user-disabled': 'This account has been disabled.',
     'auth/user-token-expired': 'Session expired. Please sign in again.',
@@ -1564,18 +1564,25 @@ $('btnGoogle').onclick=async()=>{
     $('authError').textContent='Sign-in is not ready. Refresh the page.';
     return;
   }
+  try{ if(typeof announce==='function') announce('Loading accounts for Cric360. Please wait.'); }catch(x){}
   try{
-    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    const provider=new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
     clearAppError();
   }catch(e){
-    const msg = friendlyError(e);
+    let msg = friendlyError(e);
+    // Never surface firebaseapp / API path text
+    if(/firebase|googleapis|api-key|auctiontracker360\.firebase/i.test(msg))
+      msg = 'Could not sign in. Please try again.';
     $('authError').textContent = msg;
-    // Popup blocked → try redirect once
     if(firebaseErrorCode(e)==='auth/popup-blocked'){
       try{
+        try{ if(typeof announce==='function') announce('Opening full-screen sign-in for Cric360.'); }catch(x){}
         await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
       }catch(e2){
-        $('authError').textContent = friendlyError(e2);
+        let m2 = friendlyError(e2);
+        if(/firebase|googleapis|api-key|auctiontracker360\.firebase/i.test(m2)) m2 = 'Could not sign in. Please try again.';
+        $('authError').textContent = m2;
       }
     }
   }
@@ -1836,7 +1843,7 @@ function showWelcomeThenAuction(id, data, meOwner){
 
 $('btnWaitHome').onclick=()=>{ stopWait(); enterHome(); };
 
-$('btnLogout').onclick=()=>auth.signOut();
+$('btnLogout').onclick=()=>{ if(!confirm('Are you sure you want to sign out from this account?')) return; try{ if(typeof announce==='function') announce('Signing out.'); }catch(x){} auth.signOut(); };
 $('btnSetBack').onclick=()=>enterHome();
 function showSettingsPanel(which){
   const menu=$('settingsMenu');
@@ -1891,11 +1898,10 @@ document.addEventListener('click', function(ev){
 
 
 $('btnSwitchAccount').onclick=async()=>{
+  if(!confirm('Switch Google account? You will be signed out first.')) return;
+  try{ await auth.signOut(); }catch(e){}
   try{
-    await auth.signOut();
-  }catch(e){}
-  // Force account picker
-  try{
+    try{ if(typeof announce==='function') announce('Loading accounts for Cric360.'); }catch(x){}
     const provider=new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     await auth.signInWithPopup(provider);

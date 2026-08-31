@@ -541,7 +541,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.08.31.2.1</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.08.31.2.3</p>
   </div>
 </section>
 
@@ -739,7 +739,14 @@ function announceNowPlayer(idx, name, total){
     try{ playSfx('player'); }catch(e){}
   }
   const n = (total!=null ? total : ((T.players||[]).length||0));
-  sayEvent('Now auctioning '+(name||'player')+', number '+(idx+1)+' of '+n, 'player');
+  const line = 'Now auctioning '+(name||'player')+', '+(idx+1)+' of '+n;
+  // TTS on → speak once via commentary. TTS off → focused player card aria-label is the
+  // single SR announcement — do NOT also aria-live the same sentence (was double-read).
+  const ttsOn = typeof ttsPref!=='undefined' && ttsPref.on;
+  if(ttsOn){
+    sayEvent(line, 'player');
+  }
+  // else: silent except SFX; TalkBack reads #pName aria-label once
 }
 
 
@@ -2047,6 +2054,7 @@ function applyAuctionData(data){
     pendingCoOrganisers:data.pendingCoOrganisers||[], coOrganiserIds:data.coOrganiserIds||[],
     ownerId:data.ownerId, meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused, alertRules:data.alertRules||null, lastResult:data.lastResult||null, intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null
   };
+  try{ syncPlayerSoldFlags(); }catch(e){}
   helperMode=!!(user && data.ownerId!==user.uid && (data.coOrganiserIds||[]).includes(user.uid));
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
   ownerMode=!!(user && data.mode==='virtual' && ow && ow.teamId);
@@ -2755,7 +2763,7 @@ function renderWatch(data){
       const spoken='Now auctioning '+(p.name||'Unnamed')+', '+(idx+1)+' of '+players.length+(lead?'. '+lead:'');
       box.innerHTML=
         '<div class="player-stage" style="padding:14px">'+
-        '<h2 class="player-name" id="wPN" tabindex="-1">'+spoken+'</h2>'+
+        playerHeadingHtml(spoken, (p.name||'Player'), 'wPN')+
         (data.mode==='virtual'&&lead?'<p class="lead-line" id="wLead" style="margin:8px 0 0;padding:8px;font-size:0.95rem" aria-hidden="true">'+lead+'</p>':'')+
         '</div>'+
         (data.mode==='virtual'?'<p class="timer-box" id="wTimer" aria-hidden="true">'+timer+'</p>':'')+
@@ -2832,9 +2840,9 @@ function renderWatch(data){
     } else {
       const kind=window._watchListKind;
       let list=players, title='Players';
-      if(kind==='sold'){ list=players.filter(p=>p.sold); title='Sold players'; }
-      if(kind==='unsold'){ list=players.filter(p=>p.unsold); title='Unsold players'; }
-      if(kind==='remaining'){ list=players.filter(p=>!p.sold&&!p.unsold); title='Remaining players'; }
+      if(kind==='sold'){ list=players.filter(function(p){ return p.sold || !!findPlayerTeam(p); }); title='Sold players'; }
+      if(kind==='unsold'){ list=players.filter(function(p){ return p.unsold && !findPlayerTeam(p); }); title='Unsold players'; }
+      if(kind==='remaining'){ list=players.filter(function(p){ return !p.sold && !p.unsold && !findPlayerTeam(p); }); title='Remaining players'; }
       if(kind==='total'){ list=players; title='Total players'; }
       const pageSize=10;
       let page=window._watchListPage||0;
@@ -3758,7 +3766,7 @@ function renderAuction(opts){
     const helpSpoken='Now auctioning '+(p.name||'Unnamed')+', '+(idx+1)+' of '+((T.players||[]).length);
     box.innerHTML='<p style="text-align:center;font-size:13px;font-weight:700;color:var(--muted)" aria-hidden="true">HELPER · TEAMS ONLY</p>'+
       '<div class="player-stage"><p style="margin:0;font-size:13px;font-weight:700;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-      '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+helpSpoken.replace(/"/g,'')+'">'+helpSpoken+'</h2></div>'+recentCardHtml(recent);
+      playerHeadingHtml(helpSpoken, (p&&p.name)||'Player', 'pName')+'</div>'+recentCardHtml(recent);
     focusEl($('pName'));
     if($('btnEndAuction')) $('btnEndAuction').classList.add('hidden');
     return;
@@ -3769,7 +3777,7 @@ function renderAuction(opts){
   box.innerHTML=
     '<div class="player-stage" id="playerCard">'+
     '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-    '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+physSpoken.replace(/"/g,'')+'">'+physSpoken+'</h2></div>'+
+    playerHeadingHtml(physSpoken, (p&&p.name)||'Player', 'pName')+'</div>'+
     '<div id="bidRegion" class="btn-stack">'+
     '<button type="button" id="btnSold" class="btn-ok btn-block" aria-label="Sold">Sold</button>'+
     '<button type="button" id="btnUnsold" class="btn-danger btn-block" aria-label="Unsold">Unsold</button></div>'+
@@ -3870,7 +3878,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     box.innerHTML=
       '<div class="player-stage" id="playerCard">'+
       '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-      '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+String(playerSpoken).replace(/"/g,'')+'">'+playerSpoken+'</h2>'+
+      playerHeadingHtml(playerSpoken, (p&&p.name)||'Player', 'pName')+
       '<p class="lead-line">'+lead+'</p>'+
       '<p class="timer-box warn" role="status">Waiting for host</p></div>'+
       (isHost?'<div id="hostDecisionMount"></div>':'')+
@@ -3960,11 +3968,11 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   const playerSpoken='Now auctioning '+(p.name||'Unnamed')+', '+(idx+1)+' of '+pl.length;
 
   // Focus order: player card → timer → bid region → teams online → recent
-  // No role="region" alone (TalkBack says only "region") — use labelled groups + real heading text
+  // Visual text aria-hidden so TalkBack reads aria-label once only
   box.innerHTML=
     '<div class="auc-player-line player-stage" id="playerCard" style="padding:14px 12px">'+
     '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-    '<h2 class="player-name" id="pName" tabindex="-1" aria-label="'+String(playerSpoken).replace(/"/g,'')+'">'+playerSpoken+'</h2>'+
+    playerHeadingHtml(playerSpoken, (p&&p.name)||'Player', 'pName')+
     '<p class="lead-line" id="leadLine" style="margin:8px 0 0;padding:8px;font-size:0.95rem">'+leadText+'</p>'+
     '</div>'+
     '<p class="timer-box" id="pTimer" role="timer" aria-label="Time remaining '+sec+' seconds"><span aria-hidden="true">'+sec+'s</span><span class="sr-only">Time remaining '+sec+' seconds</span></p>'+
@@ -4850,17 +4858,59 @@ function canEditSquads(){
   return false;
 }
 
+/** Find team that currently holds this player in squad (by serial or name). */
+function findPlayerTeam(p){
+  if(!p || !T) return null;
+  const teams=T.teams||[];
+  for(let i=0;i<teams.length;i++){
+    const tm=teams[i];
+    const list=tm.players||[];
+    for(let j=0;j<list.length;j++){
+      const sp=list[j];
+      if((p.serial && sp.serial && String(sp.serial)===String(p.serial)) || (sp.name && p.name && sp.name===p.name))
+        return tm;
+    }
+  }
+  return null;
+}
+
+/**
+ * Repair sold/unsold flags from real squad membership.
+ * Squad membership is source of truth — flags were drifting and caused:
+ * - "Unsold" in Add player while player is still on a team
+ * - Unsold list showing players still on squads
+ */
+function syncPlayerSoldFlags(){
+  if(!T || !T.players) return;
+  (T.players||[]).forEach(function(p){
+    const tm=findPlayerTeam(p);
+    if(tm){
+      p.sold=true;
+      p.unsold=false;
+    } else if(p.sold && !p.unsold){
+      // Marked sold but not on any squad → treat as remaining (host can re-auction)
+      p.sold=false;
+      p.unsold=false;
+    }
+    // if unsold=true and not on a team, leave as unsold
+  });
+}
+
+
+/** One clean player heading for TalkBack: role=text + aria-label, visual name only (aria-hidden). */
+function playerHeadingHtml(fullSpoken, visualName, id){
+  id = id || 'pName';
+  const aria = String(fullSpoken||'').replace(/"/g,'&quot;');
+  const vis = String(visualName||fullSpoken||'Player').replace(/</g,'');
+  return '<div class="player-name" id="'+id+'" tabindex="-1" role="text" aria-label="'+aria+'">'+
+    '<span aria-hidden="true">'+vis+'</span></div>';
+}
+
 function playerStatusLabel(p){
   if(!p) return 'Unknown';
-  if(p.sold){
-    let teamName='';
-    (T.teams||[]).forEach(function(tm){
-      (tm.players||[]).forEach(function(sp){
-        if((p.serial && sp.serial===p.serial) || (sp.name===p.name)) teamName=tm.name;
-      });
-    });
-    return teamName ? ('Already in team '+teamName) : 'Already sold';
-  }
+  const tm=findPlayerTeam(p);
+  if(tm) return 'Already in team '+(tm.name||'');
+  if(p.sold) return 'Already sold';
   if(p.unsold) return 'Unsold';
   return 'Not auctioned yet';
 }
@@ -4883,10 +4933,19 @@ async function saveSquadEdits(){
     await db.collection('auctions').doc(auctionId).set(payload,{merge:true});
     // Re-apply saved snapshot so UI cannot flash older remote data
     if(T){ T.teams = JSON.parse(JSON.stringify(teamsSnap)); T.players = JSON.parse(JSON.stringify(playersSnap)); }
+    try{ syncPlayerSoldFlags(); }catch(e){}
     clearAppError();
   }finally{
-    // Brief hold so the echo snapshot does not clobber before merge lands
-    setTimeout(function(){ window._squadBusy=false; window._squadPending=false; }, 400);
+    // Longer hold: Firestore echo can lag; 400ms was too short and restored removed players
+    setTimeout(function(){
+      // Keep local squad if a stale snapshot arrived mid-hold
+      if(T){
+        T.teams = JSON.parse(JSON.stringify(teamsSnap));
+        T.players = JSON.parse(JSON.stringify(playersSnap));
+      }
+      window._squadBusy=false;
+      window._squadPending=false;
+    }, 1800);
   }
 }
 
@@ -5050,14 +5109,9 @@ function openAddPlayerDialog(teamIndex){
       });
       if(alreadyHere){ alert((mp.name||'Player')+' is already in '+team.name); return; }
       // Already sold to another team?
-      if(mp.sold){
-        let other='';
-        (T.teams||[]).forEach(function(tm){
-          (tm.players||[]).forEach(function(sp){
-            if((mp.serial && sp.serial===mp.serial) || (sp.name===mp.name)) other=tm.name;
-          });
-        });
-        alert((mp.name||'Player')+' is already in '+(other||'another team')+'. Remove them from that squad first.');
+      const held=findPlayerTeam(mp);
+      if(held || mp.sold){
+        alert((mp.name||'Player')+' is already in '+(held && held.name ? held.name : 'another team')+'. Remove them from that squad first.');
         return;
       }
       const price=parseInt(String(($('addPrice')&&$('addPrice').value)||'').replace(/\D/g,''),10);
@@ -5096,6 +5150,7 @@ function openAddPlayerDialog(teamIndex){
 function renderSquads(){
   const box=$('sqBody');
   if(!box||!T) return;
+  try{ syncPlayerSoldFlags(); }catch(e){}
   box.innerHTML='';
   if(squadView===null){
     const grid=document.createElement('div'); grid.className='squad-grid';
@@ -5170,25 +5225,75 @@ function renderSquads(){
       rm.textContent='Remove';
       rm.setAttribute('aria-label','Remove '+pname+' from squad');
       rm.onclick=function(){
-        ask('Remove player?','Remove '+pname+' from '+t.name+' and return '+pprice+' to purse?', function(){
+        const teamId=t.id;
+        const teamName=t.name;
+        const playerName=pname;
+        const playerSerial=pl.serial||'';
+        const playerId=pl.id||'';
+        const priceHint=Number(pl.price)||Number(pprice)||0;
+        ask('Remove player?','Remove '+playerName+' from '+teamName+' and return '+priceHint+' to purse?', function(){
           window._squadBusy=true; window._squadPending=true;
-          const priceBack=Number(pl.price)||0;
-          t.remaining=Number(t.remaining||0)+priceBack;
-          t.players.splice(pi,1);
-          if(t.maxReached && typeof getTeamMax==='function' && getTeamMax(t)>0 && t.players.length<getTeamMax(t)){
-            t.maxReached=false;
+          try{
+            if(!T || !Array.isArray(T.teams)){
+              window._squadBusy=false; window._squadPending=false;
+              alert('Auction data not ready — refresh and try again');
+              return;
+            }
+            // Resolve team by id, then index, then name
+            let ti = -1;
+            if(teamId) ti = T.teams.findIndex(function(x){ return x && x.id===teamId; });
+            if(ti<0) ti = teamIndex;
+            if(ti<0 || !T.teams[ti]) ti = T.teams.findIndex(function(x){ return x && x.name===teamName; });
+            if(ti<0 || !T.teams[ti]){
+              window._squadBusy=false; window._squadPending=false;
+              alert('Team not found — refresh and try again');
+              renderSquads();
+              return;
+            }
+            const team = T.teams[ti];
+            // Clone players array so we never mutate a frozen/stale ref
+            const list = Array.isArray(team.players) ? team.players.slice() : [];
+            let idx = list.findIndex(function(sp){
+              if(!sp) return false;
+              if(playerId && sp.id && String(sp.id)===String(playerId)) return true;
+              if(playerSerial && sp.serial && String(sp.serial)===String(playerSerial)) return true;
+              return (sp.name===playerName);
+            });
+            if(idx<0){
+              window._squadBusy=false; window._squadPending=false;
+              announce(playerName+' is not on this squad');
+              renderSquads();
+              return;
+            }
+            const priceBack = Number(list[idx].price)||priceHint;
+            list.splice(idx, 1);
+            team.players = list;
+            team.remaining = Number(team.remaining||0) + priceBack;
+            if(team.maxReached && typeof getTeamMax==='function' && getTeamMax(team)>0 && team.players.length < getTeamMax(team)){
+              team.maxReached = false;
+            }
+            // Master list: mark available again as unsold (can be re-added)
+            const mp = (T.players||[]).find(function(x){
+              if(!x) return false;
+              if(playerId && x.id && String(x.id)===String(playerId)) return true;
+              if(playerSerial && x.serial && String(x.serial)===String(playerSerial)) return true;
+              return x.name===playerName;
+            });
+            if(mp){ mp.sold=false; mp.unsold=true; delete mp.team; delete mp.price; }
+            try{ syncPlayerSoldFlags(); }catch(e){}
+            squadView = ti;
+            saveSquadEdits().then(function(){
+              renderSquads();
+              announce(playerName+' removed from '+teamName+'. Purse returned '+priceBack);
+            }).catch(function(e){
+              safeAlert(e);
+              renderSquads();
+            });
+          }catch(err){
+            window._squadBusy=false; window._squadPending=false;
+            safeAlert(err);
+            renderSquads();
           }
-          const mp=(T.players||[]).find(function(x){
-            return (pl.serial && x.serial===pl.serial) || (x.name===pl.name);
-          });
-          if(mp){ mp.sold=false; mp.unsold=true; }
-          saveSquadEdits().then(function(){
-            renderSquads();
-            announce(pname+' removed');
-          }).catch(function(e){
-            safeAlert(e);
-            renderSquads();
-          });
         });
       };
 
@@ -5328,9 +5433,10 @@ function wireDownloadPanel(){
 function renderToolsBook(){
   const pl=T.players||[];
   let list=pl, title='Players';
-  if(toolsKind==='sold'){ list=pl.filter(p=>p.sold); title='Sold players'; }
-  if(toolsKind==='unsold'){ list=pl.filter(p=>p.unsold); title='Unsold players'; }
-  if(toolsKind==='remaining'){ list=pl.filter(p=>!p.sold&&!p.unsold); title='Remaining players'; }
+  try{ syncPlayerSoldFlags(); }catch(e){}
+  if(toolsKind==='sold'){ list=pl.filter(function(p){ return p.sold || !!findPlayerTeam(p); }); title='Sold players'; }
+  if(toolsKind==='unsold'){ list=pl.filter(function(p){ return p.unsold && !findPlayerTeam(p); }); title='Unsold players'; }
+  if(toolsKind==='remaining'){ list=pl.filter(function(p){ return !p.sold && !p.unsold && !findPlayerTeam(p); }); title='Remaining players'; }
   if(toolsKind==='total'){ list=pl; title='Total players'; }
   const pageSize=10;
   const totalPages=Math.max(1, Math.ceil(list.length/pageSize)||1);

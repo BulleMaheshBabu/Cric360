@@ -548,6 +548,8 @@ button:active{transform:scale(.98)}
   <div id="hubAdminPaneMatches">
     <div style="text-align:center;padding:12px 0 8px">
       <button type="button" id="btnCreateMatch" class="btn-ok" aria-label="Create Match">Create Match</button>
+      <button type="button" id="btnImportMatch" class="btn-sec" aria-label="Import match from JSON file">Import</button>
+      <input type="file" id="importFileInput" accept="application/json,.json" class="sr-only" aria-label="Choose JSON file" />
     </div>
     <div id="matchesList"></div>
   </div>
@@ -559,9 +561,7 @@ button:active{transform:scale(.98)}
   </div>
   <div id="hubAdminPaneMore" class="hidden">
     <button type="button" id="btnAdminOpenSettings" class="btn-ok btn-block" aria-label="Settings">Settings</button>
-    <button type="button" id="btnImportMatch" class="btn-ok btn-block" style="margin-top:12px" aria-label="Import match or auction from JSON file">Import match or auction file</button>
-    <p style="color:var(--muted);font-size:13px;margin-top:10px">Use a full download JSON to restore a match or auction deleted from the cloud, then Resume and Go live for viewers.</p>
-    <input type="file" id="importFileInput" accept="application/json,.json" class="sr-only" aria-label="Choose JSON file" />
+    <!-- Import moved to Matches tab next to Create Match -->
   </div>
 </section>
 <nav class="hub-tabbar hidden" id="hubTabbarAdmin" role="tablist" aria-label="Main tabs">
@@ -1189,7 +1189,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
-const APP_VERSION = "2026.08.31.1.20";
+const APP_VERSION = "2026.08.31.1.21";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1320,7 +1320,7 @@ function buildFullExportPayload(match){
   return {
     exportedAt: new Date().toISOString(),
     app: 'Cric360 Live',
-    version: '2026.08.31.1.20',
+    version: '2026.08.31.1.21',
     format: 'cric360-full-v1',
     type: m.type === 'auction' ? 'auction' : 'match',
     // Canonical full document (inject this on import)
@@ -1349,12 +1349,18 @@ function exportMatchToFile(match){
 
 function normalizeImportedDoc(raw){
   if(!raw || typeof raw !== 'object') throw new Error('Invalid JSON');
-  // Prefer new full format
-  let m = raw.document || raw.match || raw.auction || raw;
-  if(m.match && !m.teamA && raw.match) m = raw.match;
+  // Prefer full export envelope: { document, match, auction }
+  let m = null;
+  if(raw.document && typeof raw.document === 'object') m = raw.document;
+  else if(raw.match && typeof raw.match === 'object' && (raw.match.teamA || raw.match.type==='match')) m = raw.match;
+  else if(raw.auction && typeof raw.auction === 'object') m = raw.auction;
+  else m = raw;
+  // Deep clone so we never mutate the parsed file object oddly
+  try { m = JSON.parse(JSON.stringify(m)); } catch(e){ throw new Error('Could not read match data'); }
   if(!m || typeof m !== 'object') throw new Error('Invalid file structure');
   if(!m.id) m.id = 'imp_'+Date.now().toString(36);
-  if(m.type === 'auction' || raw.type === 'auction' || Array.isArray(m.players) && m.title && !m.teamA){
+  const isAuc = m.type === 'auction' || raw.type === 'auction' || (Array.isArray(m.players) && m.title && !m.teamA);
+  if(isAuc){
     m.type = 'auction';
     if(!m.title) m.title = 'Imported auction';
     if(!Array.isArray(m.players)) m.players = [];
@@ -1363,9 +1369,27 @@ function normalizeImportedDoc(raw){
   } else {
     if(!m.teamA || !m.teamB) throw new Error('Match file needs teamA and teamB');
     m.type = m.type || 'match';
+    // Keep original status (live / completed / innings_break) so restore is faithful
     m.status = m.status || 'not_started';
+    // Ensure ball / scorecard structures exist (do not wipe existing)
+    if(!Array.isArray(m.completedOvers)) m.completedOvers = m.completedOvers || [];
+    if(!Array.isArray(m.currentOverBalls)) m.currentOverBalls = m.currentOverBalls || [];
+    if(!m.extras || typeof m.extras !== 'object') m.extras = m.extras || {wide:0,noball:0,bye:0,legbye:0};
+    if(typeof m.totalScore !== 'number') m.totalScore = Number(m.totalScore)||0;
+    if(typeof m.wickets !== 'number') m.wickets = Number(m.wickets)||0;
+    if(typeof m.totalBalls !== 'number') m.totalBalls = Number(m.totalBalls)||0;
+    // Squad safety
+    ['teamA','teamB'].forEach(function(k){
+      if(m[k] && !Array.isArray(m[k].squad)) m[k].squad = m[k].squad || [];
+    });
+    // innings1 snapshot (1st innings scorecard + balls)
+    if(m.innings1 && typeof m.innings1 === 'object'){
+      if(!Array.isArray(m.innings1.completedOvers)) m.innings1.completedOvers = m.innings1.completedOvers || [];
+      if(!Array.isArray(m.innings1.currentOverBalls)) m.innings1.currentOverBalls = m.innings1.currentOverBalls || [];
+    }
   }
   m.updatedAt = new Date().toISOString();
+  m._importedAt = m.updatedAt;
   return m;
 }
 
@@ -1379,15 +1403,25 @@ function importMatchFromFile(file){
         const idx = (S.matches||[]).findIndex(x => x.id === m.id);
         if(idx >= 0) S.matches[idx] = m; else S.matches.unshift(m);
         S.curId = m.id;
-        // Local cache
+        // Local cache (full document including overs / innings1)
         try {
           const ls = getLS();
           if(ls) ls.setItem(KEY, JSON.stringify({ matches: S.matches, ttsOn: S.ttsOn, selectedVoiceURI: S.selectedVoiceURI }));
         } catch(e){}
-        // Primary: push full document to Firestore so viewers can receive it when live
-        if(db && isAdmin()){
-          if(m.type === 'auction') await cloudSaveAuction(m);
-          else await cloudSaveMatch(m);
+        // Full overwrite on cloud (not merge) so deleted matches restore with balls + scorecard
+        if(db && typeof isAdmin==='function' && isAdmin()){
+          try{
+            const payload = JSON.parse(JSON.stringify(m));
+            if(typeof firebase!=='undefined' && firebase.firestore){
+              payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+            }
+            if(m.type === 'auction'){
+              payload.type = 'auction';
+              await db.collection('cric360_auctions').doc(String(m.id)).set(payload);
+            } else {
+              await db.collection('cric360_matches').doc(String(m.id)).set(payload);
+            }
+          }catch(ce){ console.warn('import cloud write', ce); }
         }
         resolve(m);
       }catch(e){ reject(e); }
@@ -1845,35 +1879,58 @@ if($('cNext5')){
 }
 if($('cBack5')) $('cBack5').onclick=()=>{ setCreateStep(5); focusEl($('cTossTitle')); };
 
-function finishCreateMatch(){
-  const series=($('seriesName').value||'').trim();
-  const a=($('teamAName').value||'').trim();
-  const b=($('teamBName').value||'').trim();
-  const typeEl=document.querySelector('input[name=matchType]:checked'); const type=typeEl?typeEl.value:'T20';
-  let squadA=window._draftSquadA||readSquad('a');
-  let squadB=window._draftSquadB||readSquad('b');
-  squadA=applyPlaying11Flags(squadA,'a');
-  squadB=applyPlaying11Flags(squadB,'b');
-  const nA=squadA.filter(p=>p.inPlaying11).length;
-  const nB=squadB.filter(p=>p.inPlaying11).length;
-  if(squadA.length<2||squadB.length<2){ alert('Each team needs at least 2 squad players'); return; }
-  if(nA<2||nB<2){ alert('Select at least 2 playing players per team (ideally 11)'); return; }
-  if(nA>11||nB>11){ alert('Playing XI cannot exceed 11 per team'); return; }
-  const tossW=$('cTossWinner')&&$('cTossWinner').value;
-  const tossD=$('cTossDecision')&&$('cTossDecision').value;
-  if(!tossW||!tossD){ alert('Complete toss first'); return; }
-  const bat = battingTeamFromToss(tossW, tossD);
-  const m=newMatch(series,a,b,type,squadA,squadB);
-  m.tossWinner=tossW;
-  m.tossDecision=tossD;
-  m.battingTeam=bat;
-  m.status='not_started';
-  S.matches.unshift(m);
-  S.curId=m.id;
-  save();
-  closeDlg('dlgCreate');
-  if(typeof cloudSaveMatch==='function') cloudSaveMatch(m);
-  openMatch(m.id);
+async function finishCreateMatch(){
+  try{
+    const series=($('seriesName').value||'').trim();
+    const a=($('teamAName').value||'').trim();
+    const b=($('teamBName').value||'').trim();
+    if(!series||!a||!b){ alert('Enter series and both team names'); return; }
+    const typeEl=document.querySelector('input[name=matchType]:checked'); const type=typeEl?typeEl.value:'T20';
+    // Prefer draft from Playing 11 step; else re-read squad inputs
+    let squadA=window._draftSquadA;
+    let squadB=window._draftSquadB;
+    if(!squadA || !squadA.length) squadA = readSquad('a');
+    if(!squadB || !squadB.length) squadB = readSquad('b');
+    squadA=applyPlaying11Flags(squadA,'a');
+    squadB=applyPlaying11Flags(squadB,'b');
+    // If checkboxes missing (step not painted), default first 11 as playing
+    const nA=squadA.filter(p=>p.inPlaying11).length;
+    const nB=squadB.filter(p=>p.inPlaying11).length;
+    if(nA===0 && squadA.length){ squadA.forEach(function(p,i){ p.inPlaying11 = i<11; }); }
+    if(nB===0 && squadB.length){ squadB.forEach(function(p,i){ p.inPlaying11 = i<11; }); }
+    const nA2=squadA.filter(p=>p.inPlaying11).length;
+    const nB2=squadB.filter(p=>p.inPlaying11).length;
+    if(squadA.length<2||squadB.length<2){ alert('Each team needs at least 2 squad players'); return; }
+    if(nA2<2||nB2<2){ alert('Select at least 2 playing players per team (ideally 11)'); return; }
+    if(nA2>11||nB2>11){ alert('Playing XI cannot exceed 11 per team'); return; }
+    const tossW=$('cTossWinner')&&$('cTossWinner').value;
+    const tossD=$('cTossDecision')&&$('cTossDecision').value;
+    if(!tossW||!tossD){ alert('Complete toss first'); return; }
+    const bat = battingTeamFromToss(tossW, tossD);
+    const m=newMatch(series,a,b,type,squadA,squadB);
+    m.tossWinner=tossW;
+    m.tossDecision=tossD;
+    m.battingTeam=bat;
+    m.status='not_started';
+    S.matches.unshift(m);
+    S.curId=m.id;
+    save();
+    closeDlg('dlgCreate');
+    if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
+    if(typeof openMatch==='function') await openMatch(m.id);
+    // Ensure Start Match is visible and focus it so Go live path is clear
+    try{
+      if($('preStart')) $('preStart').classList.remove('hidden');
+      if($('btnStartMatch')){
+        $('btnStartMatch').disabled = false;
+        setTimeout(function(){ focusEl($('btnStartMatch')); }, 120);
+      }
+      announce('Match created. Tap Start Match to select openers and go live.');
+    }catch(e){}
+  }catch(err){
+    console.error(err);
+    alert('Could not create match: '+(err.message||err));
+  }
 }
 if($('cFinish')) $('cFinish').onclick=finishCreateMatch;
 if($('cStartLive')) $('cStartLive').onclick=finishCreateMatch;
@@ -2151,8 +2208,20 @@ function formatBallRow(b, i, overBalls){
 }
 function collectAllBalls(m){
   const all=[];
+  // 1st innings balls (preserved on innings break / completed matches)
+  if(m.innings1 && Array.isArray(m.innings1.completedOvers)){
+    m.innings1.completedOvers.forEach(function(o){ (o.balls||[]).forEach(function(b){ all.push(b); }); });
+    (m.innings1.currentOverBalls||[]).forEach(function(b){ all.push(b); });
+  }
   (m.completedOvers||[]).forEach(function(o){ (o.balls||[]).forEach(function(b){ all.push(b); }); });
   (m.currentOverBalls||[]).forEach(function(b){ all.push(b); });
+  // Legacy alternate keys some older exports used
+  if(!all.length && Array.isArray(m.ballHistory)){
+    m.ballHistory.forEach(function(b){ all.push(b); });
+  }
+  if(!all.length && Array.isArray(m.balls)){
+    m.balls.forEach(function(b){ all.push(b); });
+  }
   return all.reverse(); // latest first
 }
 function renderFlatBallList(containerId, m, moreBtnId){
@@ -2315,21 +2384,26 @@ if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(b=>b.type!=='c
 $('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnings===1));$('btnStart2nd').classList.toggle('hidden',m.status!=='innings_break');
 const ol=$('oversList');
 if(ol){
-  const oversMore=m.completedOvers||[];
+  const oversMore=[];
+  if(m.innings1 && Array.isArray(m.innings1.completedOvers)){
+    m.innings1.completedOvers.forEach(function(o){ oversMore.push(Object.assign({_inn:1}, o)); });
+  }
+  (m.completedOvers||[]).forEach(function(o){ oversMore.push(Object.assign({_inn:m.currentInnings||2}, o)); });
   if(!oversMore.length){
     ol.innerHTML='<p style="color:var(--muted)">No overs completed yet</p>';
   } else {
     ol.innerHTML='';
     oversMore.forEach(function(o, idx){
       const onum=(o.num!=null?o.num:(idx+1));
-      const label='Over '+onum+' – '+(o.bowlerName||'');
+      const innTag = o._inn ? ('Innings '+o._inn+' · ') : '';
+      const label=innTag+'Over '+onum+' – '+(o.bowlerName||'');
       const btn=document.createElement('button');
       btn.type='button';
       btn.className='list-btn';
       btn.style.textAlign='left';
       btn.setAttribute('aria-label', label);
       btn.innerHTML='<strong>'+label+'</strong>';
-      btn.onclick=function(){ showOverDetail(onum); };
+      btn.onclick=function(){ showOverDetail(onum, o._inn); };
       ol.appendChild(btn);
     });
   }
@@ -2637,8 +2711,8 @@ if($('tabMore')) $('tabMore').onclick=()=>switchTab('tabMore');
 
 document.querySelectorAll('.tabBack').forEach(b=>{b.onclick=()=>switchTab(b.dataset.tab)});
 
-$('btnStartMatch').onclick=()=>{
-  const m=M(); if(!m) return;
+function startMatchFlow(){
+  const m=M(); if(!m){ alert('No match open'); return; }
   // Toss already decided batting team at create time
   if(m.battingTeam && (m.tossWinner||m.tossDecision)){
     S.temp.battingTeam = m.battingTeam;
@@ -2646,11 +2720,13 @@ $('btnStartMatch').onclick=()=>{
     return;
   }
   const box=$('battingChoices');
+  if(!box){ alert('Start dialog missing'); return; }
   box.innerHTML='<label class="choice-btn"><input type="radio" name="batTeam" value="teamA" /> '+m.teamA.name+'</label><label class="choice-btn"><input type="radio" name="batTeam" value="teamB" /> '+m.teamB.name+'</label>';
   box.querySelectorAll('input').forEach(r=>{r.onchange=()=>{$('dlgBatNext').disabled=false;S.temp.battingTeam=r.value}});
-  $('dlgBatNext').disabled=true;
+  if($('dlgBatNext')) $('dlgBatNext').disabled=true;
   openDlg('dlgBatting');
-};
+}
+if($('btnStartMatch')) $('btnStartMatch').onclick=startMatchFlow;
 function playingList(team){
   const sq=(team&&team.squad)||[];
   const p11=sq.filter(p=>p.inPlaying11);
@@ -2904,7 +2980,12 @@ $('btnStart2nd').onclick=()=>resumeSecondInnings();
 if($('btnDownloadMatch'))$('btnDownloadMatch').onclick=()=>downloadFullMatchFile();
 $('btnEndMatch').onclick=()=>{if(!confirm('End the entire match?'))return;const m=M();const batTeam=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowlTeam=m.battingTeam==='teamA'?m.teamB:m.teamA;let msg='Match ended';if(m.currentInnings===2&&m.target){if(m.totalScore>=m.target){const w=10-m.wickets;msg=batTeam.name+' won by '+w+' wicket'+(w!==1?'s':'');}else{const margin=m.target-1-m.totalScore;msg=bowlTeam.name+' won by '+margin+' run'+(margin!==1?'s':'');}}finishMatch(msg);};
 
-window.showOverDetail=function(num){const m=M();const o=(m.completedOvers||[]).find(x=>x.num===num);if(!o)return;$('overDetailTitle').textContent='Over '+o.num+' – '+o.bowlerName;$('overDetailBalls').innerHTML=o.balls.map((b,i)=>{
+window.showOverDetail=function(num, inn){const m=M();
+  let o=(m.completedOvers||[]).find(x=>x.num===num);
+  if(!o && m.innings1) o=(m.innings1.completedOvers||[]).find(x=>x.num===num);
+  if(!o)return;
+  $('overDetailTitle').textContent=(inn?('Innings '+inn+' · '):'')+'Over '+o.num+' – '+(o.bowlerName||'');
+$('overDetailBalls').innerHTML=o.balls.map((b,i)=>{
   const label=b.legal&&b.legalBallNo!=null?('Ball '+b.legalBallNo):(b.type==='wide'?'Wide':b.type==='noball'?'No Ball':'Delivery '+(i+1));
   return '<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div>'+label+': '+b.text+'</div>'+(b.desc?'<div style="color:var(--muted);font-size:12px;font-style:italic;margin-top:2px">'+b.desc+'</div>':'')+'</div>';
 }).join('')||'<p style="color:var(--muted)">No data</p>';openDlg('dlgOverDetail')};
@@ -3233,26 +3314,43 @@ if($('forceBowlCancel')) $('forceBowlCancel').onclick = ()=>closeDlg('dlgForceBo
 if($('forceBowlConfirm')) $('forceBowlConfirm').onclick = confirmForceBowler;
 
 
-if($('btnImportMatch')){
-  $('btnImportMatch').onclick=()=>$('importFileInput')&&$('importFileInput').click();
+function wireImportMatchUI(){
+  const btn = $('btnImportMatch');
+  const inp = $('importFileInput');
+  if(btn && inp){
+    btn.onclick = function(){ inp.value=''; inp.click(); };
+  }
+  if(inp){
+    inp.onchange = async function(e){
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      try{
+        const m = await importMatchFromFile(f);
+        if(typeof renderMatches==='function') renderMatches();
+        const ballsN = (typeof collectAllBalls==='function') ? collectAllBalls(m).length : 0;
+        if(m.type==='auction'){
+          announce('Auction loaded: '+(m.title||m.id));
+          if(typeof openAuction==='function') openAuction(m.id);
+        } else {
+          const label = (m.teamA&&m.teamA.name||'?')+' vs '+(m.teamB&&m.teamB.name||'?');
+          announce('Match loaded: '+label+'. '+(ballsN? (ballsN+' balls restored. ') : '')+(m.status==='not_started'?'Tap Start Match to go live.':'Opened with saved score.'));
+          if(typeof openMatch==='function') await openMatch(m.id);
+          // If never started, focus Start Match so Go live is one tap
+          if(m.status==='not_started' && $('btnStartMatch')){
+            setTimeout(function(){ try{ focusEl($('btnStartMatch')); }catch(x){} }, 150);
+          } else {
+            try{ if(typeof renderLive==='function') renderLive(); if(typeof renderScorecard==='function') renderScorecard(); }catch(x){}
+          }
+        }
+      }catch(err){
+        console.error(err);
+        alert('Could not import file: '+(err.message||err));
+      }
+      e.target.value='';
+    };
+  }
 }
-if($('importFileInput')){
-  $('importFileInput').onchange=async(e)=>{
-    const f=e.target.files&&e.target.files[0];
-    if(!f) return;
-    try{
-      const m = await importMatchFromFile(f);
-      renderMatches();
-      const label = m.type==='auction'
-        ? ('Auction loaded: '+(m.title||m.id))
-        : ('Match loaded: '+(m.teamA&&m.teamA.name||'?')+' vs '+(m.teamB&&m.teamB.name||'?'));
-      announce(label + '. Use Resume, then keep status live so viewers can watch.');
-      if(typeof openMatch==='function') openMatch(m.id);
-      else if(m.type==='auction' && typeof openAuction==='function') openAuction(m.id);
-    }catch(err){ alert('Could not import file: '+(err.message||err)); }
-    e.target.value='';
-  };
-}
+wireImportMatchUI();
 
 
 

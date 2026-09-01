@@ -359,6 +359,71 @@ button{transition:transform .12s ease,box-shadow .12s ease,border-color .12s eas
 button:active{transform:scale(.98)}
 .choice-btn{display:block;padding:12px;margin:8px 0;border-radius:12px;border:1px solid var(--border-soft);background:var(--card)}
 
+
+/* ===== Insights album + AI composer ===== */
+#paneInsights, #uwmPaneInsights{padding-bottom:120px}
+.ins-album{min-height:200px}
+.ins-card{
+  border:1px solid var(--border);border-radius:16px;background:var(--card-solid);
+  padding:14px 14px 10px;box-shadow:var(--shadow);
+}
+.ins-card-head{
+  font-family:var(--font-score);font-weight:800;font-size:1.15rem;color:var(--primary-bright);
+  margin:0 0 10px;line-height:1.3;
+}
+.ins-card-body{font-size:14px;line-height:1.45;color:var(--text)}
+.ins-card-body table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px}
+.ins-card-body th,.ins-card-body td{
+  border:1px solid var(--border);padding:6px 8px;text-align:center
+}
+.ins-card-body th{background:rgba(0,180,216,.12);color:var(--primary-bright);font-weight:700}
+.ins-card-body tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+.ins-nav{
+  display:flex;gap:8px;align-items:center;justify-content:space-between;
+  margin-top:12px;flex-wrap:wrap
+}
+.ins-nav .ins-pos{color:var(--muted);font-size:13px;font-weight:600}
+.ins-empty{color:var(--muted);padding:28px 12px;text-align:center}
+.ins-chart{margin:12px 0 4px}
+.ins-chart-title{font-weight:700;font-size:13px;margin-bottom:8px;color:var(--text-secondary)}
+.ins-bars{display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 4px}
+.ins-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;height:100%}
+.ins-bar{
+  width:100%;max-width:36px;border-radius:6px 6px 2px 2px;
+  background:linear-gradient(180deg,var(--primary-bright),var(--primary));
+  min-height:4px
+}
+.ins-bar-lab{font-size:10px;color:var(--muted);margin-top:4px;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ins-bar-val{font-size:11px;font-weight:700;color:var(--ok-bright);margin-bottom:2px}
+.ins-admin-bar{
+  position:sticky;bottom:56px;z-index:40;margin-top:16px;
+  padding:12px;border-radius:16px;border:1px solid var(--border);
+  background:rgba(7,13,24,.96);backdrop-filter:blur(8px);box-shadow:var(--shadow)
+}
+.ins-draft{
+  border:1px solid rgba(0,180,216,.35);border-radius:12px;padding:10px;margin-bottom:10px;
+  background:rgba(0,180,216,.06)
+}
+.ins-draft-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.ins-ask-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.ins-ask-row textarea{
+  flex:1;min-width:160px;min-height:44px;max-height:120px;resize:vertical;
+  border-radius:10px;border:1px solid var(--border);background:var(--bg-surface);
+  color:var(--text);padding:10px 12px;font:inherit
+}
+.ins-ask-row textarea:focus{outline:2px solid var(--border-focus);outline-offset:1px}
+.ins-modal-backdrop{
+  position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);
+  display:flex;align-items:center;justify-content:center;padding:16px
+}
+.ins-modal-backdrop.hidden{display:none!important}
+.ins-modal{
+  width:min(520px,100%);max-height:min(86vh,720px);overflow:auto;
+  background:var(--card-solid);border:1px solid var(--border);border-radius:18px;
+  padding:16px;box-shadow:var(--shadow)
+}
+.ins-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
+
 </style>
 </head>
 <body>
@@ -448,6 +513,7 @@ button:active{transform:scale(.98)}
     <button type="button" role="tab" id="uwmTabLive" class="active" aria-selected="true" aria-keyshortcuts="Alt+L" aria-label="Live">Live</button>
     <button type="button" role="tab" id="uwmTabScore" aria-selected="false" aria-keyshortcuts="Alt+S" aria-label="Scorecard">Scorecard</button>
     <button type="button" role="tab" id="uwmTabSquads" aria-selected="false" aria-keyshortcuts="Alt+T" aria-label="Teams">Teams</button>
+    <button type="button" role="tab" id="uwmTabInsights" aria-selected="false" aria-keyshortcuts="Alt+I" aria-label="Insights">Insights</button>
     <button type="button" role="tab" id="uwmTabMore" aria-selected="false" aria-keyshortcuts="Alt+M" aria-label="More">More</button>
   </nav>
 </section>
@@ -493,6 +559,14 @@ button:active{transform:scale(.98)}
   </div>
 </section>
 
+
+
+<section id="uwmPaneInsights" class="wrap hidden" role="tabpanel" aria-label="Insights">
+  <div class="panel">
+    <h1 id="uwmInsTitle" class="mh-title" tabindex="-1" style="font-size:1.2rem;margin-bottom:12px">Insights</h1>
+    <div id="uwmInsAlbum" class="ins-album" aria-live="polite"></div>
+  </div>
+</section>
 
 <!-- USER LIVE AUCTION VIEWER (read-only) -->
 <section id="screenUserWatchAuction" class="hidden" role="region" aria-labelledby="uwaTitle">
@@ -547,9 +621,8 @@ button:active{transform:scale(.98)}
   <h1 id="homeTitle" class="sr-only" tabindex="-1">Matches</h1>
   <div id="hubAdminPaneMatches">
     <div style="text-align:center;padding:12px 0 8px">
-      <button type="button" id="btnCreateMatch" class="btn-ok" aria-label="Create Match">Create Match</button>
-      <button type="button" id="btnImportMatch" class="btn-sec" aria-label="Import match from JSON file">Import</button>
-      <input type="file" id="importFileInput" accept="application/json,.json" class="sr-only" aria-label="Choose JSON file" />
+      <button type="button" id="btnCreateMatch" class="btn-ok" aria-label="Create match">Create</button>
+      <input type="file" id="importFileInput" accept="application/json,.json" class="sr-only" aria-label="Choose saved match JSON file to rerun" />
     </div>
     <div id="matchesList"></div>
   </div>
@@ -635,6 +708,7 @@ button:active{transform:scale(.98)}
     <button type="button" role="tab" id="tabLive" class="active" aria-selected="true" aria-controls="screenLive" aria-keyshortcuts="Alt+L" aria-label="Live">Live</button>
     <button type="button" role="tab" id="tabScore" aria-selected="false" aria-controls="paneScore" aria-keyshortcuts="Alt+S" aria-label="Scorecard">Scorecard</button>
     <button type="button" role="tab" id="tabSquads" aria-selected="false" aria-controls="paneSquads" aria-keyshortcuts="Alt+T" aria-label="Teams">Teams</button>
+    <button type="button" role="tab" id="tabInsights" aria-selected="false" aria-controls="paneInsights" aria-keyshortcuts="Alt+I" aria-label="Insights">Insights</button>
     <button type="button" role="tab" id="tabMore" aria-selected="false" aria-controls="paneMore" aria-keyshortcuts="Alt+M" aria-label="More">More</button>
   </nav>
 
@@ -682,6 +756,23 @@ button:active{transform:scale(.98)}
   </div>
 </section>
 
+<section id="paneInsights" class="wrap hidden" role="tabpanel" aria-label="Insights">
+  <div class="panel">
+    <h1 id="insTitle" class="mh-title" tabindex="-1" style="font-size:1.2rem;margin-bottom:12px">Insights</h1>
+    <div id="insAlbum" class="ins-album" aria-live="polite"></div>
+    <div id="insAdminBar" class="ins-admin-bar hidden">
+      <div id="insDraft" class="ins-draft hidden" aria-live="polite"></div>
+      <div class="ins-ask-row">
+        <label for="insAsk" class="sr-only">Ask about this match</label>
+        <textarea id="insAsk" rows="2" placeholder="Ask about this match…" aria-label="Ask about this match"></textarea>
+        <button type="button" id="insSend" class="btn-ok" aria-label="Send question">Send</button>
+        <button type="button" id="insViewAlbum" class="btn-sec" aria-label="View published insights album">View published</button>
+      </div>
+      <p id="insStatus" class="sr-only" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
 <section id="screenSettings" class="wrap panel hidden" role="region" aria-labelledby="setTitle">
   <h1 id="setTitle" tabindex="-1">Settings</h1>
   <button type="button" id="btnSetBack" class="btn-sec" style="margin-bottom:12px" aria-label="Back">Back</button>
@@ -709,7 +800,7 @@ button:active{transform:scale(.98)}
     <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px" aria-label="Back">Back</button>
     <h2 id="aboutHeading" tabindex="-1">About</h2>
     <p><strong>Cric360 Live</strong></p>
-    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.08.31.1.20</span></p>
+    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.09.01.1.25</span></p>
     <p style="color:var(--muted)">Uninterrupted live with 360 dimensions</p>
     <p style="margin-top:14px"><strong>Developed and owned by</strong> Cric360</p>
     <p style="color:var(--muted)">Contact: <a href="mailto:cricthreesixty@gmail.com">cricthreesixty@gmail.com</a></p>
@@ -718,33 +809,55 @@ button:active{transform:scale(.98)}
   </div>
 </section>
 
+
+<div id="dlgCreateChoice" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="createChoiceTitle">
+  <div class="modal-box">
+    <h2 id="createChoiceTitle" tabindex="-1">Create</h2>
+    <p style="color:var(--muted);font-size:14px;margin:0 0 14px">How do you want to start?</p>
+    <button type="button" id="btnRunNewMatch" class="btn-ok btn-block" aria-label="Run new match, open setup wizard">Run new match</button>
+    <button type="button" id="btnRerunOldMatch" class="btn-sec btn-block" style="margin-top:10px" aria-label="Rerun old match, import saved JSON file">Rerun old match</button>
+    <button type="button" id="btnCreateChoiceCancel" class="btn-sec btn-block" style="margin-top:14px" aria-label="Cancel">Cancel</button>
+  </div>
+</div>
+
 <!-- Create Match -->
 <div id="dlgCreate" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="createTitle">
   <div class="modal-box wide">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <h2 id="createTitle" tabindex="-1">Create Match</h2>
-      <button type="button" id="closeCreate" class="btn-sec" style="min-height:40px;padding:6px 12px" aria-label="Close">✕</button>
+      <button type="button" id="closeCreate" class="btn-sec" style="min-height:40px;padding:6px 12px" aria-label="Cancel match setup">✕</button>
     </div>
     <div class="step-dots" id="stepDots" aria-hidden="true"><span class="on" data-s="1"></span><span data-s="2"></span><span data-s="3"></span><span data-s="4"></span><span data-s="5"></span><span data-s="6"></span></div>
     <div id="cStep1">
       <label for="seriesName">Series / Match Name</label><input id="seriesName" type="text" />
       <label for="teamAName">Team A</label><input id="teamAName" type="text" />
       <label for="teamBName">Team B</label><input id="teamBName" type="text" />
-      <button type="button" id="cNext1" class="btn-ok btn-block" style="margin-top:16px">Next — Team A squad</button>
+      <div class="row" style="margin-top:16px;gap:8px">
+        <button type="button" id="cCancel1" class="btn-danger" style="flex:1" aria-label="Cancel match setup">Cancel</button>
+        <button type="button" id="cNext1" class="btn-ok" style="flex:2">Next — Team A squad</button>
+      </div>
     </div>
     <div id="cStep2" class="hidden">
       <h3 id="squadATitle" tabindex="-1">Team A Squad</h3>
       <p style="color:var(--muted);font-size:13px">Add full squad (not only 11). Name, role, optional photo.</p>
       <div id="teamAInputs"></div>
       <button type="button" id="btnAddPlayerA" class="btn-sec btn-block" style="margin-top:8px">Add player</button>
-      <div class="row" style="margin-top:12px"><button type="button" id="cBack1" class="btn-sec" style="flex:1">Previous</button><button type="button" id="cNext2" class="btn-ok" style="flex:1">Save &amp; next team</button></div>
+      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+        <button type="button" id="cCancel2" class="btn-danger" style="flex:1;min-width:90px" aria-label="Cancel match setup">Cancel</button>
+        <button type="button" id="cBack1" class="btn-sec" style="flex:1;min-width:90px">Previous</button>
+        <button type="button" id="cNext2" class="btn-ok" style="flex:1;min-width:90px">Save &amp; next team</button>
+      </div>
     </div>
     <div id="cStep3" class="hidden">
       <h3 id="squadBTitle" tabindex="-1">Team B Squad</h3>
       <p style="color:var(--muted);font-size:13px">Add full squad. Name, role, optional photo.</p>
       <div id="teamBInputs"></div>
       <button type="button" id="btnAddPlayerB" class="btn-sec btn-block" style="margin-top:8px">Add player</button>
-      <div class="row" style="margin-top:12px"><button type="button" id="cBack2" class="btn-sec" style="flex:1">Previous</button><button type="button" id="cNext3" class="btn-ok" style="flex:1">Next — Match type</button></div>
+      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+        <button type="button" id="cCancel3" class="btn-danger" style="flex:1;min-width:90px" aria-label="Cancel match setup">Cancel</button>
+        <button type="button" id="cBack2" class="btn-sec" style="flex:1;min-width:90px">Previous</button>
+        <button type="button" id="cNext3" class="btn-ok" style="flex:1;min-width:90px">Next — Match type</button>
+      </div>
     </div>
     <div id="cStep4" class="hidden">
       <h3 tabindex="-1">Match Type</h3>
@@ -753,7 +866,11 @@ button:active{transform:scale(.98)}
         <label class="choice-btn"><input type="radio" name="matchType" value="ODI" /> ODI</label>
         <label class="choice-btn"><input type="radio" name="matchType" value="Test" /> Test</label>
       </div>
-      <div class="row"><button type="button" id="cBack3" class="btn-sec" style="flex:1">Previous</button><button type="button" id="cNext4" class="btn-ok" style="flex:1">Next — Toss</button></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button type="button" id="cCancel4" class="btn-danger" style="flex:1;min-width:90px" aria-label="Cancel match setup">Cancel</button>
+        <button type="button" id="cBack3" class="btn-sec" style="flex:1;min-width:90px">Previous</button>
+        <button type="button" id="cNext4" class="btn-ok" style="flex:1;min-width:90px">Next — Toss</button>
+      </div>
     </div>
     <div id="cStep5" class="hidden">
       <h3 id="cTossTitle" tabindex="-1">Toss</h3>
@@ -766,22 +883,31 @@ button:active{transform:scale(.98)}
         <option value="bowl">Bowl</option>
       </select>
       <p id="cTossHint" style="color:var(--muted);font-size:13px;margin-top:10px" role="status"></p>
-      <div class="row" style="margin-top:12px"><button type="button" id="cBack4" class="btn-sec" style="flex:1">Previous</button><button type="button" id="cNext5" class="btn-ok" style="flex:1">Next — Playing 11</button></div>
+      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+        <button type="button" id="cCancel5" class="btn-danger" style="flex:1;min-width:90px" aria-label="Cancel match setup">Cancel</button>
+        <button type="button" id="cBack4" class="btn-sec" style="flex:1;min-width:90px">Previous</button>
+        <button type="button" id="cNext5" class="btn-ok" style="flex:1;min-width:90px">Next — Playing 11</button>
+      </div>
     </div>
     <div id="cStep6" class="hidden">
       <h3 id="cP11Title" tabindex="-1">Select Playing 11</h3>
-      <p style="color:var(--muted);font-size:13px">Tick 11 players per team. Tab moves between teams.</p>
       <div class="batter-row" style="grid-template-columns:1fr 1fr;gap:12px;align-items:start">
         <div>
           <h4 id="cP11ATitle" tabindex="-1">Team A</h4>
-          <div id="cP11A" role="group" aria-labelledby="cP11ATitle"></div>
+          <p id="cP11StatusA" role="status" aria-live="polite" style="color:var(--primary-bright);font-size:13px;font-weight:700;min-height:1.2em;margin:4px 0 8px"></p>
+          <div id="cP11A"></div>
         </div>
         <div>
           <h4 id="cP11BTitle" tabindex="-1">Team B</h4>
-          <div id="cP11B" role="group" aria-labelledby="cP11BTitle"></div>
+          <p id="cP11StatusB" role="status" aria-live="polite" style="color:var(--primary-bright);font-size:13px;font-weight:700;min-height:1.2em;margin:4px 0 8px"></p>
+          <div id="cP11B"></div>
         </div>
       </div>
-      <div class="row" style="margin-top:12px"><button type="button" id="cBack5" class="btn-sec" style="flex:1">Previous</button><button type="button" id="cStartLive" class="btn-ok" style="flex:1">Go live</button></div>
+      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+        <button type="button" id="cCancel6" class="btn-danger" style="flex:1;min-width:100px" aria-label="Cancel match setup">Cancel</button>
+        <button type="button" id="cBack5" class="btn-sec" style="flex:1;min-width:100px">Previous</button>
+        <button type="button" id="cStartLive" class="btn-ok" style="flex:1;min-width:100px">Go live</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1172,10 +1298,22 @@ button:active{transform:scale(.98)}
   </div>
 </div>
 
+
+<div id="insAlbumModal" class="ins-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="insModalHead" aria-hidden="true">
+  <div class="ins-modal">
+    <h2 id="insModalHead" tabindex="-1" class="ins-card-head">Published insights</h2>
+    <div id="insModalBody" class="ins-album"></div>
+    <div class="ins-modal-actions">
+      <button type="button" id="insModalClose" class="btn-sec" aria-label="Close insights album">Close</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
 <script>
 
 /* ========== FIREBASE + ROLES (same project as Auction Tracker 360) ========== */
@@ -1189,7 +1327,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
-const APP_VERSION = "2026.08.31.1.21";
+const APP_VERSION = "2026.09.01.1.25";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1445,6 +1583,60 @@ function sr(r,b){return b?((r/b)*100).toFixed(1):'0.0'}
 function eco(r,b){return b?(r/(b/6)).toFixed(2):'0.00'}
 function maxOvers(t){return t==='T20'?20:t==='ODI'?50:999}
 function player(name,photoUrl,role){return{id:uid(),name,photoUrl:photoUrl||'',role:role||'Batter',inPlaying11:false,runs:0,balls:0,fours:0,sixes:0,isOut:false,retiredHurt:false,dismissal:'',bowlRuns:0,bowlBalls:0,wickets:0,maidens:0}}
+/** Create a new cricket match document (used by Create → Go live). */
+function newMatch(series, teamAName, teamBName, matchType, squadA, squadB){
+  squadA = Array.isArray(squadA) ? squadA : [];
+  squadB = Array.isArray(squadB) ? squadB : [];
+  function packTeam(name, squad){
+    return {
+      id: uid(),
+      name: String(name || 'Team').trim() || 'Team',
+      squad: squad.map(function(p){
+        // Ensure required scoring fields exist
+        return {
+          id: p.id || uid(),
+          name: p.name || 'Player',
+          photoUrl: p.photoUrl || '',
+          role: p.role || 'Batter',
+          inPlaying11: !!p.inPlaying11,
+          runs: 0, balls: 0, fours: 0, sixes: 0,
+          isOut: false, retiredHurt: false, dismissal: '',
+          bowlRuns: 0, bowlBalls: 0, wickets: 0, maidens: 0
+        };
+      })
+    };
+  }
+  return {
+    id: 'm_' + uid(),
+    type: 'match',
+    series: String(series || '').trim() || 'Match',
+    matchType: matchType || 'T20',
+    status: 'not_started',
+    teamA: packTeam(teamAName, squadA),
+    teamB: packTeam(teamBName, squadB),
+    battingTeam: 'teamA',
+    tossWinner: '',
+    tossDecision: '',
+    currentInnings: 1,
+    totalScore: 0,
+    wickets: 0,
+    totalBalls: 0,
+    ballsInOver: 0,
+    currentOver: 0,
+    freeHit: false,
+    target: null,
+    result: '',
+    strikerId: null,
+    nonStrikerId: null,
+    currentBowlerId: null,
+    completedOvers: [],
+    currentOverBalls: [],
+    extras: { wide: 0, noball: 0, bye: 0, legbye: 0 },
+    insights: [],
+    createdAt: Date.now(),
+    updatedAt: new Date().toISOString()
+  };
+}
 function $(id){return document.getElementById(id)}
 
 function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='striker'){
@@ -1607,7 +1799,7 @@ function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='strike
 function swap(m){const t=m.strikerId;m.strikerId=m.nonStrikerId;m.nonStrikerId=t}
 
 function showScreen(id){
-  ['screenHome','screenLive','screenSettings','paneScore','paneSquads','paneMore','screenAuction','aucPaneSquads','aucPaneMore','aucPaneResults','screenAuth','screenBoot','screenUserHome','screenUserMatches','screenUserAuctions','screenUserMore','screenUserWatchMatch','screenUserWatchAuction','uwaPaneSquads','uwaPaneMore','uwmPaneScore','uwmPaneSquads','uwmPaneMore'].forEach(s=>{
+  ['screenHome','screenLive','screenSettings','paneScore','paneSquads','paneInsights','paneMore','screenAuction','aucPaneSquads','aucPaneMore','aucPaneResults','screenAuth','screenBoot','screenUserHome','screenUserMatches','screenUserAuctions','screenUserMore','screenUserWatchMatch','screenUserWatchAuction','uwaPaneSquads','uwaPaneMore','uwmPaneScore','uwmPaneSquads','uwmPaneInsights','uwmPaneMore'].forEach(s=>{
     const el=$(s); if(el) el.classList.add('hidden');
   });
   const t=$(id); if(t) t.classList.remove('hidden');
@@ -1618,9 +1810,9 @@ function showScreen(id){
       else { ss.setAttribute('aria-hidden','true'); ss.setAttribute('inert',''); }
     }
   }catch(e){}
-  const adminMatch = (id==='screenLive'||id==='paneScore'||id==='paneSquads'||id==='paneMore');
+  const adminMatch = (id==='screenLive'||id==='paneScore'||id==='paneSquads'||id==='paneInsights'||id==='paneMore');
   const adminAuc = (id==='screenAuction'||id==='aucPaneSquads'||id==='aucPaneMore'||id==='aucPaneResults');
-  const userMatch = (id==='screenUserWatchMatch'||id==='uwmPaneScore'||id==='uwmPaneSquads'||id==='uwmPaneMore');
+  const userMatch = (id==='screenUserWatchMatch'||id==='uwmPaneScore'||id==='uwmPaneSquads'||id==='uwmPaneInsights'||id==='uwmPaneMore');
   const userAuc = (id==='screenUserWatchAuction'||id==='uwaPaneSquads'||id==='uwaPaneMore');
   const matchTabs = adminMatch || adminAuc || userMatch || userAuc;
   document.body.classList.toggle('has-tabbar', matchTabs);
@@ -1643,29 +1835,88 @@ function showScreen(id){
     }
   }catch(e){}
 }
+function getDlgFocusable(dlg){
+  if(!dlg) return [];
+  return Array.prototype.slice.call(dlg.querySelectorAll(
+    'button:not([disabled]):not([aria-hidden="true"]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'
+  )).filter(function(el){
+    return el.offsetParent !== null || el === document.activeElement;
+  });
+}
+function installDlgFocusTrap(dlg){
+  removeDlgFocusTrap();
+  window._dlgTrapTarget = dlg;
+  window._dlgTrapHandler = function(e){
+    if(e.key !== 'Tab' || !window._dlgTrapTarget) return;
+    const d = window._dlgTrapTarget;
+    if(d.classList.contains('hidden')) return;
+    const list = getDlgFocusable(d);
+    if(!list.length){ e.preventDefault(); return; }
+    const first = list[0], last = list[list.length-1];
+    const active = document.activeElement;
+    if(e.shiftKey){
+      if(active === first || !d.contains(active)){
+        e.preventDefault();
+        try{ last.focus(); }catch(err){}
+      }
+    } else {
+      if(active === last || !d.contains(active)){
+        e.preventDefault();
+        try{ first.focus(); }catch(err){}
+      }
+    }
+  };
+  document.addEventListener('keydown', window._dlgTrapHandler, true);
+}
+function removeDlgFocusTrap(){
+  if(window._dlgTrapHandler){
+    document.removeEventListener('keydown', window._dlgTrapHandler, true);
+    window._dlgTrapHandler = null;
+  }
+  window._dlgTrapTarget = null;
+}
 function openDlg(id){
-  // Hide/inert background for accessibility
-  document.querySelectorAll('section.wrap, section[role="region"], #screenHome, #screenLive, #screenAuction, #screenSettings, #paneScore, #paneMore, #aucPaneResults, #aucPaneMore, .tabbar, .top-nav').forEach(el=>{
+  // Hide/inert background + bottom tab bars so Tab cannot leave the wizard
+  const bgSel = 'section.wrap, section[role="region"], #screenHome, #screenLive, #screenAuction, #screenSettings, #paneScore, #paneSquads, #paneInsights, #paneMore, #aucPaneResults, #aucPaneMore, .tabbar, .top-nav, .hub-tabbar, #hubTabbarAdmin, #hubTabbarUser, #matchTabbar, #aucTabbar, #uwmTabbar, #uwaTabbar, #topNavBar';
+  document.querySelectorAll(bgSel).forEach(el=>{
     if(el && !$(id).contains(el)){
       el.setAttribute('aria-hidden','true');
-      try{el.inert=true;}catch(e){}
+      try{ el.inert = true; }catch(e){}
+      try{ el.setAttribute('inert',''); }catch(e){}
     }
   });
-  $(id).classList.remove('hidden');
-  $(id).setAttribute('aria-modal','true');
-  const title=$(id).querySelector('h2,h1,[tabindex="-1"]');
-  setTimeout(()=>{
+  const dlg = $(id);
+  if(!dlg) return;
+  dlg.classList.remove('hidden');
+  dlg.setAttribute('aria-modal','true');
+  dlg.setAttribute('aria-hidden','false');
+  installDlgFocusTrap(dlg);
+  const title = dlg.querySelector('h2,h1,[tabindex="-1"]');
+  setTimeout(function(){
     focusEl(title);
-    const first=$(id).querySelector('input:not([type=hidden]),select,textarea,button:not([disabled])');
-    if(first && title){ /* title focused first for SR context */ }
-  },60);
+  }, 60);
 }
 function closeDlg(id){
-  $(id).classList.add('hidden');
+  removeDlgFocusTrap();
+  const dlg = $(id);
+  if(dlg){
+    dlg.classList.add('hidden');
+    dlg.setAttribute('aria-hidden','true');
+  }
   document.querySelectorAll('[aria-hidden="true"]').forEach(el=>{
+    // keep elements that are intentionally hidden screens
+    if(el.classList && el.classList.contains('hidden') && el.id && el.id.indexOf('screen')===0) return;
     el.removeAttribute('aria-hidden');
-    try{el.inert=false;}catch(e){}
+    try{ el.inert = false; }catch(e){}
+    try{ el.removeAttribute('inert'); }catch(e){}
   });
+}
+function cancelCreateWizard(){
+  if(confirm('Cancel match setup? All entered details will be lost.')){
+    closeDlg('dlgCreate');
+    try{ announce('Match setup cancelled'); }catch(e){}
+    try{ focusEl($('btnCreateMatch')); }catch(e){}
+  }
 }
 
 
@@ -1769,6 +2020,37 @@ function fillTossSelects(){
   const sel=$('cTossWinner'); if(!sel) return;
   sel.innerHTML='<option value="">Select team…</option><option value="teamA">'+a+'</option><option value="teamB">'+b+'</option>';
 }
+function p11Count(side){
+  return document.querySelectorAll('input[data-side="'+side+'"][data-p11="1"]:checked').length;
+}
+function p11UpdateSide(side){
+  const teamName = side==='a'
+    ? (($('teamAName')&&$('teamAName').value)||'Team A').trim()
+    : (($('teamBName')&&$('teamBName').value)||'Team B').trim();
+  const n = p11Count(side);
+  const statusEl = $(side==='a' ? 'cP11StatusA' : 'cP11StatusB');
+  const full = n >= 11;
+  if(statusEl){
+    if(full) statusEl.textContent = teamName + ': 11 players selected';
+    else statusEl.textContent = teamName + ': ' + n + ' of 11 selected';
+  }
+  document.querySelectorAll('input[data-side="'+side+'"][data-p11="1"]').forEach(function(cb){
+    const lab = cb.closest('label');
+    const pname = cb.getAttribute('data-name') || 'Player';
+    if(full && !cb.checked){
+      cb.disabled = true;
+      cb.setAttribute('aria-disabled','true');
+      if(lab) lab.style.opacity = '0.55';
+      cb.setAttribute('aria-label', pname + ', not selected, ' + teamName + ', Playing 11 full at 11. Uncheck a player to change.');
+    } else {
+      cb.disabled = false;
+      cb.removeAttribute('aria-disabled');
+      if(lab) lab.style.opacity = '1';
+      const state = cb.checked ? 'selected' : 'not selected';
+      cb.setAttribute('aria-label', pname + ', ' + state + ', ' + teamName + ', ' + n + ' of 11 selected');
+    }
+  });
+}
 function fillPlaying11Checks(){
   const a=readSquad('a'), b=readSquad('b');
   window._draftSquadA=a; window._draftSquadB=b;
@@ -1776,20 +2058,56 @@ function fillPlaying11Checks(){
   const bName=($('teamBName')&&$('teamBName').value||'Team B').trim();
   if($('cP11ATitle')) $('cP11ATitle').textContent=aName;
   if($('cP11BTitle')) $('cP11BTitle').textContent=bName;
-  function paint(boxId, squad, side){
+  function paint(boxId, squad, side, teamName){
     const box=$(boxId); if(!box) return;
     box.innerHTML='';
-    squad.forEach((p,i)=>{
+    // One checkbox per player — avoid role=group listing everyone at once
+    squad.forEach(function(p,i){
       const id='p11_'+side+'_'+i;
+      const checked = i < 11;
       const lab=document.createElement('label');
       lab.className='choice-btn';
       lab.style.marginTop='6px';
-      lab.innerHTML='<input type="checkbox" id="'+id+'" data-side="'+side+'" data-ix="'+i+'" '+(i<11?'checked':'')+' /> '+(p.name||'Player')+(p.role?(' · '+p.role):'');
+      lab.setAttribute('for', id);
+      const cb=document.createElement('input');
+      cb.type='checkbox';
+      cb.id=id;
+      cb.setAttribute('data-side', side);
+      cb.setAttribute('data-ix', String(i));
+      cb.setAttribute('data-p11', '1');
+      cb.setAttribute('data-name', p.name||'Player');
+      if(checked) cb.checked = true;
+      const nameSpan=document.createElement('span');
+      nameSpan.setAttribute('aria-hidden','true');
+      nameSpan.textContent = ' '+(p.name||'Player')+(p.role?(' · '+p.role):'');
+      lab.appendChild(cb);
+      lab.appendChild(nameSpan);
       box.appendChild(lab);
+      cb.addEventListener('change', function(){
+        const nm = cb.getAttribute('data-name')||'Player';
+        if(cb.checked && p11Count(side) > 11){
+          cb.checked = false;
+          announce(nm + ' not added. Already 11 players for ' + teamName, true);
+          p11UpdateSide(side);
+          return;
+        }
+        const n = p11Count(side);
+        if(cb.checked){
+          if(n >= 11){
+            announce(nm + ' selected. 11 players selected for ' + teamName + '. Other players disabled until you uncheck someone.', true);
+          } else {
+            announce(nm + ' selected. ' + n + ' of 11 selected for ' + teamName, true);
+          }
+        } else {
+          announce(nm + ' removed. ' + n + ' of 11 selected for ' + teamName, true);
+        }
+        p11UpdateSide(side);
+      });
     });
+    p11UpdateSide(side);
   }
-  paint('cP11A', a, 'a');
-  paint('cP11B', b, 'b');
+  paint('cP11A', a, 'a', aName);
+  paint('cP11B', b, 'b', bName);
 }
 function applyPlaying11Flags(squad, side){
   squad.forEach((p,i)=>{
@@ -1804,25 +2122,54 @@ function battingTeamFromToss(winner, decision){
   return decision==='bat' ? 'teamB' : 'teamA';
 }
 
+function openNewMatchWizard(){
+  if($('seriesName')) $('seriesName').value='';
+  if($('teamAName')) $('teamAName').value='';
+  if($('teamBName')) $('teamBName').value='';
+  try{ fillSquad('teamAInputs','a'); fillSquad('teamBInputs','b'); }catch(e){}
+  setCreateStep(1);
+  openDlg('dlgCreate');
+  setTimeout(function(){ if($('seriesName')) $('seriesName').focus(); }, 80);
+}
+function openCreateChoice(){
+  openDlg('dlgCreateChoice');
+  setTimeout(function(){ focusEl($('createChoiceTitle')||$('btnRunNewMatch')); }, 60);
+}
 if($('btnCreateMatch')){
-  $('btnCreateMatch').onclick=()=>{
-    if($('seriesName')) $('seriesName').value='';
-    if($('teamAName')) $('teamAName').value='';
-    if($('teamBName')) $('teamBName').value='';
-    fillSquad('teamAInputs','a');
-    fillSquad('teamBInputs','b');
-    setCreateStep(1);
-    openDlg('dlgCreate');
-    setTimeout(()=>{ if($('seriesName')) $('seriesName').focus(); },80);
+  $('btnCreateMatch').onclick = openCreateChoice;
+}
+if($('btnRunNewMatch')){
+  $('btnRunNewMatch').onclick = function(){
+    closeDlg('dlgCreateChoice');
+    openNewMatchWizard();
+  };
+}
+if($('btnRerunOldMatch')){
+  $('btnRerunOldMatch').onclick = function(){
+    closeDlg('dlgCreateChoice');
+    const inp = $('importFileInput');
+    if(!inp){ alert('Import not available'); return; }
+    inp.value = '';
+    inp.click();
+    try{ announce('Choose a saved match file to rerun'); }catch(e){}
+  };
+}
+if($('btnCreateChoiceCancel')){
+  $('btnCreateChoiceCancel').onclick = function(){
+    closeDlg('dlgCreateChoice');
+    try{ focusEl($('btnCreateMatch')); }catch(e){}
   };
 }
 if($('btnAddPlayerA')) $('btnAddPlayerA').onclick=()=>addOneSquadPlayer('teamAInputs','a');
 if($('btnAddPlayerB')) $('btnAddPlayerB').onclick=()=>addOneSquadPlayer('teamBInputs','b');
-if($('closeCreate')){
-  $('closeCreate').onclick=()=>{
-    if(confirm('Cancel match setup?')) closeDlg('dlgCreate');
-  };
+if($('closeCreate')) $('closeCreate').onclick = cancelCreateWizard;
+function wireCreateCancelButtons(){
+  ['cCancel1','cCancel2','cCancel3','cCancel4','cCancel5','cCancel6'].forEach(function(id){
+    if($(id)) $(id).onclick = cancelCreateWizard;
+  });
 }
+try{ wireCreateCancelButtons(); }catch(e){}
+
 if($('cNext1')){
   $('cNext1').onclick=()=>{
     const series=($('seriesName').value||'').trim();
@@ -2674,7 +3021,7 @@ if($('scTeamB')) $('scTeamB').onclick=()=>setScorecardMode('teamB');
 if($('scSplitView')) $('scSplitView').onclick=()=>setScorecardMode('split');
 
 function switchTab(tabId){
-  ['tabLive','tabScore','tabSquads','tabMore'].forEach(id=>{
+  ['tabLive','tabScore','tabSquads','tabInsights','tabMore'].forEach(id=>{
     const b=$(id); if(!b) return;
     const on=id===tabId;
     b.classList.toggle('active',on);
@@ -2683,6 +3030,7 @@ function switchTab(tabId){
   if($('screenLive')) $('screenLive').classList.add('hidden');
   if($('paneScore')) $('paneScore').classList.add('hidden');
   if($('paneSquads')) $('paneSquads').classList.add('hidden');
+  if($('paneInsights')) $('paneInsights').classList.add('hidden');
   if($('paneMore')) $('paneMore').classList.add('hidden');
   document.body.classList.add('has-tabbar');
   if($('matchTabbar')) $('matchTabbar').classList.remove('hidden');
@@ -2698,6 +3046,10 @@ function switchTab(tabId){
     if($('paneSquads')) $('paneSquads').classList.remove('hidden');
     try{ renderMatchSquadsPane('admin'); }catch(e){}
     focusEl($('matchSquadsH'));
+  } else if(tabId==='tabInsights'){
+    if($('paneInsights')) $('paneInsights').classList.remove('hidden');
+    try{ renderInsightsPane('admin'); }catch(e){}
+    focusEl($('insTitle'));
   } else {
     if($('paneMore')) $('paneMore').classList.remove('hidden');
     try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
@@ -2707,6 +3059,7 @@ function switchTab(tabId){
 if($('tabLive')) $('tabLive').onclick=()=>switchTab('tabLive');
 if($('tabScore')) $('tabScore').onclick=()=>switchTab('tabScore');
 if($('tabSquads')) $('tabSquads').onclick=()=>switchTab('tabSquads');
+if($('tabInsights')) $('tabInsights').onclick=()=>switchTab('tabInsights');
 if($('tabMore')) $('tabMore').onclick=()=>switchTab('tabMore');
 
 document.querySelectorAll('.tabBack').forEach(b=>{b.onclick=()=>switchTab(b.dataset.tab)});
@@ -3131,6 +3484,10 @@ document.addEventListener('keydown',function(e){
     else if(aucOpen && $('aucTabSquads')) $('aucTabSquads').click();
     else if(uwmOpen && $('uwmTabSquads')) $('uwmTabSquads').click();
     else if(uwaOpen && $('uwaTabSquads')) $('uwaTabSquads').click();
+  } else if(key==='i'){
+    e.preventDefault();
+    if(matchOpen && $('tabInsights')) $('tabInsights').click();
+    else if(uwmOpen && $('uwmTabInsights')) $('uwmTabInsights').click();
   } else if(key==='m'){
     e.preventDefault();
     if(matchOpen && $('tabMore')) $('tabMore').click();
@@ -3315,11 +3672,7 @@ if($('forceBowlConfirm')) $('forceBowlConfirm').onclick = confirmForceBowler;
 
 
 function wireImportMatchUI(){
-  const btn = $('btnImportMatch');
   const inp = $('importFileInput');
-  if(btn && inp){
-    btn.onclick = function(){ inp.value=''; inp.click(); };
-  }
   if(inp){
     inp.onchange = async function(e){
       const f = e.target.files && e.target.files[0];
@@ -4632,6 +4985,10 @@ function watchMatch(id) {
     }
     const m = snap.data();
     window._uwmMatch = m;
+    try{
+      if($('uwmTabInsights') && $('uwmTabInsights').getAttribute('aria-selected')==='true')
+        renderInsightsPane('viewer');
+    }catch(e){}
     const title = (m.teamA&&m.teamA.name||'?')+' vs '+(m.teamB&&m.teamB.name||'?');
     $('uwmTitle').textContent = title;
     $('uwmSub').textContent = (m.series||'')+' · '+(m.matchType||'')+' · Innings '+(m.currentInnings||1)+' · '+m.status;
@@ -4805,7 +5162,7 @@ if($('uwmOverDetailClose')) $('uwmOverDetailClose').onclick=function(){
 };
 
 function switchUwmTab(which){
-  ['uwmTabLive','uwmTabScore','uwmTabSquads','uwmTabMore'].forEach(id=>{
+  ['uwmTabLive','uwmTabScore','uwmTabSquads','uwmTabInsights','uwmTabMore'].forEach(id=>{
     if(!$(id)) return;
     const on = id===which;
     $(id).classList.toggle('active', on);
@@ -4816,14 +5173,19 @@ function switchUwmTab(which){
   if(liveWrap) liveWrap.classList.toggle('hidden', which!=='uwmTabLive');
   if($('uwmPaneScore')) $('uwmPaneScore').classList.toggle('hidden', which!=='uwmTabScore');
   if($('uwmPaneSquads')) $('uwmPaneSquads').classList.toggle('hidden', which!=='uwmTabSquads');
+  if($('uwmPaneInsights')) $('uwmPaneInsights').classList.toggle('hidden', which!=='uwmTabInsights');
   if($('uwmPaneMore')) $('uwmPaneMore').classList.toggle('hidden', which!=='uwmTabMore');
-  ['screenHome','screenLive','screenUserHome','screenAuth','screenBoot','screenAuction','paneScore','paneMore'].forEach(s=>{
+  ['screenHome','screenLive','screenUserHome','screenAuth','screenBoot','screenAuction','paneScore','paneMore','paneInsights'].forEach(s=>{
     const el=$(s); if(el) el.classList.add('hidden');
   });
   document.body.classList.remove('has-hub-tabbar');
   document.body.classList.add('has-tabbar');
   showTopNav(false);
   if($('hubTabbarUser')) $('hubTabbarUser').classList.add('hidden');
+  if(which==='uwmTabInsights'){
+    try{ renderInsightsPane('viewer'); }catch(e){}
+    focusEl($('uwmInsTitle'));
+  }
   if(which==='uwmTabMore'){
     try{ paintUwmOversList(window._uwmMatch); }catch(e){}
     const first=$('uwmOversList')&&$('uwmOversList').querySelector('button');
@@ -4906,6 +5268,7 @@ if($('uwmScoreBack')) $('uwmScoreBack').onclick=()=>switchUwmTab('uwmTabLive');
 if($('uwmTabLive')) $('uwmTabLive').onclick=()=>switchUwmTab('uwmTabLive');
 if($('uwmTabSquads')) $('uwmTabSquads').onclick=()=>{ switchUwmTab('uwmTabSquads'); try{ renderMatchSquadsPane('viewer'); focusEl($('uwmSquadsH')); }catch(e){} };
 if($('uwmTabMore')) $('uwmTabMore').onclick=()=>switchUwmTab('uwmTabMore');
+if($('uwmTabInsights')) $('uwmTabInsights').onclick=()=>{ switchUwmTab('uwmTabInsights'); try{ renderInsightsPane('viewer'); focusEl($('uwmInsTitle')); }catch(e){} };
 if($('uwmSquadsBack')) $('uwmSquadsBack').onclick=()=>switchUwmTab('uwmTabLive');
 if($('uwmMoreBack')) $('uwmMoreBack').onclick=()=>switchUwmTab('uwmTabLive');
 
@@ -4959,6 +5322,363 @@ $('btnBackUwa').onclick = () => {
   showScreen('screenUserAuctions');
   listenUserAuctions();
 };
+
+
+
+/* ===== Insights + Gemini askMatchAi ===== */
+window._insIndex = 0;
+window._insModalIndex = 0;
+window._insDraft = null;
+window._insBusy = false;
+
+function getMatchInsights(m){
+  if(!m) return [];
+  const arr = Array.isArray(m.insights) ? m.insights.slice() : [];
+  arr.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
+  return arr;
+}
+
+function buildMatchAiContext(m){
+  if(!m) return {};
+  const balls = (typeof collectAllBalls==='function' ? collectAllBalls(m) : []).slice(-80);
+  const slimBalls = balls.map(function(b){
+    return {
+      over: b.overStr || b.over || '',
+      type: b.type || '',
+      runs: b.runs,
+      legal: b.legal,
+      isFour: !!(b.isFour || b.runs===4),
+      isSix: !!(b.isSix || b.runs===6),
+      wicket: !!(b.wicket || b.isWicket),
+      bowler: b.bowlerName || b.bowl || '',
+      batter: b.batterName || b.bat || '',
+      text: b.text || b.desc || ''
+    };
+  });
+  function teamSnap(t){
+    if(!t) return null;
+    return {
+      name: t.name,
+      runs: t.runs||0,
+      wickets: t.wickets||0,
+      balls: t.balls||0,
+      overs: typeof fmtOvers==='function' ? fmtOvers(t.balls||0) : (t.balls||0)
+    };
+  }
+  return {
+    series: m.series || m.name || '',
+    status: m.status || '',
+    innings: m.innings || 1,
+    battingTeam: m.battingTeam,
+    teamA: teamSnap(m.teamA),
+    teamB: teamSnap(m.teamB),
+    totalBalls: m.totalBalls||0,
+    recentBalls: slimBalls,
+    note: 'Use only this data. Prefer Markdown tables for numeric comparisons.'
+  };
+}
+
+function escapeIns(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function markdownLiteToHtml(text){
+  if(!text) return '';
+  let t = String(text).replace(/\r\n/g,'\n').trim();
+  // simple pipe tables
+  const lines = t.split('\n');
+  let out = [];
+  let i = 0;
+  while(i < lines.length){
+    const line = lines[i];
+    if(line.indexOf('|') >= 0 && i+1 < lines.length && /^\s*\|?\s*[-:| ]+\s*\|?\s*$/.test(lines[i+1])){
+      const rows = [];
+      while(i < lines.length && lines[i].indexOf('|') >= 0){
+        if(/^\s*\|?\s*[-:| ]+\s*\|?\s*$/.test(lines[i])){ i++; continue; }
+        const cells = lines[i].split('|').map(function(c){ return c.trim(); }).filter(function(c,idx,arr){
+          return !(idx===0 && c==='') && !(idx===arr.length-1 && c==='');
+        });
+        rows.push(cells);
+        i++;
+      }
+      if(rows.length){
+        let h = '<table><thead><tr>' + rows[0].map(function(c){ return '<th>'+escapeIns(c)+'</th>'; }).join('') + '</tr></thead><tbody>';
+        for(let r=1;r<rows.length;r++){
+          h += '<tr>' + rows[r].map(function(c){ return '<td>'+escapeIns(c)+'</td>'; }).join('') + '</tr>';
+        }
+        h += '</tbody></table>';
+        out.push(h);
+      }
+      continue;
+    }
+    if(/^###\s+/.test(line)) out.push('<h4>'+escapeIns(line.replace(/^###\s+/,''))+'</h4>');
+    else if(/^##\s+/.test(line)) out.push('<h3>'+escapeIns(line.replace(/^##\s+/,''))+'</h3>');
+    else if(/^#\s+/.test(line)) out.push('<h3>'+escapeIns(line.replace(/^#\s+/,''))+'</h3>');
+    else if(/^\*\s+/.test(line) || /^-\s+/.test(line)) out.push('<li>'+escapeIns(line.replace(/^[\*\-]\s+/,''))+'</li>');
+    else if(line.trim()==='') out.push('');
+    else out.push('<p>'+escapeIns(line)+'</p>');
+    i++;
+  }
+  // wrap consecutive li
+  let html = out.join('\n');
+  html = html.replace(/(?:<li>[\s\S]*?<\/li>\n?)+/g, function(block){
+    return '<ul>'+block+'</ul>';
+  });
+  return html;
+}
+
+function renderInsChart(chart){
+  if(!chart || !chart.values || !chart.values.length) return '';
+  const vals = chart.values.map(Number);
+  const max = Math.max.apply(null, vals.concat([1]));
+  const labels = chart.labels || vals.map(function(_,i){ return String(i+1); });
+  let h = '<div class="ins-chart" role="img" aria-label="'+(escapeIns(chart.title||'Chart'))+'">';
+  if(chart.title) h += '<div class="ins-chart-title">'+escapeIns(chart.title)+'</div>';
+  h += '<div class="ins-bars">';
+  for(let i=0;i<vals.length;i++){
+    const pct = Math.max(4, Math.round((vals[i]/max)*100));
+    h += '<div class="ins-bar-col">';
+    h += '<div class="ins-bar-val">'+escapeIns(vals[i])+'</div>';
+    h += '<div class="ins-bar" style="height:'+pct+'%"></div>';
+    h += '<div class="ins-bar-lab">'+escapeIns(labels[i]||'')+'</div>';
+    h += '</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function insightBodyHtml(ins){
+  if(!ins) return '';
+  let h = '';
+  if(ins.chart) h += renderInsChart(ins.chart);
+  if(ins.html) h += ins.html;
+  else if(ins.text) h += markdownLiteToHtml(ins.text);
+  return h || '<p style="color:var(--muted)">Empty insight</p>';
+}
+
+function paintInsightAlbum(box, list, index, opts){
+  opts = opts || {};
+  if(!box) return;
+  if(!list.length){
+    box.innerHTML = '<div class="ins-empty" tabindex="0">No insights published yet.</div>';
+    return;
+  }
+  if(index < 0) index = 0;
+  if(index >= list.length) index = list.length - 1;
+  const ins = list[index];
+  const pos = (index+1) + ' of ' + list.length;
+  let h = '<article class="ins-card" aria-label="Insight: '+escapeIns(ins.title||'Untitled')+', '+pos+'">';
+  h += '<h2 class="ins-card-head" tabindex="-1" id="'+(opts.headId||'insCardHead')+'">'+escapeIns(ins.title||'Insight')+'</h2>';
+  h += '<div class="ins-card-body">'+insightBodyHtml(ins)+'</div>';
+  h += '<div class="ins-nav" role="group" aria-label="Insight navigation">';
+  h += '<button type="button" class="btn-sec insPrev" '+(index<=0?'disabled':'')+' aria-label="Previous insight">Previous</button>';
+  h += '<span class="ins-pos" aria-live="polite">'+pos+'</span>';
+  h += '<button type="button" class="btn-sec insNext" '+(index>=list.length-1?'disabled':'')+' aria-label="Next insight">Next</button>';
+  if(opts.canDelete){
+    h += '<button type="button" class="btn-danger insDel" aria-label="Delete this insight">Delete</button>';
+  }
+  h += '</div></article>';
+  box.innerHTML = h;
+  const prev = box.querySelector('.insPrev');
+  const next = box.querySelector('.insNext');
+  const del = box.querySelector('.insDel');
+  if(prev) prev.onclick = function(){ if(opts.onIndex) opts.onIndex(index-1); };
+  if(next) next.onclick = function(){ if(opts.onIndex) opts.onIndex(index+1); };
+  if(del) del.onclick = function(){
+    if(!confirm('Delete this insight?')) return;
+    deleteInsightAt(ins.id).then(function(){
+      announce('Insight deleted');
+      if(opts.onDeleted) opts.onDeleted();
+    }).catch(function(e){ alert((e&&e.message)||'Delete failed'); });
+  };
+}
+
+function currentInsightsMatch(){
+  if(typeof M==='function' && M()) return M();
+  if(window._uwmMatch) return window._uwmMatch;
+  return null;
+}
+
+function renderInsightsPane(mode){
+  const m = currentInsightsMatch();
+  const list = getMatchInsights(m);
+  if(window._insIndex >= list.length) window._insIndex = 0;
+  const admin = mode==='admin' && typeof isAdmin==='function' && isAdmin();
+
+  if(mode==='admin'){
+    const bar = $('insAdminBar');
+    if(bar) bar.classList.toggle('hidden', !admin);
+    paintInsightAlbum($('insAlbum'), list, window._insIndex, {
+      canDelete: admin,
+      headId: 'insCardHead',
+      onIndex: function(i){ window._insIndex = i; renderInsightsPane('admin'); focusEl($('insCardHead')); },
+      onDeleted: function(){ renderInsightsPane('admin'); }
+    });
+    renderInsDraft();
+  } else {
+    paintInsightAlbum($('uwmInsAlbum'), list, window._insIndex, {
+      canDelete: false,
+      headId: 'uwmInsCardHead',
+      onIndex: function(i){ window._insIndex = i; renderInsightsPane('viewer'); focusEl($('uwmInsCardHead')); }
+    });
+  }
+}
+
+function renderInsDraft(){
+  const box = $('insDraft');
+  if(!box) return;
+  const d = window._insDraft;
+  if(!d){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  box.classList.remove('hidden');
+  let h = '<div class="ins-card-head" style="font-size:1rem">AI response</div>';
+  h += '<div class="ins-card-body">';
+  if(d.chart) h += renderInsChart(d.chart);
+  h += markdownLiteToHtml(d.text||'');
+  h += '</div>';
+  h += '<div class="ins-draft-actions">';
+  h += '<button type="button" id="insPublish" class="btn-ok" aria-label="Publish this insight">Publish</button>';
+  h += '<button type="button" id="insDiscard" class="btn-sec" aria-label="Discard response">Discard</button>';
+  h += '</div>';
+  box.innerHTML = h;
+  if($('insPublish')) $('insPublish').onclick = publishInsDraft;
+  if($('insDiscard')) $('insDiscard').onclick = function(){
+    window._insDraft = null;
+    renderInsDraft();
+    announce('Response discarded');
+    if($('insAsk')) $('insAsk').focus();
+  };
+}
+
+async function callAskMatchAi(question){
+  if(!firebase || !firebase.functions) throw new Error('Functions SDK not loaded');
+  const fn = firebase.app().functions('asia-south1').httpsCallable('askMatchAi');
+  const m = M();
+  const res = await fn({ question: question, context: buildMatchAiContext(m) });
+  return res && res.data ? res.data : {};
+}
+
+async function insSendQuestion(){
+  if(window._insBusy) return;
+  if(typeof isAdmin!=='function' || !isAdmin()){ alert('Admin only'); return; }
+  const q = (($('insAsk')&&$('insAsk').value)||'').trim();
+  if(!q){ alert('Type a question'); return; }
+  if(!M()){ alert('Open a match first'); return; }
+  window._insBusy = true;
+  if($('insStatus')) $('insStatus').textContent = 'Generating answer…';
+  if($('insSend')){ $('insSend').disabled = true; $('insSend').textContent = '…'; }
+  try{
+    const data = await callAskMatchAi(q);
+    window._insDraft = {
+      question: q,
+      text: data.text || '',
+      chart: data.chart || null,
+      title: q.length > 60 ? q.slice(0,57)+'…' : q
+    };
+    renderInsDraft();
+    if($('insStatus')) $('insStatus').textContent = 'Answer ready. Review and publish if you want.';
+    announce('Answer ready');
+    focusEl($('insPublish')||$('insDraft'));
+  }catch(err){
+    console.error(err);
+    const msg = (err && (err.message || (err.details))) || 'Request failed';
+    alert(msg);
+    if($('insStatus')) $('insStatus').textContent = 'Error';
+  }finally{
+    window._insBusy = false;
+    if($('insSend')){ $('insSend').disabled = false; $('insSend').textContent = 'Send'; }
+  }
+}
+
+async function publishInsDraft(){
+  const d = window._insDraft;
+  const m = M();
+  if(!d || !m || !m.id) return;
+  if(typeof isAdmin!=='function' || !isAdmin()) return;
+  let title = d.title || 'Insight';
+  const custom = prompt('Title for this insight (viewers will see this):', title);
+  if(custom === null) return;
+  title = String(custom).trim() || title;
+  const html = (d.chart ? renderInsChart(d.chart) : '') + markdownLiteToHtml(d.text||'');
+  const item = {
+    id: 'ins_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    title: title,
+    text: d.text || '',
+    html: html,
+    chart: d.chart || null,
+    question: d.question || '',
+    createdAt: Date.now(),
+    by: (user && (user.email || user.uid)) || 'admin'
+  };
+  if(!Array.isArray(m.insights)) m.insights = [];
+  m.insights.push(item);
+  try{
+    if(typeof save==='function') save();
+    if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m);
+  }catch(e){ console.warn(e); }
+  window._insDraft = null;
+  window._insIndex = 0;
+  renderInsDraft();
+  renderInsightsPane('admin');
+  announce('Insight published: '+title);
+  focusEl($('insCardHead')||$('insTitle'));
+}
+
+async function deleteInsightAt(id){
+  const m = M();
+  if(!m || !id) return;
+  m.insights = (m.insights||[]).filter(function(x){ return x && x.id !== id; });
+  if(typeof save==='function') save();
+  if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m);
+  const list = getMatchInsights(m);
+  if(window._insIndex >= list.length) window._insIndex = Math.max(0, list.length-1);
+  if(window._insModalIndex >= list.length) window._insModalIndex = Math.max(0, list.length-1);
+}
+
+function openInsAlbumModal(){
+  const modal = $('insAlbumModal');
+  if(!modal) return;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden','false');
+  window._insModalIndex = window._insIndex || 0;
+  paintInsModal();
+  setTimeout(function(){ focusEl($('insModalHead')||$('insModalClose')); }, 50);
+}
+function closeInsAlbumModal(){
+  const modal = $('insAlbumModal');
+  if(!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden','true');
+  focusEl($('insViewAlbum')||$('insAsk'));
+}
+function paintInsModal(){
+  const m = currentInsightsMatch();
+  const list = getMatchInsights(m);
+  const admin = typeof isAdmin==='function' && isAdmin();
+  paintInsightAlbum($('insModalBody'), list, window._insModalIndex, {
+    canDelete: admin,
+    headId: 'insModalCardHead',
+    onIndex: function(i){ window._insModalIndex = i; paintInsModal(); focusEl($('insModalCardHead')); },
+    onDeleted: function(){ paintInsModal(); renderInsightsPane(admin?'admin':'viewer'); }
+  });
+}
+
+function wireInsightsUi(){
+  if($('insSend')) $('insSend').onclick = insSendQuestion;
+  if($('insAsk')){
+    $('insAsk').addEventListener('keydown', function(e){
+      if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); insSendQuestion(); }
+    });
+  }
+  if($('insViewAlbum')) $('insViewAlbum').onclick = openInsAlbumModal;
+  if($('insModalClose')) $('insModalClose').onclick = closeInsAlbumModal;
+  if($('insAlbumModal')){
+    $('insAlbumModal').addEventListener('click', function(e){
+      if(e.target === $('insAlbumModal')) closeInsAlbumModal();
+    });
+  }
+}
+try{ wireInsightsUi(); }catch(e){ console.warn('wireInsights', e); }
 
 
 /* ===== Match squads pane (admin + viewer) ===== */

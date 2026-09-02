@@ -424,6 +424,61 @@ button:active{transform:scale(.98)}
 }
 .ins-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 
+/* Pre-match lobby + P11 grid */
+.pre-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:6px}
+@media(min-width:520px){.pre-actions{grid-template-columns:1fr 1fr 1fr}}
+.pre-actions button{min-height:52px;font-size:15px;font-weight:800;width:100%}
+.p11-board{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
+@media(min-width:640px){.p11-board{grid-template-columns:1fr 1fr}}
+.p11-team{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg-surface-elevated)}
+.p11-team h3{margin:0;padding:10px 12px;font-size:.95rem;background:rgba(0,180,216,.12);color:var(--primary-bright)}
+.p11-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:6px;
+  padding:10px;
+}
+@media(min-width:900px){.p11-grid{grid-template-columns:repeat(4, minmax(0,1fr))}}
+.p11-chip{
+  background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;
+  padding:8px 6px;text-align:center;min-height:44px;display:flex;flex-direction:column;justify-content:center;
+}
+.p11-chip .nm{font-weight:800;font-size:.78rem;line-height:1.2;color:var(--text)}
+.p11-chip .rl{font-size:.65rem;color:var(--muted);font-weight:600;margin-top:2px}
+.pre-notes{margin-top:14px}
+.pre-note{
+  background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);
+  border-radius:12px;padding:10px 12px;margin-top:8px;font-size:14px
+}
+.pre-note time{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
+
+/* Insights 16:9 album */
+.ins-stage-wrap{
+  width:100%;
+  max-width:100%;
+}
+.ins-stage{
+  width:100%;
+  aspect-ratio:16/9;
+  max-height:calc(100dvh - 148px);
+  background:#07101c;
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  position:relative;
+}
+.ins-stage img,.ins-stage canvas{
+  width:100%;height:100%;object-fit:contain;display:block;background:#07101c
+}
+.ins-film-nav{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:10px;
+}
+.ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
+#insPreviewModal .ins-stage{max-height:min(52vh, 420px)}
+.ins-preview-box{width:100%}
+
+
 </style>
 </head>
 <body>
@@ -497,6 +552,8 @@ button:active{transform:scale(.98)}
     <h1 id="uwmTitle" tabindex="-1">Match</h1>
     <p id="uwmSub" style="color:var(--muted)"></p>
     <div id="uwmPaneLive">
+      <div id="uwmLobby" class="hidden" aria-live="polite"></div>
+      <div id="uwmLiveScoring">
       <div id="uwmScore" class="score-line" tabindex="0" role="text">0 for 0</div>
       <div class="batter-row">
         <div id="uwmBoxLeft" class="batter-box striker-box" tabindex="0"><div class="bn" id="uwmStriker">—</div><div class="bs" id="uwmStrikerStats"></div></div>
@@ -507,6 +564,7 @@ button:active{transform:scale(.98)}
         <div id="uwmBalls" role="list" aria-label="Ball by ball, latest first"></div>
       </div>
       <div id="uwmPastOvers"></div>
+      </div>
     </div>
   </div></div>
   <nav class="tabbar" id="uwmTabbar" role="tablist" aria-label="Match tabs">
@@ -652,9 +710,19 @@ button:active{transform:scale(.98)}
       <p id="liveTeamLine" class="mh-teamline" aria-hidden="true"></p>
     </div>
     <div id="freeHitBanner" class="free-hit-banner hidden" aria-hidden="true">⚡ FREE HIT ⚡</div>
-    <div id="preStart"><div style="text-align:center;padding:32px 0">
-      <button type="button" id="btnStartMatch" class="btn-ok" style="min-width:200px;font-size:17px">Start Match</button>
-    </div></div>
+    <div id="preStart" role="region" aria-label="Match not started">
+      <div style="padding:18px 12px;margin:8px 0 14px;border-radius:16px;border:1px solid var(--border);background:linear-gradient(135deg,rgba(56,189,248,.12),rgba(15,23,42,.92))">
+        <p id="preStartMsg" style="font-size:16px;font-weight:800;margin:0 0 6px;color:var(--primary-bright)">Match ready</p>
+        <p id="preStartHint" style="margin:0 0 14px;color:var(--muted);font-size:13px">Publish the XI for the audience, post a pitch update, then start when ready.</p>
+        <p id="preStartStatus" role="status" aria-live="polite" style="font-size:13px;font-weight:700;color:var(--ok-bright);min-height:1.2em;margin:0 0 12px"></p>
+        <div class="pre-actions">
+          <button type="button" id="btnStartMatch" class="btn-ok" aria-label="Start Match, select openers and bowler">Start Match</button>
+          <button type="button" id="btnPublishP11" class="btn-sec" aria-label="Publish Playing 11 to audience">Publish Playing 11</button>
+          <button type="button" id="btnPreUpdate" class="btn-sec" aria-label="Post a pitch update">Update</button>
+        </div>
+      </div>
+      <div id="preStartPreview" aria-label="Audience preview"></div>
+    </div>
     <div id="inningsBreakBanner" class="hidden" style="text-align:center;padding:28px 16px;margin:14px 0;border-radius:20px;border:1px solid var(--border);background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(15,23,42,.9));box-shadow:var(--shadow)">
       <div style="font-size:1.3rem;font-weight:900;color:var(--accent2)" id="breakBannerTitle">Innings Break</div>
       <div style="font-size:1.05rem;font-weight:700;margin-top:8px" id="breakBannerScore"></div>
@@ -766,7 +834,7 @@ button:active{transform:scale(.98)}
         <label for="insAsk" class="sr-only">Ask about this match</label>
         <textarea id="insAsk" rows="2" placeholder="Ask about this match…" aria-label="Ask about this match"></textarea>
         <button type="button" id="insSend" class="btn-ok" aria-label="Send question">Send</button>
-        <button type="button" id="insViewAlbum" class="btn-sec" aria-label="View published insights album">View published</button>
+        <button type="button" id="insViewAlbum" class="btn-sec" aria-label="View published insights album">View published album</button>
       </div>
       <p id="insStatus" class="sr-only" role="status" aria-live="polite"></p>
     </div>
@@ -800,7 +868,7 @@ button:active{transform:scale(.98)}
     <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px" aria-label="Back">Back</button>
     <h2 id="aboutHeading" tabindex="-1">About</h2>
     <p><strong>Cric360 Live</strong></p>
-    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.09.01.1.25</span></p>
+    <p style="color:var(--muted)">Version <span id="aboutVersion">2026.09.02.1.26</span></p>
     <p style="color:var(--muted)">Uninterrupted live with 360 dimensions</p>
     <p style="margin-top:14px"><strong>Developed and owned by</strong> Cric360</p>
     <p style="color:var(--muted)">Contact: <a href="mailto:cricthreesixty@gmail.com">cricthreesixty@gmail.com</a></p>
@@ -1300,7 +1368,7 @@ button:active{transform:scale(.98)}
 
 
 <div id="insAlbumModal" class="ins-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="insModalHead" aria-hidden="true">
-  <div class="ins-modal">
+  <div class="ins-modal" style="width:min(920px,100%)">
     <h2 id="insModalHead" tabindex="-1" class="ins-card-head">Published insights</h2>
     <div id="insModalBody" class="ins-album"></div>
     <div class="ins-modal-actions">
@@ -1308,6 +1376,35 @@ button:active{transform:scale(.98)}
     </div>
   </div>
 </div>
+
+<div id="insPreviewModal" class="ins-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="insPreviewHead" aria-hidden="true">
+  <div class="ins-modal" style="width:min(920px,100%)">
+    <h2 id="insPreviewHead" tabindex="-1" class="ins-card-head">Preview insight</h2>
+    <label for="insPreviewTitle">Title viewers will see</label>
+    <input id="insPreviewTitle" type="text" maxlength="80" aria-label="Insight title" />
+    <div class="ins-preview-box" style="margin-top:12px">
+      <div class="ins-stage" aria-label="Chart preview"><img id="insPreviewImg" alt="Insight chart preview" /></div>
+    </div>
+    <div class="ins-modal-actions">
+      <button type="button" id="insPreviewCancel" class="btn-sec">Cancel</button>
+      <button type="button" id="insPreviewPublish" class="btn-ok">Publish</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgPreUpdate" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="preUpdateTitle">
+  <div class="modal-box">
+    <h2 id="preUpdateTitle" tabindex="-1">Pitch update</h2>
+    <p style="color:var(--muted);font-size:13px">Shown to the audience until the match starts. Example: umpires heading to the ground.</p>
+    <label for="preUpdateText">Update</label>
+    <textarea id="preUpdateText" rows="4" maxlength="280" placeholder="Umpires heading to the ground. Play about to start."></textarea>
+    <div class="row" style="margin-top:12px">
+      <button type="button" id="preUpdateCancel" class="btn-sec" style="flex:1">Cancel</button>
+      <button type="button" id="preUpdatePost" class="btn-ok" style="flex:1">Post update</button>
+    </div>
+  </div>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -1327,7 +1424,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
-const APP_VERSION = "2026.09.01.1.25";
+const APP_VERSION = "2026.09.02.1.26";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1633,6 +1730,8 @@ function newMatch(series, teamAName, teamBName, matchType, squadA, squadB){
     currentOverBalls: [],
     extras: { wide: 0, noball: 0, bye: 0, legbye: 0 },
     insights: [],
+    p11Published: false,
+    preMatchNotes: [],
     createdAt: Date.now(),
     updatedAt: new Date().toISOString()
   };
@@ -2265,14 +2364,19 @@ async function finishCreateMatch(){
     closeDlg('dlgCreate');
     if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
     if(typeof openMatch==='function') await openMatch(m.id);
-    // Ensure Start Match is visible and focus it so Go live path is clear
     try{
+      if(typeof switchTab==='function') switchTab('tabLive');
       if($('preStart')) $('preStart').classList.remove('hidden');
+      if($('scoringUI')) $('scoringUI').classList.add('hidden');
       if($('btnStartMatch')){
         $('btnStartMatch').disabled = false;
-        setTimeout(function(){ focusEl($('btnStartMatch')); }, 120);
+        $('btnStartMatch').classList.remove('hidden');
       }
-      announce('Match created. Tap Start Match to select openers and go live.');
+      if(typeof renderPreStartAdmin==='function') renderPreStartAdmin();
+      announce('Match created. Publish Playing 11, post an update, or tap Start Match.');
+      setTimeout(function(){
+        try{ focusEl($('btnStartMatch')); }catch(e2){}
+      }, 120);
     }catch(e){}
   }catch(err){
     console.error(err);
@@ -2652,7 +2756,15 @@ function renderLive(){const m=M();if(!m)return;
 if($('btnInjNon'))$('btnInjNon').classList.toggle('hidden', m.status!=='live');
 if($('btnNextBall'))$('btnNextBall').disabled=done||onBreak||m.status==='not_started';
   if($('btnPrevBall')&&(done||onBreak))$('btnPrevBall').disabled=true;
-  if($('preStart'))$('preStart').classList.toggle('hidden', m.status!=='not_started');
+  if($('preStart')){
+    const needStart = m.status==='not_started';
+    $('preStart').classList.toggle('hidden', !needStart);
+    if(needStart && $('btnStartMatch')){
+      $('btnStartMatch').disabled = false;
+      $('btnStartMatch').classList.remove('hidden');
+    }
+    if(needStart && typeof renderPreStartAdmin==='function') renderPreStartAdmin();
+  }
   if($('scoringUI'))$('scoringUI').classList.toggle('hidden', m.status!=='live');
 
 if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const str=bat.squad.find(p=>p.id===m.strikerId);const non=bat.squad.find(p=>p.id===m.nonStrikerId);const bwl=bowl.squad.find(p=>p.id===m.currentBowlerId);
@@ -3064,6 +3176,99 @@ if($('tabMore')) $('tabMore').onclick=()=>switchTab('tabMore');
 
 document.querySelectorAll('.tabBack').forEach(b=>{b.onclick=()=>switchTab(b.dataset.tab)});
 
+function p11List(team){
+  const sq=(team&&team.squad)||[];
+  const p11=sq.filter(function(p){ return p.inPlaying11; });
+  return p11.length ? p11 : sq.slice(0,11);
+}
+function p11GridHtml(team){
+  const list=p11List(team);
+  let h='<section class="p11-team" aria-label="'+(escapeIns(team&&team.name||'Team'))+' Playing 11">';
+  h+='<h3>'+escapeIns((team&&team.name)||'Team')+' · Playing 11</h3>';
+  h+='<div class="p11-grid">';
+  list.forEach(function(p, i){
+    h+='<div class="p11-chip" role="listitem" aria-label="'+(i+1)+', '+escapeIns(p.name||'Player')+(p.role?(', '+p.role):'')+'">';
+    h+='<div class="nm">'+escapeIns(p.name||'Player')+'</div>';
+    if(p.role) h+='<div class="rl">'+escapeIns(p.role)+'</div>';
+    h+='</div>';
+  });
+  h+='</div></section>';
+  return h;
+}
+function preMatchNotesHtml(m){
+  const notes=(m&&m.preMatchNotes)||[];
+  if(!notes.length) return '';
+  let h='<div class="pre-notes" aria-label="Pitch updates">';
+  h+='<h3 style="margin:0 0 4px">Pitch updates</h3>';
+  notes.slice().reverse().forEach(function(n){
+    const t=n.at ? new Date(n.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+    h+='<div class="pre-note"><time>'+escapeIns(t)+'</time>'+escapeIns(n.text||'')+'</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function audienceLobbyHtml(m){
+  if(!m) return '<p style="color:var(--muted)">Waiting for match…</p>';
+  const tossW = m.tossWinner==='teamA'?m.teamA.name:(m.tossWinner==='teamB'?m.teamB.name:'');
+  let h='<div class="match-head"><h2 class="mh-title" style="font-size:1.15rem">Toss & teams</h2>';
+  h+='<p class="mh-sub">'+(tossW? (escapeIns(tossW)+(m.tossDecision?(' chose to '+escapeIns(m.tossDecision)) : '')) : 'Toss done')+'</p></div>';
+  if(m.p11Published){
+    h+='<div class="p11-board">'+p11GridHtml(m.teamA)+p11GridHtml(m.teamB)+'</div>';
+  } else {
+    h+='<p style="color:var(--muted);margin-top:12px">Playing 11 will appear here when the scorer publishes it.</p>';
+  }
+  h+=preMatchNotesHtml(m);
+  if(!m.p11Published && !(m.preMatchNotes&&m.preMatchNotes.length)){
+    h+='<p style="font-weight:800;text-align:center;margin-top:18px">Waiting for the match to begin</p>';
+  }
+  return h;
+}
+function renderPreStartAdmin(){
+  const m=M(); if(!m) return;
+  const st=$('preStartStatus');
+  const bits=[];
+  if(m.p11Published) bits.push('Playing 11 published to audience');
+  else bits.push('Playing 11 not published yet');
+  const n=(m.preMatchNotes||[]).length;
+  if(n) bits.push(n+' pitch update'+(n===1?'':'s'));
+  if(st) st.textContent = bits.join(' · ');
+  if($('btnPublishP11')){
+    $('btnPublishP11').textContent = m.p11Published ? 'Playing 11 published' : 'Publish Playing 11';
+  }
+  const prev=$('preStartPreview');
+  if(prev) prev.innerHTML = audienceLobbyHtml(m);
+}
+async function publishPlaying11(){
+  const m=M(); if(!m){ alert('No match open'); return; }
+  m.p11Published = true;
+  if(typeof save==='function') save();
+  if(typeof cloudSaveMatch==='function') try{ await cloudSaveMatch(m); }catch(e){}
+  renderPreStartAdmin();
+  announce('Playing 11 published. Audience can see both teams now.');
+  speak('Playing 11 published');
+}
+function openPreUpdateDlg(){
+  if($('preUpdateText')) $('preUpdateText').value='';
+  openDlg('dlgPreUpdate');
+  setTimeout(function(){ if($('preUpdateText')) $('preUpdateText').focus(); }, 50);
+}
+async function postPreUpdate(){
+  const m=M(); if(!m) return;
+  const text=((($('preUpdateText')&&$('preUpdateText').value)||'').trim());
+  if(!text){ alert('Type an update'); return; }
+  if(!Array.isArray(m.preMatchNotes)) m.preMatchNotes=[];
+  m.preMatchNotes.push({ id:'n_'+Date.now(), text:text, at:Date.now() });
+  if(typeof save==='function') save();
+  if(typeof cloudSaveMatch==='function') try{ await cloudSaveMatch(m); }catch(e){}
+  closeDlg('dlgPreUpdate');
+  renderPreStartAdmin();
+  announce('Update posted to audience: '+text);
+}
+if($('btnPublishP11')) $('btnPublishP11').onclick=publishPlaying11;
+if($('btnPreUpdate')) $('btnPreUpdate').onclick=openPreUpdateDlg;
+if($('preUpdateCancel')) $('preUpdateCancel').onclick=function(){ closeDlg('dlgPreUpdate'); };
+if($('preUpdatePost')) $('preUpdatePost').onclick=postPreUpdate;
+
 function startMatchFlow(){
   const m=M(); if(!m){ alert('No match open'); return; }
   // Toss already decided batting team at create time
@@ -3133,7 +3338,30 @@ if($('dlgNonNext')) $('dlgNonNext').onclick=()=>{
   $('dlgBowlStart').disabled=true; openDlg('dlgBowler');
 };
 
-$('dlgBowlStart').onclick=()=>{const m=M();const bowl=S.temp.battingTeam==='teamA'?m.teamB:m.teamA;const name=bowl.squad.find(p=>p.id===S.temp.bowlerId).name;speak('Bowler, '+name);m.battingTeam=S.temp.battingTeam;m.strikerId=S.temp.strikerId;m.nonStrikerId=S.temp.nonStrikerId;m.currentBowlerId=S.temp.bowlerId;m.status='live';m.freeHit=false;m.currentOverBalls=[];save();closeDlg('dlgBowler');renderLive();const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const str=bat.squad.find(p=>p.id===m.strikerId);const non=bat.squad.find(p=>p.id===m.nonStrikerId);speak('Match started. '+str.name+' and '+non.name+' are the openers. '+name+' to bowl.');focusEl($('liveMatchTitle'))};
+$('dlgBowlStart').onclick=()=>{
+  const m=M();
+  const bowl=S.temp.battingTeam==='teamA'?m.teamB:m.teamA;
+  const name=bowl.squad.find(p=>p.id===S.temp.bowlerId).name;
+  speak('Bowler, '+name);
+  m.battingTeam=S.temp.battingTeam;
+  m.strikerId=S.temp.strikerId;
+  m.nonStrikerId=S.temp.nonStrikerId;
+  m.currentBowlerId=S.temp.bowlerId;
+  m.status='live';
+  m.freeHit=false;
+  m.currentOverBalls=[];
+  m.p11Published=false;
+  m.preMatchNotes=[];
+  save();
+  closeDlg('dlgBowler');
+  renderLive();
+  const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;
+  const str=bat.squad.find(p=>p.id===m.strikerId);
+  const non=bat.squad.find(p=>p.id===m.nonStrikerId);
+  speak('Match started. '+str.name+' and '+non.name+' are the openers. '+name+' to bowl. Audience now sees live scoring.');
+  announce('Match is live. Playing 11 lobby and pitch updates removed for the audience.');
+  focusEl($('liveMatchTitle'));
+};
 
 $('btnNextBall').onclick=()=>openBallDlg();
 $('btnPrevBall').onclick=()=>{const m=M();if(!m.currentOverBalls||!m.currentOverBalls.length)return;if(S.history.length){const prev=S.history.pop();const idx=S.matches.findIndex(x=>x.id===prev.id);if(idx!==-1)S.matches[idx]=prev;save()}renderLive();openBallDlg(true)};
@@ -4621,8 +4849,19 @@ window.openMatch = async function(id){
   document.body.classList.remove('has-hub-tabbar');
   document.body.classList.add('has-tabbar');
   showScreen('screenLive');
+  if(typeof switchTab==='function') switchTab('tabLive');
   renderLive();
-  focusEl($('liveMatchTitle'));
+  // If match never started, keep Start Match visible and focus it
+  if((m.status||'')==='not_started'){
+    if($('preStart')) $('preStart').classList.remove('hidden');
+    if($('scoringUI')) $('scoringUI').classList.add('hidden');
+    if($('btnStartMatch')){
+      $('btnStartMatch').disabled = false;
+      setTimeout(function(){ try{ focusEl($('btnStartMatch')); }catch(e){} }, 100);
+    }
+  } else {
+    focusEl($('liveMatchTitle'));
+  }
 };
 
 
@@ -4991,6 +5230,17 @@ function watchMatch(id) {
     }catch(e){}
     const title = (m.teamA&&m.teamA.name||'?')+' vs '+(m.teamB&&m.teamB.name||'?');
     $('uwmTitle').textContent = title;
+    const notStarted = (m.status||'')==='not_started' || (m.status||'')==='setup';
+    if($('uwmLobby')){
+      $('uwmLobby').classList.toggle('hidden', !notStarted);
+      if(notStarted) $('uwmLobby').innerHTML = audienceLobbyHtml(m);
+    }
+    if($('uwmLiveScoring')) $('uwmLiveScoring').classList.toggle('hidden', notStarted);
+    if(notStarted){
+      $('uwmSub').textContent = (m.series||'')+' · '+(m.matchType||'')+' · Waiting to start';
+      try{ renderMatchSquadsPane('viewer'); }catch(e){}
+      return;
+    }
     $('uwmSub').textContent = (m.series||'')+' · '+(m.matchType||'')+' · Innings '+(m.currentInnings||1)+' · '+m.status;
     const ov = fmtOvers(m.totalBalls||0);
     const scoreLine = (m.totalScore||0)+'/'+(m.wickets||0)+' ('+ov+' ov)'+(m.target?(' · Target '+m.target):'');
@@ -5428,9 +5678,174 @@ function markdownLiteToHtml(text){
   return html;
 }
 
+function parseMarkdownTables(text){
+  const lines = String(text||'').replace(/\r\n/g,'\n').split('\n');
+  const tables = [];
+  let i=0;
+  while(i<lines.length){
+    if(lines[i].indexOf('|')>=0 && i+1<lines.length && /^\s*\|?\s*[-:| ]+\s*\|?\s*$/.test(lines[i+1])){
+      const rows=[];
+      while(i<lines.length && lines[i].indexOf('|')>=0){
+        if(/^\s*\|?\s*[-:| ]+\s*\|?\s*$/.test(lines[i])){ i++; continue; }
+        const cells = lines[i].split('|').map(function(c){ return c.trim(); }).filter(function(c,idx,arr){
+          return !(idx===0 && c==='') && !(idx===arr.length-1 && c==='');
+        });
+        if(cells.length) rows.push(cells);
+        i++;
+      }
+      if(rows.length>=2) tables.push(rows);
+      continue;
+    }
+    i++;
+  }
+  return tables;
+}
+function chartFromTable(rows){
+  if(!rows || rows.length<2) return null;
+  const head = rows[0];
+  const body = rows.slice(1);
+  const labels = body.map(function(r){ return String(r[0]||''); });
+  const series = [];
+  for(let c=1;c<head.length;c++){
+    const nums = body.map(function(r){
+      const v = String(r[c]==null?'':r[c]).replace(/[^0-9.\-]/g,'');
+      return v==='' ? null : Number(v);
+    });
+    if(nums.some(function(n){ return n!=null && !isNaN(n); })){
+      series.push({ name: head[c]||('Col '+c), values: nums.map(function(n){ return n==null||isNaN(n)?0:n; }) });
+    }
+  }
+  if(!series.length) return null;
+  return {
+    type: series.length===1 ? 'bar' : 'bar',
+    title: '',
+    labels: labels,
+    values: series[0].values,
+    series: series
+  };
+}
+function autoChartFromText(text){
+  const tables = parseMarkdownTables(text);
+  for(let i=0;i<tables.length;i++){
+    const ch = chartFromTable(tables[i]);
+    if(ch) return ch;
+  }
+  return null;
+}
+
+function wrapCanvasText(ctx, text, x, y, maxW, lineH, maxLines){
+  const words = String(text||'').split(/\s+/);
+  let line='', lines=0, cy=y;
+  for(let i=0;i<words.length;i++){
+    const test = line ? line+' '+words[i] : words[i];
+    if(ctx.measureText(test).width > maxW && line){
+      ctx.fillText(line, x, cy);
+      line = words[i];
+      cy += lineH;
+      lines++;
+      if(lines>=maxLines){ ctx.fillText(line+'…', x, cy); return cy+lineH; }
+    } else line = test;
+  }
+  if(line){ ctx.fillText(line, x, cy); cy += lineH; }
+  return cy;
+}
+
+function drawInsightGraphic(ins, title){
+  const W=960, H=540;
+  const canvas=document.createElement('canvas');
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const bg=ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#07111f');
+  bg.addColorStop(1,'#0e2740');
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(0,180,216,0.18)';
+  ctx.fillRect(0,0,W,8);
+  ctx.fillRect(0,H-8,W,8);
+
+  const t = title || (ins&&ins.title) || 'Insight';
+  ctx.fillStyle='#7dd3fc';
+  ctx.font='700 36px "Space Grotesk","Plus Jakarta Sans",sans-serif';
+  wrapCanvasText(ctx, t, 48, 64, W-96, 42, 2);
+
+  const chart = (ins&&ins.chart) || autoChartFromText(ins&&ins.text);
+  const series = (chart && chart.series && chart.series.length) ? chart.series
+    : (chart && chart.values ? [{ name: chart.title||'Value', values: chart.values }] : null);
+  const labels = chart && chart.labels ? chart.labels : [];
+
+  if(series && series[0] && series[0].values && series[0].values.length){
+    const palette=['#38bdf8','#34d399','#f59e0b','#f472b6','#a78bfa'];
+    const n = labels.length || series[0].values.length;
+    const left=72, right=W-48, top=140, bottom=H-110;
+    const plotW=right-left, plotH=bottom-top;
+    let max=1;
+    series.forEach(function(s){ (s.values||[]).forEach(function(v){ if(v>max) max=v; }); });
+    ctx.strokeStyle='rgba(255,255,255,0.12)';
+    ctx.lineWidth=1;
+    for(let g=0;g<=4;g++){
+      const gy=top+plotH*(g/4);
+      ctx.beginPath(); ctx.moveTo(left,gy); ctx.lineTo(right,gy); ctx.stroke();
+      ctx.fillStyle='#94a3b8'; ctx.font='12px sans-serif';
+      ctx.fillText(String(Math.round(max*(1-g/4))), 16, gy+4);
+    }
+    const groupW = plotW / n;
+    const barW = Math.max(10, (groupW-16) / series.length);
+    for(let i=0;i<n;i++){
+      series.forEach(function(s, si){
+        const v = (s.values[i]||0);
+        const bh = (v/max)*plotH;
+        const x = left + i*groupW + 8 + si*barW;
+        const y = bottom - bh;
+        const grd=ctx.createLinearGradient(0,y,0,bottom);
+        grd.addColorStop(0, palette[si%palette.length]);
+        grd.addColorStop(1,'#0284c7');
+        ctx.fillStyle=grd;
+        ctx.fillRect(x, y, barW-4, bh);
+        if(series.length===1 || n<=8){
+          ctx.fillStyle='#e2e8f0';
+          ctx.font='bold 14px sans-serif';
+          ctx.textAlign='center';
+          ctx.fillText(String(v), x+(barW-4)/2, y-8);
+          ctx.textAlign='left';
+        }
+      });
+      ctx.fillStyle='#94a3b8';
+      ctx.font='13px sans-serif';
+      ctx.textAlign='center';
+      const lab = String(labels[i]||(''+(i+1)));
+      ctx.fillText(lab.length>10?lab.slice(0,9)+'…':lab, left+i*groupW+groupW/2, bottom+24);
+      ctx.textAlign='left';
+    }
+    if(series.length>1){
+      let lx=left;
+      series.forEach(function(s,si){
+        ctx.fillStyle=palette[si%palette.length];
+        ctx.fillRect(lx, H-48, 14, 14);
+        ctx.fillStyle='#e2e8f0';
+        ctx.font='13px sans-serif';
+        ctx.fillText(s.name, lx+20, H-36);
+        lx += ctx.measureText(s.name).width + 48;
+      });
+    }
+  } else {
+    ctx.fillStyle='#e2e8f0';
+    ctx.font='22px "Plus Jakarta Sans",sans-serif';
+    const plain = String((ins&&ins.text)||'').replace(/\|/g,' ').replace(/[#*_]/g,'').replace(/\n+/g,'  ');
+    wrapCanvasText(ctx, plain, 48, 160, W-96, 32, 12);
+  }
+
+  ctx.fillStyle='#64748b';
+  ctx.font='12px sans-serif';
+  ctx.fillText('Cric360 Insights', 48, H-18);
+  return canvas.toDataURL('image/jpeg', 0.78);
+}
+
 function renderInsChart(chart){
-  if(!chart || !chart.values || !chart.values.length) return '';
-  const vals = chart.values.map(Number);
+  if(!chart) return '';
+  const series = (chart.series && chart.series.length) ? chart.series : (chart.values?[{name:chart.title||'', values:chart.values}]:[]);
+  if(!series.length || !series[0].values || !series[0].values.length) return '';
+  const vals = series[0].values.map(Number);
   const max = Math.max.apply(null, vals.concat([1]));
   const labels = chart.labels || vals.map(function(_,i){ return String(i+1); });
   let h = '<div class="ins-chart" role="img" aria-label="'+(escapeIns(chart.title||'Chart'))+'">';
@@ -5468,10 +5883,17 @@ function paintInsightAlbum(box, list, index, opts){
   if(index >= list.length) index = list.length - 1;
   const ins = list[index];
   const pos = (index+1) + ' of ' + list.length;
-  let h = '<article class="ins-card" aria-label="Insight: '+escapeIns(ins.title||'Untitled')+', '+pos+'">';
+  const img = ins.image || '';
+  let h = '<article class="ins-stage-wrap" aria-label="Insight: '+escapeIns(ins.title||'Untitled')+', '+pos+'">';
   h += '<h2 class="ins-card-head" tabindex="-1" id="'+(opts.headId||'insCardHead')+'">'+escapeIns(ins.title||'Insight')+'</h2>';
-  h += '<div class="ins-card-body">'+insightBodyHtml(ins)+'</div>';
-  h += '<div class="ins-nav" role="group" aria-label="Insight navigation">';
+  h += '<div class="ins-stage">';
+  if(img){
+    h += '<img src="'+img+'" alt="'+escapeIns(ins.title||'Insight chart')+'" />';
+  } else {
+    h += '<div class="ins-card-body" style="padding:16px;overflow:auto;height:100%">'+insightBodyHtml(ins)+'</div>';
+  }
+  h += '</div>';
+  h += '<div class="ins-film-nav" role="group" aria-label="Insight navigation">';
   h += '<button type="button" class="btn-sec insPrev" '+(index<=0?'disabled':'')+' aria-label="Previous insight">Previous</button>';
   h += '<span class="ins-pos" aria-live="polite">'+pos+'</span>';
   h += '<button type="button" class="btn-sec insNext" '+(index>=list.length-1?'disabled':'')+' aria-label="Next insight">Next</button>';
@@ -5530,6 +5952,7 @@ function renderInsDraft(){
   if(!box) return;
   const d = window._insDraft;
   if(!d){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  if(!d.chart) d.chart = autoChartFromText(d.text||'');
   box.classList.remove('hidden');
   let h = '<div class="ins-card-head" style="font-size:1rem">AI response</div>';
   h += '<div class="ins-card-body">';
@@ -5537,17 +5960,49 @@ function renderInsDraft(){
   h += markdownLiteToHtml(d.text||'');
   h += '</div>';
   h += '<div class="ins-draft-actions">';
-  h += '<button type="button" id="insPublish" class="btn-ok" aria-label="Publish this insight">Publish</button>';
+  h += '<button type="button" id="insPublish" class="btn-ok" aria-label="Publish this response as a chart">Publish response</button>';
   h += '<button type="button" id="insDiscard" class="btn-sec" aria-label="Discard response">Discard</button>';
   h += '</div>';
   box.innerHTML = h;
-  if($('insPublish')) $('insPublish').onclick = publishInsDraft;
+  if($('insPublish')) $('insPublish').onclick = openInsPublishPreview;
   if($('insDiscard')) $('insDiscard').onclick = function(){
     window._insDraft = null;
     renderInsDraft();
     announce('Response discarded');
     if($('insAsk')) $('insAsk').focus();
   };
+}
+
+function openInsPublishPreview(){
+  const d = window._insDraft;
+  if(!d) return;
+  if(!d.chart) d.chart = autoChartFromText(d.text||'');
+  const title = d.title || 'Insight';
+  const img = drawInsightGraphic(d, title);
+  window._insPreviewImage = img;
+  const modal = $('insPreviewModal');
+  if($('insPreviewTitle')) $('insPreviewTitle').value = title;
+  if($('insPreviewImg')) $('insPreviewImg').src = img;
+  if(modal){
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden','false');
+  }
+  setTimeout(function(){ focusEl($('insPreviewTitle')||$('insPreviewPublish')); }, 40);
+}
+function closeInsPreview(){
+  const modal = $('insPreviewModal');
+  if(!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden','true');
+  focusEl($('insPublish')||$('insAsk'));
+}
+function refreshInsPreviewImage(){
+  const d = window._insDraft;
+  if(!d) return;
+  const title = (($('insPreviewTitle')&&$('insPreviewTitle').value)||d.title||'Insight').trim();
+  const img = drawInsightGraphic(d, title);
+  window._insPreviewImage = img;
+  if($('insPreviewImg')) $('insPreviewImg').src = img;
 }
 
 async function callAskMatchAi(question){
@@ -5569,10 +6024,11 @@ async function insSendQuestion(){
   if($('insSend')){ $('insSend').disabled = true; $('insSend').textContent = '…'; }
   try{
     const data = await callAskMatchAi(q);
+    const chart = data.chart || autoChartFromText(data.text||'');
     window._insDraft = {
       question: q,
       text: data.text || '',
-      chart: data.chart || null,
+      chart: chart,
       title: q.length > 60 ? q.slice(0,57)+'…' : q
     };
     renderInsDraft();
@@ -5595,10 +6051,9 @@ async function publishInsDraft(){
   const m = M();
   if(!d || !m || !m.id) return;
   if(typeof isAdmin!=='function' || !isAdmin()) return;
-  let title = d.title || 'Insight';
-  const custom = prompt('Title for this insight (viewers will see this):', title);
-  if(custom === null) return;
-  title = String(custom).trim() || title;
+  let title = (($('insPreviewTitle')&&$('insPreviewTitle').value)||d.title||'Insight').trim() || 'Insight';
+  if(!d.chart) d.chart = autoChartFromText(d.text||'');
+  const image = window._insPreviewImage || drawInsightGraphic(d, title);
   const html = (d.chart ? renderInsChart(d.chart) : '') + markdownLiteToHtml(d.text||'');
   const item = {
     id: 'ins_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
@@ -5606,6 +6061,7 @@ async function publishInsDraft(){
     text: d.text || '',
     html: html,
     chart: d.chart || null,
+    image: image,
     question: d.question || '',
     createdAt: Date.now(),
     by: (user && (user.email || user.uid)) || 'admin'
@@ -5617,10 +6073,12 @@ async function publishInsDraft(){
     if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m);
   }catch(e){ console.warn(e); }
   window._insDraft = null;
+  window._insPreviewImage = null;
   window._insIndex = 0;
+  closeInsPreview();
   renderInsDraft();
   renderInsightsPane('admin');
-  announce('Insight published: '+title);
+  announce('Insight published as chart: '+title);
   focusEl($('insCardHead')||$('insTitle'));
 }
 
@@ -5677,6 +6135,16 @@ function wireInsightsUi(){
       if(e.target === $('insAlbumModal')) closeInsAlbumModal();
     });
   }
+  if($('insPreviewCancel')) $('insPreviewCancel').onclick = closeInsPreview;
+  if($('insPreviewPublish')) $('insPreviewPublish').onclick = publishInsDraft;
+  if($('insPreviewTitle')){
+    $('insPreviewTitle').addEventListener('input', function(){ try{ refreshInsPreviewImage(); }catch(e){} });
+  }
+  if($('insPreviewModal')){
+    $('insPreviewModal').addEventListener('click', function(e){
+      if(e.target === $('insPreviewModal')) closeInsPreview();
+    });
+  }
 }
 try{ wireInsightsUi(); }catch(e){ console.warn('wireInsights', e); }
 
@@ -5695,23 +6163,12 @@ function renderMatchSquadsPane(mode){
   if(!started){
     if(pre) pre.classList.remove('hidden');
     if(live) live.classList.add('hidden');
-    const tossW = m.tossWinner==='teamA'?m.teamA.name:(m.tossWinner==='teamB'?m.teamB.name:'—');
-    const bat = m.battingTeam==='teamA'?m.teamA:m.teamB;
-    const bowl = m.battingTeam==='teamA'?m.teamB:m.teamA;
-    const p11 = (team)=> (team.squad||[]).filter(p=>p.inPlaying11);
-    const line = (team)=>{
-      const list=p11(team); const arr=list.length?list:(team.squad||[]);
-      return arr.map(p=>p.name).join(', ') || '—';
-    };
     if(pre){
-      pre.innerHTML =
-        '<p><strong>Toss:</strong> '+tossW+(m.tossDecision?(' chose to '+m.tossDecision):'')+'</p>'+
-        '<p><strong>Batting first:</strong> '+(bat.name||'')+'</p>'+
-        '<p style="margin-top:12px"><strong>'+(bat.name||'')+' Playing XI</strong></p>'+
-        '<p style="color:var(--muted);font-size:14px;line-height:1.45">'+line(bat)+'</p>'+
-        '<p style="margin-top:12px"><strong>'+(bowl.name||'')+' Playing XI</strong></p>'+
-        '<p style="color:var(--muted);font-size:14px;line-height:1.45">'+line(bowl)+'</p>'+
-        '<p style="margin-top:16px;font-weight:900;text-align:center">Waiting for match to begin</p>';
+      if(mode==='viewer' && !m.p11Published){
+        pre.innerHTML = '<p style="color:var(--muted);padding:12px 0">Playing 11 is not published yet.</p>'+preMatchNotesHtml(m);
+      } else {
+        pre.innerHTML = audienceLobbyHtml(m);
+      }
     }
     return;
   }

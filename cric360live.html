@@ -472,7 +472,7 @@ button:active{transform:scale(.98)}
 }
 .ins-film-nav{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin-top:10px;
+  margin-top:10px; position:fixed; bottom:70px; left:16px; right:16px; z-index:100;
 }
 .ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
 #insPreviewModal .ins-stage{max-height:min(52vh, 420px)}
@@ -554,12 +554,12 @@ button:active{transform:scale(.98)}
     <div id="uwmPaneLive">
       <div id="uwmLobby" class="hidden" aria-live="polite"></div>
       <div id="uwmLiveScoring">
-      <div id="uwmScore" class="score-line" tabindex="0" role="text">0 for 0</div>
+      <div id="uwmScore" class="score-line" tabindex="0" role="group">0 for 0</div>
       <div class="batter-row">
-        <div id="uwmBoxLeft" class="batter-box striker-box" tabindex="0"><div class="bn" id="uwmStriker">—</div><div class="bs" id="uwmStrikerStats"></div></div>
-        <div id="uwmBoxRight" class="batter-box non-box" tabindex="0"><div class="bn" id="uwmNon">—</div><div class="bs" id="uwmNonStats"></div></div>
+        <div id="uwmBoxLeft" class="batter-box striker-box" tabindex="0" role="group"><div class="bn" id="uwmStriker">—</div><div class="bs" id="uwmStrikerStats"></div></div>
+        <div id="uwmBoxRight" class="batter-box non-box" tabindex="0" role="group"><div class="bn" id="uwmNon">—</div><div class="bs" id="uwmNonStats"></div></div>
       </div>
-      <div id="uwmBowler" class="bowler-box" tabindex="0"><div class="bn" id="uwmBowlerName">—</div></div>
+      <div id="uwmBowler" class="bowler-box" tabindex="0" role="group"><div class="bn" id="uwmBowlerName">—</div></div>
       <div class="panel" style="padding:0;margin:14px 0">
         <div id="uwmBalls" role="list" aria-label="Ball by ball, latest first"></div>
       </div>
@@ -735,25 +735,36 @@ button:active{transform:scale(.98)}
       <div style="color:var(--muted);margin-top:12px;font-size:14px" id="resultBannerClosure"></div>
     </div>
     <div id="scoringUI" class="hidden">
-      <div id="scoreLine" class="score-line" tabindex="0" role="text" aria-label="Score">0/0 (0.0 ov)</div>
+      <div id="scoreLine" class="score-line" tabindex="0" role="group" aria-label="Score">0/0 (0.0 ov)</div>
       <div id="rateLine" class="rate-line-cb" tabindex="0"></div>
       <div id="targetLine" class="target-line-cb hidden"></div>
       <div id="inningsLine" class="hidden"></div>
       <div class="batter-row">
-        <div id="boxLeft" class="batter-box striker-box" tabindex="0" role="text" aria-label="Striker">
+        <div id="boxLeft" class="batter-box striker-box" tabindex="0" role="group" aria-label="Striker">
           <div class="bn" id="strikerName">—</div>
           <div class="bs" id="strikerStats"></div>
-          <button type="button" id="btnInjStriker" class="btn-danger" style="margin-top:10px;min-height:40px;width:100%;font-size:13px" aria-label="Injury change for striker">Injury change</button>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Injury change for striker">Injury</button>
+            <button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Edit wrong striker selection">Edit</button>
+          </div>
         </div>
-        <div id="boxRight" class="batter-box non-box" tabindex="0" role="text" aria-label="Non-striker">
+        <div id="boxRight" class="batter-box non-box" tabindex="0" role="group" aria-label="Non-striker">
           <div class="bn" id="nonStrikerName">—</div>
           <div class="bs" id="nonStrikerStats"></div>
-          <button type="button" id="btnInjNon" class="btn-danger" style="margin-top:10px;min-height:40px;width:100%;font-size:13px" aria-label="Injury change for non-striker">Injury change</button>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Injury change for non-striker">Injury</button>
+            <button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Edit wrong non-striker selection">Edit</button>
+          </div>
         </div>
       </div>
-      <div id="boxBowler" class="bowler-box" tabindex="0" role="text" aria-label="Bowler">
-        <div class="bn" id="bowlerName">—</div>
-        <div class="bs" id="bowlerStats" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
+      <div id="boxBowler" class="bowler-box" tabindex="0" role="group" aria-label="Bowler">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="bn" id="bowlerName">—</div>
+            <div class="bs" id="bowlerStats" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
+          </div>
+          <button type="button" id="btnEditBowler" class="btn-sec" style="min-height:32px;font-size:12px;padding:4px 8px;margin-top:-4px" aria-label="Edit wrong bowler selection">Edit</button>
+        </div>
       </div>
       <div class="panel" style="padding:0;margin:14px 0">
         <div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:flex-end;font-size:13px;font-weight:700;color:var(--muted)">
@@ -2896,6 +2907,7 @@ function openEditPlayerDlg(playerId, teamKey){
     save();
     renderScorecard();
     renderLive();
+    if(typeof renderMatchSquadsPane === 'function') renderMatchSquadsPane('admin');
     announce('Player updated');
   }
 }
@@ -3432,7 +3444,7 @@ function showWicketDlg(){
   const m=M();
   const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;
   // Not out, not on crease — includes retired-hurt (resume with same score)
-  const avail=bat.squad.filter(p=>!p.isOut && p.id!==m.strikerId && p.id!==m.nonStrikerId);
+  const avail=playingList(bat).filter(p=>!p.isOut && p.id!==m.strikerId && p.id!==m.nonStrikerId);
   if(!avail.length){
     if(m.currentInnings===2&&m.target){
       const bowlTeam=m.battingTeam==='teamA'?m.teamB:m.teamA;
@@ -3498,7 +3510,7 @@ function showNextBowlerDlg(){
   const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;
   const box=$('nextBowlerChoices');
   if(!box){ alert('Bowler dialog missing'); return; }
-  const choices=(bowl.squad||[]).filter(p=>p.id!==m.currentBowlerId);
+  const choices=playingList(bowl).filter(p=>p.id!==m.currentBowlerId);
   if(!choices.length){
     alert('No other bowler available');
     renderLive();
@@ -3752,6 +3764,16 @@ function saveFieldComment(){
   speak(text);
   renderLive();
   announce('Commentary saved');
+  if (m.status==='live') {
+    const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;
+    const str=bat.squad.find(p=>p.id===m.strikerId);
+    const non=bat.squad.find(p=>p.id===m.nonStrikerId);
+    if((!str||str.isOut||!non||non.isOut) && m.wickets<10) {
+      showWicketDlg();
+    } else if (m.ballsInOver===0 && m.totalBalls>0) {
+      showNextBowlerDlg();
+    }
+  }
 }
 function openForceBowlerDlg(){
   const m = M();
@@ -3824,7 +3846,7 @@ function openForceBatterDlg(which){
       '. Not counted as out. Choose who comes in now. You can bring back a retired-hurt player later; their score continues from the same numbers.';
   }
   // Fresh or other retired-hurt (resume them as the on-field replacement). Never the current pair or true outs.
-  const avail = (bat.squad||[]).filter(p=>!p.isOut && p.id!==m.strikerId && p.id!==m.nonStrikerId);
+  const avail = playingList(bat).filter(p=>!p.isOut && p.id!==m.strikerId && p.id!==m.nonStrikerId);
   const box=$('forceBatChoices'); if(!box) return;
   if(!avail.length){ alert('No replacement available'); return; }
   box.innerHTML = avail.map(p=>{
@@ -6189,7 +6211,9 @@ function renderMatchSquadsPane(mode){
       h+='<div class="squad-player" role="listitem" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
       h+='<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;width:100%">';
       if(p.photoUrl) h+='<img src="'+p.photoUrl+'" alt="" />';
-      h+='<div><div class="nm">'+(p.name||'')+'</div>'+(role?('<div class="rl">'+role+'</div>'):'')+'</div></div></div>';
+      h+='<div><div class="nm">'+(p.name||'')+'</div>'+(role?('<div class="rl">'+role+'</div>'):'')+'</div>';
+      if(mode==='admin'){ h+=`<button type="button" class="btn-sec btn-edit" style="margin-left:auto;padding:4px 8px;font-size:11px;min-height:0" aria-label="Edit player" onclick="openEditPlayerDlg('${p.id}', '${team.id===M().teamA.id?'teamA':'teamB'}')">Edit</button>`; }
+      h+='</div></div>';
     });
     if(!list.length) h+='<div class="squad-player" style="color:var(--text-muted)">No players</div>';
     return h+'</div>';
@@ -6451,5 +6475,65 @@ if (auth) {
   enterAppHome();
 }
 </script>
+
+<div id="dlgEditSelection" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editSelTitle">
+  <div class="modal-box">
+    <h2 id="editSelTitle">Correct Selection</h2>
+    <div id="editSelChoices"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+      <button type="button" class="btn-sec" onclick="closeDlg('dlgEditSelection')">Cancel</button>
+      <button type="button" class="btn-ok" id="btnEditSelConfirm" disabled>Update</button>
+    </div>
+  </div>
+</div>
+<script>
+function showEditSelectionDlg(role) {
+  const m = M();
+  if(!m || m.status!=='live') return;
+  S.temp.editSelRole = role;
+  const box = $('editSelChoices');
+  let list = [];
+  if(role==='bowler') {
+     const bowl = m.battingTeam==='teamA'?m.teamB:m.teamA;
+     list = playingList(bowl);
+  } else {
+     const bat = m.battingTeam==='teamA'?m.teamA:m.teamB;
+     list = playingList(bat).filter(p=>!p.isOut);
+  }
+  box.innerHTML = list.map(p=>'<label class="choice-btn"><input type="radio" name="editSel" value="'+p.id+'" /> '+p.name+'</label>').join('');
+  box.querySelectorAll('input').forEach(r=>{
+    r.onchange = () => { $('btnEditSelConfirm').disabled = false; S.temp.editSelVal = r.value; };
+  });
+  $('btnEditSelConfirm').disabled = true;
+  openDlg('dlgEditSelection');
+}
+if($('btnEditStriker')) $('btnEditStriker').onclick = () => showEditSelectionDlg('striker');
+if($('btnEditNon')) $('btnEditNon').onclick = () => showEditSelectionDlg('nonStriker');
+if($('btnEditBowler')) $('btnEditBowler').onclick = () => showEditSelectionDlg('bowler');
+if($('btnEditSelConfirm')) $('btnEditSelConfirm').onclick = () => {
+  const m = M();
+  if(S.temp.editSelRole==='striker') m.strikerId = S.temp.editSelVal;
+  else if(S.temp.editSelRole==='nonStriker') m.nonStrikerId = S.temp.editSelVal;
+  else if(S.temp.editSelRole==='bowler') m.currentBowlerId = S.temp.editSelVal;
+  save(); closeDlg('dlgEditSelection'); renderLive(); announce('Selection updated');
+};
+
+document.addEventListener('keydown', function(e) {
+  if(e.key==='ArrowDown' || e.key==='ArrowUp'){
+    const items = Array.from(document.querySelectorAll('.ball-row:not([disabled])'));
+    if(!items.length) return;
+    const current = document.activeElement;
+    const idx = items.indexOf(current);
+    if(idx > -1){
+      e.preventDefault();
+      let nextIdx = e.key==='ArrowDown' ? idx + 1 : idx - 1;
+      if(nextIdx >= items.length) nextIdx = 0;
+      if(nextIdx < 0) nextIdx = items.length - 1;
+      items[nextIdx].focus();
+    }
+  }
+});
+</script>
 </body>
+
 </html>

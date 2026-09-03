@@ -873,7 +873,7 @@ button:active{transform:scale(.98)}
         <div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:flex-end;font-size:13px;font-weight:700;color:var(--muted)">
           <span id="overBallCount" aria-label="Balls in current over">0 / 6</span>
         </div>
-        <ul id="ballLog" class="ball-log-list" aria-label="Ball by ball, latest first"><li style="padding:14px;color:var(--muted);list-style:none">No balls yet</li></ul>
+        <ul id="ballLog" class="ball-log-list" aria-label="Ball by ball, latest first"><li class="ball-row" style="padding:14px;color:var(--muted)">No balls yet</li></ul>
       </div>
       <div id="pastOversLive" class="over-expand" aria-label="Past overs"></div>
     </div>
@@ -1532,7 +1532,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.10";
+const APP_VERSION = "2026.09.03.1.11";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -2787,9 +2787,11 @@ function formatBallRow(b, i, overBalls){
   } else {
     mainVis = outcomeVis || (b.text||'');
   }
-  // Real list item — screen readers move with Up/Down (not Left/Right)
+  // Spoken text MUST be real text (sr-only). aria-label alone reads blank in browse mode.
   const rowCls = isUpdate ? 'ball-row ball-row-update' : 'ball-row';
-  let h = '<li class="'+rowCls+'" tabindex="0" aria-label="'+aria+'">';
+  const spoken = String(aria).replace(/&quot;/g, '"');
+  let h = '<li class="'+rowCls+'" tabindex="0">';
+  h += '<span class="sr-only">'+spoken.replace(/</g,'&lt;')+'</span>';
   h += '<div aria-hidden="true" class="ball-row-visual">';
   if(isUpdate){
     h += '<span class="ball-tag update">UPDATE</span>';
@@ -3266,7 +3268,8 @@ function renderScorecard(){
       const R=p.runs||0, B=p.balls||0, F=p.fours||0, S=p.sixes||0, SR=sr(R,B);
       const label=(p.name||'Player')+', '+R+(R===1?' run, ':' runs, ')+B+(B===1?' ball, ':' balls, ')+F+' fours, '+S+' sixes, strike rate '+SR+', '+detail;
       const star = on ? ' <span style="color:var(--accent-gold)">★</span>' : '';
-      html+='<li class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      html+='<li class="sc-table-row" tabindex="0">';
+      html+='<span class="sr-only">'+label.replace(/</g,'&lt;').replace(/"/g,'')+'</span>';
       html+='<div aria-hidden="true" class="sc-row-visual">';
       html+='<div class="c-name'+(on?' on-strike':'')+'">'+p.name+star+(p.isOut?' †':'')+(p.retiredHurt&&!p.isOut?' ♯':'');
       html+='<span class="sub">'+detail+'</span></div>';
@@ -3290,7 +3293,8 @@ function renderScorecard(){
       any=true;
       const O=fmtOvers(p.bowlBalls||0), M=p.maidens||0, R=p.bowlRuns||0, W=p.wickets||0, ER=eco(p.bowlRuns||0,p.bowlBalls||0);
       const label=(p.name||'Bowler')+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wicket'+(W===1?'':'s')+', economy '+ER;
-      html+='<li class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      html+='<li class="sc-table-row" tabindex="0">';
+      html+='<span class="sr-only">'+label.replace(/</g,'&lt;').replace(/"/g,'')+'</span>';
       html+='<div aria-hidden="true" class="sc-row-visual">';
       html+='<div class="c-name">'+p.name+'</div>';
       html+='<span class="c-num">'+O+'</span>';
@@ -6067,7 +6071,7 @@ function renderViewerScorecard(){
       let how=p.isOut?(p.dismissal||'out'):(p.retiredHurt?'retired hurt':(on?'on strike':(p.id===nid?'non-striker':'not out')));
       const R=p.runs||0,B=p.balls||0,F=p.fours||0,S=p.sixes||0,SR=sr(p);
       const label=(p.name||'Player')+', '+R+(R===1?' run, ':' runs, ')+B+(B===1?' ball, ':' balls, ')+F+' fours, '+S+' sixes, strike rate '+SR+', '+how;
-      h+='<li class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub">'+how+'</span></div><span class="c-num">'+R+'</span><span class="c-num">'+B+'</span><span class="c-num">'+F+'</span><span class="c-num">'+S+'</span><span class="c-num">'+SR+'</span></div></li>';
+      h+='<li class="sc-table-row" tabindex="0"><span class="sr-only">'+label.replace(/</g,'&lt;').replace(/"/g,'')+'</span><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub">'+how+'</span></div><span class="c-num">'+R+'</span><span class="c-num">'+B+'</span><span class="c-num">'+F+'</span><span class="c-num">'+S+'</span><span class="c-num">'+SR+'</span></div></li>';
     });
     if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
     return h;
@@ -6831,7 +6835,8 @@ function renderMatchSquadsPane(mode){
     list.forEach(p=>{
       const role=p.role||p.type||'';
       const label=(p.name||'Player')+(role?(', '+role):'');
-      h+='<div class="squad-player" role="listitem" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      h+='<div class="squad-player" role="listitem" tabindex="0">';
+      h+='<span class="sr-only">'+label.replace(/</g,'&lt;').replace(/"/g,'')+'</span>';
       h+='<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;width:100%">';
       if(p.photoUrl) h+='<img src="'+p.photoUrl+'" alt="" />';
       h+='<div><div class="nm">'+(p.name||'')+'</div>'+(role?('<div class="rl">'+role+'</div>'):'')+'</div>';

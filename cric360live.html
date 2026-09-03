@@ -2,6 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+
+<link rel="manifest" href="./manifest.webmanifest" />
+<meta name="theme-color" content="#0b1326" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Cric360" />
+<link rel="apple-touch-icon" href="./icons/icon-180.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Cric360 Live – Uninterrupted live with 360 dimensions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1532,6 +1542,14 @@ async function loadProfile(u) {
 async function cloudSaveMatch(match) {
   if (!db || !isAdmin() || !match || !match.id) return;
   try {
+    // Guard: never push a live match that has score/balls count but zero ball rows (would wipe good cloud data)
+    let ballRows = 0;
+    (match.completedOvers||[]).forEach(function(o){ ballRows += (o.balls&&o.balls.length)||0; });
+    ballRows += (match.currentOverBalls&&match.currentOverBalls.length)||0;
+    if((match.status==='live' || match.status==='innings_break') && (match.totalBalls||0) > 0 && ballRows === 0){
+      console.warn('cloudSaveMatch blocked: live match missing ball history', match.id, match.totalBalls);
+      return;
+    }
     const payload = JSON.parse(JSON.stringify(match));
     payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     payload.updatedBy = user ? user.email : '';
@@ -5057,33 +5075,71 @@ $('aucBtnEnd').onclick=()=>{
 };
 
 window.openMatch = async function(id){
-  // Always prefer live cloud document over stale localStorage (fixes empty names/balls on admin)
-  let m = null;
+  function ballCount(mm){
+    if(!mm) return 0;
+    let n = 0;
+    (mm.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
+    n += (mm.currentOverBalls&&mm.currentOverBalls.length)||0;
+    if(mm.innings1){
+      (mm.innings1.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
+      n += (mm.innings1.currentOverBalls&&mm.innings1.currentOverBalls.length)||0;
+    }
+    return n;
+  }
+  function squadSize(mm){
+    if(!mm) return 0;
+    return ((mm.teamA&&mm.teamA.squad&&mm.teamA.squad.length)||0) + ((mm.teamB&&mm.teamB.squad&&mm.teamB.squad.length)||0);
+  }
+  function normalizeMatchArrays(mm){
+    if(!mm || mm.type==='auction') return mm;
+    if(!Array.isArray(mm.completedOvers)) mm.completedOvers = [];
+    if(!Array.isArray(mm.currentOverBalls)) mm.currentOverBalls = [];
+    ['teamA','teamB'].forEach(function(k){
+      if(mm[k] && !Array.isArray(mm[k].squad)) mm[k].squad = mm[k].squad || [];
+    });
+    return mm;
+  }
+  function pickRicher(a, b){
+    // Prefer the document that has more ball history / squad; never prefer empty over full
+    if(!a) return b;
+    if(!b) return a;
+    const ba = ballCount(a), bb = ballCount(b);
+    if(bb > ba) return b;
+    if(ba > bb) return a;
+    const sa = squadSize(a), sb = squadSize(b);
+    if(sb > sa) return b;
+    if(sa > sb) return a;
+    // Prefer higher totalBalls / score if history equal
+    if((b.totalBalls||0) > (a.totalBalls||0)) return b;
+    return a;
+  }
+
+  let local = (S.matches||[]).find(x=>x.id===id) || null;
+  let cloud = null;
   if(db){
     try{
       let snap = await db.collection('cric360_matches').doc(id).get();
       if(!snap.exists) snap = await db.collection('cric360_auctions').doc(id).get();
       if(snap.exists){
-        m = Object.assign({id:snap.id}, snap.data());
-        if(!m.type) m.type = (snap.ref.parent.id.indexOf('auction')>=0) ? 'auction' : 'match';
-        if(m.type!=='auction'){
-          if(!Array.isArray(m.completedOvers)) m.completedOvers = [];
-          if(!Array.isArray(m.currentOverBalls)) m.currentOverBalls = [];
-          ['teamA','teamB'].forEach(function(k){
-            if(m[k] && !Array.isArray(m[k].squad)) m[k].squad = m[k].squad || [];
-          });
-        }
-        const idx = (S.matches||[]).findIndex(x=>x.id===id);
-        if(idx>=0) S.matches[idx]=m; else S.matches.unshift(m);
-        try{
-          const ls=getLS();
-          if(ls) ls.setItem(KEY, JSON.stringify({matches:S.matches,ttsOn:S.ttsOn,selectedVoiceURI:S.selectedVoiceURI}));
-        }catch(e){}
+        cloud = Object.assign({id:snap.id}, snap.data());
+        if(!cloud.type) cloud.type = (snap.ref.parent.id.indexOf('auction')>=0) ? 'auction' : 'match';
+        normalizeMatchArrays(cloud);
       }
     }catch(e){ console.warn('openMatch cloud', e); }
   }
-  if(!m) m = (S.matches||[]).find(x=>x.id===id);
+
+  let m = pickRicher(local, cloud);
   if(!m){ alert('Match not found'); return; }
+  normalizeMatchArrays(m);
+
+  // Store chosen document locally (do NOT cloud-save here — avoids wiping good cloud with empty local)
+  const idx = (S.matches||[]).findIndex(x=>x.id===id);
+  if(idx>=0) S.matches[idx]=m; else S.matches.unshift(m);
+  try{
+    const ls=getLS();
+    if(ls) ls.setItem(KEY, JSON.stringify({matches:S.matches,ttsOn:S.ttsOn,selectedVoiceURI:S.selectedVoiceURI}));
+  }catch(e){}
+
   if(m.type==='auction'){ openAuction(id); return; }
   S.curId=id; S.history=[];
   document.body.classList.remove('has-hub-tabbar');
@@ -5091,6 +5147,7 @@ window.openMatch = async function(id){
   showScreen('screenLive');
   if(typeof switchTab==='function') switchTab('tabLive');
   renderLive();
+  // Live-sync from cloud only when cloud is richer or equal — never roll back local scoring
   try{ startAdminMatchWatch(id); }catch(e){ console.warn(e); }
   if((m.status||'')==='not_started'){
     if($('preStart')) $('preStart').classList.remove('hidden');
@@ -5111,17 +5168,32 @@ function stopAdminMatchWatch(){
 function startAdminMatchWatch(id){
   stopAdminMatchWatch();
   if(!db || !id) return;
+  function ballCount(mm){
+    if(!mm) return 0;
+    let n = 0;
+    (mm.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
+    n += (mm.currentOverBalls&&mm.currentOverBalls.length)||0;
+    if(mm.innings1){
+      (mm.innings1.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
+      n += (mm.innings1.currentOverBalls&&mm.innings1.currentOverBalls.length)||0;
+    }
+    return n;
+  }
   adminMatchUnsub = db.collection('cric360_matches').doc(id).onSnapshot(function(snap){
     if(!snap.exists) return;
     if(S.curId !== id) return;
     // Ignore echo of our own recent write so local scoring is not rolled back
-    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<2500) return;
+    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<3000) return;
     const cloud = Object.assign({id:snap.id}, snap.data());
     if(!Array.isArray(cloud.completedOvers)) cloud.completedOvers = [];
     if(!Array.isArray(cloud.currentOverBalls)) cloud.currentOverBalls = [];
     ['teamA','teamB'].forEach(function(k){
       if(cloud[k] && !Array.isArray(cloud[k].squad)) cloud[k].squad = cloud[k].squad || [];
     });
+    const local = (S.matches||[]).find(x=>x.id===id);
+    // CRITICAL: never replace a richer local match with poorer cloud data
+    if(local && ballCount(local) > ballCount(cloud)) return;
+    if(local && ballCount(local) === ballCount(cloud) && (local.totalScore||0) > (cloud.totalScore||0)) return;
     const idx = (S.matches||[]).findIndex(x=>x.id===id);
     if(idx>=0) S.matches[idx]=cloud; else S.matches.unshift(cloud);
     try{
@@ -5131,8 +5203,6 @@ function startAdminMatchWatch(id){
     try{ renderLive(); }catch(e){ console.warn(e); }
   }, function(err){ console.warn('adminMatchWatch', err); });
 }
-
-
 
 /* ========== AUTH + USER / ADMIN ENTRY ========== */
 function friendlyAuthMsg(e){
@@ -5358,10 +5428,28 @@ async function loadCloudMatchesForAdmin() {
       data.type = data.type || 'match';
       const idx = S.matches.findIndex(m => m.id === data.id);
       if (idx >= 0) {
-        // Prefer cloud if newer or local missing live state
         const local = S.matches[idx];
-        const cloudTs = (data.updatedAt && data.updatedAt.seconds) ? data.updatedAt.seconds : 0;
-        S.matches[idx] = Object.assign({}, local, data, { id: data.id });
+        // Prefer richer ball history — never wipe overs/balls with empty cloud fields
+        function _bc(mm){
+          if(!mm) return 0;
+          let n=0;
+          (mm.completedOvers||[]).forEach(function(o){ n+=(o.balls&&o.balls.length)||0; });
+          n+=(mm.currentOverBalls&&mm.currentOverBalls.length)||0;
+          return n;
+        }
+        if(_bc(local) > _bc(data)){
+          // keep local balls, take other cloud fields
+          S.matches[idx] = Object.assign({}, data, local, {
+            id: data.id,
+            completedOvers: local.completedOvers,
+            currentOverBalls: local.currentOverBalls,
+            innings1: local.innings1 || data.innings1,
+            teamA: (local.teamA && local.teamA.squad && local.teamA.squad.length) ? local.teamA : (data.teamA||local.teamA),
+            teamB: (local.teamB && local.teamB.squad && local.teamB.squad.length) ? local.teamB : (data.teamB||local.teamB)
+          });
+        } else {
+          S.matches[idx] = Object.assign({}, local, data, { id: data.id });
+        }
       } else {
         S.matches.unshift(data);
       }
@@ -6855,6 +6943,86 @@ document.addEventListener('keydown', function(e) {
   if(items[nextIdx]) items[nextIdx].focus();
 });
 </script>
+
+<script>
+/* ===== PWA install (Android / desktop Chrome) ===== */
+(function(){
+  let deferredPrompt = null;
+  function isStandalone(){
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true
+      || document.referrer.includes('android-app://');
+  }
+  function ensureInstallBtn(){
+    let btn = document.getElementById('btnInstallApp');
+    if(btn) return btn;
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'btnInstallApp';
+    btn.className = 'btn-ok';
+    btn.style.cssText = 'display:none;width:100%;margin:12px 0 0;min-height:48px;font-weight:800';
+    btn.setAttribute('aria-label', 'Install Cric360 app on this device');
+    btn.textContent = 'Install Cric360 app';
+    // Prefer a known container; fall back to body top
+    const host = document.querySelector('.panel') || document.querySelector('.wrap') || document.body;
+    if(host.firstChild) host.insertBefore(btn, host.firstChild);
+    else host.appendChild(btn);
+    return btn;
+  }
+  function showInstallUi(show){
+    const btn = ensureInstallBtn();
+    if(isStandalone()){
+      btn.style.display = 'none';
+      return;
+    }
+    btn.style.display = show ? 'block' : 'none';
+  }
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallUi(true);
+  });
+  window.addEventListener('appinstalled', function(){
+    deferredPrompt = null;
+    showInstallUi(false);
+    try{ if(typeof announce==='function') announce('Cric360 installed. Open it from your app list.'); }catch(x){}
+    alert('Cric360 installed. Open it from your app list — it runs full screen without browser controls.');
+  });
+  document.addEventListener('click', function(ev){
+    const t = ev.target && (ev.target.id === 'btnInstallApp' ? ev.target : (ev.target.closest && ev.target.closest('#btnInstallApp')));
+    if(!t) return;
+    ev.preventDefault();
+    if(!deferredPrompt){
+      // iOS / unsupported: show manual steps
+      const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if(isiOS){
+        alert('On iPhone/iPad: tap Share, then “Add to Home Screen” to install Cric360.');
+      } else {
+        alert('Use your browser menu → Install app / Add to Home screen.');
+      }
+      return;
+    }
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(choice){
+      deferredPrompt = null;
+      if(choice && choice.outcome === 'accepted') showInstallUi(false);
+    }).catch(function(){});
+  }, true);
+  // Register service worker (required for installability)
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(err){
+        console.warn('SW register failed', err);
+      });
+    });
+  }
+  // If already installable from a previous visit, button may show after event; hide in standalone
+  if(isStandalone()){
+    document.documentElement.classList.add('pwa-standalone');
+  }
+})();
+</script>
+
 </body>
 
 </html>

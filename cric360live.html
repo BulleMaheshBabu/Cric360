@@ -144,6 +144,9 @@ ul.plain li:last-child{border-bottom:none}
 .step-dots span.on{background:var(--ok)}
 
 .batter-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+
+
+
 .batter-box{border-radius:var(--radius);padding:16px;border:2px solid var(--border-soft);min-height:80px;backdrop-filter:blur(8px)}
 .batter-box.striker-box{border-color:var(--ok);background:linear-gradient(160deg,rgba(16,185,129,.2),rgba(15,23,42,.5));box-shadow:0 0 28px rgba(16,185,129,.15)}
 .batter-box.non-box{border-color:#88929b;background:linear-gradient(160deg,rgba(45,52,73,.5),rgba(15,23,42,.5))}
@@ -198,12 +201,16 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .player-row:last-child{border-bottom:none}
 
 /* Scorecard as vertical list (not ARIA grid — avoids left/right blank cells) */
-.sc-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:0 0 8px;display:block}
+.sc-table,.ball-log-list{width:100%;font-size:.82rem;margin:0 0 8px;display:block;list-style:none;padding:0}
 .sc-table-head,.sc-table-row{
-  display:flex;flex-wrap:nowrap;align-items:center;gap:4px;
+  display:block;width:100%;box-sizing:border-box;
   padding:10px 6px;border-bottom:1px solid var(--border-subtle);
-  width:100%;box-sizing:border-box;
+  list-style:none;
 }
+.sc-table-row .sc-row-visual,.sc-table-head{
+  display:flex;flex-wrap:nowrap;align-items:center;gap:4px;width:100%;
+}
+
 .sc-table-head{color:var(--text-muted);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-bottom:6px}
 .sc-table-row{background:transparent;cursor:default}
 .sc-table-row:focus,.sc-table-row:focus-visible{
@@ -265,7 +272,11 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .player-detail{font-size:.8rem;color:var(--text-muted);margin-top:2px}
 .player-stats{font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums;text-align:right;flex-shrink:0}
 .player-stats .balls-muted{color:var(--text-muted);font-weight:400}
+.ball-log-list{list-style:none;margin:0;padding:0;display:block;width:100%}
+.ball-log-list > li.ball-row{list-style:none;display:block;width:100%;padding:10px 0;border-bottom:1px solid var(--border-subtle);font-size:.85rem;box-sizing:border-box}
 .ball-row{display:block;width:100%;padding:10px 0;border-bottom:1px solid var(--border-subtle);font-size:.85rem}
+.ball-row-visual{display:flex;align-items:flex-start;gap:10px;width:100%}
+
 .ball-row:last-child{border-bottom:none}
 .ball-tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.75rem;font-weight:700;font-variant-numeric:tabular-nums;background:var(--bg-surface-elevated);color:var(--text-secondary);flex-shrink:0}
 .ball-tag.wicket{background:var(--badge-wicket);color:#fff}
@@ -292,11 +303,7 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .ball-log-item{padding:0;border:none}
 
 /* Action bar under bowler — single row landmark */
-.action-bar{
-  display:flex;gap:8px;align-items:stretch;margin:12px 0 8px;
-  padding:8px;border-radius:14px;border:1px solid var(--border);
-  background:linear-gradient(180deg,rgba(21,34,56,.95),rgba(14,23,38,.9));
-}
+.action-bar{display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;align-items:stretch;margin:12px 0 8px;padding:8px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(21,34,56,.95),rgba(14,23,38,.9))}
 .action-bar .act-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:4px;min-height:56px;padding:8px 6px;border-radius:12px;font-size:12px;font-weight:700;
@@ -650,7 +657,7 @@ button:active{transform:scale(.98)}
       </div>
       <div id="uwmBowler" class="bowler-box" tabindex="0" role="group"><div class="bn" id="uwmBowlerName">—</div></div>
       <div class="panel" style="padding:0;margin:14px 0">
-        <div id="uwmBalls" role="list" aria-label="Ball by ball, latest first"></div>
+        <ul id="uwmBalls" class="ball-log-list" aria-label="Ball by ball, latest first"></ul>
       </div>
       <div id="uwmPastOvers"></div>
       </div>
@@ -824,8 +831,8 @@ button:active{transform:scale(.98)}
       <div style="color:var(--muted);margin-top:12px;font-size:14px" id="resultBannerClosure"></div>
     </div>
     <div id="scoringUI" class="hidden">
-      <div id="scoreLine" class="score-line" tabindex="0" role="group" aria-label="Score">0/0 (0.0 ov)</div>
-      <div id="rateLine" class="rate-line-cb" tabindex="0"></div>
+      <div id="scoreLine" class="score-line" tabindex="0" role="text" aria-label="Score">0/0 (0.0 ov)</div>
+      <div id="rateLine" class="rate-line-cb" tabindex="0" role="text"></div>
       <div id="targetLine" class="target-line-cb hidden"></div>
       <div id="inningsLine" class="hidden"></div>
       <div class="batter-row">
@@ -866,7 +873,7 @@ button:active{transform:scale(.98)}
         <div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:flex-end;font-size:13px;font-weight:700;color:var(--muted)">
           <span id="overBallCount" aria-label="Balls in current over">0 / 6</span>
         </div>
-        <div id="ballLog" role="list" aria-label="Ball by ball, latest first"><p style="padding:14px;color:var(--muted);margin:0">No balls yet</p></div>
+        <ul id="ballLog" class="ball-log-list" aria-label="Ball by ball, latest first"><li style="padding:14px;color:var(--muted);list-style:none">No balls yet</li></ul>
       </div>
       <div id="pastOversLive" class="over-expand" aria-label="Past overs"></div>
     </div>
@@ -1525,7 +1532,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.08";
+const APP_VERSION = "2026.09.03.1.10";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -2780,18 +2787,18 @@ function formatBallRow(b, i, overBalls){
   } else {
     mainVis = outcomeVis || (b.text||'');
   }
-  // One focusable row; full sentence in aria-label only (no child text for SR)
+  // Real list item — screen readers move with Up/Down (not Left/Right)
   const rowCls = isUpdate ? 'ball-row ball-row-update' : 'ball-row';
-    let h='<div class="'+rowCls+'" role="listitem" tabindex="0" aria-label="'+aria+'">';
-  h+='<div aria-hidden="true" class="ball-row-visual">';
+  let h = '<li class="'+rowCls+'" tabindex="0" aria-label="'+aria+'">';
+  h += '<div aria-hidden="true" class="ball-row-visual">';
   if(isUpdate){
-    h+='<span class="ball-tag update">UPDATE</span>';
+    h += '<span class="ball-tag update">UPDATE</span>';
   } else {
-    h+='<span class="ball-tag">'+(overLabel||'·')+'</span>';
+    h += '<span class="ball-tag">'+(overLabel||'·')+'</span>';
   }
-  h+='<div class="ball-desc">'+mainVis+(b.desc&&!isUpdate?('<div class="ball-meta">'+b.desc+'</div>'):'')+'</div>';
-  if(tag && tag.text && !isUpdate) h+='<span class="ball-tag '+tag.cls+'">'+tag.text+'</span>';
-  h+='</div></div>';
+  h += '<div class="ball-desc">'+mainVis+(b.desc&&!isUpdate?('<div class="ball-meta">'+b.desc+'</div>'):'')+'</div>';
+  if(tag && tag.text && !isUpdate) h += '<span class="ball-tag '+tag.cls+'">'+tag.text+'</span>';
+  h += '</div></li>';
   return h;
 }
 function collectAllBalls(m){
@@ -2980,46 +2987,58 @@ if(m.status==='live'||m.status==='innings_break'){
     if(bwl) m.currentBowlerId=_pid(bwl);
   }
 
-if($('scoreLine')){
+{
   const ov=fmtOvers(m.totalBalls||0);
   const batName=(bat&&bat.name)?bat.name:'';
-  const sl=batName+'  '+(m.totalScore||0)+'/'+(m.wickets||0)+' ('+ov+' ov)';
-  $('scoreLine').innerHTML='<span aria-hidden="true">'+sl+'</span>';
-  $('scoreLine').setAttribute('aria-label', batName+', '+(m.totalScore||0)+' for '+(m.wickets||0)+', '+ov+' overs');
+  const runs=m.totalScore||0, wk=m.wickets||0;
+  const maxB=maxOvers(m.matchType)*6;
+  const balls=m.totalBalls||0;
+  const crr = balls>0 ? (runs/(balls/6)).toFixed(2) : '0.00';
+  const proj = balls>0 ? Math.round((runs/(balls/6))*maxOvers(m.matchType)) : 0;
+  const sl=batName+'  '+runs+'/'+wk+' ('+ov+' ov)';
+  let boardAria = (batName?batName+', ':'')+runs+' for '+wk+', '+ov+' overs, current run rate '+crr;
+  let rateVis = 'CRR '+crr;
+  if(m.currentInnings===1){
+    rateVis = 'CRR '+crr+' · Expected '+proj;
+    boardAria += ', expected '+proj+' runs';
+  } else if(m.currentInnings===2 && m.target){
+    const need=Math.max(0, m.target-runs);
+    const left=Math.max(0, maxB-balls);
+    const rrr = left>0 ? (need/(left/6)).toFixed(2) : '—';
+    rateVis = 'CRR '+crr+' · Need '+need+' · RRR '+rrr;
+    boardAria += ', target '+m.target+', need '+need+' runs, required rate '+rrr;
+  }
+  if($('scoreLine')){
+    $('scoreLine').textContent = sl;
+    $('scoreLine').setAttribute('aria-label', boardAria);
+    $('scoreLine').setAttribute('role','text');
+    $('scoreLine').setAttribute('tabindex','0');
+  }
+  if($('rateLine')){
+    $('rateLine').textContent = rateVis;
+    $('rateLine').setAttribute('aria-label', rateVis.replace('·',' '));
+    $('rateLine').setAttribute('role','text');
+    $('rateLine').setAttribute('tabindex','0');
+  }
+  if($('targetLine')){
+    const tgt=$('targetLine');
+    if(m.currentInnings===2 && m.target){
+      const need=Math.max(0, m.target-runs);
+      tgt.textContent='Target '+m.target+' · Need '+need;
+      tgt.classList.remove('hidden');
+    } else if(m.currentInnings===1 && balls>0){
+      tgt.textContent='Expected '+proj+' at current rate';
+      tgt.classList.remove('hidden');
+    } else {
+      tgt.classList.add('hidden');
+    }
+  }
 }
 const maxB=maxOvers(m.matchType)*6;
 const balls=m.totalBalls||0;
 const crr = balls>0 ? ((m.totalScore||0)/(balls/6)).toFixed(2) : '0.00';
 const proj = balls>0 ? Math.round(((m.totalScore||0)/(balls/6))*maxOvers(m.matchType)) : 0;
-if($('rateLine')){
-  if(m.currentInnings===1){
-    $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · 📈 '+proj+'</span>';
-    $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', expected '+proj+' runs');
-    if($('scoreLine')) $('scoreLine').setAttribute('aria-label', (bat&&bat.name?bat.name:'')+', '+(m.totalScore||0)+' for '+(m.wickets||0)+', '+fmtOvers(m.totalBalls||0)+' overs, current run rate '+crr+', expected '+proj+' runs');
-  } else if(m.currentInnings===2 && m.target){
-    const need=Math.max(0, m.target-(m.totalScore||0));
-    const left=Math.max(0, maxB-balls);
-    const rrr = left>0 ? (need/(left/6)).toFixed(2) : '—';
-    $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · Need '+need+' · RRR '+rrr+'</span>';
-    $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', need '+need+' runs, required rate '+rrr);
-  } else {
-    $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+'</span>';
-    $('rateLine').setAttribute('aria-label', 'Current run rate '+crr);
-  }
-}
-if($('targetLine')){
-  const tgt=$('targetLine');
-  if(m.currentInnings===2 && m.target){
-    const need=Math.max(0, m.target-(m.totalScore||0));
-    tgt.textContent='Target '+m.target+' · Need '+need;
-    tgt.classList.remove('hidden');
-  } else if(m.currentInnings===1 && balls>0){
-    tgt.textContent='📈 Expected '+proj+' at current rate';
-    tgt.classList.remove('hidden');
-  } else {
-    tgt.classList.add('hidden');
-  }
-}
+
 
 // Always rewrite player boxes — one clear SR label each (no double name)
 if($('boxLeft')){
@@ -3223,10 +3242,10 @@ function renderScorecard(){
   }
   function sr(n){ const b=n.balls||0; return b>0?(((n.runs||0)/b)*100).toFixed(1):'0.0'; }
   function batHead(){
-    return '<div class="sc-table-head" aria-hidden="true"><span>Batter</span><span class="c-num">R</span><span class="c-num">B</span><span class="c-num">4s</span><span class="c-num">6s</span><span class="c-num">SR</span></div>';
+    return '<li class="sc-table-head" aria-hidden="true"><span>Batter</span><span class="c-num">R</span><span class="c-num">B</span><span class="c-num">4s</span><span class="c-num">6s</span><span class="c-num">SR</span></li>';
   }
   function bowlHead(){
-    return '<div class="sc-table-head" aria-hidden="true"><span>Bowler</span><span class="c-num">O</span><span class="c-num">M</span><span class="c-num">R</span><span class="c-num">W</span><span class="c-num">ER</span></div>';
+    return '<li class="sc-table-head" aria-hidden="true"><span>Bowler</span><span class="c-num">O</span><span class="c-num">M</span><span class="c-num">R</span><span class="c-num">W</span><span class="c-num">ER</span></li>';
   }
   function playerRows(squad, strikerId, nonStrikerId, teamKey, showAll){
     let html=batHead();
@@ -3247,7 +3266,7 @@ function renderScorecard(){
       const R=p.runs||0, B=p.balls||0, F=p.fours||0, S=p.sixes||0, SR=sr(R,B);
       const label=(p.name||'Player')+', '+R+(R===1?' run, ':' runs, ')+B+(B===1?' ball, ':' balls, ')+F+' fours, '+S+' sixes, strike rate '+SR+', '+detail;
       const star = on ? ' <span style="color:var(--accent-gold)">★</span>' : '';
-      html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      html+='<li class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
       html+='<div aria-hidden="true" class="sc-row-visual">';
       html+='<div class="c-name'+(on?' on-strike':'')+'">'+p.name+star+(p.isOut?' †':'')+(p.retiredHurt&&!p.isOut?' ♯':'');
       html+='<span class="sub">'+detail+'</span></div>';
@@ -3256,7 +3275,7 @@ function renderScorecard(){
       html+='<span class="c-num">'+F+'</span>';
       html+='<span class="c-num">'+S+'</span>';
       html+='<span class="c-num">'+SR+'</span>';
-      html+='</div></div>';
+      html+='</div></li>';
     });
     if(!any) html+='<div style="color:var(--text-muted);padding:10px 6px">No batters yet</div>';
     return html;
@@ -3271,7 +3290,7 @@ function renderScorecard(){
       any=true;
       const O=fmtOvers(p.bowlBalls||0), M=p.maidens||0, R=p.bowlRuns||0, W=p.wickets||0, ER=eco(p.bowlRuns||0,p.bowlBalls||0);
       const label=(p.name||'Bowler')+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wicket'+(W===1?'':'s')+', economy '+ER;
-      html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
+      html+='<li class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
       html+='<div aria-hidden="true" class="sc-row-visual">';
       html+='<div class="c-name">'+p.name+'</div>';
       html+='<span class="c-num">'+O+'</span>';
@@ -3279,7 +3298,7 @@ function renderScorecard(){
       html+='<span class="c-num">'+R+'</span>';
       html+='<span class="c-num">'+W+'</span>';
       html+='<span class="c-num">'+ER+'</span>';
-      html+='</div></div>';
+      html+='</div></li>';
     });
     if(!any) html+='<div style="color:var(--text-muted);padding:10px 6px">No bowling figures yet</div>';
     return html;
@@ -5835,6 +5854,8 @@ function watchMatch(id) {
       rateExtra += ' · Need '+need+' · RRR '+rrr;
     }
     $('uwmScore').innerHTML='<span aria-hidden="true">'+scoreLine + rateExtra+'</span>';
+    $('uwmScore').setAttribute('role','text');
+    $('uwmScore').setAttribute('tabindex','0');
     let scoreAria = (m.totalScore||0)+' for '+(m.wickets||0)+', '+ov+' overs, current run rate '+crr;
     if(m.currentInnings===1 && balls>0){
       const proj = Math.round(((m.totalScore||0)/(balls/6))*maxOvers(m.matchType));
@@ -6046,7 +6067,7 @@ function renderViewerScorecard(){
       let how=p.isOut?(p.dismissal||'out'):(p.retiredHurt?'retired hurt':(on?'on strike':(p.id===nid?'non-striker':'not out')));
       const R=p.runs||0,B=p.balls||0,F=p.fours||0,S=p.sixes||0,SR=sr(p);
       const label=(p.name||'Player')+', '+R+(R===1?' run, ':' runs, ')+B+(B===1?' ball, ':' balls, ')+F+' fours, '+S+' sixes, strike rate '+SR+', '+how;
-      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub">'+how+'</span></div><span class="c-num">'+R+'</span><span class="c-num">'+B+'</span><span class="c-num">'+F+'</span><span class="c-num">'+S+'</span><span class="c-num">'+SR+'</span></div></div>';
+      h+='<li class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub">'+how+'</span></div><span class="c-num">'+R+'</span><span class="c-num">'+B+'</span><span class="c-num">'+F+'</span><span class="c-num">'+S+'</span><span class="c-num">'+SR+'</span></div></li>';
     });
     if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
     return h;
@@ -6059,7 +6080,7 @@ function renderViewerScorecard(){
       any=true;
       const O=fmtOvers(p.bowlBalls||0),M=p.maidens||0,R=p.bowlRuns||0,W=p.wickets||0,ER=eco(p.bowlRuns||0,p.bowlBalls||0);
       const label=p.name+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wickets, economy '+ER;
-      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+'</div><span class="c-num">'+O+'</span><span class="c-num">'+M+'</span><span class="c-num">'+R+'</span><span class="c-num">'+W+'</span><span class="c-num">'+ER+'</span></div></div>';
+      h+='<li class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+'</div><span class="c-num">'+O+'</span><span class="c-num">'+M+'</span><span class="c-num">'+R+'</span><span class="c-num">'+W+'</span><span class="c-num">'+ER+'</span></div></li>';
     });
     if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
     return h;
@@ -7142,49 +7163,55 @@ if($('btnEditSelConfirm')) $('btnEditSelConfirm').onclick = () => {
 };
 
 document.addEventListener('keydown', function(e) {
-  if(e.key!=='ArrowDown' && e.key!=='ArrowUp') return;
+  const key = e.key;
+  // Inside ball/score lists: Left/Right act as Up/Down so SR never "stuck" on horizontal
+  const isVert = key==='ArrowDown' || key==='ArrowUp';
+  const isHorz = key==='ArrowLeft' || key==='ArrowRight';
+  if(!isVert && !isHorz) return;
+
   const active = document.activeElement;
   if(!active) return;
   const tag = (active.tagName||'').toLowerCase();
   if(tag==='input'||tag==='textarea'||tag==='select') return;
-  // Do not steal arrows inside dialogs
   if(active.closest && active.closest('.modal, [role="dialog"]')) return;
 
   function visible(el){
-    if(!el) return false;
-    if(el.hasAttribute('disabled')) return false;
+    if(!el || el.hasAttribute('disabled')) return false;
     const st = window.getComputedStyle(el);
     if(st.display==='none'||st.visibility==='hidden') return false;
-    return el.offsetParent!==null || st.position==='fixed';
+    return true;
   }
-  function itemsIn(root){
+  function listItems(root){
     if(!root) return [];
-    return Array.from(root.querySelectorAll('.ball-row[tabindex], .sc-table-row[tabindex], .squad-player[tabindex], [role="listitem"][tabindex]'))
-      .filter(visible);
+    return Array.from(root.querySelectorAll('li.ball-row[tabindex], li.sc-table-row[tabindex], li.squad-player[tabindex], li[tabindex]'))
+      .filter(function(el){ return visible(el) && !el.hasAttribute('aria-hidden'); });
   }
-  // Resolve which vertical list we are in / should enter
-  let root = active.closest('#ballLog, #uwmBalls, #batList, #bowlList, #uwmScBody, #matchSquadsSplit, #uwmSquadsSplit, .sc-table, [role="list"]');
+
+  let root = active.closest('#ballLog, #uwmBalls, #batList, #bowlList, #uwmScBody, ul.ball-log-list, ul.sc-table, ul[aria-label]');
   if(!root){
-    // From Live action buttons → enter ball-by-ball list
-    if(active.closest('#adminBallControls, #scoringUI, #screenLive, #uwmLiveScoring, #screenUserWatchMatch')){
-      root = document.getElementById('ballLog') || document.getElementById('uwmBalls');
-    } else if(active.closest('#paneScore, #uwmPaneScore')){
-      root = document.getElementById('batList') || document.querySelector('#uwmScBody .sc-table') || document.getElementById('uwmScBody');
-    } else if(active.closest('#paneSquads, #uwmPaneSquads')){
-      root = document.getElementById('matchSquadsSplit') || document.getElementById('uwmSquadsSplit');
-    }
+    if(active.closest('#adminBallControls, #scoringUI, #screenLive')) root = document.getElementById('ballLog');
+    else if(active.closest('#paneScore, #uwmPaneScore')) root = document.getElementById('batList') || document.querySelector('#uwmScBody ul');
+    else if(active.closest('#paneSquads, #uwmPaneSquads')) root = document.getElementById('matchSquadsSplit') || document.getElementById('uwmSquadsSplit');
   }
-  if(!root || !visible(root)) return;
-  const items = itemsIn(root);
+  if(!root) return;
+
+  const items = listItems(root);
   if(!items.length) return;
 
   let idx = items.indexOf(active);
-  // Focus is on a control above the list (e.g. Next ball) — start at ends
   if(idx < 0){
-    idx = e.key==='ArrowDown' ? -1 : items.length;
+    // Focus just entered region (e.g. from Next ball)
+    if(isHorz && !isVert){
+      // ignore left/right until focused on an item
+    }
+    idx = (key==='ArrowDown' || key==='ArrowRight') ? -1 : items.length;
   }
-  let nextIdx = e.key==='ArrowDown' ? idx + 1 : idx - 1;
-  if(nextIdx < 0 || nextIdx >= items.length) return; // let browser leave the list
+
+  const goNext = (key==='ArrowDown' || key==='ArrowRight');
+  const goPrev = (key==='ArrowUp' || key==='ArrowLeft');
+  let nextIdx = goNext ? idx + 1 : (goPrev ? idx - 1 : idx);
+  if(nextIdx < 0 || nextIdx >= items.length) return;
+
   e.preventDefault();
   e.stopPropagation();
   items[nextIdx].focus();

@@ -1492,7 +1492,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.02.1.26";
+const APP_VERSION = "2026.09.03.1.01";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -5099,8 +5099,22 @@ window.openMatch = async function(id){
     });
     return mm;
   }
+  function liveCompleteness(mm){
+    if(!mm) return 0;
+    let s = 0;
+    if(mm.strikerId) s += 2;
+    if(mm.nonStrikerId) s += 2;
+    if(mm.currentBowlerId) s += 2;
+    if((mm.currentOverBalls&&mm.currentOverBalls.length)||0) s += 1;
+    if((mm.completedOvers&&mm.completedOvers.length)||0) s += 1;
+    if(mm.battingTeam) s += 1;
+    if((mm.totalBalls||0) > 0) s += 1;
+    return s;
+  }
   function pickRicher(a, b){
-    // Prefer the document that has more ball history / squad; never prefer empty over full
+    // Prefer the document that has more ball history / live selection state.
+    // When equal on balls, prefer CLOUD (b) so admin does not reopen a stale local
+    // copy that is missing striker/bowler/overs while scorecard still has totals.
     if(!a) return b;
     if(!b) return a;
     const ba = ballCount(a), bb = ballCount(b);
@@ -5109,9 +5123,13 @@ window.openMatch = async function(id){
     const sa = squadSize(a), sb = squadSize(b);
     if(sb > sa) return b;
     if(sa > sb) return a;
-    // Prefer higher totalBalls / score if history equal
     if((b.totalBalls||0) > (a.totalBalls||0)) return b;
-    return a;
+    if((a.totalBalls||0) > (b.totalBalls||0)) return a;
+    const ca = liveCompleteness(a), cb = liveCompleteness(b);
+    if(cb > ca) return b;
+    if(ca > cb) return a;
+    // Prefer cloud (b) on full tie — localStorage is often a partial snapshot
+    return b;
   }
 
   let local = (S.matches||[]).find(x=>x.id===id) || null;
@@ -5194,6 +5212,12 @@ function startAdminMatchWatch(id){
     // CRITICAL: never replace a richer local match with poorer cloud data
     if(local && ballCount(local) > ballCount(cloud)) return;
     if(local && ballCount(local) === ballCount(cloud) && (local.totalScore||0) > (cloud.totalScore||0)) return;
+    // When ball counts match, still prefer cloud if local is missing live selections/overs
+    if(local && ballCount(local) === ballCount(cloud)){
+      const localLive = !!(local.strikerId || local.currentBowlerId || (local.completedOvers&&local.completedOvers.length) || (local.currentOverBalls&&local.currentOverBalls.length));
+      const cloudLive = !!(cloud.strikerId || cloud.currentBowlerId || (cloud.completedOvers&&cloud.completedOvers.length) || (cloud.currentOverBalls&&cloud.currentOverBalls.length));
+      if(localLive && !cloudLive) return;
+    }
     const idx = (S.matches||[]).findIndex(x=>x.id===id);
     if(idx>=0) S.matches[idx]=cloud; else S.matches.unshift(cloud);
     try{
@@ -5435,20 +5459,45 @@ async function loadCloudMatchesForAdmin() {
           let n=0;
           (mm.completedOvers||[]).forEach(function(o){ n+=(o.balls&&o.balls.length)||0; });
           n+=(mm.currentOverBalls&&mm.currentOverBalls.length)||0;
+          if(mm.innings1){
+            (mm.innings1.completedOvers||[]).forEach(function(o){ n+=(o.balls&&o.balls.length)||0; });
+            n+=(mm.innings1.currentOverBalls&&mm.innings1.currentOverBalls.length)||0;
+          }
           return n;
         }
-        if(_bc(local) > _bc(data)){
-          // keep local balls, take other cloud fields
+        function _live(mm){
+          if(!mm) return 0;
+          let s=0;
+          if(mm.strikerId) s+=2;
+          if(mm.nonStrikerId) s+=2;
+          if(mm.currentBowlerId) s+=2;
+          if((mm.currentOverBalls&&mm.currentOverBalls.length)||0) s+=1;
+          if((mm.completedOvers&&mm.completedOvers.length)||0) s+=1;
+          return s;
+        }
+        const lbc = _bc(local), cbc = _bc(data);
+        if(lbc > cbc){
+          // keep local balls (active scorer), still take missing live IDs from cloud
           S.matches[idx] = Object.assign({}, data, local, {
             id: data.id,
             completedOvers: local.completedOvers,
             currentOverBalls: local.currentOverBalls,
             innings1: local.innings1 || data.innings1,
             teamA: (local.teamA && local.teamA.squad && local.teamA.squad.length) ? local.teamA : (data.teamA||local.teamA),
-            teamB: (local.teamB && local.teamB.squad && local.teamB.squad.length) ? local.teamB : (data.teamB||local.teamB)
+            teamB: (local.teamB && local.teamB.squad && local.teamB.squad.length) ? local.teamB : (data.teamB||local.teamB),
+            strikerId: local.strikerId || data.strikerId || null,
+            nonStrikerId: local.nonStrikerId || data.nonStrikerId || null,
+            currentBowlerId: local.currentBowlerId || data.currentBowlerId || null,
+            battingTeam: local.battingTeam || data.battingTeam,
+            totalScore: (local.totalScore!=null?local.totalScore:data.totalScore),
+            wickets: (local.wickets!=null?local.wickets:data.wickets),
+            totalBalls: (local.totalBalls!=null?local.totalBalls:data.totalBalls)
           });
-        } else {
+        } else if(cbc > lbc || _live(data) >= _live(local)){
+          // Cloud has more balls or equal/better live state — use cloud fully
           S.matches[idx] = Object.assign({}, local, data, { id: data.id });
+        } else {
+          S.matches[idx] = Object.assign({}, data, local, { id: data.id });
         }
       } else {
         S.matches.unshift(data);

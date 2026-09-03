@@ -248,6 +248,9 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .ball-meta{font-size:12px;color:var(--text-muted);margin-top:2px}
 .ball-tag.boundary{background:var(--badge-boundary);color:#fff}
 .ball-tag.extra{background:rgba(245,158,11,.25);color:var(--accent-gold)}
+.ball-tag.update{background:rgba(167,139,250,.22);color:#c4b5fd;letter-spacing:.04em}
+.ball-row-update{opacity:.95;border-left:3px solid rgba(167,139,250,.55);padding-left:8px;margin-left:2px}
+.ball-row-update .ball-desc{font-style:italic;color:var(--text-muted)}
 .ball-desc{flex:1;color:var(--text-secondary);min-width:0}
 .squads-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .squad-column{background:var(--bg-surface-elevated);border-radius:10px;padding:12px;border:1px solid var(--border-subtle)}
@@ -452,7 +455,7 @@ button:active{transform:scale(.98)}
 }
 .pre-note time{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
 
-/* Insights 16:9 album */
+/* Insights 16:9 album — full-width rectangle, no L letterbox */
 .ins-stage-wrap{
   width:100%;
   max-width:100%;
@@ -471,16 +474,24 @@ button:active{transform:scale(.98)}
 .ins-stage{
   width:100%;
   aspect-ratio:16/9;
-  max-height:min(56vh, calc(100dvh - 200px));
-  min-height:180px;
+  max-height:none;
+  min-height:0;
   background:#07101c;
   border:1px solid var(--border);
   border-radius:12px;
   overflow:hidden;
   position:relative;
+  display:block;
 }
 .ins-stage img,.ins-stage canvas{
-  width:100%;height:100%;object-fit:contain;display:block;background:#07101c
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center center;
+  display:block;
+  background:#07101c;
+  position:absolute;
+  inset:0;
 }
 .ins-film-nav{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -490,9 +501,24 @@ button:active{transform:scale(.98)}
   border-radius:12px; border:1px solid var(--border-subtle);
 }
 .ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
-#insPreviewModal .ins-stage{max-height:min(52vh, 420px)}
+#insPreviewModal .ins-stage{
+  width:100%;
+  aspect-ratio:16/9;
+  max-height:min(60vh, 480px);
+  position:relative;
+}
+#insPreviewModal .ins-stage img{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+}
 .ins-preview-box{width:100%}
 #paneInsights .panel, #uwmPaneInsights .panel{padding-bottom:88px}
+#paneInsights .ins-stage-wrap, #uwmPaneInsights .ins-stage-wrap{
+  width:100%;
+}
+@media (max-width:520px){
+  .ins-stage{border-radius:10px}
+  #insPreviewModal .ins-stage{max-height:min(55vh, 360px)}
+}
 
 
 </style>
@@ -756,7 +782,7 @@ button:active{transform:scale(.98)}
       <div id="targetLine" class="target-line-cb hidden"></div>
       <div id="inningsLine" class="hidden"></div>
       <div class="batter-row">
-        <div id="boxLeft" class="batter-box striker-box" tabindex="0" role="group" aria-label="Striker">
+        <div id="boxLeft" class="batter-box striker-box" role="group">
           <div class="bn" id="strikerName">—</div>
           <div class="bs" id="strikerStats"></div>
           <div style="display:flex;gap:8px;margin-top:10px">
@@ -764,7 +790,7 @@ button:active{transform:scale(.98)}
             <button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Edit wrong striker selection">Edit</button>
           </div>
         </div>
-        <div id="boxRight" class="batter-box non-box" tabindex="0" role="group" aria-label="Non-striker">
+        <div id="boxRight" class="batter-box non-box" role="group">
           <div class="bn" id="nonStrikerName">—</div>
           <div class="bs" id="nonStrikerStats"></div>
           <div style="display:flex;gap:8px;margin-top:10px">
@@ -773,7 +799,7 @@ button:active{transform:scale(.98)}
           </div>
         </div>
       </div>
-      <div id="boxBowler" class="bowler-box" tabindex="0" role="group" aria-label="Bowler">
+      <div id="boxBowler" class="bowler-box" role="group">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <div class="bn" id="bowlerName">—</div>
@@ -782,6 +808,13 @@ button:active{transform:scale(.98)}
           <button type="button" id="btnEditBowler" class="btn-sec" style="min-height:32px;font-size:12px;padding:4px 8px;margin-top:-4px" aria-label="Edit wrong bowler selection">Edit</button>
         </div>
       </div>
+      <!-- Action controls directly under bowler so admin can always reach them without scrolling past ball log -->
+      <div id="adminBallControls" class="action-bar" role="toolbar" aria-label="Actions" style="margin-top:10px">
+        <button type="button" id="btnPrevBall" class="act-btn" disabled aria-keyshortcuts="Alt+P" aria-label="Previous ball, Alt P"><span class="act-ico" aria-hidden="true">←</span><span>Previous ball</span></button>
+        <button type="button" id="btnFieldComment" class="act-btn" aria-keyshortcuts="Alt+C" aria-label="Commentary, Alt C"><span class="act-ico" aria-hidden="true">🎤</span><span>Commentary</span></button>
+        <button type="button" id="btnNextBall" class="act-btn primary" aria-keyshortcuts="Alt+N" aria-label="Next ball, Alt N"><span class="act-ico" aria-hidden="true">🏏</span><span>Next ball</span></button>
+      </div>
+      <button type="button" id="btnForceBowler" class="btn-danger btn-block" style="margin-top:8px" aria-label="Force bowler change for injury">Force bowler change</button>
       <div class="panel" style="padding:0;margin:14px 0">
         <div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:flex-end;font-size:13px;font-weight:700;color:var(--muted)">
           <span id="overBallCount" aria-label="Balls in current over">0 / 6</span>
@@ -789,12 +822,6 @@ button:active{transform:scale(.98)}
         <div id="ballLog" role="list" aria-label="Ball by ball, latest first"><p style="padding:14px;color:var(--muted);margin:0">No balls yet</p></div>
       </div>
       <div id="pastOversLive" class="over-expand" aria-label="Past overs"></div>
-      <div id="adminBallControls" class="action-bar" role="toolbar" aria-label="Actions">
-        <button type="button" id="btnPrevBall" class="act-btn" disabled aria-keyshortcuts="Alt+P" aria-label="Previous ball, Alt P"><span class="act-ico" aria-hidden="true">←</span><span>Previous ball</span></button>
-        <button type="button" id="btnFieldComment" class="act-btn" aria-keyshortcuts="Alt+C" aria-label="Commentary, Alt C"><span class="act-ico" aria-hidden="true">🎤</span><span>Commentary</span></button>
-        <button type="button" id="btnNextBall" class="act-btn primary" aria-keyshortcuts="Alt+N" aria-label="Next ball, Alt N"><span class="act-ico" aria-hidden="true">🏏</span><span>Next ball</span></button>
-      </div>
-      <button type="button" id="btnForceBowler" class="btn-danger btn-block" style="margin-top:8px" aria-label="Force bowler change for injury">Force bowler change</button>
     </div>
   </div></div>
 </section>
@@ -2522,14 +2549,21 @@ function downloadFullMatchFile(){
 
 function ballEventTag(b){
   if(!b) return {cls:'', text:''};
-  if(b.type==='comment'||b.type==='force_bowler') return {cls:'', text:''};
-  const tx=(b.text||'').toUpperCase();
-  if(b.runs==='W'||b.type==='out'||/\bW\b|WICKET|OUT/.test(tx)) return {cls:'wicket', text:'W'};
-  if(b.runs===4||/\bFOUR\b|\b4\b/.test(tx)) return {cls:'boundary', text:'FOUR'};
-  if(b.runs===6||/\bSIX\b|\b6\b/.test(tx)) return {cls:'boundary', text:'SIX'};
-  if(b.type==='wide'||/WIDE|WD/.test(tx)) return {cls:'extra', text:'WD'};
-  if(b.type==='noball'||/NO.?BALL|NB/.test(tx)) return {cls:'extra', text:'NB'};
+  if(b.type==='comment'||b.type==='force_bowler') return {cls:'update', text:'UPDATE'};
+  // Prefer structured fields — never scan full text for lone "4"/"6" (matches over numbers like 4.5)
+  if(b.runs==='W'||b.type==='out'||b.dismissal) return {cls:'wicket', text:'W'};
+  if(b.runs===4) return {cls:'boundary', text:'FOUR'};
+  if(b.runs===6) return {cls:'boundary', text:'SIX'};
+  if(b.type==='wide') return {cls:'extra', text:'WD'};
+  if(b.type==='noball') return {cls:'extra', text:'NB'};
   if(typeof b.runs==='number') return {cls:'', text:String(b.runs)};
+  // Fallback text only after stripping over prefix (e.g. "4.5 Bowler to Batter FOUR")
+  let tx = String(b.outcomeText||b.text||'').toUpperCase().replace(/^\d+\.\d+\s*/,'');
+  if(/\bWICKET\b|\bOUT\b|\bW\b/.test(tx)) return {cls:'wicket', text:'W'};
+  if(/\bFOUR\b/.test(tx) || /\b4\s*RUNS?\b/.test(tx)) return {cls:'boundary', text:'FOUR'};
+  if(/\bSIX\b/.test(tx) || /\b6\s*RUNS?\b/.test(tx)) return {cls:'boundary', text:'SIX'};
+  if(/\bWIDE\b|\bWD\b/.test(tx)) return {cls:'extra', text:'WD'};
+  if(/NO.?BALL|\bNB\b/.test(tx)) return {cls:'extra', text:'NB'};
   return {cls:'', text:''};
 }
 
@@ -2618,7 +2652,8 @@ function dismissVisual(d){
 }
 function formatBallRow(b, i, overBalls){
   if(!b) return '';
-  const overLabel = b.overStr ? String(b.overStr) : '';
+  const isUpdate = (b.type==='comment' || b.type==='force_bowler');
+  const overLabel = (!isUpdate && b.overStr) ? String(b.overStr) : '';
   const bowl = b.bowler || '';
   const bat = b.striker || '';
   let outcomeVis = '';
@@ -2626,11 +2661,13 @@ function formatBallRow(b, i, overBalls){
   let tag = ballEventTag(b);
   const isWicket = b.runs==='W' || b.type==='out' || (b.dismissal);
   if(b.type==='comment'){
-    outcomeAria = (b.text||'Update').replace(/^\d+\.\d+\s*/,'');
-    outcomeVis = outcomeAria;
+    outcomeAria = 'Update: ' + String(b.text||'Field update').replace(/^\d+\.\d+\s*/,'');
+    outcomeVis = String(b.text||'Field update').replace(/^\d+\.\d+\s*/,'');
+    tag = {cls:'update', text:'UPDATE'};
   } else if(b.type==='force_bowler'){
-    outcomeAria = (b.text||'Bowler change').replace(/^\d+\.\d+\s*/,'');
-    outcomeVis = outcomeAria;
+    outcomeAria = 'Update: ' + String(b.text||'Bowler change').replace(/^\d+\.\d+\s*/,'');
+    outcomeVis = String(b.text||'Bowler change').replace(/^\d+\.\d+\s*/,'');
+    tag = {cls:'update', text:'UPDATE'};
   } else if(isWicket){
     const dSpeak = dismissSpeak(b.dismissal || b.outcomeText || 'out');
     const dVis = dismissVisual(b.dismissal || '');
@@ -2648,10 +2685,10 @@ function formatBallRow(b, i, overBalls){
     outcomeVis = outcomeAria;
     tag = {cls:'extra', text:'NB'};
   } else if(typeof b.runs==='number'){
-    if(b.runs===0){ outcomeAria='dot'; outcomeVis='dot'; }
+    if(b.runs===0){ outcomeAria='dot'; outcomeVis='dot'; tag={cls:'', text:''}; }
     else if(b.runs===4){ outcomeAria='4 runs'; outcomeVis='4 runs'; tag={cls:'boundary',text:'FOUR'}; }
     else if(b.runs===6){ outcomeAria='6 runs'; outcomeVis='6 runs'; tag={cls:'boundary',text:'SIX'}; }
-    else { outcomeAria=b.runs+' run'+(b.runs!==1?'s':''); outcomeVis=outcomeAria; }
+    else { outcomeAria=b.runs+' run'+(b.runs!==1?'s':''); outcomeVis=outcomeAria; tag={cls:'', text:String(b.runs)}; }
   } else {
     let main = (b.outcomeText || b.text || '').replace(/^\d+\.\d+\s*/,'').trim();
     main = main.replace(/^[^ ]+ to [^ ]+\s*/i,'').trim();
@@ -2661,26 +2698,37 @@ function formatBallRow(b, i, overBalls){
     outcomeAria = main || 'ball';
     outcomeVis = outcomeAria;
   }
-  // aria: "0.1, Bowler to Batter, 4 runs, commentary" — commas = short pauses
+  // aria: balls get over number; updates never do
   const parts = [];
-  if(overLabel) parts.push(overLabel);
-  if(bowl && bat && b.type!=='comment' && b.type!=='force_bowler') parts.push(bowl+' to '+bat);
-  if(outcomeAria) parts.push(outcomeAria);
-  if(b.desc) parts.push(b.desc);
+  if(isUpdate){
+    parts.push(outcomeAria);
+  } else {
+    if(overLabel) parts.push(overLabel);
+    if(bowl && bat) parts.push(bowl+' to '+bat);
+    if(outcomeAria) parts.push(outcomeAria);
+    if(b.desc) parts.push(b.desc);
+  }
   let aria = parts.join(', ').replace(/"/g,'&quot;');
-  if(!aria) aria = 'Ball';
-  // visual line without repeating over in body
+  if(!aria) aria = isUpdate ? 'Update' : 'Ball';
   let mainVis = '';
-  if(bowl && bat && b.type!=='comment' && b.type!=='force_bowler'){
+  if(isUpdate){
+    mainVis = outcomeVis || (b.text||'');
+  } else if(bowl && bat){
     mainVis = bowl+' to '+bat;
     if(outcomeVis) mainVis += ' · '+outcomeVis;
   } else {
     mainVis = outcomeVis || (b.text||'');
   }
-  let h='<div class="ball-row" role="listitem" tabindex="0" aria-label="'+aria+'">';
-  h+='<span class="ball-tag" aria-hidden="true">'+(overLabel||'·')+'</span>';
-  h+='<div class="ball-desc" aria-hidden="true">'+mainVis+(b.desc?('<div class="ball-meta">'+b.desc+'</div>'):'')+'</div>';
-  if(tag && tag.text) h+='<span class="ball-tag '+tag.cls+'" aria-hidden="true">'+tag.text+'</span>';
+  // Single focusable row with full aria-label; children hidden from AT tree to avoid blank up/down reads
+  const rowCls = isUpdate ? 'ball-row ball-row-update' : 'ball-row';
+  let h='<div class="'+rowCls+'" role="listitem" tabindex="0" aria-label="'+aria+'">';
+  if(isUpdate){
+    h+='<span class="ball-tag update" aria-hidden="true">UPDATE</span>';
+  } else {
+    h+='<span class="ball-tag" aria-hidden="true">'+(overLabel||'·')+'</span>';
+  }
+  h+='<div class="ball-desc" aria-hidden="true">'+mainVis+(b.desc&&!isUpdate?('<div class="ball-meta">'+b.desc+'</div>'):'')+'</div>';
+  if(tag && tag.text && !isUpdate) h+='<span class="ball-tag '+tag.cls+'" aria-hidden="true">'+tag.text+'</span>';
   h+='</div>';
   return h;
 }
@@ -2810,12 +2858,14 @@ if($('rateLine')){
   if(m.currentInnings===1){
     $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · 📈 '+proj+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', expected '+proj+' runs');
+    if($('scoreLine')) $('scoreLine').setAttribute('aria-label', batName+', '+(m.totalScore||0)+' for '+(m.wickets||0)+', '+ov+' overs, current run rate '+crr+', expected '+proj+' runs');
   } else if(m.currentInnings===2 && m.target){
     const need=Math.max(0, m.target-(m.totalScore||0));
     const left=Math.max(0, maxB-balls);
     const rrr = left>0 ? (need/(left/6)).toFixed(2) : '—';
     $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · Need '+need+' · RRR '+rrr+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', need '+need+' runs, required rate '+rrr);
+    if($('scoreLine')) $('scoreLine').setAttribute('aria-label', batName+', '+(m.totalScore||0)+' for '+(m.wickets||0)+', '+ov+' overs, current run rate '+crr+', need '+need+' runs, required rate '+rrr);
   } else {
     $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr);
@@ -2837,16 +2887,17 @@ if(m.currentInnings===2&&m.target){
 if(str && $('boxLeft')){
   const lab='Striker '+str.name+', '+str.runs+' runs, '+str.balls+' balls, '+(str.fours||0)+' fours, '+(str.sixes||0)+' sixes, strike rate '+sr(str.runs,str.balls);
   const photo = str.photoUrl ? '<img src="'+str.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
+  // Stats focusable separately; Injury/Edit are real buttons so TalkBack can land on them
   $('boxLeft').innerHTML =
-    '<div class="bn" id="strikerName" aria-hidden="true">'+photo+'★ '+str.name+'</div>'+
+    '<div class="bn" id="strikerName" tabindex="0" role="text" aria-label="'+lab+'">'+photo+'★ '+str.name+'</div>'+
     '<div class="bs" id="strikerStats" aria-hidden="true">'+str.runs+' ('+str.balls+')</div>'+
     '<div style="display:flex;gap:8px;margin-top:10px">'+
-    '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Injury change for striker '+str.name+'">Injury</button>'+
-    '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Edit wrong striker selection, currently '+str.name+'">Edit</button>'+
+    '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for striker '+str.name+'">Injury</button>'+
+    '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Edit wrong striker selection, currently '+str.name+'">Edit</button>'+
     '</div>';
-  $('boxLeft').setAttribute('aria-label', lab);
+  $('boxLeft').removeAttribute('aria-label');
+  $('boxLeft').removeAttribute('tabindex');
   $('boxLeft').setAttribute('role','group');
-  $('boxLeft').setAttribute('tabindex','0');
   if($('btnInjStriker')) $('btnInjStriker').onclick=()=>openForceBatterDlg('striker');
   if($('btnEditStriker')) $('btnEditStriker').onclick=()=>showEditSelectionDlg('striker');
 }
@@ -2854,31 +2905,28 @@ if(non && $('boxRight')){
   const lab='Non-striker '+non.name+', '+non.runs+' runs, '+non.balls+' balls, '+(non.fours||0)+' fours, '+(non.sixes||0)+' sixes, strike rate '+sr(non.runs,non.balls);
   const photo = non.photoUrl ? '<img src="'+non.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
   $('boxRight').innerHTML =
-    '<div class="bn" id="nonStrikerName" aria-hidden="true">'+photo+non.name+'</div>'+
+    '<div class="bn" id="nonStrikerName" tabindex="0" role="text" aria-label="'+lab+'">'+photo+non.name+'</div>'+
     '<div class="bs" id="nonStrikerStats" aria-hidden="true">'+non.runs+' ('+non.balls+')</div>'+
     '<div style="display:flex;gap:8px;margin-top:10px">'+
-    '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Injury change for non-striker '+non.name+'">Injury</button>'+
-    '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Edit wrong non-striker selection, currently '+non.name+'">Edit</button>'+
+    '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for non-striker '+non.name+'">Injury</button>'+
+    '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Edit wrong non-striker selection, currently '+non.name+'">Edit</button>'+
     '</div>';
-  $('boxRight').setAttribute('aria-label', lab);
+  $('boxRight').removeAttribute('aria-label');
+  $('boxRight').removeAttribute('tabindex');
   $('boxRight').setAttribute('role','group');
-  $('boxRight').setAttribute('tabindex','0');
   if($('btnInjNon')) $('btnInjNon').onclick=()=>openForceBatterDlg('non');
   if($('btnEditNon')) $('btnEditNon').onclick=()=>showEditSelectionDlg('nonStriker');
 }
 if(bwl && $('boxBowler')){
   const lab='Bowler '+bwl.name+', '+fmtOvers(bwl.bowlBalls)+' overs, '+bwl.bowlRuns+' runs, '+bwl.wickets+' wickets';
   $('boxBowler').innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
-    '<div>'+
-    '<div class="bn" id="bowlerName" aria-hidden="true">'+bwl.name+' · '+fmtOvers(bwl.bowlBalls)+'-'+bwl.bowlRuns+'-'+bwl.wickets+'</div>'+
-    '<div class="bs" id="bowlerStats" style="font-size:13px;color:var(--muted);margin-top:4px" aria-hidden="true"></div>'+
-    '</div>'+
-    '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:32px;font-size:12px;padding:4px 8px;margin-top:-4px" aria-label="Edit wrong bowler selection, currently '+bwl.name+'">Edit</button>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
+    '<div class="bn" id="bowlerName" tabindex="0" role="text" aria-label="'+lab+'">'+bwl.name+' · '+fmtOvers(bwl.bowlBalls)+'-'+bwl.bowlRuns+'-'+bwl.wickets+'</div>'+
+    '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0" aria-label="Edit wrong bowler selection, currently '+bwl.name+'">Edit</button>'+
     '</div>';
-  $('boxBowler').setAttribute('aria-label', lab);
+  $('boxBowler').removeAttribute('aria-label');
+  $('boxBowler').removeAttribute('tabindex');
   $('boxBowler').setAttribute('role','group');
-  $('boxBowler').setAttribute('tabindex','0');
   if($('btnEditBowler')) $('btnEditBowler').onclick=()=>showEditSelectionDlg('bowler');
 }
 // Block next ball while a new batsman is required
@@ -6126,16 +6174,34 @@ function openInsPublishPreview(){
   if($('insPreviewTitle')) $('insPreviewTitle').value = title;
   if($('insPreviewImg')) $('insPreviewImg').src = img;
   if(modal){
+    // Same inert + focus trap as openDlg so bottom tabs cannot steal focus
+    const bgSel = 'section.wrap, section[role="region"], #screenHome, #screenLive, #screenAuction, #screenSettings, #paneScore, #paneSquads, #paneInsights, #paneMore, #aucPaneResults, #aucPaneMore, .tabbar, .top-nav, .hub-tabbar, #hubTabbarAdmin, #hubTabbarUser, #matchTabbar, #aucTabbar, #uwmTabbar, #uwaTabbar, #topNavBar';
+    document.querySelectorAll(bgSel).forEach(function(el){
+      if(el && !modal.contains(el)){
+        el.setAttribute('aria-hidden','true');
+        try{ el.inert = true; }catch(e){}
+        try{ el.setAttribute('inert',''); }catch(e){}
+      }
+    });
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden','false');
+    modal.setAttribute('aria-modal','true');
+    installDlgFocusTrap(modal);
   }
   setTimeout(function(){ focusEl($('insPreviewTitle')||$('insPreviewPublish')); }, 40);
 }
 function closeInsPreview(){
   const modal = $('insPreviewModal');
   if(!modal) return;
+  removeDlgFocusTrap();
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden','true');
+  document.querySelectorAll('[aria-hidden="true"]').forEach(function(el){
+    if(el.classList && el.classList.contains('hidden') && el.id && el.id.indexOf('screen')===0) return;
+    el.removeAttribute('aria-hidden');
+    try{ el.inert = false; }catch(e){}
+    try{ el.removeAttribute('inert'); }catch(e){}
+  });
   focusEl($('insPublish')||$('insAsk'));
 }
 function refreshInsPreviewImage(){
@@ -6238,8 +6304,18 @@ async function deleteInsightAt(id){
 function openInsAlbumModal(){
   const modal = $('insAlbumModal');
   if(!modal) return;
+  const bgSel = 'section.wrap, section[role="region"], #screenHome, #screenLive, #screenAuction, #screenSettings, #paneScore, #paneSquads, #paneInsights, #paneMore, #aucPaneResults, #aucPaneMore, .tabbar, .top-nav, .hub-tabbar, #hubTabbarAdmin, #hubTabbarUser, #matchTabbar, #aucTabbar, #uwmTabbar, #uwaTabbar, #topNavBar';
+  document.querySelectorAll(bgSel).forEach(function(el){
+    if(el && !modal.contains(el)){
+      el.setAttribute('aria-hidden','true');
+      try{ el.inert = true; }catch(e){}
+      try{ el.setAttribute('inert',''); }catch(e){}
+    }
+  });
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden','false');
+  modal.setAttribute('aria-modal','true');
+  installDlgFocusTrap(modal);
   window._insModalIndex = window._insIndex || 0;
   paintInsModal();
   setTimeout(function(){ focusEl($('insModalHead')||$('insModalClose')); }, 50);
@@ -6247,8 +6323,15 @@ function openInsAlbumModal(){
 function closeInsAlbumModal(){
   const modal = $('insAlbumModal');
   if(!modal) return;
+  removeDlgFocusTrap();
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden','true');
+  document.querySelectorAll('[aria-hidden="true"]').forEach(function(el){
+    if(el.classList && el.classList.contains('hidden') && el.id && el.id.indexOf('screen')===0) return;
+    el.removeAttribute('aria-hidden');
+    try{ el.inert = false; }catch(e){}
+    try{ el.removeAttribute('inert'); }catch(e){}
+  });
   focusEl($('insViewAlbum')||$('insAsk'));
 }
 function paintInsModal(){

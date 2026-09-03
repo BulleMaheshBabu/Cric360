@@ -421,9 +421,13 @@ button:active{transform:scale(.98)}
 }
 .ins-modal-backdrop.hidden{display:none!important}
 .ins-modal{
-  width:min(520px,100%);max-height:min(86vh,720px);overflow:auto;
+  width:min(960px,100%);max-height:min(94vh,900px);overflow:auto;
   background:var(--card-solid);border:1px solid var(--border);border-radius:18px;
-  padding:16px;box-shadow:var(--shadow)
+  padding:12px 14px 16px;box-shadow:var(--shadow)
+}
+.ins-modal .ins-stage{
+  max-height:min(72vh, calc(100dvh - 140px));
+  min-height:220px;
 }
 .ins-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 
@@ -474,8 +478,8 @@ button:active{transform:scale(.98)}
 .ins-stage{
   width:100%;
   aspect-ratio:16/9;
-  max-height:none;
-  min-height:0;
+  max-height:min(70vh, calc(100dvh - 160px));
+  min-height:200px;
   background:#07101c;
   border:1px solid var(--border);
   border-radius:12px;
@@ -1597,6 +1601,7 @@ function save(){
       }
       const cur = S.matches.find(m => m.id === S.curId);
       if(cur){
+        window._adminLocalWriteAt = Date.now();
         if(cur.type==='auction') cloudSaveAuction(cur);
         else cloudSaveMatch(cur);
       }
@@ -2842,7 +2847,7 @@ if($('btnNextBall'))$('btnNextBall').disabled=done||onBreak||m.status==='not_sta
   }
   if($('scoringUI'))$('scoringUI').classList.toggle('hidden', m.status!=='live');
 
-if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const str=bat.squad.find(p=>p.id===m.strikerId);const non=bat.squad.find(p=>p.id===m.nonStrikerId);const bwl=bowl.squad.find(p=>p.id===m.currentBowlerId);
+if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const batSq=(bat&&Array.isArray(bat.squad))?bat.squad:[];const bowlSq=(bowl&&Array.isArray(bowl.squad))?bowl.squad:[];const str=batSq.find(p=>p.id===m.strikerId);const non=batSq.find(p=>p.id===m.nonStrikerId);const bwl=bowlSq.find(p=>p.id===m.currentBowlerId);
 if($('scoreLine')){
   const ov=fmtOvers(m.totalBalls||0);
   const batName=(bat&&bat.name)?bat.name:'';
@@ -2928,6 +2933,33 @@ if(bwl && $('boxBowler')){
   $('boxBowler').removeAttribute('tabindex');
   $('boxBowler').setAttribute('role','group');
   if($('btnEditBowler')) $('btnEditBowler').onclick=()=>showEditSelectionDlg('bowler');
+} else if($('boxBowler')){
+  $('boxBowler').innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
+    '<div class="bn" id="bowlerName" tabindex="0" role="text" aria-label="Bowler not selected">No bowler selected</div>'+
+    '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0" aria-label="Select bowler">Edit</button>'+
+    '</div>';
+  if($('btnEditBowler')) $('btnEditBowler').onclick=()=>showEditSelectionDlg('bowler');
+}
+if(!str && $('boxLeft')){
+  $('boxLeft').innerHTML =
+    '<div class="bn" id="strikerName" tabindex="0" role="text" aria-label="Striker not selected">No striker</div>'+
+    '<div class="bs" id="strikerStats" aria-hidden="true">—</div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px">'+
+    '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for striker" disabled>Injury</button>'+
+    '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Select striker">Edit</button>'+
+    '</div>';
+  if($('btnEditStriker')) $('btnEditStriker').onclick=()=>showEditSelectionDlg('striker');
+}
+if(!non && $('boxRight')){
+  $('boxRight').innerHTML =
+    '<div class="bn" id="nonStrikerName" tabindex="0" role="text" aria-label="Non-striker not selected">No non-striker</div>'+
+    '<div class="bs" id="nonStrikerStats" aria-hidden="true">—</div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px">'+
+    '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for non-striker" disabled>Injury</button>'+
+    '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Select non-striker">Edit</button>'+
+    '</div>';
+  if($('btnEditNon')) $('btnEditNon').onclick=()=>showEditSelectionDlg('nonStriker');
 }
 // Block next ball while a new batsman is required
 if($('btnNextBall') && m.status==='live'){
@@ -4999,6 +5031,17 @@ $('aucUnsoldYes').onclick=()=>{
   afterSoldOrUnsold();
 };
 
+if($('btnLiveBack')) $('btnLiveBack').onclick=function(){
+  try{ stopAdminMatchWatch(); }catch(e){}
+  S.curId=null; S.history=[];
+  document.body.classList.remove('has-tabbar');
+  document.body.classList.add('has-hub-tabbar');
+  if($('matchTabbar')) $('matchTabbar').classList.add('hidden');
+  showScreen('screenHome');
+  try{ setHubTab('admin','hubAdminMatches'); }catch(e){}
+  try{ renderMatches(); }catch(e){}
+  focusEl($('homeTitle'));
+};
 $('btnAucBack').onclick=()=>{
   saveAuction(); AU=null;
   document.body.classList.remove('has-tabbar');
@@ -5014,20 +5057,32 @@ $('aucBtnEnd').onclick=()=>{
 };
 
 window.openMatch = async function(id){
-  let m=S.matches.find(x=>x.id===id);
-  // If missing locally (other device), load from Firestore
-  if(!m && db){
+  // Always prefer live cloud document over stale localStorage (fixes empty names/balls on admin)
+  let m = null;
+  if(db){
     try{
       let snap = await db.collection('cric360_matches').doc(id).get();
       if(!snap.exists) snap = await db.collection('cric360_auctions').doc(id).get();
       if(snap.exists){
         m = Object.assign({id:snap.id}, snap.data());
-        if(!m.type) m.type = snap.ref.parent.id.indexOf('auction')>=0 ? 'auction' : 'match';
-        S.matches.unshift(m);
-        save();
+        if(!m.type) m.type = (snap.ref.parent.id.indexOf('auction')>=0) ? 'auction' : 'match';
+        if(m.type!=='auction'){
+          if(!Array.isArray(m.completedOvers)) m.completedOvers = [];
+          if(!Array.isArray(m.currentOverBalls)) m.currentOverBalls = [];
+          ['teamA','teamB'].forEach(function(k){
+            if(m[k] && !Array.isArray(m[k].squad)) m[k].squad = m[k].squad || [];
+          });
+        }
+        const idx = (S.matches||[]).findIndex(x=>x.id===id);
+        if(idx>=0) S.matches[idx]=m; else S.matches.unshift(m);
+        try{
+          const ls=getLS();
+          if(ls) ls.setItem(KEY, JSON.stringify({matches:S.matches,ttsOn:S.ttsOn,selectedVoiceURI:S.selectedVoiceURI}));
+        }catch(e){}
       }
-    }catch(e){ console.warn(e); }
+    }catch(e){ console.warn('openMatch cloud', e); }
   }
+  if(!m) m = (S.matches||[]).find(x=>x.id===id);
   if(!m){ alert('Match not found'); return; }
   if(m.type==='auction'){ openAuction(id); return; }
   S.curId=id; S.history=[];
@@ -5036,7 +5091,7 @@ window.openMatch = async function(id){
   showScreen('screenLive');
   if(typeof switchTab==='function') switchTab('tabLive');
   renderLive();
-  // If match never started, keep Start Match visible and focus it
+  try{ startAdminMatchWatch(id); }catch(e){ console.warn(e); }
   if((m.status||'')==='not_started'){
     if($('preStart')) $('preStart').classList.remove('hidden');
     if($('scoringUI')) $('scoringUI').classList.add('hidden');
@@ -5048,6 +5103,34 @@ window.openMatch = async function(id){
     focusEl($('liveMatchTitle'));
   }
 };
+
+let adminMatchUnsub = null;
+function stopAdminMatchWatch(){
+  if(adminMatchUnsub){ try{ adminMatchUnsub(); }catch(e){} adminMatchUnsub=null; }
+}
+function startAdminMatchWatch(id){
+  stopAdminMatchWatch();
+  if(!db || !id) return;
+  adminMatchUnsub = db.collection('cric360_matches').doc(id).onSnapshot(function(snap){
+    if(!snap.exists) return;
+    if(S.curId !== id) return;
+    // Ignore echo of our own recent write so local scoring is not rolled back
+    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<2500) return;
+    const cloud = Object.assign({id:snap.id}, snap.data());
+    if(!Array.isArray(cloud.completedOvers)) cloud.completedOvers = [];
+    if(!Array.isArray(cloud.currentOverBalls)) cloud.currentOverBalls = [];
+    ['teamA','teamB'].forEach(function(k){
+      if(cloud[k] && !Array.isArray(cloud[k].squad)) cloud[k].squad = cloud[k].squad || [];
+    });
+    const idx = (S.matches||[]).findIndex(x=>x.id===id);
+    if(idx>=0) S.matches[idx]=cloud; else S.matches.unshift(cloud);
+    try{
+      const ls=getLS();
+      if(ls) ls.setItem(KEY, JSON.stringify({matches:S.matches,ttsOn:S.ttsOn,selectedVoiceURI:S.selectedVoiceURI}));
+    }catch(e){}
+    try{ renderLive(); }catch(e){ console.warn(e); }
+  }, function(err){ console.warn('adminMatchWatch', err); });
+}
 
 
 

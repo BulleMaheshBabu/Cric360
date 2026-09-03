@@ -208,7 +208,7 @@ const firebaseConfig = {
   appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
   measurementId: "G-MTYE09EDSY"
 };
-const SUPER_ADMIN = "maheshdhoni7633@gmail.com";
+const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
 let auth;
 try {
   firebase.initializeApp(firebaseConfig);
@@ -276,7 +276,7 @@ auth.onAuthStateChanged(u => {
     setTimeout(() => $('authTitle').focus(), 50);
     return;
   }
-  const admin = (u.email || '').toLowerCase() === SUPER_ADMIN;
+  const admin = SUPER_ADMIN_EMAILS.includes((u.email || '').toLowerCase());
   const short = admin ? 'Admin' : ((u.email || 'User').split('@')[0]);
   $('hubSub').textContent = short;
   const lab = (admin ? 'Signed in as admin. ' : ('Signed in as ' + (u.email || 'user') + '. ')) + 'Double tap to sign out.';

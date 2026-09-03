@@ -456,11 +456,23 @@ button:active{transform:scale(.98)}
 .ins-stage-wrap{
   width:100%;
   max-width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.ins-stage-wrap .ins-card-head{
+  margin:0;
+  font-size:clamp(1.05rem, 3.5vw, 1.35rem);
+  font-weight:900;
+  letter-spacing:-.02em;
+  color:var(--primary-bright);
+  line-height:1.25;
 }
 .ins-stage{
   width:100%;
   aspect-ratio:16/9;
-  max-height:calc(100dvh - 148px);
+  max-height:min(56vh, calc(100dvh - 200px));
+  min-height:180px;
   background:#07101c;
   border:1px solid var(--border);
   border-radius:12px;
@@ -472,11 +484,15 @@ button:active{transform:scale(.98)}
 }
 .ins-film-nav{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin-top:10px; position:fixed; bottom:70px; left:16px; right:16px; z-index:100;
+  margin:0; padding:8px 4px 4px;
+  position:sticky; bottom:72px; z-index:40;
+  background:rgba(7,13,24,.92); backdrop-filter:blur(8px);
+  border-radius:12px; border:1px solid var(--border-subtle);
 }
 .ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
 #insPreviewModal .ins-stage{max-height:min(52vh, 420px)}
 .ins-preview-box{width:100%}
+#paneInsights .panel, #uwmPaneInsights .panel{padding-bottom:88px}
 
 
 </style>
@@ -1434,7 +1450,7 @@ const firebaseConfig = {
   appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
   measurementId: "G-MTYE09EDSY"
 };
-const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
+const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
 const APP_VERSION = "2026.09.02.1.26";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
@@ -2820,27 +2836,55 @@ if(m.currentInnings===2&&m.target){
 }
 if(str && $('boxLeft')){
   const lab='Striker '+str.name+', '+str.runs+' runs, '+str.balls+' balls, '+(str.fours||0)+' fours, '+(str.sixes||0)+' sixes, strike rate '+sr(str.runs,str.balls);
-  const vis='<div aria-hidden="true"><div class="bn">'+(str.photoUrl?'<img src="'+str.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />':'')+'★ '+str.name+'</div><div class="bs">'+str.runs+' ('+str.balls+')</div></div>';
-  const inj=$('btnInjStriker');
-  $('boxLeft').innerHTML=vis+(inj?inj.outerHTML:'');
+  const photo = str.photoUrl ? '<img src="'+str.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
+  $('boxLeft').innerHTML =
+    '<div class="bn" id="strikerName" aria-hidden="true">'+photo+'★ '+str.name+'</div>'+
+    '<div class="bs" id="strikerStats" aria-hidden="true">'+str.runs+' ('+str.balls+')</div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px">'+
+    '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Injury change for striker '+str.name+'">Injury</button>'+
+    '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Edit wrong striker selection, currently '+str.name+'">Edit</button>'+
+    '</div>';
   $('boxLeft').setAttribute('aria-label', lab);
-  $('boxLeft').setAttribute('role','text');
+  $('boxLeft').setAttribute('role','group');
+  $('boxLeft').setAttribute('tabindex','0');
   if($('btnInjStriker')) $('btnInjStriker').onclick=()=>openForceBatterDlg('striker');
+  if($('btnEditStriker')) $('btnEditStriker').onclick=()=>showEditSelectionDlg('striker');
 }
 if(non && $('boxRight')){
   const lab='Non-striker '+non.name+', '+non.runs+' runs, '+non.balls+' balls, '+(non.fours||0)+' fours, '+(non.sixes||0)+' sixes, strike rate '+sr(non.runs,non.balls);
-  const vis='<div aria-hidden="true"><div class="bn">'+(non.photoUrl?'<img src="'+non.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />':'')+non.name+'</div><div class="bs">'+non.runs+' ('+non.balls+')</div></div>';
-  const inj=$('btnInjNon');
-  $('boxRight').innerHTML=vis+(inj?inj.outerHTML:'');
+  const photo = non.photoUrl ? '<img src="'+non.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
+  $('boxRight').innerHTML =
+    '<div class="bn" id="nonStrikerName" aria-hidden="true">'+photo+non.name+'</div>'+
+    '<div class="bs" id="nonStrikerStats" aria-hidden="true">'+non.runs+' ('+non.balls+')</div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px">'+
+    '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Injury change for non-striker '+non.name+'">Injury</button>'+
+    '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:40px;font-size:13px;padding:4px" aria-label="Edit wrong non-striker selection, currently '+non.name+'">Edit</button>'+
+    '</div>';
   $('boxRight').setAttribute('aria-label', lab);
-  $('boxRight').setAttribute('role','text');
+  $('boxRight').setAttribute('role','group');
+  $('boxRight').setAttribute('tabindex','0');
   if($('btnInjNon')) $('btnInjNon').onclick=()=>openForceBatterDlg('non');
+  if($('btnEditNon')) $('btnEditNon').onclick=()=>showEditSelectionDlg('nonStriker');
 }
 if(bwl && $('boxBowler')){
   const lab='Bowler '+bwl.name+', '+fmtOvers(bwl.bowlBalls)+' overs, '+bwl.bowlRuns+' runs, '+bwl.wickets+' wickets';
-  $('boxBowler').innerHTML='<div aria-hidden="true"><div class="bn">'+bwl.name+' · '+fmtOvers(bwl.bowlBalls)+'-'+bwl.bowlRuns+'-'+bwl.wickets+'</div></div>';
+  $('boxBowler').innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+    '<div>'+
+    '<div class="bn" id="bowlerName" aria-hidden="true">'+bwl.name+' · '+fmtOvers(bwl.bowlBalls)+'-'+bwl.bowlRuns+'-'+bwl.wickets+'</div>'+
+    '<div class="bs" id="bowlerStats" style="font-size:13px;color:var(--muted);margin-top:4px" aria-hidden="true"></div>'+
+    '</div>'+
+    '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:32px;font-size:12px;padding:4px 8px;margin-top:-4px" aria-label="Edit wrong bowler selection, currently '+bwl.name+'">Edit</button>'+
+    '</div>';
   $('boxBowler').setAttribute('aria-label', lab);
-  $('boxBowler').setAttribute('role','text');
+  $('boxBowler').setAttribute('role','group');
+  $('boxBowler').setAttribute('tabindex','0');
+  if($('btnEditBowler')) $('btnEditBowler').onclick=()=>showEditSelectionDlg('bowler');
+}
+// Block next ball while a new batsman is required
+if($('btnNextBall') && m.status==='live'){
+  const needBat = !!(S.temp&&S.temp.needsNewBatsman);
+  if(needBat) $('btnNextBall').disabled=true;
 }
 
 const overBalls=m.currentOverBalls||[];
@@ -2887,29 +2931,75 @@ function openEditPlayerDlg(playerId, teamKey){
   const team = teamKey==='teamA'?m.teamA:m.teamB;
   const p = (team.squad||[]).find(x=>x.id===playerId);
   if(!p) return;
-  const name = prompt('Player name', p.name||'');
-  if(name===null) return;
-  const trimmed = name.trim();
-  if(trimmed) p.name = trimmed;
-  if(confirm('Change photo from device? OK = pick photo, Cancel = skip')){
-    const inp=document.createElement('input');
-    inp.type='file';
-    inp.accept='image/*';
-    inp.onchange=()=>{
-      const f=inp.files&&inp.files[0];
-      if(!f){ save(); renderScorecard(); renderLive(); return; }
-      const r=new FileReader();
-      r.onload=()=>{ p.photoUrl=r.result; save(); renderScorecard(); renderLive(); announce('Player updated'); };
+  S.temp.editPlayerId = playerId;
+  S.temp.editPlayerTeam = teamKey;
+  let overlay = $('dlgEditPlayer');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'dlgEditPlayer';
+    overlay.className = 'modal hidden';
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    overlay.setAttribute('aria-labelledby','editPlayerTitle');
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove('hidden');
+  const photoPreview = p.photoUrl
+    ? '<img id="editPlayerPhotoPrev" src="'+p.photoUrl+'" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:8px auto" />'
+    : '<div id="editPlayerPhotoPrev" style="width:64px;height:64px;border-radius:50%;background:var(--sec);margin:8px auto;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px">No photo</div>';
+  overlay.innerHTML =
+    '<div class="modal-box">'+
+    '<h2 id="editPlayerTitle" tabindex="-1">Edit player</h2>'+
+    photoPreview+
+    '<label for="editPlayerName">Name</label>'+
+    '<input id="editPlayerName" type="text" autocomplete="off" value="'+(p.name||'').replace(/"/g,'&quot;')+'" aria-label="Player name" />'+
+    '<label for="editPlayerPhoto" style="margin-top:12px">Photo (optional)</label>'+
+    '<input id="editPlayerPhoto" type="file" accept="image/*" aria-label="Choose player photo from device" />'+
+    '<div class="btn-stack" style="margin-top:14px">'+
+    '<button type="button" id="btnEditPlayerSave" class="btn-ok btn-block">Save</button>'+
+    '<button type="button" id="btnEditPlayerCancel" class="btn-sec btn-block">Cancel</button>'+
+    '</div></div>';
+  const nameInp = $('editPlayerName');
+  const photoInp = $('editPlayerPhoto');
+  if(photoInp){
+    photoInp.onchange = function(){
+      const f = photoInp.files && photoInp.files[0];
+      if(!f) return;
+      const r = new FileReader();
+      r.onload = function(){
+        S.temp.editPlayerPhotoData = r.result;
+        const prev = $('editPlayerPhotoPrev');
+        if(prev && prev.tagName==='IMG'){ prev.src = r.result; }
+        else if(prev){
+          const img = document.createElement('img');
+          img.id='editPlayerPhotoPrev'; img.src=r.result; img.alt='';
+          img.style.cssText='width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:8px auto';
+          prev.replaceWith(img);
+        }
+      };
       r.readAsDataURL(f);
     };
-    inp.click();
-  } else {
-    save();
-    renderScorecard();
-    renderLive();
-    if(typeof renderMatchSquadsPane === 'function') renderMatchSquadsPane('admin');
-    announce('Player updated');
   }
+  $('btnEditPlayerCancel').onclick = function(){
+    S.temp.editPlayerPhotoData = null;
+    overlay.classList.add('hidden');
+    overlay.innerHTML = '';
+  };
+  $('btnEditPlayerSave').onclick = function(){
+    const trimmed = (nameInp && nameInp.value || '').trim();
+    if(!trimmed){ alert('Enter a name'); if(nameInp) nameInp.focus(); return; }
+    p.name = trimmed;
+    if(S.temp.editPlayerPhotoData) p.photoUrl = S.temp.editPlayerPhotoData;
+    S.temp.editPlayerPhotoData = null;
+    save();
+    overlay.classList.add('hidden');
+    overlay.innerHTML = '';
+    try{ renderLive(); }catch(e){}
+    try{ renderScorecard(); }catch(e){}
+    if(typeof renderMatchSquadsPane === 'function') renderMatchSquadsPane('admin');
+    announce('Player updated: '+p.name);
+  };
+  setTimeout(function(){ focusEl($('editPlayerTitle')||nameInp); }, 60);
 }
 
 function renderScorecard(){
@@ -3300,7 +3390,19 @@ if($('btnStartMatch')) $('btnStartMatch').onclick=startMatchFlow;
 function playingList(team){
   const sq=(team&&team.squad)||[];
   const p11=sq.filter(p=>p.inPlaying11);
-  return p11.length ? p11 : sq;
+  // Once Playing XI is marked, always restrict selections to XI (never fall back to full squad)
+  if(p11.length) return p11;
+  return sq;
+}
+/** Active batters available for selection: Playing XI, not out, optionally exclude current crease pair */
+function availableBatters(team, excludeIds){
+  const ex = excludeIds || [];
+  return playingList(team).filter(p=>!p.isOut && ex.indexOf(p.id)<0);
+}
+/** Active bowlers from Playing XI (all XI members can bowl unless filtered by caller) */
+function availableBowlers(team, excludeIds){
+  const ex = excludeIds || [];
+  return playingList(team).filter(p=>ex.indexOf(p.id)<0);
 }
 function openStrikerFromPlaying11(){
   const m=M(); if(!m) return;
@@ -3377,7 +3479,9 @@ $('dlgBowlStart').onclick=()=>{
 
 $('btnNextBall').onclick=()=>openBallDlg();
 $('btnPrevBall').onclick=()=>{const m=M();if(!m.currentOverBalls||!m.currentOverBalls.length)return;if(S.history.length){const prev=S.history.pop();const idx=S.matches.findIndex(x=>x.id===prev.id);if(idx!==-1)S.matches[idx]=prev;save()}renderLive();openBallDlg(true)};
-function openBallDlg(isReentry){const m=M();if(m.status==='completed'){alert('Match is finished');return;}if(m.status==='innings_break'||m.status==='innings_ending'){alert('Innings break — use Resume Match when ready');return;}$('ballTitle').textContent=isReentry?'Re-enter Ball':'Enter Ball';$('ballSub').textContent='Over '+fmtOvers(m.totalBalls)+' · Ball '+((m.ballsInOver%6)+1);const fhNote=$('freeHitNote');if(m.freeHit){fhNote.classList.remove('hidden')}else{fhNote.classList.add('hidden')}// OUT stays enabled on free hit (run-out still possible)
+function openBallDlg(isReentry){const m=M();if(m.status==='completed'){alert('Match is finished');return;}if(m.status==='innings_break'||m.status==='innings_ending'){alert('Innings break — use Resume Match when ready');return;}
+  if(S.temp&&S.temp.needsNewBatsman){ alert('Select the new batsman first'); showWicketDlg(); return; }
+$('ballTitle').textContent=isReentry?'Re-enter Ball':'Enter Ball';$('ballSub').textContent='Over '+fmtOvers(m.totalBalls)+' · Ball '+((m.ballsInOver%6)+1);const fhNote=$('freeHitNote');if(m.freeHit){fhNote.classList.remove('hidden')}else{fhNote.classList.add('hidden')}// OUT stays enabled on free hit (run-out still possible)
 [...$('outcomeSelect').options].forEach(o=>o.disabled=false);$('ballTypeSelect').value='good';$('outcomeSelect').value='';$('ballDesc').value='';
   if($('dismissalBox')){$('dismissalBox').classList.add('hidden');$('dismissalSelect').value='';$('runOutWhoBox').classList.add('hidden');$('runOutWho').value='striker';}
   $('ballFinish').disabled=true;openDlg('dlgBall');setTimeout(()=>$('ballTypeSelect').focus(),60)}
@@ -3429,6 +3533,7 @@ $('ballFinish').onclick=()=>{
   if(result.needsNewBatsman){
     S.temp.overEndedOnWicket=!!result.overEndedOnWicket;
     S.temp.outWasStriker=result.outWasStriker!==false;
+    S.temp.needsNewBatsman=true;
     showWicketDlg();
   } else if(result.overJustEnded){
     const b=result.bowler;
@@ -3442,10 +3547,12 @@ $('ballFinish').onclick=()=>{
 
 function showWicketDlg(){
   const m=M();
+  if(!m) return;
   const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;
-  // Not out, not on crease — includes retired-hurt (resume with same score)
-  const avail=playingList(bat).filter(p=>!p.isOut && p.id!==m.strikerId && p.id!==m.nonStrikerId);
+  // Playing XI only, not out, not on crease — includes retired-hurt (resume with same score)
+  const avail=availableBatters(bat, [m.strikerId, m.nonStrikerId]);
   if(!avail.length){
+    S.temp.needsNewBatsman=false;
     if(m.currentInnings===2&&m.target){
       const bowlTeam=m.battingTeam==='teamA'?m.teamB:m.teamA;
       const margin=m.target-1-m.totalScore;
@@ -3455,7 +3562,11 @@ function showWicketDlg(){
     }
     return;
   }
+  S.temp.needsNewBatsman=true;
+  // Disable next-ball until a new striker/non-striker is chosen
+  if($('btnNextBall')) $('btnNextBall').disabled=true;
   const box=$('newBatChoices');
+  if(!box){ alert('Wicket dialog missing'); return; }
   box.innerHTML=avail.map(p=>{
     const tag = p.retiredHurt
       ? (' — resume '+(p.runs||0)+' ('+(p.balls||0)+')')
@@ -3465,6 +3576,7 @@ function showWicketDlg(){
   box.querySelectorAll('input').forEach(r=>{r.onchange=()=>{$('dlgWicketConfirm').disabled=false;S.temp.newBat=r.value}});
   $('dlgWicketConfirm').disabled=true;
   openDlg('dlgWicket');
+  setTimeout(function(){ try{ focusEl($('dlgWicket')&&$('dlgWicket').querySelector('h2')||box.querySelector('input')); }catch(e){} }, 80);
 }
 $('dlgWicketConfirm').onclick=()=>{
   const m=M();
@@ -3493,6 +3605,7 @@ $('dlgWicketConfirm').onclick=()=>{
     swap(m);
     S.temp.overEndedOnWicket=false;
   }
+  S.temp.needsNewBatsman=false;
   save();
   closeDlg('dlgWicket');
   if(needBowler){
@@ -3510,7 +3623,7 @@ function showNextBowlerDlg(){
   const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;
   const box=$('nextBowlerChoices');
   if(!box){ alert('Bowler dialog missing'); return; }
-  const choices=playingList(bowl).filter(p=>p.id!==m.currentBowlerId);
+  const choices=availableBowlers(bowl, [m.currentBowlerId]);
   if(!choices.length){
     alert('No other bowler available');
     renderLive();
@@ -3764,14 +3877,16 @@ function saveFieldComment(){
   speak(text);
   renderLive();
   announce('Commentary saved');
+  // After commentary, force striker selection if a wicket is still pending
   if (m.status==='live') {
     const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;
     const str=bat.squad.find(p=>p.id===m.strikerId);
     const non=bat.squad.find(p=>p.id===m.nonStrikerId);
-    if((!str||str.isOut||!non||non.isOut) && m.wickets<10) {
-      showWicketDlg();
-    } else if (m.ballsInOver===0 && m.totalBalls>0) {
-      showNextBowlerDlg();
+    const needBat = !!(S.temp&&S.temp.needsNewBatsman) || ((!str||str.isOut||!non||non.isOut) && m.wickets<10);
+    if(needBat) {
+      setTimeout(function(){ showWicketDlg(); }, 120);
+    } else if (m.ballsInOver===0 && m.totalBalls>0 && !m.currentBowlerId) {
+      setTimeout(function(){ showNextBowlerDlg(); }, 120);
     }
   }
 }
@@ -3789,7 +3904,7 @@ function openForceBowlerDlg(){
   }
   const box = $('forceBowlChoices');
   if(!box) return;
-  const list = (typeof playingList==='function' ? playingList(bowl) : (bowl.squad||[])).filter(p=>p.id!==m.currentBowlerId);
+  const list = (typeof availableBowlers==='function' ? availableBowlers(bowl, [m.currentBowlerId]) : (playingList(bowl)||[]).filter(p=>p.id!==m.currentBowlerId));
   if(!list.length){ alert('No other bowler available'); return; }
   box.innerHTML = list.map(p=>{
     const fig = fmtOvers(p.bowlBalls||0)+'-'+(p.bowlRuns||0)+'-'+(p.wickets||0);
@@ -3846,7 +3961,7 @@ function openForceBatterDlg(which){
       '. Not counted as out. Choose who comes in now. You can bring back a retired-hurt player later; their score continues from the same numbers.';
   }
   // Fresh or other retired-hurt (resume them as the on-field replacement). Never the current pair or true outs.
-  const avail = playingList(bat).filter(p=>!p.isOut && p.id!==m.strikerId && p.id!==m.nonStrikerId);
+  const avail = availableBatters(bat, [m.strikerId, m.nonStrikerId]);
   const box=$('forceBatChoices'); if(!box) return;
   if(!avail.length){ alert('No replacement available'); return; }
   box.innerHTML = avail.map(p=>{
@@ -5936,6 +6051,11 @@ function paintInsightAlbum(box, list, index, opts){
       if(opts.onDeleted) opts.onDeleted();
     }).catch(function(e){ alert((e&&e.message)||'Delete failed'); });
   };
+  // Focus insight title at top for screen readers
+  try{
+    const head = box.querySelector('.ins-card-head');
+    if(head && opts.focusTitle!==false) setTimeout(function(){ try{ head.focus(); }catch(e){} }, 40);
+  }catch(e){}
 }
 
 function currentInsightsMatch(){
@@ -6212,7 +6332,10 @@ function renderMatchSquadsPane(mode){
       h+='<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;width:100%">';
       if(p.photoUrl) h+='<img src="'+p.photoUrl+'" alt="" />';
       h+='<div><div class="nm">'+(p.name||'')+'</div>'+(role?('<div class="rl">'+role+'</div>'):'')+'</div>';
-      if(mode==='admin'){ h+=`<button type="button" class="btn-sec btn-edit" style="margin-left:auto;padding:4px 8px;font-size:11px;min-height:0" aria-label="Edit player" onclick="openEditPlayerDlg('${p.id}', '${team.id===M().teamA.id?'teamA':'teamB'}')">Edit</button>`; }
+      if(mode==='admin'){
+        const tk = (team===m.teamA || (team&&m.teamA&&team.id===m.teamA.id)) ? 'teamA' : 'teamB';
+        h+='<button type="button" class="btn-sec btn-edit" style="margin-left:auto;padding:4px 8px;font-size:11px;min-height:0" aria-label="Edit player '+(p.name||'').replace(/'/g,'')+'" data-edit-player="'+p.id+'" data-team="'+tk+'">Edit</button>';
+      }
       h+='</div></div>';
     });
     if(!list.length) h+='<div class="squad-player" style="color:var(--text-muted)">No players</div>';
@@ -6220,6 +6343,15 @@ function renderMatchSquadsPane(mode){
   }
   split.className='squad-split';
   split.innerHTML = col(m.teamA)+col(m.teamB);
+  if(mode==='admin'){
+    split.querySelectorAll('[data-edit-player]').forEach(function(btn){
+      btn.onclick = function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        openEditPlayerDlg(btn.getAttribute('data-edit-player'), btn.getAttribute('data-team'));
+      };
+    });
+  }
 }
 function wireSquadToggles(){
   function setMode(mode, isViewer){
@@ -6492,20 +6624,29 @@ function showEditSelectionDlg(role) {
   if(!m || m.status!=='live') return;
   S.temp.editSelRole = role;
   const box = $('editSelChoices');
+  if(!box) return;
   let list = [];
+  let title = 'Correct Selection';
   if(role==='bowler') {
      const bowl = m.battingTeam==='teamA'?m.teamB:m.teamA;
-     list = playingList(bowl);
+     // Playing XI only; may keep current bowler selectable if correcting a mistake mid-over
+     list = availableBowlers(bowl, []);
+     title = 'Correct bowler';
   } else {
      const bat = m.battingTeam==='teamA'?m.teamA:m.teamB;
-     list = playingList(bat).filter(p=>!p.isOut);
+     // Playing XI, not out (injury flow stays separate via Injury buttons)
+     list = availableBatters(bat, []);
+     title = role==='striker' ? 'Correct striker' : 'Correct non-striker';
   }
-  box.innerHTML = list.map(p=>'<label class="choice-btn"><input type="radio" name="editSel" value="'+p.id+'" /> '+p.name+'</label>').join('');
+  if($('editSelTitle')) $('editSelTitle').textContent = title;
+  if(!list.length){ alert('No eligible players in Playing XI'); return; }
+  box.innerHTML = list.map(p=>'<label class="choice-btn"><input type="radio" name="editSel" value="'+p.id+'" /> '+p.name+(p.role?(' · '+p.role):'')+'</label>').join('');
   box.querySelectorAll('input').forEach(r=>{
     r.onchange = () => { $('btnEditSelConfirm').disabled = false; S.temp.editSelVal = r.value; };
   });
   $('btnEditSelConfirm').disabled = true;
   openDlg('dlgEditSelection');
+  setTimeout(function(){ try{ focusEl($('editSelTitle')); }catch(e){} }, 60);
 }
 if($('btnEditStriker')) $('btnEditStriker').onclick = () => showEditSelectionDlg('striker');
 if($('btnEditNon')) $('btnEditNon').onclick = () => showEditSelectionDlg('nonStriker');
@@ -6519,19 +6660,33 @@ if($('btnEditSelConfirm')) $('btnEditSelConfirm').onclick = () => {
 };
 
 document.addEventListener('keydown', function(e) {
-  if(e.key==='ArrowDown' || e.key==='ArrowUp'){
-    const items = Array.from(document.querySelectorAll('.ball-row:not([disabled])'));
-    if(!items.length) return;
-    const current = document.activeElement;
-    const idx = items.indexOf(current);
-    if(idx > -1){
-      e.preventDefault();
-      let nextIdx = e.key==='ArrowDown' ? idx + 1 : idx - 1;
-      if(nextIdx >= items.length) nextIdx = 0;
-      if(nextIdx < 0) nextIdx = items.length - 1;
-      items[nextIdx].focus();
+  if(e.key!=='ArrowDown' && e.key!=='ArrowUp') return;
+  // Only navigate when focus is inside a ball-by-ball list
+  const active = document.activeElement;
+  if(!active) return;
+  const listRoot = active.closest('#ballLog, #uwmBalls, [role="list"][aria-label*="Ball"], .over-expand');
+  if(!listRoot) return;
+  // Skip when typing in inputs
+  const tag = (active.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select') return;
+  const items = Array.from(listRoot.querySelectorAll('.ball-row[tabindex], [role="listitem"][tabindex]'))
+    .filter(function(el){ return el.offsetParent !== null && !el.hasAttribute('disabled'); });
+  if(!items.length) return;
+  let idx = items.indexOf(active);
+  // If focus is on container/list, start at first/last
+  if(idx < 0){
+    if(active === listRoot || listRoot.contains(active)){
+      idx = e.key==='ArrowDown' ? -1 : items.length;
+    } else {
+      return;
     }
   }
+  e.preventDefault();
+  e.stopPropagation();
+  let nextIdx = e.key==='ArrowDown' ? idx + 1 : idx - 1;
+  if(nextIdx >= items.length) nextIdx = items.length - 1; // clamp — no empty wrap loop
+  if(nextIdx < 0) nextIdx = 0;
+  if(items[nextIdx]) items[nextIdx].focus();
 });
 </script>
 </body>

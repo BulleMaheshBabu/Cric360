@@ -1492,7 +1492,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.02";
+const APP_VERSION = "2026.09.03.1.03";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1551,9 +1551,14 @@ async function cloudSaveMatch(match) {
       return;
     }
     const payload = JSON.parse(JSON.stringify(match));
+    // Ensure selection ids are plain strings before cloud write
+    if(payload.strikerId!=null) payload.strikerId = String(payload.strikerId);
+    if(payload.nonStrikerId!=null) payload.nonStrikerId = String(payload.nonStrikerId);
+    if(payload.currentBowlerId!=null) payload.currentBowlerId = String(payload.currentBowlerId);
     payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     payload.updatedBy = user ? user.email : '';
-    await db.collection('cric360_matches').doc(match.id).set(payload, { merge: true });
+    // Full document write (not merge) so squad / overs / selection ids cannot stay half-stale
+    await db.collection('cric360_matches').doc(match.id).set(payload);
   } catch (e) { console.warn('cloudSaveMatch', e); }
 }
 
@@ -2798,7 +2803,7 @@ function renderFlatBallList(containerId, m, moreBtnId){
   }
 }
 
-function renderLive(){const m=M();if(!m)return;
+function renderLive(){const m=M();if(!m)return; try{ repairMatchLivePointers(m); }catch(e){}
   // Single heading: series · match type · Team A vs Team B (one announcement)
   const seriesPart = [m.series, m.matchType].filter(Boolean).join(' · ');
   const vsPart = (m.teamA&&m.teamA.name||'?')+' vs '+(m.teamB&&m.teamB.name||'?');
@@ -2865,7 +2870,7 @@ if($('btnNextBall'))$('btnNextBall').disabled=done||onBreak||m.status==='not_sta
   }
   if($('scoringUI'))$('scoringUI').classList.toggle('hidden', m.status!=='live');
 
-if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const batSq=(bat&&Array.isArray(bat.squad))?bat.squad:[];const bowlSq=(bowl&&Array.isArray(bowl.squad))?bowl.squad:[];const str=batSq.find(p=>p.id===m.strikerId);const non=batSq.find(p=>p.id===m.nonStrikerId);const bwl=bowlSq.find(p=>p.id===m.currentBowlerId);
+if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const batSq=(bat&&Array.isArray(bat.squad))?bat.squad:[];const bowlSq=(bowl&&Array.isArray(bowl.squad))?bowl.squad:[];const str=batSq.find(p=>p&&String(p.id)===String(m.strikerId||''));const non=batSq.find(p=>p&&String(p.id)===String(m.nonStrikerId||''));const bwl=bowlSq.find(p=>p&&String(p.id)===String(m.currentBowlerId||''));
 if($('scoreLine')){
   const ov=fmtOvers(m.totalBalls||0);
   const batName=(bat&&bat.name)?bat.name:'';
@@ -5074,6 +5079,93 @@ $('aucBtnEnd').onclick=()=>{
   AU.status='ended'; saveAuction(); speak('Auction ended'); renderAuctionLive();
 };
 
+
+/** Rebuild missing striker / non-striker / bowler / ball links from cloud data. */
+function repairMatchLivePointers(m){
+  if(!m || m.type==='auction') return m;
+  try{
+    if(!Array.isArray(m.completedOvers)) m.completedOvers = [];
+    if(!Array.isArray(m.currentOverBalls)) m.currentOverBalls = [];
+    ['teamA','teamB'].forEach(function(k){
+      if(!m[k]) return;
+      // Firestore sometimes returns array-like objects — force real arrays
+      if(m[k].squad && !Array.isArray(m[k].squad)){
+        try{
+          m[k].squad = Object.keys(m[k].squad).sort(function(a,b){return Number(a)-Number(b);}).map(function(key){ return m[k].squad[key]; });
+        }catch(e){ m[k].squad = []; }
+      }
+      if(!Array.isArray(m[k].squad)) m[k].squad = [];
+      // Ensure every player has a stable id
+      m[k].squad.forEach(function(p, i){
+        if(!p) return;
+        if(p.id==null || p.id==='') p.id = p.playerId || p.uid || (m[k].id+'_p'+i);
+        p.id = String(p.id);
+      });
+    });
+    // Normalize selection ids to string for reliable find()
+    if(m.strikerId!=null && m.strikerId!=='') m.strikerId = String(m.strikerId);
+    if(m.nonStrikerId!=null && m.nonStrikerId!=='') m.nonStrikerId = String(m.nonStrikerId);
+    if(m.currentBowlerId!=null && m.currentBowlerId!=='') m.currentBowlerId = String(m.currentBowlerId);
+
+    const batKey = m.battingTeam==='teamB' ? 'teamB' : 'teamA';
+    const bowlKey = batKey==='teamA' ? 'teamB' : 'teamA';
+    const bat = m[batKey];
+    const bowl = m[bowlKey];
+    const batSq = (bat && bat.squad) || [];
+    const bowlSq = (bowl && bowl.squad) || [];
+
+    function findById(sq, id){
+      if(id==null || id==='') return null;
+      const sid = String(id);
+      return sq.find(function(p){ return p && String(p.id)===sid; }) || null;
+    }
+    function findByName(sq, name){
+      if(!name) return null;
+      const n = String(name).trim().toLowerCase();
+      return sq.find(function(p){ return p && String(p.name||'').trim().toLowerCase()===n; }) || null;
+    }
+
+    // Recover striker / non / bowler from last ball names if ids missing
+    const lastBalls = [];
+    (m.currentOverBalls||[]).forEach(function(b){ lastBalls.push(b); });
+    (m.completedOvers||[]).slice(-2).forEach(function(o){ (o.balls||[]).forEach(function(b){ lastBalls.push(b); }); });
+    let last = null;
+    for(let i=lastBalls.length-1;i>=0;i--){
+      if(lastBalls[i] && (lastBalls[i].striker || lastBalls[i].bowler || lastBalls[i].batter)){
+        last = lastBalls[i]; break;
+      }
+    }
+
+    if(!findById(batSq, m.strikerId)){
+      let recovered = null;
+      if(last) recovered = findByName(batSq, last.striker || last.batter || last.batterName);
+      if(!recovered){
+        // Prefer not-out batter with most balls, else any inPlaying11 not out
+        const candidates = batSq.filter(function(p){ return p && !p.isOut; }).slice().sort(function(a,b){ return (b.balls||0)-(a.balls||0); });
+        recovered = candidates[0] || null;
+      }
+      if(recovered) m.strikerId = String(recovered.id);
+    }
+    if(!findById(batSq, m.nonStrikerId)){
+      let recovered = null;
+      const strId = m.strikerId!=null ? String(m.strikerId) : '';
+      const candidates = batSq.filter(function(p){ return p && !p.isOut && String(p.id)!==strId; }).slice().sort(function(a,b){ return (b.balls||0)-(a.balls||0); });
+      recovered = candidates[0] || null;
+      if(recovered) m.nonStrikerId = String(recovered.id);
+    }
+    if(!findById(bowlSq, m.currentBowlerId)){
+      let recovered = null;
+      if(last) recovered = findByName(bowlSq, last.bowler || last.bowlerName);
+      if(!recovered){
+        const candidates = bowlSq.filter(function(p){ return p && ((p.bowlBalls||0)>0 || p.inPlaying11); }).slice().sort(function(a,b){ return (b.bowlBalls||0)-(a.bowlBalls||0); });
+        recovered = candidates[0] || bowlSq.find(function(p){ return p && p.inPlaying11; }) || bowlSq[0] || null;
+      }
+      if(recovered) m.currentBowlerId = String(recovered.id);
+    }
+  }catch(e){ console.warn('repairMatchLivePointers', e); }
+  return m;
+}
+
 window.openMatch = async function(id){
   // ONE RULE: always open from cloud (same as viewer). No local-vs-cloud choice.
   function normalizeMatchArrays(mm){
@@ -5109,6 +5201,7 @@ window.openMatch = async function(id){
   }
 
   if(!m){ alert('Match not found in cloud'); return; }
+  repairMatchLivePointers(m);
 
   // Memory only for this session (scoring edits); cloud remains source of truth on next open
   const idx = (S.matches||[]).findIndex(x=>x.id===id);
@@ -5157,6 +5250,7 @@ function startAdminMatchWatch(id){
       if(!Array.isArray(cloud.innings1.completedOvers)) cloud.innings1.completedOvers = [];
       if(!Array.isArray(cloud.innings1.currentOverBalls)) cloud.innings1.currentOverBalls = [];
     }
+    repairMatchLivePointers(cloud);
     const idx = (S.matches||[]).findIndex(x=>x.id===id);
     if(idx>=0) S.matches[idx]=cloud; else S.matches.unshift(cloud);
     try{ renderLive(); }catch(e){ console.warn(e); }

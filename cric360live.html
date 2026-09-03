@@ -1492,7 +1492,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.04";
+const APP_VERSION = "2026.09.03.1.05";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -2870,14 +2870,81 @@ if($('btnNextBall'))$('btnNextBall').disabled=done||onBreak||m.status==='not_sta
   }
   if($('scoringUI'))$('scoringUI').classList.toggle('hidden', m.status!=='live');
 
-if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const batSq=(bat&&Array.isArray(bat.squad))?bat.squad:[];const bowlSq=(bowl&&Array.isArray(bowl.squad))?bowl.squad:[];let str=batSq.find(p=>p&&String(p.id)===String(m.strikerId||''));let non=batSq.find(p=>p&&String(p.id)===String(m.nonStrikerId||''));let bwl=bowlSq.find(p=>p&&String(p.id)===String(m.currentBowlerId||''));
-// Last-chance recovery if ids still do not resolve
-if((!str||!non||!bwl) && typeof repairMatchLivePointers==='function'){
-  repairMatchLivePointers(m);
-  str=batSq.find(p=>p&&String(p.id)===String(m.strikerId||''));
-  non=batSq.find(p=>p&&String(p.id)===String(m.nonStrikerId||''));
-  bwl=bowlSq.find(p=>p&&String(p.id)===String(m.currentBowlerId||''));
-}
+if(m.status==='live'||m.status==='innings_break'){
+  // Always re-read teams AFTER repair (do not keep stale squad arrays)
+  if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(m);
+  const bat=m.battingTeam==='teamB'?m.teamB:m.teamA;
+  const bowl=m.battingTeam==='teamB'?m.teamA:m.teamB;
+  let batSq = (bat && Array.isArray(bat.squad)) ? bat.squad : [];
+  let bowlSq = (bowl && Array.isArray(bowl.squad)) ? bowl.squad : [];
+  // If squad missing, try common alternate shapes
+  if(!batSq.length && bat){
+    if(Array.isArray(bat.players)) batSq = bat.players;
+    else if(bat.squad && typeof bat.squad==='object'){
+      try{ batSq = Object.keys(bat.squad).map(function(k){return bat.squad[k];}); }catch(e){}
+    }
+  }
+  if(!bowlSq.length && bowl){
+    if(Array.isArray(bowl.players)) bowlSq = bowl.players;
+    else if(bowl.squad && typeof bowl.squad==='object'){
+      try{ bowlSq = Object.keys(bowl.squad).map(function(k){return bowl.squad[k];}); }catch(e){}
+    }
+  }
+  function _pid(p){ return p && p.id!=null ? String(p.id) : ''; }
+  function _find(sq, id){
+    if(id==null||id==='') return null;
+    const s=String(id);
+    return (sq||[]).find(function(p){ return _pid(p)===s; }) || null;
+  }
+  function _findName(sq, name){
+    if(!name) return null;
+    const n=String(name).trim().toLowerCase();
+    return (sq||[]).find(function(p){ return p && String(p.name||'').trim().toLowerCase()===n; }) || null;
+  }
+  let str=_find(batSq, m.strikerId);
+  let non=_find(batSq, m.nonStrikerId);
+  let bwl=_find(bowlSq, m.currentBowlerId);
+  // Recover from last ball names
+  if(!str || !bwl){
+    const balls=[];
+    (m.currentOverBalls||[]).forEach(function(b){ balls.push(b); });
+    (m.completedOvers||[]).forEach(function(o){ (o.balls||[]).forEach(function(b){ balls.push(b); }); });
+    let last=null;
+    for(let i=balls.length-1;i>=0;i--){
+      if(balls[i] && (balls[i].striker || balls[i].bowler || balls[i].text)){ last=balls[i]; break; }
+    }
+    if(last){
+      if(!str){ str=_findName(batSq, last.striker||last.batter||last.batterName); if(str) m.strikerId=_pid(str); }
+      if(!bwl){ bwl=_findName(bowlSq, last.bowler||last.bowlerName); if(bwl) m.currentBowlerId=_pid(bwl); }
+      // Parse "Bowler to Batter ..." from text
+      if((!str || !bwl) && last.text){
+        const parts=String(last.text).split(' to ');
+        if(parts.length>=2){
+          const left=parts[0].replace(/^\s*[\d.]+\s*/,'').trim();
+          const right=parts[1].split(/\s+/)[0];
+          if(!bwl && left){ bwl=_findName(bowlSq, left); if(bwl) m.currentBowlerId=_pid(bwl); }
+          if(!str && right){ str=_findName(batSq, right); if(str) m.strikerId=_pid(str); }
+        }
+      }
+    }
+  }
+  // Recover from player stats (most balls faced / bowled)
+  if(!str && batSq.length){
+    const c=batSq.filter(function(p){return p&&!p.isOut;}).slice().sort(function(a,b){return (b.balls||0)-(a.balls||0);});
+    str=c[0]||batSq[0]||null;
+    if(str) m.strikerId=_pid(str);
+  }
+  if(!non && batSq.length){
+    const sid=_pid(str);
+    const c=batSq.filter(function(p){return p&&!p.isOut&&_pid(p)!==sid;}).slice().sort(function(a,b){return (b.balls||0)-(a.balls||0);});
+    non=c[0]||null;
+    if(non) m.nonStrikerId=_pid(non);
+  }
+  if(!bwl && bowlSq.length){
+    const c=bowlSq.filter(function(p){return p;}).slice().sort(function(a,b){return (b.bowlBalls||0)-(a.bowlBalls||0);});
+    bwl=c.find(function(p){return (p.bowlBalls||0)>0;})||c.find(function(p){return p.inPlaying11;})||c[0]||null;
+    if(bwl) m.currentBowlerId=_pid(bwl);
+  }
 
 if($('scoreLine')){
   const ov=fmtOvers(m.totalBalls||0);
@@ -2894,105 +2961,100 @@ if($('rateLine')){
   if(m.currentInnings===1){
     $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · 📈 '+proj+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', expected '+proj+' runs');
-    if($('scoreLine')) $('scoreLine').setAttribute('aria-label', batName+', '+(m.totalScore||0)+' for '+(m.wickets||0)+', '+ov+' overs, current run rate '+crr+', expected '+proj+' runs');
+    if($('scoreLine')) $('scoreLine').setAttribute('aria-label', (bat&&bat.name?bat.name:'')+', '+(m.totalScore||0)+' for '+(m.wickets||0)+', '+fmtOvers(m.totalBalls||0)+' overs, current run rate '+crr+', expected '+proj+' runs');
   } else if(m.currentInnings===2 && m.target){
     const need=Math.max(0, m.target-(m.totalScore||0));
     const left=Math.max(0, maxB-balls);
     const rrr = left>0 ? (need/(left/6)).toFixed(2) : '—';
     $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+' · Need '+need+' · RRR '+rrr+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr+', need '+need+' runs, required rate '+rrr);
-    if($('scoreLine')) $('scoreLine').setAttribute('aria-label', batName+', '+(m.totalScore||0)+' for '+(m.wickets||0)+', '+ov+' overs, current run rate '+crr+', need '+need+' runs, required rate '+rrr);
   } else {
     $('rateLine').innerHTML='<span aria-hidden="true">CRR '+crr+'</span>';
     $('rateLine').setAttribute('aria-label', 'Current run rate '+crr);
   }
 }
-if($('inningsLine')) $('inningsLine').textContent='Innings '+m.currentInnings+(m.status==='innings_break'?' (Break)':'');
-const tgt=$('targetLine');
-if(m.currentInnings===2&&m.target){
-  const need=Math.max(0,m.target-m.totalScore);
-  const left=Math.max(0, maxB-balls);
-  tgt.textContent='Target '+m.target+' · Need '+need+' off '+left+' balls';
-  tgt.classList.remove('hidden');
-} else if(m.currentInnings===1 && balls>0){
-  tgt.textContent='📈 Expected '+proj+' at current rate';
-  tgt.classList.remove('hidden');
-} else {
-  tgt.classList.add('hidden');
+if($('targetLine')){
+  const tgt=$('targetLine');
+  if(m.currentInnings===2 && m.target){
+    const need=Math.max(0, m.target-(m.totalScore||0));
+    tgt.textContent='Target '+m.target+' · Need '+need;
+    tgt.classList.remove('hidden');
+  } else if(m.currentInnings===1 && balls>0){
+    tgt.textContent='📈 Expected '+proj+' at current rate';
+    tgt.classList.remove('hidden');
+  } else {
+    tgt.classList.add('hidden');
+  }
 }
-if(str && $('boxLeft')){
-  const lab='Striker '+str.name+', '+str.runs+' runs, '+str.balls+' balls, '+(str.fours||0)+' fours, '+(str.sixes||0)+' sixes, strike rate '+sr(str.runs,str.balls);
-  const photo = str.photoUrl ? '<img src="'+str.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
-  // Stats focusable separately; Injury/Edit are real buttons so TalkBack can land on them
-  $('boxLeft').innerHTML =
-    '<div class="bn" id="strikerName" tabindex="0" role="text" aria-label="'+lab+'">'+photo+'★ '+str.name+'</div>'+
-    '<div class="bs" id="strikerStats" aria-hidden="true">'+str.runs+' ('+str.balls+')</div>'+
-    '<div style="display:flex;gap:8px;margin-top:10px">'+
-    '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for striker '+str.name+'">Injury</button>'+
-    '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Edit wrong striker selection, currently '+str.name+'">Edit</button>'+
-    '</div>';
-  $('boxLeft').removeAttribute('aria-label');
-  $('boxLeft').removeAttribute('tabindex');
-  $('boxLeft').setAttribute('role','group');
-  if($('btnInjStriker')) $('btnInjStriker').onclick=()=>openForceBatterDlg('striker');
-  if($('btnEditStriker')) $('btnEditStriker').onclick=()=>showEditSelectionDlg('striker');
+
+// Always rewrite player boxes (never leave default dashes)
+if($('boxLeft')){
+  if(str){
+    const lab='Striker '+str.name+', '+(str.runs||0)+' runs, '+(str.balls||0)+' balls';
+    const photo = str.photoUrl ? '<img src="'+str.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
+    $('boxLeft').innerHTML =
+      '<div class="bn" id="strikerName" tabindex="0" role="text" aria-label="'+lab+'">'+photo+'★ '+(str.name||'Striker')+'</div>'+
+      '<div class="bs" id="strikerStats" aria-hidden="true">'+(str.runs||0)+' ('+(str.balls||0)+')</div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px">'+
+      '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for striker">Injury</button>'+
+      '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Edit striker">Edit</button>'+
+      '</div>';
+    if($('btnInjStriker')) $('btnInjStriker').onclick=function(){ openForceBatterDlg('striker'); };
+    if($('btnEditStriker')) $('btnEditStriker').onclick=function(){ showEditSelectionDlg('striker'); };
+  } else {
+    $('boxLeft').innerHTML =
+      '<div class="bn" id="strikerName" tabindex="0" role="text" aria-label="Striker not selected">No striker — tap Edit</div>'+
+      '<div class="bs" id="strikerStats" aria-hidden="true">—</div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px">'+
+      '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" disabled>Injury</button>'+
+      '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Select striker">Edit</button>'+
+      '</div>';
+    if($('btnEditStriker')) $('btnEditStriker').onclick=function(){ showEditSelectionDlg('striker'); };
+  }
 }
-if(non && $('boxRight')){
-  const lab='Non-striker '+non.name+', '+non.runs+' runs, '+non.balls+' balls, '+(non.fours||0)+' fours, '+(non.sixes||0)+' sixes, strike rate '+sr(non.runs,non.balls);
-  const photo = non.photoUrl ? '<img src="'+non.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
-  $('boxRight').innerHTML =
-    '<div class="bn" id="nonStrikerName" tabindex="0" role="text" aria-label="'+lab+'">'+photo+non.name+'</div>'+
-    '<div class="bs" id="nonStrikerStats" aria-hidden="true">'+non.runs+' ('+non.balls+')</div>'+
-    '<div style="display:flex;gap:8px;margin-top:10px">'+
-    '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for non-striker '+non.name+'">Injury</button>'+
-    '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Edit wrong non-striker selection, currently '+non.name+'">Edit</button>'+
-    '</div>';
-  $('boxRight').removeAttribute('aria-label');
-  $('boxRight').removeAttribute('tabindex');
-  $('boxRight').setAttribute('role','group');
-  if($('btnInjNon')) $('btnInjNon').onclick=()=>openForceBatterDlg('non');
-  if($('btnEditNon')) $('btnEditNon').onclick=()=>showEditSelectionDlg('nonStriker');
+if($('boxRight')){
+  if(non){
+    const lab='Non-striker '+non.name+', '+(non.runs||0)+' runs, '+(non.balls||0)+' balls';
+    const photo = non.photoUrl ? '<img src="'+non.photoUrl+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />' : '';
+    $('boxRight').innerHTML =
+      '<div class="bn" id="nonStrikerName" tabindex="0" role="text" aria-label="'+lab+'">'+photo+(non.name||'Non-striker')+'</div>'+
+      '<div class="bs" id="nonStrikerStats" aria-hidden="true">'+(non.runs||0)+' ('+(non.balls||0)+')</div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px">'+
+      '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px">Injury</button>'+
+      '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px">Edit</button>'+
+      '</div>';
+    if($('btnInjNon')) $('btnInjNon').onclick=function(){ openForceBatterDlg('non'); };
+    if($('btnEditNon')) $('btnEditNon').onclick=function(){ showEditSelectionDlg('nonStriker'); };
+  } else {
+    $('boxRight').innerHTML =
+      '<div class="bn" id="nonStrikerName" tabindex="0" role="text">No non-striker — tap Edit</div>'+
+      '<div class="bs" id="nonStrikerStats" aria-hidden="true">—</div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px">'+
+      '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" disabled>Injury</button>'+
+      '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px">Edit</button>'+
+      '</div>';
+    if($('btnEditNon')) $('btnEditNon').onclick=function(){ showEditSelectionDlg('nonStriker'); };
+  }
 }
-if(bwl && $('boxBowler')){
-  const lab='Bowler '+bwl.name+', '+fmtOvers(bwl.bowlBalls)+' overs, '+bwl.bowlRuns+' runs, '+bwl.wickets+' wickets';
-  $('boxBowler').innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
-    '<div class="bn" id="bowlerName" tabindex="0" role="text" aria-label="'+lab+'">'+bwl.name+' · '+fmtOvers(bwl.bowlBalls)+'-'+bwl.bowlRuns+'-'+bwl.wickets+'</div>'+
-    '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0" aria-label="Edit wrong bowler selection, currently '+bwl.name+'">Edit</button>'+
-    '</div>';
-  $('boxBowler').removeAttribute('aria-label');
-  $('boxBowler').removeAttribute('tabindex');
-  $('boxBowler').setAttribute('role','group');
-  if($('btnEditBowler')) $('btnEditBowler').onclick=()=>showEditSelectionDlg('bowler');
-} else if($('boxBowler')){
-  $('boxBowler').innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
-    '<div class="bn" id="bowlerName" tabindex="0" role="text" aria-label="Bowler not selected">No bowler selected</div>'+
-    '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0" aria-label="Select bowler">Edit</button>'+
-    '</div>';
-  if($('btnEditBowler')) $('btnEditBowler').onclick=()=>showEditSelectionDlg('bowler');
+if($('boxBowler')){
+  if(bwl){
+    const lab='Bowler '+bwl.name+', '+fmtOvers(bwl.bowlBalls||0)+' overs, '+(bwl.bowlRuns||0)+' runs, '+(bwl.wickets||0)+' wickets';
+    $('boxBowler').innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
+      '<div class="bn" id="bowlerName" tabindex="0" role="text" aria-label="'+lab+'">'+(bwl.name||'Bowler')+' · '+fmtOvers(bwl.bowlBalls||0)+'-'+(bwl.bowlRuns||0)+'-'+(bwl.wickets||0)+'</div>'+
+      '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0">Edit</button>'+
+      '</div>';
+    if($('btnEditBowler')) $('btnEditBowler').onclick=function(){ showEditSelectionDlg('bowler'); };
+  } else {
+    $('boxBowler').innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
+      '<div class="bn" id="bowlerName" tabindex="0" role="text">No bowler — tap Edit</div>'+
+      '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0">Edit</button>'+
+      '</div>';
+    if($('btnEditBowler')) $('btnEditBowler').onclick=function(){ showEditSelectionDlg('bowler'); };
+  }
 }
-if(!str && $('boxLeft')){
-  $('boxLeft').innerHTML =
-    '<div class="bn" id="strikerName" tabindex="0" role="text" aria-label="Striker not selected">No striker</div>'+
-    '<div class="bs" id="strikerStats" aria-hidden="true">—</div>'+
-    '<div style="display:flex;gap:8px;margin-top:10px">'+
-    '<button type="button" id="btnInjStriker" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for striker" disabled>Injury</button>'+
-    '<button type="button" id="btnEditStriker" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Select striker">Edit</button>'+
-    '</div>';
-  if($('btnEditStriker')) $('btnEditStriker').onclick=()=>showEditSelectionDlg('striker');
-}
-if(!non && $('boxRight')){
-  $('boxRight').innerHTML =
-    '<div class="bn" id="nonStrikerName" tabindex="0" role="text" aria-label="Non-striker not selected">No non-striker</div>'+
-    '<div class="bs" id="nonStrikerStats" aria-hidden="true">—</div>'+
-    '<div style="display:flex;gap:8px;margin-top:10px">'+
-    '<button type="button" id="btnInjNon" class="btn-danger" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Injury change for non-striker" disabled>Injury</button>'+
-    '<button type="button" id="btnEditNon" class="btn-sec" style="flex:1;min-height:44px;font-size:13px;padding:4px" aria-label="Select non-striker">Edit</button>'+
-    '</div>';
-  if($('btnEditNon')) $('btnEditNon').onclick=()=>showEditSelectionDlg('nonStriker');
-}
-// Block next ball while a new batsman is required
+
 if($('btnNextBall') && m.status==='live'){
   const needBat = !!(S.temp&&S.temp.needsNewBatsman);
   if(needBat) $('btnNextBall').disabled=true;
@@ -3003,8 +3065,8 @@ if($('overBallCount')) $('overBallCount').textContent=(m.ballsInOver||0)+' / 6';
 if($('ballLog')){
   renderFlatBallList('ballLog', m, 'btnLoadMoreBalls');
 }
-if($('pastOversLive')) $('pastOversLive').innerHTML=''; // overs grouped only in More tab
-if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(b=>b.type!=='comment'&&b.type!=='force_bowler').length);
+if($('pastOversLive')) $('pastOversLive').innerHTML='';
+if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(function(b){return b.type!=='comment'&&b.type!=='force_bowler';}).length);
 }
 $('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnings===1));$('btnStart2nd').classList.toggle('hidden',m.status!=='innings_break');
 const ol=$('oversList');

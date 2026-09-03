@@ -1492,7 +1492,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.01";
+const APP_VERSION = "2026.09.03.1.02";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -5075,21 +5075,7 @@ $('aucBtnEnd').onclick=()=>{
 };
 
 window.openMatch = async function(id){
-  function ballCount(mm){
-    if(!mm) return 0;
-    let n = 0;
-    (mm.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
-    n += (mm.currentOverBalls&&mm.currentOverBalls.length)||0;
-    if(mm.innings1){
-      (mm.innings1.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
-      n += (mm.innings1.currentOverBalls&&mm.innings1.currentOverBalls.length)||0;
-    }
-    return n;
-  }
-  function squadSize(mm){
-    if(!mm) return 0;
-    return ((mm.teamA&&mm.teamA.squad&&mm.teamA.squad.length)||0) + ((mm.teamB&&mm.teamB.squad&&mm.teamB.squad.length)||0);
-  }
+  // ONE RULE: always open from cloud (same as viewer). No local-vs-cloud choice.
   function normalizeMatchArrays(mm){
     if(!mm || mm.type==='auction') return mm;
     if(!Array.isArray(mm.completedOvers)) mm.completedOvers = [];
@@ -5097,66 +5083,36 @@ window.openMatch = async function(id){
     ['teamA','teamB'].forEach(function(k){
       if(mm[k] && !Array.isArray(mm[k].squad)) mm[k].squad = mm[k].squad || [];
     });
+    if(mm.innings1 && typeof mm.innings1 === 'object'){
+      if(!Array.isArray(mm.innings1.completedOvers)) mm.innings1.completedOvers = [];
+      if(!Array.isArray(mm.innings1.currentOverBalls)) mm.innings1.currentOverBalls = [];
+    }
     return mm;
   }
-  function liveCompleteness(mm){
-    if(!mm) return 0;
-    let s = 0;
-    if(mm.strikerId) s += 2;
-    if(mm.nonStrikerId) s += 2;
-    if(mm.currentBowlerId) s += 2;
-    if((mm.currentOverBalls&&mm.currentOverBalls.length)||0) s += 1;
-    if((mm.completedOvers&&mm.completedOvers.length)||0) s += 1;
-    if(mm.battingTeam) s += 1;
-    if((mm.totalBalls||0) > 0) s += 1;
-    return s;
-  }
-  function pickRicher(a, b){
-    // Prefer the document that has more ball history / live selection state.
-    // When equal on balls, prefer CLOUD (b) so admin does not reopen a stale local
-    // copy that is missing striker/bowler/overs while scorecard still has totals.
-    if(!a) return b;
-    if(!b) return a;
-    const ba = ballCount(a), bb = ballCount(b);
-    if(bb > ba) return b;
-    if(ba > bb) return a;
-    const sa = squadSize(a), sb = squadSize(b);
-    if(sb > sa) return b;
-    if(sa > sb) return a;
-    if((b.totalBalls||0) > (a.totalBalls||0)) return b;
-    if((a.totalBalls||0) > (b.totalBalls||0)) return a;
-    const ca = liveCompleteness(a), cb = liveCompleteness(b);
-    if(cb > ca) return b;
-    if(ca > cb) return a;
-    // Prefer cloud (b) on full tie — localStorage is often a partial snapshot
-    return b;
+
+  if(!id){ alert('Match not found'); return; }
+  if(!db){ alert('Cloud not available. Check your connection and try again.'); return; }
+
+  let m = null;
+  try{
+    let snap = await db.collection('cric360_matches').doc(id).get();
+    if(!snap.exists) snap = await db.collection('cric360_auctions').doc(id).get();
+    if(snap.exists){
+      m = Object.assign({id:snap.id}, snap.data());
+      if(!m.type) m.type = (snap.ref.parent.id.indexOf('auction')>=0) ? 'auction' : 'match';
+      normalizeMatchArrays(m);
+    }
+  }catch(e){
+    console.warn('openMatch cloud', e);
+    alert('Could not load match from cloud. Check your connection and try again.');
+    return;
   }
 
-  let local = (S.matches||[]).find(x=>x.id===id) || null;
-  let cloud = null;
-  if(db){
-    try{
-      let snap = await db.collection('cric360_matches').doc(id).get();
-      if(!snap.exists) snap = await db.collection('cric360_auctions').doc(id).get();
-      if(snap.exists){
-        cloud = Object.assign({id:snap.id}, snap.data());
-        if(!cloud.type) cloud.type = (snap.ref.parent.id.indexOf('auction')>=0) ? 'auction' : 'match';
-        normalizeMatchArrays(cloud);
-      }
-    }catch(e){ console.warn('openMatch cloud', e); }
-  }
+  if(!m){ alert('Match not found in cloud'); return; }
 
-  let m = pickRicher(local, cloud);
-  if(!m){ alert('Match not found'); return; }
-  normalizeMatchArrays(m);
-
-  // Store chosen document locally (do NOT cloud-save here — avoids wiping good cloud with empty local)
+  // Memory only for this session (scoring edits); cloud remains source of truth on next open
   const idx = (S.matches||[]).findIndex(x=>x.id===id);
   if(idx>=0) S.matches[idx]=m; else S.matches.unshift(m);
-  try{
-    const ls=getLS();
-    if(ls) ls.setItem(KEY, JSON.stringify({matches:S.matches,ttsOn:S.ttsOn,selectedVoiceURI:S.selectedVoiceURI}));
-  }catch(e){}
 
   if(m.type==='auction'){ openAuction(id); return; }
   S.curId=id; S.history=[];
@@ -5165,7 +5121,6 @@ window.openMatch = async function(id){
   showScreen('screenLive');
   if(typeof switchTab==='function') switchTab('tabLive');
   renderLive();
-  // Live-sync from cloud only when cloud is richer or equal — never roll back local scoring
   try{ startAdminMatchWatch(id); }catch(e){ console.warn(e); }
   if((m.status||'')==='not_started'){
     if($('preStart')) $('preStart').classList.remove('hidden');
@@ -5186,45 +5141,31 @@ function stopAdminMatchWatch(){
 function startAdminMatchWatch(id){
   stopAdminMatchWatch();
   if(!db || !id) return;
-  function ballCount(mm){
-    if(!mm) return 0;
-    let n = 0;
-    (mm.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
-    n += (mm.currentOverBalls&&mm.currentOverBalls.length)||0;
-    if(mm.innings1){
-      (mm.innings1.completedOvers||[]).forEach(function(o){ n += (o.balls&&o.balls.length)||0; });
-      n += (mm.innings1.currentOverBalls&&mm.innings1.currentOverBalls.length)||0;
-    }
-    return n;
-  }
+  // Always mirror cloud into memory and re-render (same idea as viewer onSnapshot).
+  // Skip only the immediate echo of our own write so mid-tap scoring does not flicker.
   adminMatchUnsub = db.collection('cric360_matches').doc(id).onSnapshot(function(snap){
     if(!snap.exists) return;
     if(S.curId !== id) return;
-    // Ignore echo of our own recent write so local scoring is not rolled back
-    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<3000) return;
+    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<1500) return;
     const cloud = Object.assign({id:snap.id}, snap.data());
     if(!Array.isArray(cloud.completedOvers)) cloud.completedOvers = [];
     if(!Array.isArray(cloud.currentOverBalls)) cloud.currentOverBalls = [];
     ['teamA','teamB'].forEach(function(k){
       if(cloud[k] && !Array.isArray(cloud[k].squad)) cloud[k].squad = cloud[k].squad || [];
     });
-    const local = (S.matches||[]).find(x=>x.id===id);
-    // CRITICAL: never replace a richer local match with poorer cloud data
-    if(local && ballCount(local) > ballCount(cloud)) return;
-    if(local && ballCount(local) === ballCount(cloud) && (local.totalScore||0) > (cloud.totalScore||0)) return;
-    // When ball counts match, still prefer cloud if local is missing live selections/overs
-    if(local && ballCount(local) === ballCount(cloud)){
-      const localLive = !!(local.strikerId || local.currentBowlerId || (local.completedOvers&&local.completedOvers.length) || (local.currentOverBalls&&local.currentOverBalls.length));
-      const cloudLive = !!(cloud.strikerId || cloud.currentBowlerId || (cloud.completedOvers&&cloud.completedOvers.length) || (cloud.currentOverBalls&&cloud.currentOverBalls.length));
-      if(localLive && !cloudLive) return;
+    if(cloud.innings1 && typeof cloud.innings1 === 'object'){
+      if(!Array.isArray(cloud.innings1.completedOvers)) cloud.innings1.completedOvers = [];
+      if(!Array.isArray(cloud.innings1.currentOverBalls)) cloud.innings1.currentOverBalls = [];
     }
     const idx = (S.matches||[]).findIndex(x=>x.id===id);
     if(idx>=0) S.matches[idx]=cloud; else S.matches.unshift(cloud);
-    try{
-      const ls=getLS();
-      if(ls) ls.setItem(KEY, JSON.stringify({matches:S.matches,ttsOn:S.ttsOn,selectedVoiceURI:S.selectedVoiceURI}));
-    }catch(e){}
     try{ renderLive(); }catch(e){ console.warn(e); }
+    try{
+      if(typeof renderScorecard==='function') renderScorecard();
+    }catch(e){}
+    try{
+      if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin');
+    }catch(e){}
   }, function(err){ console.warn('adminMatchWatch', err); });
 }
 
@@ -5445,74 +5386,26 @@ function enterAppHome() {
 async function loadCloudMatchesForAdmin() {
   if (!db || !isAdmin()) return;
   try {
+    // List is always built from cloud — no local-vs-cloud merge choice
     const snap = await db.collection('cric360_matches').limit(40).get();
+    const fromCloud = [];
     snap.forEach(doc => {
       const data = doc.data() || {};
       data.id = data.id || doc.id;
       data.type = data.type || 'match';
-      const idx = S.matches.findIndex(m => m.id === data.id);
-      if (idx >= 0) {
-        const local = S.matches[idx];
-        // Prefer richer ball history — never wipe overs/balls with empty cloud fields
-        function _bc(mm){
-          if(!mm) return 0;
-          let n=0;
-          (mm.completedOvers||[]).forEach(function(o){ n+=(o.balls&&o.balls.length)||0; });
-          n+=(mm.currentOverBalls&&mm.currentOverBalls.length)||0;
-          if(mm.innings1){
-            (mm.innings1.completedOvers||[]).forEach(function(o){ n+=(o.balls&&o.balls.length)||0; });
-            n+=(mm.innings1.currentOverBalls&&mm.innings1.currentOverBalls.length)||0;
-          }
-          return n;
-        }
-        function _live(mm){
-          if(!mm) return 0;
-          let s=0;
-          if(mm.strikerId) s+=2;
-          if(mm.nonStrikerId) s+=2;
-          if(mm.currentBowlerId) s+=2;
-          if((mm.currentOverBalls&&mm.currentOverBalls.length)||0) s+=1;
-          if((mm.completedOvers&&mm.completedOvers.length)||0) s+=1;
-          return s;
-        }
-        const lbc = _bc(local), cbc = _bc(data);
-        if(lbc > cbc){
-          // keep local balls (active scorer), still take missing live IDs from cloud
-          S.matches[idx] = Object.assign({}, data, local, {
-            id: data.id,
-            completedOvers: local.completedOvers,
-            currentOverBalls: local.currentOverBalls,
-            innings1: local.innings1 || data.innings1,
-            teamA: (local.teamA && local.teamA.squad && local.teamA.squad.length) ? local.teamA : (data.teamA||local.teamA),
-            teamB: (local.teamB && local.teamB.squad && local.teamB.squad.length) ? local.teamB : (data.teamB||local.teamB),
-            strikerId: local.strikerId || data.strikerId || null,
-            nonStrikerId: local.nonStrikerId || data.nonStrikerId || null,
-            currentBowlerId: local.currentBowlerId || data.currentBowlerId || null,
-            battingTeam: local.battingTeam || data.battingTeam,
-            totalScore: (local.totalScore!=null?local.totalScore:data.totalScore),
-            wickets: (local.wickets!=null?local.wickets:data.wickets),
-            totalBalls: (local.totalBalls!=null?local.totalBalls:data.totalBalls)
-          });
-        } else if(cbc > lbc || _live(data) >= _live(local)){
-          // Cloud has more balls or equal/better live state — use cloud fully
-          S.matches[idx] = Object.assign({}, local, data, { id: data.id });
-        } else {
-          S.matches[idx] = Object.assign({}, data, local, { id: data.id });
-        }
-      } else {
-        S.matches.unshift(data);
-      }
+      if(!Array.isArray(data.completedOvers)) data.completedOvers = data.completedOvers || [];
+      if(!Array.isArray(data.currentOverBalls)) data.currentOverBalls = data.currentOverBalls || [];
+      fromCloud.push(data);
     });
     const asnap = await db.collection('cric360_auctions').limit(40).get();
     asnap.forEach(doc => {
       const data = doc.data() || {};
       data.id = data.id || doc.id;
       data.type = 'auction';
-      const idx = S.matches.findIndex(m => m.id === data.id);
-      if (idx >= 0) S.matches[idx] = Object.assign({}, S.matches[idx], data, { id: data.id, type: 'auction' });
-      else S.matches.unshift(data);
+      fromCloud.push(data);
     });
-    save(); // local cache for offline
+    // Keep only in-memory reference while admin is on home; next openMatch always re-fetches cloud
+    S.matches = fromCloud;
   } catch (e) {
     console.warn('loadCloudMatchesForAdmin', e);
   }

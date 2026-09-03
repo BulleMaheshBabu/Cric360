@@ -2,17 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-
-<link rel="manifest" href="./manifest.webmanifest" />
-<meta name="theme-color" content="#0b1326" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#070a14" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Cric360" />
-<link rel="apple-touch-icon" href="./icons/icon-180.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-title" content="Auction Tracker 360" />
+<meta name="description" content="Run live club cricket auctions and track every bid, player, and purse in real time." />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/icon-192.png" type="image/png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <title>Auction Tracker 360</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -668,7 +667,7 @@ const firebaseConfig = {
   appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
   measurementId: "G-MTYE09EDSY"
 };
-const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
+const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
 const ADMIN_NOTIFY_EMAIL = "maheshdhoni7633@gmail.com";
 
 let auth, db, user=null, profile=null, profileUnsub=null;
@@ -5534,86 +5533,13 @@ $('btnMyAuctions').onclick=async()=>{
 // Stay on Loading until Firebase reports auth state (avoids 3–5s Sign-in flash)
 showScreen('screenBoot');
 focusEl($('bootTitle'));
-</script>
 
-<script>
-/* ===== PWA install (Android / desktop Chrome) ===== */
-(function(){
-  let deferredPrompt = null;
-  function isStandalone(){
-    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-      || window.navigator.standalone === true
-      || document.referrer.includes('android-app://');
-  }
-  function ensureInstallBtn(){
-    let btn = document.getElementById('btnInstallApp');
-    if(btn) return btn;
-    btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'btnInstallApp';
-    btn.className = 'btn-ok';
-    btn.style.cssText = 'display:none;width:100%;margin:12px 0 0;min-height:48px;font-weight:800';
-    btn.setAttribute('aria-label', 'Install Cric360 app on this device');
-    btn.textContent = 'Install Cric360 app';
-    // Prefer a known container; fall back to body top
-    const host = document.querySelector('.panel') || document.querySelector('.wrap') || document.body;
-    if(host.firstChild) host.insertBefore(btn, host.firstChild);
-    else host.appendChild(btn);
-    return btn;
-  }
-  function showInstallUi(show){
-    const btn = ensureInstallBtn();
-    if(isStandalone()){
-      btn.style.display = 'none';
-      return;
-    }
-    btn.style.display = show ? 'block' : 'none';
-  }
-  window.addEventListener('beforeinstallprompt', function(e){
-    e.preventDefault();
-    deferredPrompt = e;
-    showInstallUi(true);
+/* PWA: register service worker for install + offline support */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
   });
-  window.addEventListener('appinstalled', function(){
-    deferredPrompt = null;
-    showInstallUi(false);
-    try{ if(typeof announce==='function') announce('Cric360 installed. Open it from your app list.'); }catch(x){}
-    alert('Cric360 installed. Open it from your app list — it runs full screen without browser controls.');
-  });
-  document.addEventListener('click', function(ev){
-    const t = ev.target && (ev.target.id === 'btnInstallApp' ? ev.target : (ev.target.closest && ev.target.closest('#btnInstallApp')));
-    if(!t) return;
-    ev.preventDefault();
-    if(!deferredPrompt){
-      // iOS / unsupported: show manual steps
-      const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if(isiOS){
-        alert('On iPhone/iPad: tap Share, then “Add to Home Screen” to install Cric360.');
-      } else {
-        alert('Use your browser menu → Install app / Add to Home screen.');
-      }
-      return;
-    }
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(function(choice){
-      deferredPrompt = null;
-      if(choice && choice.outcome === 'accepted') showInstallUi(false);
-    }).catch(function(){});
-  }, true);
-  // Register service worker (required for installability)
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js').catch(function(err){
-        console.warn('SW register failed', err);
-      });
-    });
-  }
-  // If already installable from a previous visit, button may show after event; hide in standalone
-  if(isStandalone()){
-    document.documentElement.classList.add('pwa-standalone');
-  }
-})();
+}
 </script>
-
 </body>
 </html>

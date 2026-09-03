@@ -1,7 +1,7 @@
 {
-  "name": "Cric360",
+  "name": "Cric360 – Cricket Tools",
   "short_name": "Cric360",
-  "description": "Live cricket scoring, player auctions, and tournament tracking",
+  "description": "Live scoring, player auctions, and tournament tracking for cricket events.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -9,53 +9,24 @@
   "background_color": "#0b1326",
   "theme_color": "#0b1326",
   "lang": "en",
-  "categories": ["sports", "utilities"],
   "icons": [
     {
-      "src": "./icons/icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/icon-192.png",
+      "src": "icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icons/icon-512.png",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "./icons/icon-512.png",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Cric360 Live",
-      "short_name": "Live",
-      "description": "Open live scoring",
-      "url": "./cric360live.html",
-      "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Auction Tracker 360",
-      "short_name": "Auction",
-      "description": "Open player auctions",
-      "url": "./auctiontracker360.html",
-      "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
     }
   ]
 }

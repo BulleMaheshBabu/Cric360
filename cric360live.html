@@ -219,10 +219,14 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .sc-table.bowl .sc-table-row .c-num,.sc-table.bowl .sc-table-head > span:not(:first-child){flex:0 0 2.6rem}
 /* Ball list: clear vertical stack */
 .ball-row,.ball-log-item{
-  display:flex;width:100%;flex-direction:row;align-items:flex-start;
+  display:block;width:100%;box-sizing:border-box;
 }
-#ballLog,#uwmBalls{display:block;width:100%}
-#ballLog > .ball-row,#uwmBalls > .ball-row{width:100%}
+.ball-row-visual{display:flex;width:100%;align-items:flex-start;gap:10px;}
+.sc-row-visual{display:flex;width:100%;align-items:center;gap:4px;}
+#ballLog,#uwmBalls,#batList,#bowlList{display:block;width:100%}
+#ballLog > .ball-row,#uwmBalls > .ball-row,.sc-table-row{display:block;width:100%;box-sizing:border-box}
+.sc-table-row .sc-row-visual{display:flex;width:100%;align-items:center;gap:4px}
+
 
 .sc-panel-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent-gold);font-weight:700;margin:12px 0 6px}
 .sc-extras{color:var(--text-muted);font-size:.78rem;padding:6px 4px;border-bottom:1px solid var(--border-subtle)}
@@ -261,7 +265,7 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .player-detail{font-size:.8rem;color:var(--text-muted);margin-top:2px}
 .player-stats{font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums;text-align:right;flex-shrink:0}
 .player-stats .balls-muted{color:var(--text-muted);font-weight:400}
-.ball-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-subtle);font-size:.85rem}
+.ball-row{display:block;width:100%;padding:10px 0;border-bottom:1px solid var(--border-subtle);font-size:.85rem}
 .ball-row:last-child{border-bottom:none}
 .ball-tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.75rem;font-weight:700;font-variant-numeric:tabular-nums;background:var(--bg-surface-elevated);color:var(--text-secondary);flex-shrink:0}
 .ball-tag.wicket{background:var(--badge-wicket);color:#fff}
@@ -1521,7 +1525,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.07";
+const APP_VERSION = "2026.09.03.1.08";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -2778,8 +2782,8 @@ function formatBallRow(b, i, overBalls){
   }
   // One focusable row; full sentence in aria-label only (no child text for SR)
   const rowCls = isUpdate ? 'ball-row ball-row-update' : 'ball-row';
-  let h='<div class="'+rowCls+'" role="listitem" tabindex="0" aria-label="'+aria+'">';
-  h+='<span aria-hidden="true" style="display:contents">';
+    let h='<div class="'+rowCls+'" role="listitem" tabindex="0" aria-label="'+aria+'">';
+  h+='<div aria-hidden="true" class="ball-row-visual">';
   if(isUpdate){
     h+='<span class="ball-tag update">UPDATE</span>';
   } else {
@@ -2787,7 +2791,7 @@ function formatBallRow(b, i, overBalls){
   }
   h+='<div class="ball-desc">'+mainVis+(b.desc&&!isUpdate?('<div class="ball-meta">'+b.desc+'</div>'):'')+'</div>';
   if(tag && tag.text && !isUpdate) h+='<span class="ball-tag '+tag.cls+'">'+tag.text+'</span>';
-  h+='</span></div>';
+  h+='</div></div>';
   return h;
 }
 function collectAllBalls(m){
@@ -3244,7 +3248,7 @@ function renderScorecard(){
       const label=(p.name||'Player')+', '+R+(R===1?' run, ':' runs, ')+B+(B===1?' ball, ':' balls, ')+F+' fours, '+S+' sixes, strike rate '+SR+', '+detail;
       const star = on ? ' <span style="color:var(--accent-gold)">★</span>' : '';
       html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
-      html+='<span aria-hidden="true" style="display:contents">';
+      html+='<div aria-hidden="true" class="sc-row-visual">';
       html+='<div class="c-name'+(on?' on-strike':'')+'">'+p.name+star+(p.isOut?' †':'')+(p.retiredHurt&&!p.isOut?' ♯':'');
       html+='<span class="sub">'+detail+'</span></div>';
       html+='<span class="c-num">'+R+'</span>';
@@ -3252,7 +3256,7 @@ function renderScorecard(){
       html+='<span class="c-num">'+F+'</span>';
       html+='<span class="c-num">'+S+'</span>';
       html+='<span class="c-num">'+SR+'</span>';
-      html+='</span></div>';
+      html+='</div></div>';
     });
     if(!any) html+='<div style="color:var(--text-muted);padding:10px 6px">No batters yet</div>';
     return html;
@@ -3268,14 +3272,14 @@ function renderScorecard(){
       const O=fmtOvers(p.bowlBalls||0), M=p.maidens||0, R=p.bowlRuns||0, W=p.wickets||0, ER=eco(p.bowlRuns||0,p.bowlBalls||0);
       const label=(p.name||'Bowler')+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wicket'+(W===1?'':'s')+', economy '+ER;
       html+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'">';
-      html+='<span aria-hidden="true" style="display:contents">';
+      html+='<div aria-hidden="true" class="sc-row-visual">';
       html+='<div class="c-name">'+p.name+'</div>';
       html+='<span class="c-num">'+O+'</span>';
       html+='<span class="c-num">'+M+'</span>';
       html+='<span class="c-num">'+R+'</span>';
       html+='<span class="c-num">'+W+'</span>';
       html+='<span class="c-num">'+ER+'</span>';
-      html+='</span></div>';
+      html+='</div></div>';
     });
     if(!any) html+='<div style="color:var(--text-muted);padding:10px 6px">No bowling figures yet</div>';
     return html;
@@ -6042,7 +6046,7 @@ function renderViewerScorecard(){
       let how=p.isOut?(p.dismissal||'out'):(p.retiredHurt?'retired hurt':(on?'on strike':(p.id===nid?'non-striker':'not out')));
       const R=p.runs||0,B=p.balls||0,F=p.fours||0,S=p.sixes||0,SR=sr(p);
       const label=(p.name||'Player')+', '+R+(R===1?' run, ':' runs, ')+B+(B===1?' ball, ':' balls, ')+F+' fours, '+S+' sixes, strike rate '+SR+', '+how;
-      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><span aria-hidden="true" style="display:contents"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub">'+how+'</span></div><span class="c-num">'+R+'</span><span class="c-num">'+B+'</span><span class="c-num">'+F+'</span><span class="c-num">'+S+'</span><span class="c-num">'+SR+'</span></span></div>';
+      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+(on?' ★':'')+'<span class="sub">'+how+'</span></div><span class="c-num">'+R+'</span><span class="c-num">'+B+'</span><span class="c-num">'+F+'</span><span class="c-num">'+S+'</span><span class="c-num">'+SR+'</span></div></div>';
     });
     if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
     return h;
@@ -6055,7 +6059,7 @@ function renderViewerScorecard(){
       any=true;
       const O=fmtOvers(p.bowlBalls||0),M=p.maidens||0,R=p.bowlRuns||0,W=p.wickets||0,ER=eco(p.bowlRuns||0,p.bowlBalls||0);
       const label=p.name+', '+O+' overs, '+M+' maidens, '+R+' runs, '+W+' wickets, economy '+ER;
-      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><span aria-hidden="true" style="display:contents"><div class="c-name">'+(p.name||'')+'</div><span class="c-num">'+O+'</span><span class="c-num">'+M+'</span><span class="c-num">'+R+'</span><span class="c-num">'+W+'</span><span class="c-num">'+ER+'</span></span></div>';
+      h+='<div role="listitem" class="sc-table-row" tabindex="0" aria-label="'+label.replace(/"/g,'')+'"><div aria-hidden="true" class="sc-row-visual"><div class="c-name">'+(p.name||'')+'</div><span class="c-num">'+O+'</span><span class="c-num">'+M+'</span><span class="c-num">'+R+'</span><span class="c-num">'+W+'</span><span class="c-num">'+ER+'</span></div></div>';
     });
     if(!any) h+='<div style="color:var(--muted);padding:8px">—</div>';
     return h;
@@ -7138,47 +7142,54 @@ if($('btnEditSelConfirm')) $('btnEditSelConfirm').onclick = () => {
 };
 
 document.addEventListener('keydown', function(e) {
+  if(e.key!=='ArrowDown' && e.key!=='ArrowUp') return;
   const active = document.activeElement;
   if(!active) return;
   const tag = (active.tagName||'').toLowerCase();
   if(tag==='input'||tag==='textarea'||tag==='select') return;
+  // Do not steal arrows inside dialogs
+  if(active.closest && active.closest('.modal, [role="dialog"]')) return;
 
-  // Treat ball + scorecard items as a pure vertical list (never left/right cell hopping)
-  const isListItem = active.classList.contains('ball-row')
-    || active.classList.contains('sc-table-row')
-    || (active.getAttribute('role')==='listitem' && active.hasAttribute('tabindex'));
-  const listRoot = active.closest('#ballLog, #uwmBalls, #batList, #bowlList, #uwmScBody, .sc-table, [role="list"], .over-expand');
-
-  if(e.key==='ArrowLeft' || e.key==='ArrowRight'){
-    if(listRoot && isListItem){
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    return;
+  function visible(el){
+    if(!el) return false;
+    if(el.hasAttribute('disabled')) return false;
+    const st = window.getComputedStyle(el);
+    if(st.display==='none'||st.visibility==='hidden') return false;
+    return el.offsetParent!==null || st.position==='fixed';
   }
-  if(e.key!=='ArrowDown' && e.key!=='ArrowUp') return;
-  if(!listRoot) return;
-
-  const items = Array.from(listRoot.querySelectorAll('.ball-row[tabindex="0"], .sc-table-row[tabindex="0"], [role="listitem"][tabindex="0"]'))
-    .filter(function(el){
-      if(el.hasAttribute('disabled')) return false;
-      const st = window.getComputedStyle(el);
-      return st.display!=='none' && st.visibility!=='hidden';
-    });
+  function itemsIn(root){
+    if(!root) return [];
+    return Array.from(root.querySelectorAll('.ball-row[tabindex], .sc-table-row[tabindex], .squad-player[tabindex], [role="listitem"][tabindex]'))
+      .filter(visible);
+  }
+  // Resolve which vertical list we are in / should enter
+  let root = active.closest('#ballLog, #uwmBalls, #batList, #bowlList, #uwmScBody, #matchSquadsSplit, #uwmSquadsSplit, .sc-table, [role="list"]');
+  if(!root){
+    // From Live action buttons → enter ball-by-ball list
+    if(active.closest('#adminBallControls, #scoringUI, #screenLive, #uwmLiveScoring, #screenUserWatchMatch')){
+      root = document.getElementById('ballLog') || document.getElementById('uwmBalls');
+    } else if(active.closest('#paneScore, #uwmPaneScore')){
+      root = document.getElementById('batList') || document.querySelector('#uwmScBody .sc-table') || document.getElementById('uwmScBody');
+    } else if(active.closest('#paneSquads, #uwmPaneSquads')){
+      root = document.getElementById('matchSquadsSplit') || document.getElementById('uwmSquadsSplit');
+    }
+  }
+  if(!root || !visible(root)) return;
+  const items = itemsIn(root);
   if(!items.length) return;
+
   let idx = items.indexOf(active);
+  // Focus is on a control above the list (e.g. Next ball) — start at ends
   if(idx < 0){
     idx = e.key==='ArrowDown' ? -1 : items.length;
   }
+  let nextIdx = e.key==='ArrowDown' ? idx + 1 : idx - 1;
+  if(nextIdx < 0 || nextIdx >= items.length) return; // let browser leave the list
   e.preventDefault();
   e.stopPropagation();
-  let nextIdx = e.key==='ArrowDown' ? idx + 1 : idx - 1;
-  if(nextIdx >= items.length) nextIdx = items.length - 1;
-  if(nextIdx < 0) nextIdx = 0;
-  if(items[nextIdx]){
-    items[nextIdx].focus();
-    try{ items[nextIdx].scrollIntoView({block:'nearest'}); }catch(err){}
-  }
+  items[nextIdx].focus();
+  try{ items[nextIdx].scrollIntoView({block:'nearest'}); }catch(err){}
+});
 });
 </script>
 

@@ -2,17 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-
-<link rel="manifest" href="./manifest.webmanifest" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0b1326" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Cric360" />
-<link rel="apple-touch-icon" href="./icons/icon-180.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="description" content="Live cricket scoring, player auctions, and match tracking — installable as a web app." />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/icon-192.png" type="image/png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <title>Cric360 – Tools</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -128,6 +127,16 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .sr-only{
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;
 }
+.install-card{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:16px;padding:14px 16px;border-radius:16px;
+  background:linear-gradient(145deg,rgba(56,189,248,.14),rgba(15,23,42,.9));
+  border:1px solid var(--border);
+}
+.install-card strong{display:block;font-weight:800;font-size:1rem;color:var(--primary-bright)}
+.install-sub{display:block;margin-top:3px;font-size:12px;color:var(--muted);line-height:1.4}
+.install-btn{flex-shrink:0;min-height:40px;padding:8px 18px;font-size:13px;text-transform:none;letter-spacing:0}
+.install-card.hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -148,6 +157,13 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
     <li>Match tracking</li>
   </ul>
   <button type="button" id="btnGoogle" class="btn-ok btn-block" aria-label="Sign in with Google">Sign in with Google</button>
+  <div id="installCardAuth" class="install-card hidden" style="margin-top:14px">
+    <div>
+      <strong>Install Cric360</strong>
+      <span class="install-sub">Add to your home screen and open it like an app — even offline.</span>
+    </div>
+    <button type="button" id="btnInstallAuth" class="cta install-btn" aria-label="Install Cric360 app">Install</button>
+  </div>
   <p id="authError" role="alert"></p>
 </section>
 
@@ -160,14 +176,7 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
     </button>
   </div>
 
-  
-  <div id="installHint" style="margin:0 0 14px;padding:12px 14px;border-radius:14px;border:1px solid rgba(56,189,248,.35);background:rgba(14,165,233,.12)">
-    <p style="margin:0 0 8px;font-weight:800;color:var(--primary-bright)">Install as app</p>
-    <p style="margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.45">Install Cric360 on your phone. It opens from the app list full screen — no browser bar.</p>
-    <button type="button" id="btnInstallApp" class="btn-ok" style="width:100%;min-height:46px;font-weight:800" aria-label="Install Cric360 app on this device">Install Cric360 app</button>
-    <p style="margin:8px 0 0;font-size:12px;color:var(--muted)">Android Chrome: tap Install when asked, or use this button. iPhone: Share → Add to Home Screen.</p>
-  </div>
-<p class="tagline">Choose a tool to get started</p>
+  <p class="tagline">Choose a tool to get started</p>
   <p class="tagline-sub">Live scoring, player auctions, and tournament tracking for your cricket events.</p>
   <ul class="feature-strip" aria-hidden="true">
     <li>Live scoring</li>
@@ -209,6 +218,14 @@ button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
     </div>
   </a>
 
+  <div id="installCard" class="install-card hidden" role="region" aria-labelledby="installTitle">
+    <div>
+      <strong id="installTitle">Install Cric360</strong>
+      <span class="install-sub">Add to your home screen and open it like an app — even offline.</span>
+    </div>
+    <button type="button" id="btnInstall" class="cta install-btn" aria-label="Install Cric360 app">Install</button>
+  </div>
+
   <p class="sr-only" id="userLine"></p>
   <div id="hubLive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 </section>
@@ -225,7 +242,7 @@ const firebaseConfig = {
   appId: "1:1035286573847:web:3cc9d7df3617f6fb787d52",
   measurementId: "G-MTYE09EDSY"
 };
-const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
+const SUPER_ADMIN = "maheshdhoni7633@gmail.com";
 let auth;
 try {
   firebase.initializeApp(firebaseConfig);
@@ -293,7 +310,7 @@ auth.onAuthStateChanged(u => {
     setTimeout(() => $('authTitle').focus(), 50);
     return;
   }
-  const admin = SUPER_ADMIN_EMAILS.includes((u.email || '').toLowerCase());
+  const admin = (u.email || '').toLowerCase() === SUPER_ADMIN;
   const short = admin ? 'Admin' : ((u.email || 'User').split('@')[0]);
   $('hubSub').textContent = short;
   const lab = (admin ? 'Signed in as admin. ' : ('Signed in as ' + (u.email || 'user') + '. ')) + 'Double tap to sign out.';
@@ -303,86 +320,52 @@ auth.onAuthStateChanged(u => {
   show('screenHub');
   setTimeout(() => $('hubTitle').focus(), 50);
 });
-</script>
 
-<script>
-/* ===== PWA install (Android / desktop Chrome) ===== */
-(function(){
-  let deferredPrompt = null;
-  function isStandalone(){
-    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-      || window.navigator.standalone === true
-      || document.referrer.includes('android-app://');
-  }
-  function ensureInstallBtn(){
-    let btn = document.getElementById('btnInstallApp');
-    if(btn) return btn;
-    btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'btnInstallApp';
-    btn.className = 'btn-ok';
-    btn.style.cssText = 'display:none;width:100%;margin:12px 0 0;min-height:48px;font-weight:800';
-    btn.setAttribute('aria-label', 'Install Cric360 app on this device');
-    btn.textContent = 'Install Cric360 app';
-    // Prefer a known container; fall back to body top
-    const host = document.querySelector('.panel') || document.querySelector('.wrap') || document.body;
-    if(host.firstChild) host.insertBefore(btn, host.firstChild);
-    else host.appendChild(btn);
-    return btn;
-  }
-  function showInstallUi(show){
-    const btn = ensureInstallBtn();
-    if(isStandalone()){
-      btn.style.display = 'none';
-      return;
-    }
-    btn.style.display = show ? 'block' : 'none';
-  }
-  window.addEventListener('beforeinstallprompt', function(e){
-    e.preventDefault();
-    deferredPrompt = e;
-    showInstallUi(true);
+/* ===== PWA: service worker + install button ===== */
+let deferredPrompt = null;
+const installCard = $('installCard');
+const btnInstall = $('btnInstall');
+const installCardAuth = $('installCardAuth');
+const btnInstallAuth = $('btnInstallAuth');
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   });
-  window.addEventListener('appinstalled', function(){
-    deferredPrompt = null;
-    showInstallUi(false);
-    try{ if(typeof announce==='function') announce('Cric360 installed. Open it from your app list.'); }catch(x){}
-    alert('Cric360 installed. Open it from your app list — it runs full screen without browser controls.');
-  });
-  document.addEventListener('click', function(ev){
-    const t = ev.target && (ev.target.id === 'btnInstallApp' ? ev.target : (ev.target.closest && ev.target.closest('#btnInstallApp')));
-    if(!t) return;
-    ev.preventDefault();
-    if(!deferredPrompt){
-      // iOS / unsupported: show manual steps
-      const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if(isiOS){
-        alert('On iPhone/iPad: tap Share, then “Add to Home Screen” to install Cric360.');
-      } else {
-        alert('Use your browser menu → Install app / Add to Home screen.');
-      }
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (installCardAuth) installCardAuth.classList.remove('hidden');
+  if (installCard && !$('screenHub').classList.contains('hidden')) installCard.classList.remove('hidden');
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  if (installCard) installCard.classList.add('hidden');
+  if (installCardAuth) installCardAuth.classList.add('hidden');
+  announce('Cric360 installed. You can now open it from your home screen.');
+});
+
+function runInstall() {
+  return async () => {
+    if (!deferredPrompt) {
+      announce('Install is not available right now. It appears once the requirements are met.');
       return;
     }
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(function(choice){
-      deferredPrompt = null;
-      if(choice && choice.outcome === 'accepted') showInstallUi(false);
-    }).catch(function(){});
-  }, true);
-  // Register service worker (required for installability)
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js').catch(function(err){
-        console.warn('SW register failed', err);
-      });
-    });
-  }
-  // If already installable from a previous visit, button may show after event; hide in standalone
-  if(isStandalone()){
-    document.documentElement.classList.add('pwa-standalone');
-  }
-})();
+    const choice = await deferredPrompt.userChoice.catch(() => ({}));
+    if (choice && choice.outcome === 'accepted') {
+      announce('Installing Cric360…');
+    }
+    deferredPrompt = null;
+    if (installCard) installCard.classList.add('hidden');
+    if (installCardAuth) installCardAuth.classList.add('hidden');
+  };
+}
+if (btnInstall) btnInstall.addEventListener('click', runInstall());
+if (btnInstallAuth) btnInstallAuth.addEventListener('click', runInstall());
 </script>
-
 </body>
 </html>

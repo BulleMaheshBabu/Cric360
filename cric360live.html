@@ -943,6 +943,14 @@ button:active{transform:scale(.98)}
         <textarea id="insAsk" rows="2" placeholder="Ask about this match…" aria-label="Ask about this match"></textarea>
         <button type="button" id="insSend" class="btn-ok" aria-label="Send question">Send</button>
         <button type="button" id="insViewAlbum" class="btn-sec" aria-label="View published insights album">View published album</button>
+        <div id="insQuickPrompts" role="group" aria-label="Quick host prompts" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;width:100%">
+          <button type="button" class="btn-sec ins-quick" data-q="Compare both Playing XIs in a simple table and one host tip for the stream." style="font-size:12px;padding:6px 10px">Playing XI</button>
+          <button type="button" class="btn-sec ins-quick" data-q="Compare both teams powerplays (overs 1 to 6). Table of runs, wickets, boundaries and one line I can say on live." style="font-size:12px;padding:6px 10px">Powerplay</button>
+          <button type="button" class="btn-sec ins-quick" data-q="Summarise the middle overs (overs 7 to 16) for the batting side. Short host lines." style="font-size:12px;padding:6px 10px">Middle overs</button>
+          <button type="button" class="btn-sec ins-quick" data-q="Death overs (overs 17 to 20) or last 4 overs: runs, wickets, boundaries. Host-ready summary." style="font-size:12px;padding:6px 10px">Death / last 4</button>
+          <button type="button" class="btn-sec ins-quick" data-q="How many boundaries (4s and 6s) in the last 4 overs? Compare if both innings data exists." style="font-size:12px;padding:6px 10px">Boundaries last 4</button>
+          <button type="button" class="btn-sec ins-quick" data-q="Give me 4 short lines I can say on live about the current match situation." style="font-size:12px;padding:6px 10px">Live situation</button>
+        </div>
       </div>
       <p id="insStatus" class="sr-only" role="status" aria-live="polite"></p>
     </div>
@@ -1532,7 +1540,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.11";
+const APP_VERSION = "2026.09.03.1.14";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -6197,45 +6205,259 @@ function getMatchInsights(m){
   return arr;
 }
 
-function buildMatchAiContext(m){
+function buildMatchAiContext(m, question){
   if(!m) return {};
-  const balls = (typeof collectAllBalls==='function' ? collectAllBalls(m) : []).slice(-80);
-  const slimBalls = balls.map(function(b){
+  const q = String(question || '').toLowerCase();
+
+  // ---- detect what the host is asking ----
+  const wantPowerplay = /\bpower\s*play|powerplay|pp\b|\bovers?\s*1\s*[-to]+\s*6\b|\b(first\s*)?six overs\b/.test(q);
+  const wantMiddle = /\bmiddle\s*overs?\b|\bovers?\s*7\s*[-to]+\s*16\b|\bmid(\s|-)?innings\b/.test(q);
+  const wantDeath = /\bdeath\s*overs?\b|\bovers?\s*17\s*[-to]+\s*20\b|\bfinal\s*overs?\b|\blast\s*four\s*overs?\b/.test(q);
+  const wantXi = /\bplaying\s*11\b|\bplaying\s*xi\b|\bxi\b|\bsquads?\b|\bteam\s*list\b|\bline[\s-]*ups?\b|\bpicked\b/.test(q);
+  const wantBoundaries = /\bboundar|\bfours?\b|\bsixes?\b|\b6s\b|\b4s\b/.test(q);
+  const wantLast = /\blast\s*(\d+)\s*overs?\b/.exec(q);
+  const lastN = wantLast ? Math.min(20, Math.max(1, parseInt(wantLast[1], 10) || 4)) : (/\blast\s*overs?\b/.test(q) ? 4 : 0);
+  const wantFirst = /\bfirst\s*(\d+)\s*overs?\b/.exec(q);
+  const firstN = wantFirst ? Math.min(20, Math.max(1, parseInt(wantFirst[1], 10) || 2)) : 0;
+  // If nothing specific — still send short recent + always-on facts
+  const wantAnyPhase = wantPowerplay || wantMiddle || wantDeath || lastN > 0 || firstN > 0;
+
+  function slimBall(b){
+    if(!b) return null;
     return {
       over: b.overStr || b.over || '',
-      type: b.type || '',
+      type: b.type || 'ball',
       runs: b.runs,
-      legal: b.legal,
-      isFour: !!(b.isFour || b.runs===4),
-      isSix: !!(b.isSix || b.runs===6),
-      wicket: !!(b.wicket || b.isWicket),
-      bowler: b.bowlerName || b.bowl || '',
-      batter: b.batterName || b.bat || '',
-      text: b.text || b.desc || ''
-    };
-  });
-  function teamSnap(t){
-    if(!t) return null;
-    return {
-      name: t.name,
-      runs: t.runs||0,
-      wickets: t.wickets||0,
-      balls: t.balls||0,
-      overs: typeof fmtOvers==='function' ? fmtOvers(t.balls||0) : (t.balls||0)
+      isFour: !!(b.isFour || b.runs === 4),
+      isSix: !!(b.isSix || b.runs === 6),
+      wicket: !!(b.wicket || b.isWicket || b.runs === 'W' || b.type === 'out'),
+      bowler: b.bowler || b.bowlerName || b.bowl || '',
+      batter: b.striker || b.batterName || b.bat || '',
+      text: (b.text || b.desc || '').slice(0, 120)
     };
   }
+
+  function oversFrom(completedOvers, currentOverBalls, inningsNo){
+    const out = [];
+    (completedOvers || []).forEach(function(o, idx){
+      const balls = (o.balls || []).map(slimBall).filter(Boolean);
+      out.push({
+        innings: inningsNo,
+        overNum: (o.num != null ? o.num : (idx + 1)),
+        bowler: o.bowlerName || o.bowler || '',
+        runs: o.runs != null ? o.runs : balls.reduce(function(s, b){ return s + (typeof b.runs === 'number' ? b.runs : 0); }, 0),
+        wickets: o.wickets != null ? o.wickets : balls.filter(function(b){ return b.wicket; }).length,
+        fours: balls.filter(function(b){ return b.isFour; }).length,
+        sixes: balls.filter(function(b){ return b.isSix; }).length,
+        balls: balls
+      });
+    });
+    if(currentOverBalls && currentOverBalls.length){
+      const balls = currentOverBalls.map(slimBall).filter(Boolean);
+      const overNum = (completedOvers && completedOvers.length) ? (completedOvers.length + 1) : 1;
+      out.push({
+        innings: inningsNo,
+        overNum: overNum,
+        inProgress: true,
+        bowler: (balls[0] && balls[0].bowler) || '',
+        runs: balls.reduce(function(s, b){ return s + (typeof b.runs === 'number' ? b.runs : 0); }, 0),
+        wickets: balls.filter(function(b){ return b.wicket; }).length,
+        fours: balls.filter(function(b){ return b.isFour; }).length,
+        sixes: balls.filter(function(b){ return b.isSix; }).length,
+        balls: balls
+      });
+    }
+    return out;
+  }
+
+  function filterOvers(overs, pred){
+    return (overs || []).filter(pred);
+  }
+  function phaseBlock(overs, fromN, toN, label){
+    const list = filterOvers(overs, function(o){ return o.overNum >= fromN && o.overNum <= toN; });
+    const runs = list.reduce(function(s, o){ return s + (o.runs || 0); }, 0);
+    const wickets = list.reduce(function(s, o){ return s + (o.wickets || 0); }, 0);
+    const fours = list.reduce(function(s, o){ return s + (o.fours || 0); }, 0);
+    const sixes = list.reduce(function(s, o){ return s + (o.sixes || 0); }, 0);
+    return {
+      phase: label,
+      oversFrom: fromN,
+      oversTo: toN,
+      oversCovered: list.map(function(o){ return o.overNum; }),
+      complete: list.filter(function(o){ return !o.inProgress; }).length >= (toN - fromN + 1),
+      runs: runs,
+      wickets: wickets,
+      fours: fours,
+      sixes: sixes,
+      boundaries: fours + sixes,
+      overs: list
+    };
+  }
+  function lastNOvers(overs, n){
+    const done = (overs || []).filter(function(o){ return !o.inProgress; });
+    const slice = done.slice(-n);
+    return phaseBlock(slice, slice.length ? slice[0].overNum : 0, slice.length ? slice[slice.length - 1].overNum : 0, 'last_' + n);
+  }
+  function firstNOvers(overs, n){
+    return phaseBlock(overs, 1, n, 'first_' + n);
+  }
+
+  const innings1Overs = (m.innings1)
+    ? oversFrom(m.innings1.completedOvers, m.innings1.currentOverBalls, 1)
+    : [];
+  const currentInn = m.currentInnings || m.innings || 1;
+  const currentOvers = oversFrom(m.completedOvers, m.currentOverBalls, currentInn);
+
+  // Build only requested phases (saves tokens)
+  const phases = {};
+  if(wantPowerplay || !wantAnyPhase){
+    // Always attach compact powerplay summary when no phase asked? Only if powerplay asked OR general — keep general light
+  }
+  if(wantPowerplay){
+    phases.powerplayInnings1 = phaseBlock(innings1Overs, 1, 6, 'powerplay');
+    phases.powerplayCurrentInnings = phaseBlock(currentOvers, 1, 6, 'powerplay');
+  }
+  if(wantMiddle){
+    phases.middleInnings1 = phaseBlock(innings1Overs, 7, 16, 'middle');
+    phases.middleCurrentInnings = phaseBlock(currentOvers, 7, 16, 'middle');
+  }
+  if(wantDeath){
+    phases.deathInnings1 = phaseBlock(innings1Overs, 17, 20, 'death');
+    phases.deathCurrentInnings = phaseBlock(currentOvers, 17, 20, 'death');
+  }
+  if(lastN > 0){
+    phases['last' + lastN + 'Innings1'] = lastNOvers(innings1Overs, lastN);
+    phases['last' + lastN + 'CurrentInnings'] = lastNOvers(currentOvers, lastN);
+  }
+  if(firstN > 0){
+    phases['first' + firstN + 'Innings1'] = firstNOvers(innings1Overs, firstN);
+    phases['first' + firstN + 'CurrentInnings'] = firstNOvers(currentOvers, firstN);
+  }
+
+  // Short recent balls only when no specific phase (situation / general chat)
+  let recentBalls = [];
+  if(!wantAnyPhase){
+    const flat = [];
+    currentOvers.forEach(function(o){
+      (o.balls || []).forEach(function(b){
+        flat.push(Object.assign({innings: o.innings, overNum: o.overNum}, b));
+      });
+    });
+    recentBalls = flat.slice(-24);
+  }
+
+  function slimPlayer(p){
+    if(!p) return null;
+    return {
+      name: p.name || '',
+      role: p.role || p.type || '',
+      inPlaying11: !!p.inPlaying11,
+      runs: p.runs || 0,
+      balls: p.balls || 0,
+      fours: p.fours || 0,
+      sixes: p.sixes || 0,
+      isOut: !!p.isOut,
+      dismissal: p.dismissal || '',
+      bowlRuns: p.bowlRuns || 0,
+      bowlBalls: p.bowlBalls || 0,
+      wickets: p.wickets || 0
+    };
+  }
+  function teamPack(t){
+    if(!t) return null;
+    const squad = Array.isArray(t.squad) ? t.squad : [];
+    const p11 = squad.filter(function(p){ return p && p.inPlaying11; }).map(slimPlayer);
+    const pack = {
+      name: t.name || '',
+      runs: t.runs || 0,
+      wickets: t.wickets || 0,
+      balls: t.balls || 0,
+      overs: typeof fmtOvers === 'function' ? fmtOvers(t.balls || 0) : (t.balls || 0),
+      playing11: p11.length ? p11 : squad.slice(0, 11).map(slimPlayer)
+    };
+    // Full squad only when XI/squad question (slightly larger)
+    if(wantXi){
+      pack.squad = squad.map(slimPlayer);
+    }
+    pack.battingCard = squad.filter(function(p){ return p && ((p.balls || 0) > 0 || p.isOut); }).map(slimPlayer);
+    pack.bowlingCard = squad.filter(function(p){ return p && ((p.bowlBalls || 0) > 0 || (p.wickets || 0) > 0); }).map(slimPlayer);
+    return pack;
+  }
+
+  const updates = [];
+  if(Array.isArray(m.updates)){
+    m.updates.slice(-12).forEach(function(u){
+      updates.push({text: (u.text || u.msg || u.message || '').slice(0, 200), at: u.at || u.createdAt || null});
+    });
+  }
+  if(Array.isArray(m.preNotes)){
+    m.preNotes.slice(-8).forEach(function(u){
+      updates.push({text: (u.text || u.msg || '').slice(0, 200), kind: 'pre', at: u.at || u.createdAt || null});
+    });
+  }
+
+  function findName(team, id){
+    if(!team || !Array.isArray(team.squad) || id == null) return '';
+    const p = team.squad.find(function(x){ return x && String(x.id) === String(id); });
+    return p ? (p.name || '') : '';
+  }
+  const batKey = m.battingTeam === 'teamB' ? 'teamB' : 'teamA';
+  const bowlKey = batKey === 'teamA' ? 'teamB' : 'teamA';
+
+  const detected = [];
+  if(wantPowerplay) detected.push('powerplay_1_to_6');
+  if(wantMiddle) detected.push('middle_7_to_16');
+  if(wantDeath) detected.push('death_17_to_20');
+  if(lastN) detected.push('last_' + lastN + '_overs');
+  if(firstN) detected.push('first_' + firstN + '_overs');
+  if(wantXi) detected.push('playing_xi_or_squad');
+  if(wantBoundaries) detected.push('boundaries');
+
   return {
+    persona: {
+      role: 'Cric360 Live studio analyst',
+      style: 'YouTube live host: clear, short, readable on stream. Never invent balls or players. If a phase is incomplete, say so.'
+    },
     series: m.series || m.name || '',
+    matchType: m.matchType || '',
     status: m.status || '',
-    innings: m.innings || 1,
+    innings: currentInn,
     battingTeam: m.battingTeam,
-    teamA: teamSnap(m.teamA),
-    teamB: teamSnap(m.teamB),
-    totalBalls: m.totalBalls||0,
-    recentBalls: slimBalls,
-    note: 'Use only this data. Prefer Markdown tables for numeric comparisons.'
+    toss: m.toss || m.tossInfo || null,
+    venue: m.venue || '',
+    score: {
+      runs: m.totalScore || 0,
+      wickets: m.wickets || 0,
+      balls: m.totalBalls || 0,
+      overs: typeof fmtOvers === 'function' ? fmtOvers(m.totalBalls || 0) : String(m.totalBalls || 0),
+      target: m.target || null
+    },
+    onStrike: {
+      striker: findName(m[batKey], m.strikerId),
+      nonStriker: findName(m[batKey], m.nonStrikerId),
+      bowler: findName(m[bowlKey], m.currentBowlerId)
+    },
+    teamA: teamPack(m.teamA),
+    teamB: teamPack(m.teamB),
+    updates: updates,
+    phases: phases,
+    recentBalls: recentBalls,
+    questionHints: detected,
+    phaseRules: {
+      powerplay: 'overs 1-6',
+      middle: 'overs 7-16',
+      death: 'overs 17-20'
+    },
+    guidance: [
+      'Use phases.* for powerplay/middle/death/last/first over questions — do not assume missing overs.',
+      'Playing XI is in teamA.playing11 and teamB.playing11.',
+      'On-field now: onStrike.',
+      'Prefer Markdown tables for comparisons.',
+      'Host-ready short lines for YouTube live unless more detail is asked.'
+    ].join(' ')
   };
 }
+
 
 function escapeIns(s){
   return String(s==null?'':s)
@@ -6641,7 +6863,13 @@ async function callAskMatchAi(question){
   if(!firebase || !firebase.functions) throw new Error('Functions SDK not loaded');
   const fn = firebase.app().functions('asia-south1').httpsCallable('askMatchAi');
   const m = M();
-  const res = await fn({ question: question, context: buildMatchAiContext(m) });
+  const context = buildMatchAiContext(m, question);
+  const res = await fn({
+    question: question,
+    context: context,
+    persona: context.persona || null,
+    mode: 'youtube_live'
+  });
   return res && res.data ? res.data : {};
 }
 
@@ -6777,6 +7005,13 @@ function wireInsightsUi(){
       if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); insSendQuestion(); }
     });
   }
+  document.querySelectorAll('.ins-quick').forEach(function(btn){
+    btn.onclick = function(){
+      const q = btn.getAttribute('data-q') || '';
+      if($('insAsk')) $('insAsk').value = q;
+      insSendQuestion();
+    };
+  });
   if($('insViewAlbum')) $('insViewAlbum').onclick = openInsAlbumModal;
   if($('insModalClose')) $('insModalClose').onclick = closeInsAlbumModal;
   if($('insAlbumModal')){

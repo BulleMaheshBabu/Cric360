@@ -1492,7 +1492,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.03";
+const APP_VERSION = "2026.09.03.1.04";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1747,7 +1747,7 @@ function importMatchFromFile(file){
     r.readAsText(file);
   });
 }
-function M(){return S.matches.find(m=>m.id===S.curId)}
+function M(){const id=S.curId!=null?String(S.curId):null;return (S.matches||[]).find(function(m){return m&&String(m.id)===id;})}
 function focusEl(el){if(!el)return;try{el.setAttribute('tabindex','-1');el.focus({preventScroll:false})}catch(e){}}
 function announce(msg,assertive){const el=document.getElementById(assertive?'live':'liveSoft');if(el){el.textContent='';setTimeout(()=>{el.textContent=msg},40)}}
 let voices=[],speaking=false,speakQueue=[];
@@ -2870,7 +2870,15 @@ if($('btnNextBall'))$('btnNextBall').disabled=done||onBreak||m.status==='not_sta
   }
   if($('scoringUI'))$('scoringUI').classList.toggle('hidden', m.status!=='live');
 
-if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const batSq=(bat&&Array.isArray(bat.squad))?bat.squad:[];const bowlSq=(bowl&&Array.isArray(bowl.squad))?bowl.squad:[];const str=batSq.find(p=>p&&String(p.id)===String(m.strikerId||''));const non=batSq.find(p=>p&&String(p.id)===String(m.nonStrikerId||''));const bwl=bowlSq.find(p=>p&&String(p.id)===String(m.currentBowlerId||''));
+if(m.status==='live'||m.status==='innings_break'){const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowl=m.battingTeam==='teamA'?m.teamB:m.teamA;const batSq=(bat&&Array.isArray(bat.squad))?bat.squad:[];const bowlSq=(bowl&&Array.isArray(bowl.squad))?bowl.squad:[];let str=batSq.find(p=>p&&String(p.id)===String(m.strikerId||''));let non=batSq.find(p=>p&&String(p.id)===String(m.nonStrikerId||''));let bwl=bowlSq.find(p=>p&&String(p.id)===String(m.currentBowlerId||''));
+// Last-chance recovery if ids still do not resolve
+if((!str||!non||!bwl) && typeof repairMatchLivePointers==='function'){
+  repairMatchLivePointers(m);
+  str=batSq.find(p=>p&&String(p.id)===String(m.strikerId||''));
+  non=batSq.find(p=>p&&String(p.id)===String(m.nonStrikerId||''));
+  bwl=bowlSq.find(p=>p&&String(p.id)===String(m.currentBowlerId||''));
+}
+
 if($('scoreLine')){
   const ov=fmtOvers(m.totalBalls||0);
   const batName=(bat&&bat.name)?bat.name:'';
@@ -5167,54 +5175,111 @@ function repairMatchLivePointers(m){
 }
 
 window.openMatch = async function(id){
-  // ONE RULE: always open from cloud (same as viewer). No local-vs-cloud choice.
-  function normalizeMatchArrays(mm){
-    if(!mm || mm.type==='auction') return mm;
-    if(!Array.isArray(mm.completedOvers)) mm.completedOvers = [];
-    if(!Array.isArray(mm.currentOverBalls)) mm.currentOverBalls = [];
-    ['teamA','teamB'].forEach(function(k){
-      if(mm[k] && !Array.isArray(mm[k].squad)) mm[k].squad = mm[k].squad || [];
-    });
-    if(mm.innings1 && typeof mm.innings1 === 'object'){
-      if(!Array.isArray(mm.innings1.completedOvers)) mm.innings1.completedOvers = [];
-      if(!Array.isArray(mm.innings1.currentOverBalls)) mm.innings1.currentOverBalls = [];
-    }
-    return mm;
-  }
-
+  // ALWAYS load the full match from Firestore SERVER (not offline cache).
+  // Same source of truth as the viewer.
   if(!id){ alert('Match not found'); return; }
   if(!db){ alert('Cloud not available. Check your connection and try again.'); return; }
 
+  function normalizeMatch(mm, docId){
+    if(!mm) return mm;
+    mm.id = docId || mm.id;
+    if(mm.type==='auction') return mm;
+    if(!Array.isArray(mm.completedOvers)){
+      try{
+        if(mm.completedOvers && typeof mm.completedOvers==='object')
+          mm.completedOvers = Object.keys(mm.completedOvers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return mm.completedOvers[k];});
+        else mm.completedOvers = [];
+      }catch(e){ mm.completedOvers = []; }
+    }
+    if(!Array.isArray(mm.currentOverBalls)){
+      try{
+        if(mm.currentOverBalls && typeof mm.currentOverBalls==='object')
+          mm.currentOverBalls = Object.keys(mm.currentOverBalls).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return mm.currentOverBalls[k];});
+        else mm.currentOverBalls = [];
+      }catch(e){ mm.currentOverBalls = []; }
+    }
+    ['teamA','teamB'].forEach(function(k){
+      if(!mm[k]) return;
+      if(mm[k].squad && !Array.isArray(mm[k].squad)){
+        try{
+          mm[k].squad = Object.keys(mm[k].squad).sort(function(a,b){return Number(a)-Number(b);}).map(function(key){ return mm[k].squad[key]; });
+        }catch(e){ mm[k].squad = []; }
+      }
+      if(!Array.isArray(mm[k].squad)) mm[k].squad = [];
+      mm[k].squad.forEach(function(p,i){
+        if(!p) return;
+        if(p.id==null || p.id==='') p.id = p.playerId || p.uid || (String(mm[k].id||k)+'_p'+i);
+        p.id = String(p.id);
+        if(typeof p.runs!=='number') p.runs = Number(p.runs)||0;
+        if(typeof p.balls!=='number') p.balls = Number(p.balls)||0;
+        if(typeof p.bowlBalls!=='number') p.bowlBalls = Number(p.bowlBalls)||0;
+        if(typeof p.bowlRuns!=='number') p.bowlRuns = Number(p.bowlRuns)||0;
+        if(typeof p.wickets!=='number') p.wickets = Number(p.wickets)||0;
+      });
+    });
+    if(mm.innings1 && typeof mm.innings1==='object'){
+      if(!Array.isArray(mm.innings1.completedOvers)) mm.innings1.completedOvers = mm.innings1.completedOvers || [];
+      if(!Array.isArray(mm.innings1.currentOverBalls)) mm.innings1.currentOverBalls = mm.innings1.currentOverBalls || [];
+    }
+    if(mm.strikerId!=null && mm.strikerId!=='') mm.strikerId = String(mm.strikerId);
+    if(mm.nonStrikerId!=null && mm.nonStrikerId!=='') mm.nonStrikerId = String(mm.nonStrikerId);
+    if(mm.currentBowlerId!=null && mm.currentBowlerId!=='') mm.currentBowlerId = String(mm.currentBowlerId);
+    return mm;
+  }
+
   let m = null;
+  let docId = String(id);
   try{
-    let snap = await db.collection('cric360_matches').doc(id).get();
-    if(!snap.exists) snap = await db.collection('cric360_auctions').doc(id).get();
-    if(snap.exists){
-      m = Object.assign({id:snap.id}, snap.data());
-      if(!m.type) m.type = (snap.ref.parent.id.indexOf('auction')>=0) ? 'auction' : 'match';
-      normalizeMatchArrays(m);
+    // Force SERVER read so phone offline cache cannot show a half-empty match
+    let snap = await db.collection('cric360_matches').doc(docId).get({ source: 'server' });
+    if(!snap.exists){
+      try{ snap = await db.collection('cric360_auctions').doc(docId).get({ source: 'server' }); }catch(e2){}
+    }
+    // Fallback to default (cache/server) if offline
+    if(!snap || !snap.exists){
+      snap = await db.collection('cric360_matches').doc(docId).get();
+      if(!snap.exists) snap = await db.collection('cric360_auctions').doc(docId).get();
+    }
+    if(snap && snap.exists){
+      docId = snap.id;
+      m = Object.assign({}, snap.data()||{}, { id: docId });
+      if(!m.type) m.type = (snap.ref && snap.ref.parent && String(snap.ref.parent.id).indexOf('auction')>=0) ? 'auction' : 'match';
+      normalizeMatch(m, docId);
+      if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(m);
     }
   }catch(e){
     console.warn('openMatch cloud', e);
-    alert('Could not load match from cloud. Check your connection and try again.');
-    return;
+    // last resort: cache
+    try{
+      let snap = await db.collection('cric360_matches').doc(docId).get();
+      if(!snap.exists) snap = await db.collection('cric360_auctions').doc(docId).get();
+      if(snap.exists){
+        docId = snap.id;
+        m = Object.assign({}, snap.data()||{}, { id: docId });
+        normalizeMatch(m, docId);
+        if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(m);
+      }
+    }catch(e3){
+      alert('Could not load match from cloud. Check your connection and try again.');
+      return;
+    }
   }
 
   if(!m){ alert('Match not found in cloud'); return; }
-  repairMatchLivePointers(m);
 
-  // Memory only for this session (scoring edits); cloud remains source of truth on next open
-  const idx = (S.matches||[]).findIndex(x=>x.id===id);
-  if(idx>=0) S.matches[idx]=m; else S.matches.unshift(m);
+  // Put into session memory under the FIRESTORE document id
+  S.matches = (S.matches||[]).filter(function(x){ return x && x.id !== docId; });
+  S.matches.unshift(m);
 
-  if(m.type==='auction'){ openAuction(id); return; }
-  S.curId=id; S.history=[];
+  if(m.type==='auction'){ openAuction(docId); return; }
+  S.curId = docId;
+  S.history = [];
   document.body.classList.remove('has-hub-tabbar');
   document.body.classList.add('has-tabbar');
   showScreen('screenLive');
   if(typeof switchTab==='function') switchTab('tabLive');
-  renderLive();
-  try{ startAdminMatchWatch(id); }catch(e){ console.warn(e); }
+  try{ renderLive(); }catch(e){ console.warn(e); }
+  try{ startAdminMatchWatch(docId); }catch(e){ console.warn(e); }
   if((m.status||'')==='not_started'){
     if($('preStart')) $('preStart').classList.remove('hidden');
     if($('scoringUI')) $('scoringUI').classList.add('hidden');
@@ -5234,32 +5299,49 @@ function stopAdminMatchWatch(){
 function startAdminMatchWatch(id){
   stopAdminMatchWatch();
   if(!db || !id) return;
-  // Always mirror cloud into memory and re-render (same idea as viewer onSnapshot).
-  // Skip only the immediate echo of our own write so mid-tap scoring does not flicker.
-  adminMatchUnsub = db.collection('cric360_matches').doc(id).onSnapshot(function(snap){
+  const docId = String(id);
+  adminMatchUnsub = db.collection('cric360_matches').doc(docId).onSnapshot(function(snap){
     if(!snap.exists) return;
-    if(S.curId !== id) return;
-    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<1500) return;
-    const cloud = Object.assign({id:snap.id}, snap.data());
-    if(!Array.isArray(cloud.completedOvers)) cloud.completedOvers = [];
-    if(!Array.isArray(cloud.currentOverBalls)) cloud.currentOverBalls = [];
-    ['teamA','teamB'].forEach(function(k){
-      if(cloud[k] && !Array.isArray(cloud[k].squad)) cloud[k].squad = cloud[k].squad || [];
-    });
-    if(cloud.innings1 && typeof cloud.innings1 === 'object'){
-      if(!Array.isArray(cloud.innings1.completedOvers)) cloud.innings1.completedOvers = [];
-      if(!Array.isArray(cloud.innings1.currentOverBalls)) cloud.innings1.currentOverBalls = [];
-    }
-    repairMatchLivePointers(cloud);
-    const idx = (S.matches||[]).findIndex(x=>x.id===id);
+    if(String(S.curId) !== docId) return;
+    // Skip only a brief echo of our own write (avoid flicker while tapping Next ball)
+    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<1200) return;
+    let cloud = Object.assign({}, snap.data()||{}, { id: snap.id });
+    // Normalize arrays / ids (same as openMatch)
+    try{
+      if(!Array.isArray(cloud.completedOvers)){
+        if(cloud.completedOvers && typeof cloud.completedOvers==='object')
+          cloud.completedOvers = Object.keys(cloud.completedOvers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return cloud.completedOvers[k];});
+        else cloud.completedOvers = [];
+      }
+      if(!Array.isArray(cloud.currentOverBalls)){
+        if(cloud.currentOverBalls && typeof cloud.currentOverBalls==='object')
+          cloud.currentOverBalls = Object.keys(cloud.currentOverBalls).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return cloud.currentOverBalls[k];});
+        else cloud.currentOverBalls = [];
+      }
+      ['teamA','teamB'].forEach(function(k){
+        if(!cloud[k]) return;
+        if(cloud[k].squad && !Array.isArray(cloud[k].squad)){
+          try{
+            cloud[k].squad = Object.keys(cloud[k].squad).sort(function(a,b){return Number(a)-Number(b);}).map(function(key){ return cloud[k].squad[key]; });
+          }catch(e){ cloud[k].squad = []; }
+        }
+        if(!Array.isArray(cloud[k].squad)) cloud[k].squad = [];
+        cloud[k].squad.forEach(function(p,i){
+          if(!p) return;
+          if(p.id==null || p.id==='') p.id = p.playerId || p.uid || (String(cloud[k].id||k)+'_p'+i);
+          p.id = String(p.id);
+        });
+      });
+      if(cloud.strikerId!=null && cloud.strikerId!=='') cloud.strikerId = String(cloud.strikerId);
+      if(cloud.nonStrikerId!=null && cloud.nonStrikerId!=='') cloud.nonStrikerId = String(cloud.nonStrikerId);
+      if(cloud.currentBowlerId!=null && cloud.currentBowlerId!=='') cloud.currentBowlerId = String(cloud.currentBowlerId);
+    }catch(e){ console.warn('adminWatch normalize', e); }
+    if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(cloud);
+    const idx = (S.matches||[]).findIndex(function(x){ return x && String(x.id)===docId; });
     if(idx>=0) S.matches[idx]=cloud; else S.matches.unshift(cloud);
     try{ renderLive(); }catch(e){ console.warn(e); }
-    try{
-      if(typeof renderScorecard==='function') renderScorecard();
-    }catch(e){}
-    try{
-      if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin');
-    }catch(e){}
+    try{ if(typeof renderScorecard==='function') renderScorecard(); }catch(e){}
+    try{ if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin'); }catch(e){}
   }, function(err){ console.warn('adminMatchWatch', err); });
 }
 

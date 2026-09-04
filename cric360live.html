@@ -479,17 +479,27 @@ button:active{transform:scale(.98)}
 }
 .pre-note time{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
 
-/* Insights — near full-screen like YouTube Shorts / Instagram Reels */
+/* Insights — card fills width, 16:9, no black letterbox */
 .ins-stage-wrap{
   width:100%;
   max-width:100%;
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:6px;
+  margin:0;
+  padding:0;
+}
+/* Hide duplicate title when broadcast image already has the title */
+.ins-stage-wrap.has-img .ins-card-head{
+  position:absolute !important;
+  width:1px !important;height:1px !important;
+  padding:0 !important;margin:-1px !important;
+  overflow:hidden !important;clip:rect(0,0,0,0) !important;
+  border:0 !important;
 }
 .ins-stage-wrap .ins-card-head{
   margin:0;
-  font-size:clamp(1.05rem, 3.5vw, 1.35rem);
+  font-size:clamp(1.05rem, 3.5vw, 1.25rem);
   font-weight:900;
   letter-spacing:-.02em;
   color:var(--primary-bright);
@@ -498,11 +508,12 @@ button:active{transform:scale(.98)}
 .ins-stage{
   width:100%;
   max-width:100%;
-  aspect-ratio:auto;
-  height:min(78dvh, 900px);
-  min-height:280px;
-  background:#000;
-  border:1px solid var(--border);
+  aspect-ratio:16 / 9;
+  height:auto;
+  min-height:0;
+  max-height:none;
+  background:#0D1B2A; /* match card navy — not pure black */
+  border:1px solid rgba(255,255,255,0.1);
   border-radius:12px;
   overflow:hidden;
   position:relative;
@@ -512,10 +523,10 @@ button:active{transform:scale(.98)}
 .ins-stage img,.ins-stage canvas{
   width:100%;
   height:100%;
-  object-fit:contain;
+  object-fit:contain; /* 16:9 image in 16:9 box = full fill, no bars */
   object-position:center center;
   display:block;
-  background:#000;
+  background:#0D1B2A;
   position:absolute;
   inset:0;
 }
@@ -586,15 +597,16 @@ button:active{transform:scale(.98)}
 #insAlbumModal .ins-stage{
   width:100% !important;
   max-width:100% !important;
-  flex:1 1 auto !important;
-  aspect-ratio:auto !important;
+  flex:0 0 auto !important;
+  aspect-ratio:16 / 9 !important;
   height:auto !important;
-  max-height:none !important;
-  min-height:50dvh !important;
-  border-radius:0 !important;
-  border:none !important;
-  background:#000 !important;
+  max-height:min(78dvh, calc(100vw * 9 / 16)) !important;
+  min-height:0 !important;
+  border-radius:12px !important;
+  border:1px solid rgba(255,255,255,0.1) !important;
+  background:#0D1B2A !important;
   position:relative !important;
+  margin:0 auto !important;
 }
 #insPreviewModal .ins-stage img,
 #insAlbumModal .ins-stage img,
@@ -605,7 +617,7 @@ button:active{transform:scale(.98)}
   width:100% !important;
   height:100% !important;
   object-fit:contain !important;
-  background:#000 !important;
+  background:#0D1B2A !important;
 }
 .ins-modal .ins-film-nav,
 .ins-modal .ins-modal-actions{
@@ -620,23 +632,15 @@ button:active{transform:scale(.98)}
 #paneInsights .panel, #uwmPaneInsights .panel{padding-bottom:88px}
 #paneInsights .ins-stage-wrap, #uwmPaneInsights .ins-stage-wrap{width:100%;max-width:100%}
 #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-  height:auto !important;
   width:100% !important;
-  aspect-ratio:16/9 !important;
-  min-height:180px !important;
-  max-height:min(72dvh, 820px) !important;
-}
-@media (min-width:900px){
-  #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-    height:min(82dvh, 960px) !important;
-  }
+  height:auto !important;
+  aspect-ratio:16 / 9 !important;
+  min-height:0 !important;
+  max-height:none !important;
+  background:#0D1B2A !important;
 }
 @media (max-width:520px){
   .ins-stage{border-radius:10px}
-  #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-    height:min(72dvh, 640px) !important;
-    min-height:260px !important;
-  }
 }
 
 
@@ -681,7 +685,6 @@ button:active{transform:scale(.98)}
 /* Tighter stage — less black dead space above chart */
 .ins-stage-wrap{gap:6px}
 .ins-stage-wrap .ins-card-head{padding:2px 2px 0;margin:0}
-.ins-stage{min-height:260px}
 
 
 
@@ -1653,7 +1656,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.04.1.21";
+const APP_VERSION = "2026.09.04.1.22";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -6768,12 +6771,24 @@ function chartFromTable(rows){
     }
   }
   if(!series.length) return null;
+  // Prefer "Runs" series as primary values when multiple numeric cols
+  var primary = series[0];
+  for(var si=0;si<series.length;si++){
+    if(/run/i.test(series[si].name||'')){ primary = series[si]; break; }
+  }
+  var ballsCol = null, srCol = null;
+  for(var sj=0;sj<series.length;sj++){
+    if(/ball/i.test(series[sj].name||'')) ballsCol = series[sj].values;
+    if(/str(?:ike)?\s*rate|^sr$/i.test(series[sj].name||'')) srCol = series[sj].values;
+  }
   return {
-    type: series.length===1 ? 'bar' : 'bar',
+    type: 'bar',
     title: '',
     labels: labels,
-    values: series[0].values,
-    series: series
+    values: primary.values,
+    series: series,
+    balls: ballsCol || undefined,
+    strikeRates: srCol || undefined
   };
 }
 function autoChartFromText(text){
@@ -6827,20 +6842,31 @@ function polishInsightTitle(raw){
 }
 
 function insightTakeaway(ins){
-  var t = String((ins && (ins.takeaway || ins.hook || ins.summary)) || '').trim();
-  if(t) return t.length > 110 ? t.slice(0,107)+'…' : t;
-  var raw = String((ins && ins.text) || '');
-  // Prefer first bullet or first short sentence
-  var m = raw.match(/(?:^|\n)\s*[-*•]\s*(.+)/);
-  if(m && m[1]){
-    t = m[1].replace(/[#*_`]/g,'').trim();
-    return t.length > 110 ? t.slice(0,107)+'…' : t;
+  function clean(s){
+    s = String(s||'').replace(/[#*_`]/g,'').replace(/\s+/g,' ').trim();
+    // Drop empty / label-only noise
+    if(!s || s.length < 8) return '';
+    if(/^(summary|breakdown|takeaway|notes?|key\s*points?)[:\s]*$/i.test(s)) return '';
+    if(/^[-*•·.\s]+$/.test(s)) return '';
+    return s;
   }
-  var plain = raw.replace(/\|/g,' ').replace(/[#*_`]/g,'').replace(/\s+/g,' ').trim();
-  if(!plain) return 'Watch the standout numbers — they tell the story of this phase.';
-  // first sentence-ish
-  var cut = plain.split(/(?<=[.!?])\s+/)[0] || plain;
-  return cut.length > 110 ? cut.slice(0,107)+'…' : cut;
+  var t = clean(ins && (ins.takeaway || ins.hook || ins.summary));
+  if(t) return t.length > 120 ? t.slice(0,117)+'…' : t;
+  var raw = String((ins && ins.text) || '');
+  // Prefer a real bullet with content
+  var lines = raw.split(/\n/);
+  for(var i=0;i<lines.length;i++){
+    var line = lines[i].replace(/^\s*[-*•]\s*/,'').trim();
+    line = clean(line);
+    if(line && line.length >= 20){
+      return line.length > 120 ? line.slice(0,117)+'…' : line;
+    }
+  }
+  var plain = clean(raw.replace(/\|/g,' '));
+  if(!plain) return 'Ayush setting the tempo — use this graphic to contrast aggression vs anchor.';
+  var cut = plain.split(/(?<=[.!?])\s+/).filter(function(x){ return clean(x).length >= 20; })[0] || plain;
+  cut = clean(cut) || plain;
+  return cut.length > 120 ? cut.slice(0,117)+'…' : cut;
 }
 
 function insightSubtitle(ins, title){
@@ -6997,11 +7023,43 @@ function drawInsightGraphic(ins, title){
         roundRect(ctx, trackX, by, fw, bh, 8);
         ctx.fill();
 
-        // Metric numbers (right)
+        // Metric: runs (balls) · SR — look up player from match when possible
+        var metric = String(v);
+        try{
+          var mm = (typeof currentInsightsMatch==='function') ? currentInsightsMatch() : (typeof M==='function'?M():null);
+          if(mm){
+            var allSq = [].concat((mm.teamA&&mm.teamA.squad)||[], (mm.teamB&&mm.teamB.squad)||[]);
+            var pname = String(lab).trim().toLowerCase();
+            var pl = null;
+            for(var pi=0;pi<allSq.length;pi++){
+              if(allSq[pi] && String(allSq[pi].name||'').trim().toLowerCase()===pname){ pl=allSq[pi]; break; }
+            }
+            if(!pl){
+              for(var pj=0;pj<allSq.length;pj++){
+                var nn = String(allSq[pj]&&allSq[pj].name||'').trim().toLowerCase();
+                if(nn && (pname.indexOf(nn)===0 || nn.indexOf(pname)===0 || pname.indexOf(nn.split(' ')[0])>=0)){ pl=allSq[pj]; break; }
+              }
+            }
+            if(pl && (pl.balls||0) > 0){
+              var srV = ((pl.runs||0)/(pl.balls||1)*100).toFixed(0);
+              metric = (pl.runs||v)+' ('+(pl.balls)+'b)  ·  SR '+srV;
+            }
+          }
+        }catch(e){}
+        // Also use chart detail arrays if present
+        try{
+          if(chart && chart.balls && chart.balls[i]!=null){
+            var bb = chart.balls[i];
+            var sr2 = bb>0 ? ((v/bb)*100).toFixed(0) : '0';
+            metric = v+' ('+bb+'b)  ·  SR '+sr2;
+          }
+        }catch(e){}
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '700 28px "Plus Jakarta Sans",sans-serif';
+        ctx.font = '700 26px "Plus Jakarta Sans",sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(String(v), trackX + fw + 16, y + rowH*0.55);
+        // If metric is long, use slightly smaller font
+        if(metric.length > 14) ctx.font = '700 22px "Plus Jakarta Sans",sans-serif';
+        ctx.fillText(metric, trackX + fw + 14, y + rowH*0.55);
       }
     } else if(isTeamCompare){
       // Dual series side-by-side bars
@@ -7230,9 +7288,9 @@ function paintInsightAlbum(box, list, index, opts){
   const pos = (index+1) + ' of ' + list.length;
   const img = ins.image || '';
   const title = polishInsightTitle(ins.title || 'Insight');
-  let h = '<article class="ins-stage-wrap" aria-label="Insight: '+escapeIns(title)+', '+pos+'">';
+  // When image exists: only "Insights" page title remains — card carries its own title (no triple header)
+  let h = '<article class="ins-stage-wrap'+(img?' has-img':'')+'" aria-label="Insight: '+escapeIns(title)+', '+pos+'">';
   h += '<h2 class="ins-card-head" tabindex="-1" id="'+(opts.headId||'insCardHead')+'">'+escapeIns(title)+'</h2>';
-  // Dot indicators
   if(list.length > 1){
     h += '<div class="ins-dots" role="tablist" aria-label="Insight slides">';
     for(var di=0; di<list.length; di++){
@@ -7242,7 +7300,7 @@ function paintInsightAlbum(box, list, index, opts){
   }
   h += '<div class="ins-stage" role="img" aria-label="'+escapeIns(title)+'">';
   if(img){
-    h += '<img src="'+img+'" alt="" />';
+    h += '<img src="'+img+'" alt="'+escapeIns(title)+'" />';
   } else {
     h += '<div class="ins-card-body ins-ai-body" style="padding:14px;overflow:auto;height:100%;position:absolute;inset:0">'+insightBodyHtml(ins)+'</div>';
   }

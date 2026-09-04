@@ -479,7 +479,7 @@ button:active{transform:scale(.98)}
 }
 .pre-note time{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
 
-/* Insights — fill available screen on mobile + desktop */
+/* Insights — near full-screen like YouTube Shorts / Instagram Reels */
 .ins-stage-wrap{
   width:100%;
   max-width:100%;
@@ -498,11 +498,10 @@ button:active{transform:scale(.98)}
 .ins-stage{
   width:100%;
   max-width:100%;
-  /* Use available height; image keeps its ratio inside via object-fit */
   aspect-ratio:auto;
-  height:min(70dvh, 720px);
-  min-height:240px;
-  background:#07101c;
+  height:min(78dvh, 900px);
+  min-height:280px;
+  background:#000;
   border:1px solid var(--border);
   border-radius:12px;
   overflow:hidden;
@@ -516,7 +515,7 @@ button:active{transform:scale(.98)}
   object-fit:contain;
   object-position:center center;
   display:block;
-  background:#07101c;
+  background:#000;
   position:absolute;
   inset:0;
 }
@@ -529,27 +528,33 @@ button:active{transform:scale(.98)}
 }
 .ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
 
-/* Full-screen album / preview — edge to edge on any device */
+/* Full-screen album / preview — true edge-to-edge */
 .ins-modal-backdrop{
   position:fixed !important;
   inset:0 !important;
-  z-index:400 !important;
+  z-index:5000 !important;
   background:#000 !important;
   display:flex !important;
   align-items:stretch !important;
   justify-content:stretch !important;
   padding:0 !important;
+  margin:0 !important;
+  width:100vw !important;
+  height:100dvh !important;
+  max-width:100vw !important;
+  max-height:100dvh !important;
 }
 .ins-modal-backdrop.hidden{display:none!important}
 .ins-modal{
-  width:100vw !important;
-  max-width:100vw !important;
-  height:100dvh !important;
-  max-height:100dvh !important;
-  min-height:100vh !important;
+  width:100% !important;
+  max-width:100% !important;
+  height:100% !important;
+  max-height:100% !important;
+  min-height:100% !important;
   border-radius:0 !important;
   border:none !important;
-  padding:8px 8px calc(8px + env(safe-area-inset-bottom)) !important;
+  margin:0 !important;
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px)) !important;
   overflow:hidden !important;
   display:flex !important;
   flex-direction:column !important;
@@ -557,13 +562,16 @@ button:active{transform:scale(.98)}
   background:#000 !important;
   box-shadow:none !important;
 }
-.ins-modal .ins-stage-wrap{
-  width:100%;
-  flex:1 1 auto;
-  display:flex;
-  flex-direction:column;
-  min-height:0;
-  gap:6px;
+.ins-modal .ins-stage-wrap,
+#insAlbumModal .ins-stage-wrap,
+#insPreviewModal .ins-stage-wrap{
+  width:100% !important;
+  flex:1 1 auto !important;
+  display:flex !important;
+  flex-direction:column !important;
+  min-height:0 !important;
+  gap:6px !important;
+  max-width:none !important;
 }
 .ins-modal .ins-card-head,
 #insModalHead, #insPreviewHead{
@@ -571,6 +579,7 @@ button:active{transform:scale(.98)}
   margin:0 !important;
   padding:4px 4px 2px !important;
   font-size:clamp(1rem, 3.2vw, 1.25rem) !important;
+  color:#e2e8f0 !important;
 }
 .ins-modal .ins-stage,
 #insPreviewModal .ins-stage,
@@ -581,18 +590,22 @@ button:active{transform:scale(.98)}
   aspect-ratio:auto !important;
   height:auto !important;
   max-height:none !important;
-  min-height:0 !important;
-  border-radius:8px !important;
+  min-height:50dvh !important;
+  border-radius:0 !important;
   border:none !important;
   background:#000 !important;
+  position:relative !important;
 }
 #insPreviewModal .ins-stage img,
 #insAlbumModal .ins-stage img,
 .ins-modal .ins-stage img,
 .ins-modal .ins-stage canvas{
-  position:absolute;inset:0;width:100%;height:100%;
-  object-fit:contain;
-  background:#000;
+  position:absolute !important;
+  inset:0 !important;
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain !important;
+  background:#000 !important;
 }
 .ins-modal .ins-film-nav,
 .ins-modal .ins-modal-actions{
@@ -607,25 +620,23 @@ button:active{transform:scale(.98)}
 #paneInsights .panel, #uwmPaneInsights .panel{padding-bottom:88px}
 #paneInsights .ins-stage-wrap, #uwmPaneInsights .ins-stage-wrap{width:100%;max-width:100%}
 #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-  height:min(62dvh, 640px);
-  min-height:260px;
-  max-height:none;
-  aspect-ratio:auto;
+  height:min(78dvh, 900px) !important;
+  min-height:300px !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
 }
 @media (min-width:900px){
   #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-    height:min(70dvh, 720px);
+    height:min(82dvh, 960px) !important;
   }
 }
 @media (max-width:520px){
   .ins-stage{border-radius:10px}
   #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-    height:min(55dvh, 480px);
-    min-height:220px;
+    height:min(72dvh, 640px) !important;
+    min-height:260px !important;
   }
 }
-
-
 
 </style>
 </head>
@@ -1528,7 +1539,7 @@ button:active{transform:scale(.98)}
 
 
 <div id="insAlbumModal" class="ins-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="insModalHead" aria-hidden="true">
-  <div class="ins-modal" style="width:min(920px,100%)">
+  <div class="ins-modal">
     <h2 id="insModalHead" tabindex="-1" class="ins-card-head">Published insights</h2>
     <div id="insModalBody" class="ins-album"></div>
     <div class="ins-modal-actions">
@@ -1538,7 +1549,7 @@ button:active{transform:scale(.98)}
 </div>
 
 <div id="insPreviewModal" class="ins-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="insPreviewHead" aria-hidden="true">
-  <div class="ins-modal" style="width:min(920px,100%)">
+  <div class="ins-modal">
     <h2 id="insPreviewHead" tabindex="-1" class="ins-card-head">Preview insight</h2>
     <label for="insPreviewTitle">Title viewers will see</label>
     <input id="insPreviewTitle" type="text" maxlength="80" aria-label="Insight title" />
@@ -1584,7 +1595,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.04.1.16";
+const APP_VERSION = "2026.09.04.1.18";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1916,7 +1927,7 @@ function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='strike
   S.history.push(JSON.parse(JSON.stringify(match)));
   const isOutAttempt=runsOrOut==='out';let runs=isOutAttempt?0:parseInt(runsOrOut,10);const wasFH=match.freeHit;const isOut=isOutAttempt;
   const batSide=match.battingTeam==='teamA'?match.teamA:match.teamB;const bowlSide=match.battingTeam==='teamA'?match.teamB:match.teamA;
-  const striker=batSide.squad.find(p=>p.id===match.strikerId);const bowler=bowlSide.squad.find(p=>p.id===match.currentBowlerId);
+  const striker=batSide.squad.find(p=>p&&String(p.id)===String(match.strikerId));const bowler=bowlSide.squad.find(p=>p&&String(p.id)===String(match.currentBowlerId));
   let legal=true,nextFH=false,outcomeText='';
   if(type==='wide'){
     // Automatic 1 for wide + any additional runs taken
@@ -1939,7 +1950,7 @@ function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='strike
     if(runs%2===1)swap(match);
   } else {
     if(isOut){
-      const non=batSide.squad.find(p=>p.id===match.nonStrikerId);
+      const non=batSide.squad.find(p=>p&&String(p.id)===String(match.nonStrikerId));
       const dismissLabels={
         bowled:'bowled',lbw:'LBW',caught:'caught',caught_behind:'caught behind',
         caught_and_bowled:'caught and bowled',stumped:'stumped',hit_wicket:'hit wicket',run_out:'run out'
@@ -3737,13 +3748,26 @@ function playingList(team){
 }
 /** Active batters available for selection: Playing XI, not out, optionally exclude current crease pair */
 function availableBatters(team, excludeIds){
-  const ex = excludeIds || [];
-  return playingList(team).filter(p=>!p.isOut && ex.indexOf(p.id)<0);
+  const ex = (excludeIds || []).map(function(x){ return String(x); });
+  var list = playingList(team).filter(function(p){
+    return p && !p.isOut && ex.indexOf(String(p.id))<0;
+  });
+  // Fallback: full squad if Playing XI empty / all filtered out
+  if(!list.length && team && Array.isArray(team.squad)){
+    list = team.squad.filter(function(p){ return p && !p.isOut && ex.indexOf(String(p.id))<0; });
+  }
+  return list;
 }
 /** Active bowlers from Playing XI (all XI members can bowl unless filtered by caller) */
 function availableBowlers(team, excludeIds){
-  const ex = excludeIds || [];
-  return playingList(team).filter(p=>ex.indexOf(p.id)<0);
+  const ex = (excludeIds || []).map(function(x){ return String(x); });
+  var list = playingList(team).filter(function(p){
+    return p && ex.indexOf(String(p.id))<0;
+  });
+  if(!list.length && team && Array.isArray(team.squad)){
+    list = team.squad.filter(function(p){ return p && ex.indexOf(String(p.id))<0; });
+  }
+  return list;
 }
 function openStrikerFromPlaying11(){
   const m=M(); if(!m) return;
@@ -6163,7 +6187,12 @@ function renderViewerScorecard(){
   const prevF = window._scTeamFocus;
   // Build using same helpers by calling into a shared paint via DOM of uwmScBody
   function crrVal(runs, balls){ return balls>0 ? ((runs)/(balls/6)).toFixed(2) : '0.00'; }
-  function sr(p){ const b=p.balls||0; return b>0?(((p.runs||0)/b)*100).toFixed(1):'0.0'; }
+  function sr(a,b){
+    var runs, balls;
+    if(a && typeof a==='object'){ runs=a.runs||0; balls=a.balls||0; }
+    else { runs=(typeof a==='number'?a:0); balls=(typeof b==='number'?b:0); }
+    return balls>0 ? ((runs/balls)*100).toFixed(1) : '0.0';
+  }
   function rowsBat(squad, sid, nid){
     let h='<div class="sc-table-head" aria-hidden="true"><span>Batter</span><span class="c-num">R</span><span class="c-num">B</span><span class="c-num">4s</span><span class="c-num">6s</span><span class="c-num">SR</span></div>';
     let any=false;
@@ -6302,41 +6331,184 @@ function getMatchInsights(m){
 
 function buildMatchAiContext(m){
   if(!m) return {};
-  const balls = (typeof collectAllBalls==='function' ? collectAllBalls(m) : []).slice(-80);
-  const slimBalls = balls.map(function(b){
+
+  function findP(squad, id){
+    if(!squad || id==null) return null;
+    var sid = String(id);
+    for(var i=0;i<squad.length;i++){
+      if(squad[i] && String(squad[i].id)===sid) return squad[i];
+    }
+    return null;
+  }
+  function playerSnap(p){
+    if(!p) return null;
+    return {
+      name: p.name || '',
+      role: p.role || p.type || '',
+      runs: p.runs||0,
+      balls: p.balls||0,
+      fours: p.fours||0,
+      sixes: p.sixes||0,
+      isOut: !!p.isOut,
+      retiredHurt: !!p.retiredHurt,
+      dismissal: p.dismissal || '',
+      bowlOvers: typeof fmtOvers==='function' ? fmtOvers(p.bowlBalls||0) : String(p.bowlBalls||0),
+      bowlRuns: p.bowlRuns||0,
+      wickets: p.wickets||0,
+      maidens: p.maidens||0
+    };
+  }
+  function xiList(team){
+    if(!team || !Array.isArray(team.squad)) return [];
+    var p11 = team.squad.filter(function(p){ return p && p.inPlaying11; });
+    if(!p11.length) p11 = team.squad.slice(0, 11);
+    return p11.map(function(p){
+      return { name: p.name||'', role: p.role||p.type||'', runs: p.runs||0, balls: p.balls||0, isOut: !!p.isOut };
+    });
+  }
+  function squadList(team){
+    if(!team || !Array.isArray(team.squad)) return [];
+    return team.squad.map(function(p){
+      return { name: p.name||'', role: p.role||p.type||'', inPlaying11: !!p.inPlaying11 };
+    });
+  }
+
+  var batKey = m.battingTeam === 'teamB' ? 'teamB' : 'teamA';
+  var bowlKey = batKey === 'teamA' ? 'teamB' : 'teamA';
+  var batTeam = m[batKey] || m.teamA;
+  var bowlTeam = m[bowlKey] || m.teamB;
+
+  var striker = findP(batTeam && batTeam.squad, m.strikerId);
+  var nonStriker = findP(batTeam && batTeam.squad, m.nonStrikerId);
+  var bowler = findP(bowlTeam && bowlTeam.squad, m.currentBowlerId);
+
+  // All balls (oldest → newest for phase grouping). collectAllBalls returns latest-first.
+  var allBallsRaw = (typeof collectAllBalls==='function' ? collectAllBalls(m) : []).slice();
+  var allBallsChrono = allBallsRaw.slice().reverse();
+
+  function slimBall(b){
+    var runs = b.runs;
+    if(runs === 'W') runs = 0;
+    var rNum = (typeof runs === 'number') ? runs : (parseInt(runs,10)||0);
     return {
       over: b.overStr || b.over || '',
       type: b.type || '',
       runs: b.runs,
-      legal: b.legal,
-      isFour: !!(b.isFour || b.runs===4),
-      isSix: !!(b.isSix || b.runs===6),
-      wicket: !!(b.wicket || b.isWicket),
-      bowler: b.bowlerName || b.bowl || '',
-      batter: b.batterName || b.bat || '',
-      text: b.text || b.desc || ''
-    };
-  });
-  function teamSnap(t){
-    if(!t) return null;
-    return {
-      name: t.name,
-      runs: t.runs||0,
-      wickets: t.wickets||0,
-      balls: t.balls||0,
-      overs: typeof fmtOvers==='function' ? fmtOvers(t.balls||0) : (t.balls||0)
+      legal: !!b.legal,
+      isFour: !!(b.isFour || rNum===4),
+      isSix: !!(b.isSix || rNum===6),
+      wicket: !!(b.wicket || b.isWicket || b.runs==='W' || b.type==='out'),
+      // Ball log stores names as striker / bowler (not batterName)
+      batter: b.striker || b.batterName || b.bat || b.batter || '',
+      bowler: b.bowler || b.bowlerName || b.bowl || '',
+      text: b.text || b.desc || b.outcomeText || ''
     };
   }
+
+  // Group by over number for phase slices
+  function overNumOf(b){
+    var s = String(b.overStr || b.over || '0');
+    var n = parseFloat(s);
+    if(isNaN(n)) return 0;
+    return Math.floor(n) + 1; // 0.1–0.6 → over 1, 1.1–1.6 → over 2
+  }
+  function ballsInOvers(fromOver, toOver){
+    return allBallsChrono.filter(function(b){
+      var o = overNumOf(b);
+      return o >= fromOver && o <= toOver;
+    }).map(slimBall);
+  }
+
+  var totalBalls = m.totalBalls || 0;
+  var totalScore = m.totalScore || 0;
+  var wickets = m.wickets || 0;
+  var oversStr = (typeof fmtOvers==='function') ? fmtOvers(totalBalls) : String(totalBalls);
+
+  // Team scoreboard: use live match totals for batting side
+  function teamSnap(t, isBatting){
+    if(!t) return null;
+    return {
+      name: t.name || '',
+      runs: isBatting ? totalScore : (t.runs||0),
+      wickets: isBatting ? wickets : (t.wickets||0),
+      balls: isBatting ? totalBalls : (t.balls||0),
+      overs: isBatting ? oversStr : ((typeof fmtOvers==='function') ? fmtOvers(t.balls||0) : String(t.balls||0))
+    };
+  }
+
+  // Innings 1 snapshot if present
+  var innings1 = null;
+  if(m.innings1){
+    innings1 = {
+      battingTeam: m.innings1.battingTeam || null,
+      totalScore: m.innings1.totalScore||0,
+      wickets: m.innings1.wickets||0,
+      totalBalls: m.innings1.totalBalls||0,
+      overs: (typeof fmtOvers==='function') ? fmtOvers(m.innings1.totalBalls||0) : String(m.innings1.totalBalls||0)
+    };
+  }
+
+  var xiA = xiList(m.teamA);
+  var xiB = xiList(m.teamB);
+
   return {
     series: m.series || m.name || '',
+    matchType: m.matchType || 'T20',
     status: m.status || '',
-    innings: m.innings || 1,
-    battingTeam: m.battingTeam,
-    teamA: teamSnap(m.teamA),
-    teamB: teamSnap(m.teamB),
-    totalBalls: m.totalBalls||0,
-    recentBalls: slimBalls,
-    note: 'Use only this data. Prefer Markdown tables for numeric comparisons.'
+    currentInnings: m.currentInnings || m.innings || 1,
+    battingTeamKey: batKey,
+    battingTeamName: (batTeam && batTeam.name) || '',
+    bowlingTeamName: (bowlTeam && bowlTeam.name) || '',
+
+    // Live scoreboard (this is the source of truth — not team.runs)
+    scoreboard: {
+      batting: (batTeam && batTeam.name) || '',
+      runs: totalScore,
+      wickets: wickets,
+      overs: oversStr,
+      totalBalls: totalBalls,
+      crr: totalBalls > 0 ? ((totalScore / (totalBalls/6)).toFixed(2)) : '0.00'
+    },
+    innings1: innings1,
+
+    teamA: teamSnap(m.teamA, batKey==='teamA'),
+    teamB: teamSnap(m.teamB, batKey==='teamB'),
+
+    // Playing XI — always included
+    playing11: {
+      teamA: { name: (m.teamA && m.teamA.name) || 'Team A', players: xiA },
+      teamB: { name: (m.teamB && m.teamB.name) || 'Team B', players: xiB }
+    },
+    // Full squads (names + roles) for depth questions
+    squads: {
+      teamA: squadList(m.teamA),
+      teamB: squadList(m.teamB)
+    },
+
+    // Who is at the crease right now
+    onStrike: {
+      striker: playerSnap(striker),
+      nonStriker: playerSnap(nonStriker),
+      bowler: playerSnap(bowler)
+    },
+
+    // Phase blocks for powerplay / middle / death questions
+    phases: {
+      powerplay_overs_1_to_6: ballsInOvers(1, 6),
+      middle_overs_7_to_16: ballsInOvers(7, 16),
+      death_overs_17_to_20: ballsInOvers(17, 20)
+    },
+
+    // Full ball log (slim) — up to ~120 so first overs are not lost
+    recentBalls: allBallsChrono.slice(-120).map(slimBall),
+    allBallsCount: allBallsChrono.length,
+
+    note: [
+      'Use ONLY this CONTEXT. Do not invent players or scores.',
+      'playing11 has both teams XI. onStrike has current striker, non-striker, bowler.',
+      'scoreboard has live runs/wickets/overs. phases has powerplay (1-6), middle (7-16), death (17-20) balls.',
+      'Ball fields use batter and bowler names. Prefer Markdown tables for comparisons.'
+    ].join(' ')
   };
 }
 
@@ -7239,32 +7411,39 @@ if (auth) {
 <script>
 function showEditSelectionDlg(role) {
   try{
-    const m = (typeof M==='function') ? M() : null;
+    var m = (typeof M==='function') ? M() : null;
     if(!m){ alert('Open a match first'); return; }
     if(!window.S) window.S = {temp:{}};
     if(!S.temp) S.temp = {};
     S.temp.editSelRole = role;
     S.temp.editSelVal = null;
 
-    // Ensure dialog exists in DOM
+    // Always (re)build dialog on body so it cannot be stuck under other layers
     var dlg = document.getElementById('dlgEditSelection');
-    if(!dlg){
-      dlg = document.createElement('div');
-      dlg.id = 'dlgEditSelection';
-      dlg.className = 'modal hidden';
-      dlg.setAttribute('role','dialog');
-      dlg.setAttribute('aria-modal','true');
-      dlg.setAttribute('aria-labelledby','editSelTitle');
-      dlg.innerHTML = '<div class="modal-box"><h2 id="editSelTitle" tabindex="-1">Correct Selection</h2><div id="editSelChoices"></div><div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end"><button type="button" class="btn-sec" id="btnEditSelCancel">Cancel</button><button type="button" class="btn-ok" id="btnEditSelConfirm" disabled>Update</button></div></div>';
-      document.body.appendChild(dlg);
-      var can = document.getElementById('btnEditSelCancel');
-      if(can) can.onclick = function(){ try{ closeDlg('dlgEditSelection'); }catch(e){ dlg.classList.add('hidden'); } };
-      var conf = document.getElementById('btnEditSelConfirm');
-      if(conf) conf.onclick = function(){ applyEditSelection(); };
-    }
+    if(dlg && dlg.parentNode) dlg.parentNode.removeChild(dlg);
+    dlg = document.createElement('div');
+    dlg.id = 'dlgEditSelection';
+    dlg.className = 'modal';
+    dlg.setAttribute('role','dialog');
+    dlg.setAttribute('aria-modal','true');
+    dlg.setAttribute('aria-labelledby','editSelTitle');
+    dlg.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.72);padding:16px;';
+    dlg.innerHTML =
+      '<div class="modal-box" style="max-width:440px;width:100%;max-height:85vh;overflow:auto;background:#0b1326;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:20px;">'+
+      '<h2 id="editSelTitle" tabindex="-1" style="margin:0 0 12px;font-size:1.2rem">Correct Selection</h2>'+
+      '<div id="editSelChoices" role="radiogroup" aria-label="Player list"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">'+
+      '<button type="button" class="btn-sec" id="btnEditSelCancel">Cancel</button>'+
+      '<button type="button" class="btn-ok" id="btnEditSelConfirm" disabled>Update</button>'+
+      '</div></div>';
+    document.body.appendChild(dlg);
 
-    const box = document.getElementById('editSelChoices');
-    if(!box){ alert('Edit dialog missing'); return; }
+    document.getElementById('btnEditSelCancel').onclick = function(){
+      dlg.classList.add('hidden');
+      dlg.style.display = 'none';
+      try{ if(typeof closeDlg==='function') closeDlg('dlgEditSelection'); }catch(e){}
+    };
+    document.getElementById('btnEditSelConfirm').onclick = function(){ applyEditSelection(); };
 
     var list = [];
     var title = 'Correct Selection';
@@ -7276,36 +7455,51 @@ function showEditSelectionDlg(role) {
     } else {
       var bat = m.battingTeam==='teamA' ? m.teamA : m.teamB;
       if(typeof availableBatters==='function') list = availableBatters(bat, []) || [];
-      if(!list.length && bat && Array.isArray(bat.squad)) list = (bat.squad||[]).filter(function(p){ return p && !p.isOut; });
+      if(!list.length && bat && Array.isArray(bat.squad)) {
+        list = bat.squad.filter(function(p){ return p && !p.isOut; });
+      }
+      if(!list.length && bat && Array.isArray(bat.squad)) list = bat.squad.slice();
       title = role==='striker' ? 'Correct striker' : 'Correct non-striker';
     }
+
     var titleEl = document.getElementById('editSelTitle');
     if(titleEl) titleEl.textContent = title;
+
+    var box = document.getElementById('editSelChoices');
     if(!list.length){
-      alert('No eligible players found. Open Teams → mark Playing XI, then try again.');
-      return;
+      box.innerHTML = '<p style="color:#94a3b8;margin:0">No players in squad. Open Teams and add players first.</p>';
+      document.getElementById('btnEditSelConfirm').disabled = true;
+    } else {
+      box.innerHTML = list.map(function(p){
+        var id = String(p.id);
+        var name = (p.name||'Player').replace(/</g,'&lt;');
+        var roleTxt = p.role ? (' · '+String(p.role).replace(/</g,'')) : '';
+        return '<label class="choice-btn" style="display:block;margin:6px 0;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;cursor:pointer">'+
+          '<input type="radio" name="editSel" value="'+id+'" style="margin-right:8px" /> '+name+roleTxt+'</label>';
+      }).join('');
+      box.querySelectorAll('input').forEach(function(r){
+        r.onchange = function(){
+          document.getElementById('btnEditSelConfirm').disabled = false;
+          S.temp.editSelVal = r.value;
+        };
+      });
     }
-    box.innerHTML = list.map(function(p){
-      return '<label class="choice-btn"><input type="radio" name="editSel" value="'+String(p.id)+'" /> '+(p.name||'Player')+(p.role?(' · '+p.role):'')+'</label>';
-    }).join('');
-    box.querySelectorAll('input').forEach(function(r){
-      r.onchange = function(){
-        var c = document.getElementById('btnEditSelConfirm');
-        if(c) c.disabled = false;
-        S.temp.editSelVal = r.value;
-      };
-    });
-    var confBtn = document.getElementById('btnEditSelConfirm');
-    if(confBtn){
-      confBtn.disabled = true;
-      confBtn.onclick = function(){ applyEditSelection(); };
-    }
-    if(typeof openDlg==='function') openDlg('dlgEditSelection');
-    else {
-      dlg.classList.remove('hidden');
-      dlg.setAttribute('aria-hidden','false');
-    }
-    setTimeout(function(){ try{ if(typeof focusEl==='function') focusEl(titleEl); else if(titleEl) titleEl.focus(); }catch(e){} }, 60);
+
+    // Force visible — do not rely only on openDlg
+    dlg.classList.remove('hidden');
+    dlg.style.display = 'flex';
+    dlg.setAttribute('aria-hidden','false');
+    try{
+      if(typeof openDlg==='function') openDlg('dlgEditSelection');
+    }catch(e){ console.warn('openDlg', e); }
+
+    setTimeout(function(){
+      try{
+        if(titleEl){ titleEl.setAttribute('tabindex','-1'); titleEl.focus(); }
+        var first = box.querySelector('input');
+        if(first) first.focus();
+      }catch(e){}
+    }, 80);
   }catch(err){
     console.error('showEditSelectionDlg', err);
     alert('Could not open edit dialog: '+(err&&err.message?err.message:err));
@@ -7313,19 +7507,34 @@ function showEditSelectionDlg(role) {
 }
 function applyEditSelection(){
   try{
-    const m = (typeof M==='function') ? M() : null;
+    var m = (typeof M==='function') ? M() : null;
     if(!m || !S.temp || !S.temp.editSelVal){ alert('Pick a player first'); return; }
-    const val = S.temp.editSelVal;
-    if(S.temp.editSelRole==='striker') m.strikerId = val;
-    else if(S.temp.editSelRole==='nonStriker') m.nonStrikerId = val;
-    else if(S.temp.editSelRole==='bowler') m.currentBowlerId = val;
+    var val = String(S.temp.editSelVal);
+    // Resolve to the actual player id (preserve type used in squad)
+    function resolveId(team){
+      var sq = (team && team.squad) || [];
+      for(var i=0;i<sq.length;i++){
+        if(sq[i] && String(sq[i].id)===val) return sq[i].id;
+      }
+      return val;
+    }
+    if(S.temp.editSelRole==='striker'){
+      var bat = m.battingTeam==='teamA' ? m.teamA : m.teamB;
+      m.strikerId = resolveId(bat);
+    } else if(S.temp.editSelRole==='nonStriker'){
+      var bat2 = m.battingTeam==='teamA' ? m.teamA : m.teamB;
+      m.nonStrikerId = resolveId(bat2);
+    } else if(S.temp.editSelRole==='bowler'){
+      var bowl = m.battingTeam==='teamA' ? m.teamB : m.teamA;
+      m.currentBowlerId = resolveId(bowl);
+    }
     try{ save(); }catch(e){}
     try{ if(typeof cloudSaveMatch==='function') cloudSaveMatch(m); }catch(e){}
-    try{ closeDlg('dlgEditSelection'); }catch(e){
-      var d=document.getElementById('dlgEditSelection'); if(d) d.classList.add('hidden');
-    }
+    var d = document.getElementById('dlgEditSelection');
+    if(d){ d.classList.add('hidden'); d.style.display='none'; }
+    try{ if(typeof closeDlg==='function') closeDlg('dlgEditSelection'); }catch(e){}
     try{ renderLive(); }catch(e){}
-    try{ announce('Selection updated'); }catch(e){}
+    try{ if(typeof announce==='function') announce('Selection updated'); }catch(e){}
   }catch(err){
     console.error('applyEditSelection', err);
     alert('Update failed: '+(err&&err.message?err.message:err));
@@ -7333,13 +7542,18 @@ function applyEditSelection(){
 }
 window.showEditSelectionDlg = showEditSelectionDlg;
 window.applyEditSelection = applyEditSelection;
+
 function wireEditSelectionButtons(){
   function bind(id, role){
     var el = document.getElementById(id);
     if(!el) return;
     el.onclick = function(ev){
       try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
-      showEditSelectionDlg(role);
+      try{ showEditSelectionDlg(role); }
+      catch(err){
+        console.error(err);
+        alert('Edit failed: '+(err&&err.message?err.message:err));
+      }
     };
   }
   bind('btnEditStriker', 'striker');
@@ -7347,10 +7561,20 @@ function wireEditSelectionButtons(){
   bind('btnEditBowler', 'bowler');
 }
 wireEditSelectionButtons();
-(function(){
-  var conf = document.getElementById('btnEditSelConfirm');
-  if(conf) conf.onclick = function(){ applyEditSelection(); };
-})();
+// Event delegation backup — works even after renderLive rewrites buttons
+document.addEventListener('click', function(ev){
+  var t = ev.target;
+  if(!t) return;
+  var btn = t.closest ? t.closest('#btnEditStriker, #btnEditNon, #btnEditBowler') : null;
+  if(!btn){
+    if(t.id==='btnEditStriker'||t.id==='btnEditNon'||t.id==='btnEditBowler') btn = t;
+  }
+  if(!btn) return;
+  var role = btn.id==='btnEditStriker' ? 'striker' : (btn.id==='btnEditNon' ? 'nonStriker' : 'bowler');
+  try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+  showEditSelectionDlg(role);
+}, true);
+
 
 document.addEventListener('keydown', function(e) {
   const key = e.key;

@@ -1702,7 +1702,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.04.1.30";
+const APP_VERSION = "2026.09.04.1.31";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -7087,8 +7087,7 @@ function teamColorForLabel(lab){
 
 /** 16:9 broadcast card for YouTube live overlays — readable in 2–3 seconds */
 function drawInsightGraphic(ins, title){
-  // Portrait 2:3 card — fills most of a phone screen (less dead space below).
-  // At ~360px display width, scale ≈ 1080/360 = 3 → 48px canvas ≈ 16px screen.
+  // Portrait 2:3 — fills phone; fonts tuned for ~16–18px on ~360px width
   var viewW = 400;
   try{ viewW = Math.min(window.innerWidth || 400, 720); }catch(e){}
   var scaleMul = 1;
@@ -7116,37 +7115,44 @@ function drawInsightGraphic(ins, title){
   let takeaway = insightTakeaway(ins);
   const hasFooter = !!(takeaway && String(takeaway).trim().length >= 14);
 
-  const headerH = Math.round(H * 0.12);
-  const footerH = hasFooter ? Math.round(H * 0.12) : 16;
-  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  // Header with comfortable top padding (not flush to border)
+  const padTop = 28;
+  const headerH = Math.round(H * 0.13);
+  const footerH = hasFooter ? Math.round(H * 0.14) : 20;
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.fillRect(8, 8, W-16, headerH);
 
-  // LIVE
+  // LIVE badge — inset from top
+  const liveX = 36, liveY = padTop + 8;
   ctx.fillStyle = '#EF4444';
-  roundRect(ctx, 28, 28, fs(90), fs(36), 8);
+  roundRect(ctx, liveX, liveY, fs(92), fs(38), 9);
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = '700 '+fs(20)+'px "Plus Jakarta Sans",sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('LIVE', 28 + fs(45), 28 + fs(24));
+  ctx.fillText('LIVE', liveX + fs(46), liveY + fs(25));
   ctx.textAlign = 'left';
 
+  // Title — gap after LIVE pill (~12–16px visual)
+  const titleX = liveX + fs(92) + 18;
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '700 '+fs(40)+'px "Space Grotesk","Plus Jakarta Sans",sans-serif';
-  wrapCanvasText(ctx, tTitle, 130, 30, W - 280, fs(42), 2);
+  ctx.font = '700 '+fs(38)+'px "Space Grotesk","Plus Jakarta Sans",sans-serif';
+  wrapCanvasText(ctx, tTitle, titleX, padTop + 4, W - titleX - 120, fs(40), 2);
 
+  // Subtitle under title row
   ctx.fillStyle = '#94A3B8';
   ctx.font = '600 '+fs(20)+'px "Plus Jakarta Sans",sans-serif';
-  ctx.fillText(sub, 130, headerH - 14);
+  ctx.fillText(sub, 36, headerH - 18);
 
+  // Brand
   ctx.fillStyle = '#38BDF8';
   ctx.font = '700 '+fs(18)+'px "Plus Jakarta Sans",sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText('CRIC360', W - 28, 48);
+  ctx.fillText('CRIC360', W - 32, padTop + 28);
   ctx.textAlign = 'left';
 
-  const mainTop = headerH + 28;
-  const mainBottom = H - footerH - 12;
+  const mainTop = headerH + 20;
+  const mainBottom = H - footerH - 16;
   const mainH = mainBottom - mainTop;
 
   const chart = (ins && ins.chart) || (typeof autoChartFromText==='function' ? autoChartFromText(ins && ins.text) : null);
@@ -7169,18 +7175,22 @@ function drawInsightGraphic(ins, title){
     var useHorizontal = !isOvers && (nameLike >= Math.ceil(n*0.4) || n <= 8);
 
     if(useHorizontal && !isTeamCompare){
-      // Fixed name column — no overlap
       const nameColW = fs(280);
-      const leftPad = 32;
+      const leftPad = 36;
       const valueColW = fs(120);
       const gap = 16;
       const trackX = leftPad + nameColW + gap;
       const trackW = W - trackX - valueColW - leftPad;
 
-      // Fill vertical space with thick rows
-      var rowH = Math.max(fs(88), Math.min(fs(130), Math.floor(mainH / Math.max(n, 1))));
+      // Evenly distribute rows across full main area (space-evenly feel)
+      var rowH = Math.floor(mainH / Math.max(n, 1));
+      if(rowH < fs(72)) rowH = fs(72);
+      if(rowH > fs(140)) rowH = fs(140);
+      // If rows don't fill height, pad start so block is centered with even gaps
       var totalBlock = rowH * n;
-      var startY = mainTop + Math.max(8, Math.floor((mainH - totalBlock) / 2));
+      var startY = mainTop + Math.max(0, Math.floor((mainH - totalBlock) / 2));
+      // Prefer starting closer to top when few rows — still use at least 8% of mainH from top
+      if(n <= 5) startY = mainTop + Math.floor(mainH * 0.06);
 
       for(var i=0;i<n;i++){
         var y = startY + i*rowH;
@@ -7188,7 +7198,6 @@ function drawInsightGraphic(ins, title){
         var v = Number(series[0].values[i]||0);
         var barColor = teamColorForLabel(lab) || palette[i % palette.length];
 
-        // Name ~16px on phone
         ctx.fillStyle = '#F1F5F9';
         ctx.font = '600 '+fs(32)+'px "Plus Jakarta Sans",sans-serif';
         ctx.textAlign = 'left';
@@ -7197,10 +7206,10 @@ function drawInsightGraphic(ins, title){
           nameDraw = nameDraw.slice(0, -2);
         }
         if(nameDraw !== lab) nameDraw = nameDraw.replace(/\s+\S?$/,'') + '…';
-        ctx.fillText(nameDraw, leftPad, y + rowH*0.58);
+        ctx.fillText(nameDraw, leftPad, y + rowH*0.55);
 
-        var bh = Math.max(fs(36), Math.min(fs(56), rowH * 0.42));
-        var by = y + (rowH - bh) / 2;
+        var bh = Math.max(fs(34), Math.min(fs(52), rowH * 0.38));
+        var by = y + (rowH - bh) / 2 - 4;
         ctx.fillStyle = 'rgba(255,255,255,0.11)';
         roundRect(ctx, trackX, by, trackW, bh, 10);
         ctx.fill();
@@ -7212,7 +7221,6 @@ function drawInsightGraphic(ins, title){
         roundRect(ctx, trackX, by, fw, bh, 10);
         ctx.fill();
 
-        // Number ~18px bold on phone
         var metric = String(v);
         try{
           if(chart && chart.balls && chart.balls[i]!=null) metric = v+' ('+chart.balls[i]+'b)';
@@ -7221,10 +7229,10 @@ function drawInsightGraphic(ins, title){
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '700 '+fs(34)+'px "Plus Jakarta Sans",sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(metric, trackX + trackW + 14, y + rowH*0.58);
+        ctx.fillText(metric, trackX + trackW + 14, y + rowH*0.55);
       }
     } else if(isTeamCompare){
-      var left2 = 48, right2 = W - 48, top2 = mainTop + 36, bottom2 = mainBottom - 48;
+      var left2 = 48, right2 = W - 48, top2 = mainTop + 24, bottom2 = mainBottom - 40;
       var plotW = right2 - left2, plotH = bottom2 - top2;
       var groupW = plotW / n;
       var barW = Math.max(28, (groupW - 24) / series.length);
@@ -7251,10 +7259,10 @@ function drawInsightGraphic(ins, title){
         ctx.font = '600 '+fs(22)+'px sans-serif';
         ctx.textAlign = 'center';
         var lab2 = labels[i2]||'';
-        ctx.fillText(lab2.length>12?lab2.slice(0,11)+'…':lab2, left2+i2*groupW+groupW/2, bottom2+32);
+        ctx.fillText(lab2.length>12?lab2.slice(0,11)+'…':lab2, left2+i2*groupW+groupW/2, bottom2+30);
       }
     } else {
-      var left3 = 64, right3 = W - 48, top3 = mainTop + 36, bottom3 = mainBottom - 56;
+      var left3 = 64, right3 = W - 48, top3 = mainTop + 24, bottom3 = mainBottom - 48;
       var plotW3 = right3 - left3, plotH3 = bottom3 - top3;
       var groupW3 = plotW3 / n;
       var barW3 = Math.max(32, groupW3 * 0.55);
@@ -7283,7 +7291,6 @@ function drawInsightGraphic(ins, title){
       }
     }
   } else {
-    // Summary bullets fill the tall card
     var raw = String((ins && ins.text)||'').replace(/\r\n/g,'\n');
     var bullets = [];
     raw.split('\n').forEach(function(line){
@@ -7300,8 +7307,8 @@ function drawInsightGraphic(ins, title){
     bullets = bullets.filter(function(b){ var k=b.toLowerCase(); if(seen[k]) return false; seen[k]=1; return true; }).slice(0,4);
     if(!bullets.length) bullets = ['Ask AI360 for a table or chart from live data.'];
     var icons = ['①','②','③','④'];
-    var by = mainTop + 16;
-    var pillH = Math.max(fs(100), Math.floor((mainH - 24) / Math.max(bullets.length,1)) - 14);
+    var by = mainTop + 12;
+    var pillH = Math.max(fs(100), Math.floor((mainH - 20) / Math.max(bullets.length,1)) - 12);
     bullets.forEach(function(b, idx){
       ctx.fillStyle = 'rgba(56,189,248,0.12)';
       roundRect(ctx, 28, by, W-56, pillH, 14);
@@ -7317,17 +7324,29 @@ function drawInsightGraphic(ins, title){
     });
   }
 
-  // Bottom voiceover strip — only real summary sentence
+  // Lower-third takeaway — framed banner, no mic icon
   if(hasFooter){
-    ctx.fillStyle = 'rgba(0,0,0,0.48)';
-    ctx.fillRect(8, H - footerH - 8, W-16, footerH);
-    ctx.fillStyle = '#38BDF8';
-    ctx.font = '700 '+fs(26)+'px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('🎙️', 28, H - footerH/2 + 6);
+    var bandY = H - footerH - 8;
+    var bandH = footerH;
+    var inset = 24;
+    // Outer dark band
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.fillRect(8, bandY, W-16, bandH);
+    // Inner tinted pill
+    var innerX = inset, innerY = bandY + 14;
+    var innerW = W - inset*2, innerH = bandH - 28;
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    roundRect(ctx, innerX, innerY, innerW, innerH, 12);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, innerX, innerY, innerW, innerH, 12);
+    ctx.stroke();
+    // Text only — no floating mic
     ctx.fillStyle = '#F8FAFC';
-    ctx.font = '600 '+fs(26)+'px "Plus Jakarta Sans",sans-serif';
-    wrapCanvasText(ctx, takeaway, 72, H - footerH + 28, W - 120, fs(30), 3);
+    ctx.font = '600 '+fs(28)+'px "Plus Jakarta Sans",sans-serif';
+    ctx.textAlign = 'left';
+    wrapCanvasText(ctx, takeaway, innerX + 20, innerY + 22, innerW - 40, fs(30), 3);
   }
 
   return canvas.toDataURL('image/jpeg', 0.9);

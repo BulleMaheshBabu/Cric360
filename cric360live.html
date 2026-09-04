@@ -448,21 +448,7 @@ button:active{transform:scale(.98)}
   color:var(--text);padding:10px 12px;font:inherit
 }
 .ins-ask-row textarea:focus{outline:2px solid var(--border-focus);outline-offset:1px}
-.ins-modal-backdrop{
-  position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);
-  display:flex;align-items:center;justify-content:center;padding:16px
-}
-.ins-modal-backdrop.hidden{display:none!important}
-.ins-modal{
-  width:min(100vw - 12px, 1100px);max-height:min(96vh, 100dvh - 12px);overflow:auto;
-  background:var(--card-solid);border:1px solid var(--border);border-radius:18px;
-  padding:10px 12px 12px;box-shadow:var(--shadow)
-}
-.ins-modal .ins-stage{
-  width:100%;aspect-ratio:16/9;
-  max-height:min(82vh, calc((100vw - 32px) * 9 / 16));
-  min-height:200px;
-}
+/* base insights modal (overridden by full-screen block below) */
 .ins-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 
 /* Pre-match lobby + P11 grid */
@@ -493,7 +479,7 @@ button:active{transform:scale(.98)}
 }
 .pre-note time{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
 
-/* Insights — full-viewport stage (YouTube/Instagram-style expanded view) */
+/* Insights — fill available screen on mobile + desktop */
 .ins-stage-wrap{
   width:100%;
   max-width:100%;
@@ -512,10 +498,10 @@ button:active{transform:scale(.98)}
 .ins-stage{
   width:100%;
   max-width:100%;
-  aspect-ratio:16 / 9;
-  height:auto;
-  max-height:min(calc(100dvh - 150px), calc(100vw * 9 / 16));
-  min-height:220px;
+  /* Use available height; image keeps its ratio inside via object-fit */
+  aspect-ratio:auto;
+  height:min(70dvh, 720px);
+  min-height:240px;
   background:#07101c;
   border:1px solid var(--border);
   border-radius:12px;
@@ -543,12 +529,12 @@ button:active{transform:scale(.98)}
 }
 .ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
 
-/* Full-screen album / preview modals */
+/* Full-screen album / preview — edge to edge on any device */
 .ins-modal-backdrop{
   position:fixed !important;
   inset:0 !important;
-  z-index:300 !important;
-  background:rgba(0,0,0,.92) !important;
+  z-index:400 !important;
+  background:#000 !important;
   display:flex !important;
   align-items:stretch !important;
   justify-content:stretch !important;
@@ -560,13 +546,16 @@ button:active{transform:scale(.98)}
   max-width:100vw !important;
   height:100dvh !important;
   max-height:100dvh !important;
+  min-height:100vh !important;
   border-radius:0 !important;
-  padding:10px 12px 16px !important;
-  overflow:auto !important;
+  border:none !important;
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom)) !important;
+  overflow:hidden !important;
   display:flex !important;
   flex-direction:column !important;
   box-sizing:border-box !important;
-  background:#050a14 !important;
+  background:#000 !important;
+  box-shadow:none !important;
 }
 .ins-modal .ins-stage-wrap{
   width:100%;
@@ -574,18 +563,28 @@ button:active{transform:scale(.98)}
   display:flex;
   flex-direction:column;
   min-height:0;
+  gap:6px;
+}
+.ins-modal .ins-card-head,
+#insModalHead, #insPreviewHead{
+  flex:0 0 auto;
+  margin:0 !important;
+  padding:4px 4px 2px !important;
+  font-size:clamp(1rem, 3.2vw, 1.25rem) !important;
 }
 .ins-modal .ins-stage,
 #insPreviewModal .ins-stage,
 #insAlbumModal .ins-stage{
   width:100% !important;
   max-width:100% !important;
-  flex:1 1 auto;
+  flex:1 1 auto !important;
   aspect-ratio:auto !important;
-  height:min(calc(100dvh - 140px), calc(100vw * 9 / 16 * 1.35)) !important;
-  max-height:calc(100dvh - 130px) !important;
-  min-height:min(70dvh, 520px) !important;
-  border-radius:12px;
+  height:auto !important;
+  max-height:none !important;
+  min-height:0 !important;
+  border-radius:8px !important;
+  border:none !important;
+  background:#000 !important;
 }
 #insPreviewModal .ins-stage img,
 #insAlbumModal .ins-stage img,
@@ -593,26 +592,37 @@ button:active{transform:scale(.98)}
 .ins-modal .ins-stage canvas{
   position:absolute;inset:0;width:100%;height:100%;
   object-fit:contain;
-  background:#050a14;
+  background:#000;
+}
+.ins-modal .ins-film-nav,
+.ins-modal .ins-modal-actions{
+  flex:0 0 auto;
+  position:relative !important;
+  bottom:auto !important;
+  margin:6px 0 0 !important;
+  background:transparent !important;
+  border:none !important;
+  backdrop-filter:none !important;
 }
 #paneInsights .panel, #uwmPaneInsights .panel{padding-bottom:88px}
 #paneInsights .ins-stage-wrap, #uwmPaneInsights .ins-stage-wrap{width:100%;max-width:100%}
-/* In-page insights also larger */
 #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-  min-height:min(52vw, 320px);
-  max-height:min(calc(100dvh - 200px), calc(100vw * 9 / 16));
+  height:min(62dvh, 640px);
+  min-height:260px;
+  max-height:none;
+  aspect-ratio:auto;
 }
-@media (orientation:portrait){
-  .ins-modal .ins-stage,
-  #insPreviewModal .ins-stage,
-  #insAlbumModal .ins-stage{
-    height:calc(100dvh - 150px) !important;
-    max-height:calc(100dvh - 150px) !important;
-    min-height:60dvh !important;
+@media (min-width:900px){
+  #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
+    height:min(70dvh, 720px);
   }
 }
 @media (max-width:520px){
   .ins-stage{border-radius:10px}
+  #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
+    height:min(55dvh, 480px);
+    min-height:220px;
+  }
 }
 
 
@@ -1574,7 +1584,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.04.1.15";
+const APP_VERSION = "2026.09.04.1.16";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -3319,6 +3329,7 @@ function openEditPlayerDlg(playerId, teamKey){
   };
   setTimeout(function(){ focusEl($('editPlayerTitle')||nameInp); }, 60);
 }
+window.openEditPlayerDlg = openEditPlayerDlg;
 
 function renderScorecard(){
   const m=M();
@@ -3329,7 +3340,12 @@ function renderScorecard(){
   function crrVal(runs, balls){
     return balls>0 ? ((runs)/(balls/6)).toFixed(2) : '0.00';
   }
-  function sr(n){ const b=n.balls||0; return b>0?(((n.runs||0)/b)*100).toFixed(1):'0.0'; }
+  function sr(runsOrObj, ballsOpt){
+    var R, B;
+    if(runsOrObj && typeof runsOrObj==='object'){ R=runsOrObj.runs||0; B=runsOrObj.balls||0; }
+    else { R=runsOrObj||0; B=ballsOpt||0; }
+    return B>0?((R/B)*100).toFixed(1):'0.0';
+  }
   function batHead(){
     return '<li class="sc-table-head" aria-hidden="true"><span>Batter</span><span class="c-num">R</span><span class="c-num">B</span><span class="c-num">4s</span><span class="c-num">6s</span><span class="c-num">SR</span></li>';
   }
@@ -6923,13 +6939,12 @@ function renderMatchSquadsPane(mode){
       if(!p) return;
       const role=p.role||p.type||'';
       const label=(p.name||'Player')+(role?(', '+role):'');
-      h+='<div class="squad-player" role="listitem" tabindex="0">';
-      h+='<span class="sr-only">'+label.replace(/</g,'&lt;').replace(/"/g,'')+'</span>';
-      h+='<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;width:100%">';
-      if(p.photoUrl) h+='<img class="squad-photo" src="'+p.photoUrl+'" alt="" />';
-      h+='<div><div class="nm">'+(p.name||'')+'</div>'+(role?('<div class="rl">'+role+'</div>'):'')+'</div>';
+      h+='<div class="squad-player" role="listitem">';
+      h+='<div style="display:flex;align-items:center;gap:8px;width:100%">';
+      if(p.photoUrl) h+='<img class="squad-photo" src="'+p.photoUrl+'" alt="" aria-hidden="true" />';
+      h+='<div style="flex:1;min-width:0" tabindex="0"><span class="sr-only">'+label.replace(/</g,'&lt;').replace(/"/g,'')+'</span><div class="nm" aria-hidden="true">'+(p.name||'')+'</div>'+(role?('<div class="rl" aria-hidden="true">'+role+'</div>'):'')+'</div>';
       if(mode==='admin'){
-        h+='<button type="button" class="btn-sec btn-edit" style="margin-left:auto;padding:4px 8px;font-size:11px;min-height:0" aria-label="Edit player '+(p.name||'').replace(/'/g,'')+'" data-edit-player="'+String(p.id)+'" data-team="'+tk+'">Edit</button>';
+        h+='<button type="button" class="btn-sec btn-edit" style="margin-left:auto;padding:6px 10px;font-size:12px;min-height:36px;flex-shrink:0" aria-label="Edit name and photo for '+(p.name||'').replace(/'/g,'')+'" data-edit-player="'+String(p.id)+'" data-team="'+tk+'">Edit</button>';
       }
       h+='</div></div>';
     });
@@ -6941,9 +6956,17 @@ function renderMatchSquadsPane(mode){
   if(mode==='admin'){
     split.querySelectorAll('[data-edit-player]').forEach(function(btn){
       btn.onclick = function(ev){
-        ev.preventDefault();
-        ev.stopPropagation();
-        openEditPlayerDlg(btn.getAttribute('data-edit-player'), btn.getAttribute('data-team'));
+        try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
+        var pid = btn.getAttribute('data-edit-player');
+        var tkey = btn.getAttribute('data-team') || 'teamA';
+        try{
+          if(typeof openEditPlayerDlg==='function') openEditPlayerDlg(pid, tkey);
+          else if(typeof window.openEditPlayerDlg==='function') window.openEditPlayerDlg(pid, tkey);
+          else alert('Edit player not available — refresh the page');
+        }catch(err){
+          console.error('openEditPlayerDlg', err);
+          alert('Could not open edit player: '+(err&&err.message?err.message:err));
+        }
       };
     });
   }
@@ -7215,71 +7238,119 @@ if (auth) {
 </div>
 <script>
 function showEditSelectionDlg(role) {
-  const m = M();
-  if(!m){ alert('Open a match first'); return; }
-  // Allow during live (and when already started even if status string drifts)
-  const st = String(m.status||'').toLowerCase();
-  if(st && st!=='live' && st!=='innings_break' && st!=='completed'){
-    // still allow if crease already set
-    if(!m.strikerId && !m.currentBowlerId){
-      alert('Start the match before editing striker / non-striker / bowler.');
+  try{
+    const m = (typeof M==='function') ? M() : null;
+    if(!m){ alert('Open a match first'); return; }
+    if(!window.S) window.S = {temp:{}};
+    if(!S.temp) S.temp = {};
+    S.temp.editSelRole = role;
+    S.temp.editSelVal = null;
+
+    // Ensure dialog exists in DOM
+    var dlg = document.getElementById('dlgEditSelection');
+    if(!dlg){
+      dlg = document.createElement('div');
+      dlg.id = 'dlgEditSelection';
+      dlg.className = 'modal hidden';
+      dlg.setAttribute('role','dialog');
+      dlg.setAttribute('aria-modal','true');
+      dlg.setAttribute('aria-labelledby','editSelTitle');
+      dlg.innerHTML = '<div class="modal-box"><h2 id="editSelTitle" tabindex="-1">Correct Selection</h2><div id="editSelChoices"></div><div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end"><button type="button" class="btn-sec" id="btnEditSelCancel">Cancel</button><button type="button" class="btn-ok" id="btnEditSelConfirm" disabled>Update</button></div></div>';
+      document.body.appendChild(dlg);
+      var can = document.getElementById('btnEditSelCancel');
+      if(can) can.onclick = function(){ try{ closeDlg('dlgEditSelection'); }catch(e){ dlg.classList.add('hidden'); } };
+      var conf = document.getElementById('btnEditSelConfirm');
+      if(conf) conf.onclick = function(){ applyEditSelection(); };
+    }
+
+    const box = document.getElementById('editSelChoices');
+    if(!box){ alert('Edit dialog missing'); return; }
+
+    var list = [];
+    var title = 'Correct Selection';
+    if(role==='bowler') {
+      var bowl = m.battingTeam==='teamA' ? m.teamB : m.teamA;
+      if(typeof availableBowlers==='function') list = availableBowlers(bowl, []) || [];
+      if(!list.length && bowl && Array.isArray(bowl.squad)) list = bowl.squad.slice();
+      title = 'Correct bowler';
+    } else {
+      var bat = m.battingTeam==='teamA' ? m.teamA : m.teamB;
+      if(typeof availableBatters==='function') list = availableBatters(bat, []) || [];
+      if(!list.length && bat && Array.isArray(bat.squad)) list = (bat.squad||[]).filter(function(p){ return p && !p.isOut; });
+      title = role==='striker' ? 'Correct striker' : 'Correct non-striker';
+    }
+    var titleEl = document.getElementById('editSelTitle');
+    if(titleEl) titleEl.textContent = title;
+    if(!list.length){
+      alert('No eligible players found. Open Teams → mark Playing XI, then try again.');
       return;
     }
+    box.innerHTML = list.map(function(p){
+      return '<label class="choice-btn"><input type="radio" name="editSel" value="'+String(p.id)+'" /> '+(p.name||'Player')+(p.role?(' · '+p.role):'')+'</label>';
+    }).join('');
+    box.querySelectorAll('input').forEach(function(r){
+      r.onchange = function(){
+        var c = document.getElementById('btnEditSelConfirm');
+        if(c) c.disabled = false;
+        S.temp.editSelVal = r.value;
+      };
+    });
+    var confBtn = document.getElementById('btnEditSelConfirm');
+    if(confBtn){
+      confBtn.disabled = true;
+      confBtn.onclick = function(){ applyEditSelection(); };
+    }
+    if(typeof openDlg==='function') openDlg('dlgEditSelection');
+    else {
+      dlg.classList.remove('hidden');
+      dlg.setAttribute('aria-hidden','false');
+    }
+    setTimeout(function(){ try{ if(typeof focusEl==='function') focusEl(titleEl); else if(titleEl) titleEl.focus(); }catch(e){} }, 60);
+  }catch(err){
+    console.error('showEditSelectionDlg', err);
+    alert('Could not open edit dialog: '+(err&&err.message?err.message:err));
   }
-  if(!window.S) window.S = {temp:{}};
-  if(!S.temp) S.temp = {};
-  S.temp.editSelRole = role;
-  const box = $('editSelChoices');
-  if(!box){ alert('Edit dialog missing'); return; }
-  let list = [];
-  let title = 'Correct Selection';
-  if(role==='bowler') {
-     const bowl = m.battingTeam==='teamA'?m.teamB:m.teamA;
-     list = (typeof availableBowlers==='function') ? availableBowlers(bowl, []) : ((bowl&&bowl.squad)||[]);
-     // Fallback: full squad if XI empty
-     if(!list.length && bowl && Array.isArray(bowl.squad)) list = bowl.squad.slice();
-     title = 'Correct bowler';
-  } else {
-     const bat = m.battingTeam==='teamA'?m.teamA:m.teamB;
-     list = (typeof availableBatters==='function') ? availableBatters(bat, []) : ((bat&&bat.squad)||[]).filter(function(p){ return p && !p.isOut; });
-     if(!list.length && bat && Array.isArray(bat.squad)) list = bat.squad.filter(function(p){ return p && !p.isOut; });
-     title = role==='striker' ? 'Correct striker' : 'Correct non-striker';
-  }
-  if($('editSelTitle')) $('editSelTitle').textContent = title;
-  if(!list.length){ alert('No eligible players found. Mark Playing XI in Squads, then try again.'); return; }
-  box.innerHTML = list.map(function(p){
-    return '<label class="choice-btn"><input type="radio" name="editSel" value="'+String(p.id)+'" /> '+(p.name||'Player')+(p.role?(' · '+p.role):'')+'</label>';
-  }).join('');
-  box.querySelectorAll('input').forEach(function(r){
-    r.onchange = function(){
-      if($('btnEditSelConfirm')) $('btnEditSelConfirm').disabled = false;
-      S.temp.editSelVal = r.value;
-    };
-  });
-  if($('btnEditSelConfirm')) $('btnEditSelConfirm').disabled = true;
-  openDlg('dlgEditSelection');
-  setTimeout(function(){ try{ focusEl($('editSelTitle')); }catch(e){} }, 60);
 }
-// Live rebind helper (renderLive replaces buttons)
+function applyEditSelection(){
+  try{
+    const m = (typeof M==='function') ? M() : null;
+    if(!m || !S.temp || !S.temp.editSelVal){ alert('Pick a player first'); return; }
+    const val = S.temp.editSelVal;
+    if(S.temp.editSelRole==='striker') m.strikerId = val;
+    else if(S.temp.editSelRole==='nonStriker') m.nonStrikerId = val;
+    else if(S.temp.editSelRole==='bowler') m.currentBowlerId = val;
+    try{ save(); }catch(e){}
+    try{ if(typeof cloudSaveMatch==='function') cloudSaveMatch(m); }catch(e){}
+    try{ closeDlg('dlgEditSelection'); }catch(e){
+      var d=document.getElementById('dlgEditSelection'); if(d) d.classList.add('hidden');
+    }
+    try{ renderLive(); }catch(e){}
+    try{ announce('Selection updated'); }catch(e){}
+  }catch(err){
+    console.error('applyEditSelection', err);
+    alert('Update failed: '+(err&&err.message?err.message:err));
+  }
+}
+window.showEditSelectionDlg = showEditSelectionDlg;
+window.applyEditSelection = applyEditSelection;
 function wireEditSelectionButtons(){
-  if($('btnEditStriker')) $('btnEditStriker').onclick = function(){ showEditSelectionDlg('striker'); };
-  if($('btnEditNon')) $('btnEditNon').onclick = function(){ showEditSelectionDlg('nonStriker'); };
-  if($('btnEditBowler')) $('btnEditBowler').onclick = function(){ showEditSelectionDlg('bowler'); };
+  function bind(id, role){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.onclick = function(ev){
+      try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
+      showEditSelectionDlg(role);
+    };
+  }
+  bind('btnEditStriker', 'striker');
+  bind('btnEditNon', 'nonStriker');
+  bind('btnEditBowler', 'bowler');
 }
 wireEditSelectionButtons();
-if($('btnEditSelConfirm')) $('btnEditSelConfirm').onclick = function(){
-  const m = M();
-  if(!m || !S.temp || !S.temp.editSelVal){ alert('Pick a player'); return; }
-  const val = S.temp.editSelVal;
-  if(S.temp.editSelRole==='striker') m.strikerId = val;
-  else if(S.temp.editSelRole==='nonStriker') m.nonStrikerId = val;
-  else if(S.temp.editSelRole==='bowler') m.currentBowlerId = val;
-  try{ save(); }catch(e){}
-  try{ if(typeof cloudSaveMatch==='function') cloudSaveMatch(m); }catch(e){}
-  closeDlg('dlgEditSelection');
-  try{ renderLive(); }catch(e){}
-  announce('Selection updated');
-};
+(function(){
+  var conf = document.getElementById('btnEditSelConfirm');
+  if(conf) conf.onclick = function(){ applyEditSelection(); };
+})();
 
 document.addEventListener('keydown', function(e) {
   const key = e.key;

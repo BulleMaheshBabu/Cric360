@@ -493,13 +493,13 @@ button:active{transform:scale(.98)}
 }
 .pre-note time{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
 
-/* Insights 16:9 — max width + max height, true 16:9 stage */
+/* Insights — full-viewport stage (YouTube/Instagram-style expanded view) */
 .ins-stage-wrap{
   width:100%;
   max-width:100%;
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:8px;
 }
 .ins-stage-wrap .ins-card-head{
   margin:0;
@@ -515,7 +515,7 @@ button:active{transform:scale(.98)}
   aspect-ratio:16 / 9;
   height:auto;
   max-height:min(calc(100dvh - 150px), calc(100vw * 9 / 16));
-  min-height:180px;
+  min-height:220px;
   background:#07101c;
   border:1px solid var(--border);
   border-radius:12px;
@@ -542,35 +542,77 @@ button:active{transform:scale(.98)}
   border-radius:12px; border:1px solid var(--border-subtle);
 }
 .ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
-/* Admin / viewer album modal — nearly full screen 16:9 */
-.ins-modal{
-  width:min(100vw - 12px, 1100px) !important;
-  max-height:min(96vh, 100dvh - 12px) !important;
-  padding:10px 12px 12px !important;
-  overflow:auto;
+
+/* Full-screen album / preview modals */
+.ins-modal-backdrop{
+  position:fixed !important;
+  inset:0 !important;
+  z-index:300 !important;
+  background:rgba(0,0,0,.92) !important;
+  display:flex !important;
+  align-items:stretch !important;
+  justify-content:stretch !important;
+  padding:0 !important;
 }
-.ins-modal .ins-stage-wrap{width:100%}
+.ins-modal-backdrop.hidden{display:none!important}
+.ins-modal{
+  width:100vw !important;
+  max-width:100vw !important;
+  height:100dvh !important;
+  max-height:100dvh !important;
+  border-radius:0 !important;
+  padding:10px 12px 16px !important;
+  overflow:auto !important;
+  display:flex !important;
+  flex-direction:column !important;
+  box-sizing:border-box !important;
+  background:#050a14 !important;
+}
+.ins-modal .ins-stage-wrap{
+  width:100%;
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
 .ins-modal .ins-stage,
 #insPreviewModal .ins-stage,
 #insAlbumModal .ins-stage{
-  width:100%;
-  max-width:100%;
-  aspect-ratio:16 / 9;
-  max-height:min(82vh, calc((100vw - 32px) * 9 / 16));
-  min-height:200px;
+  width:100% !important;
+  max-width:100% !important;
+  flex:1 1 auto;
+  aspect-ratio:auto !important;
+  height:min(calc(100dvh - 140px), calc(100vw * 9 / 16 * 1.35)) !important;
+  max-height:calc(100dvh - 130px) !important;
+  min-height:min(70dvh, 520px) !important;
+  border-radius:12px;
 }
 #insPreviewModal .ins-stage img,
 #insAlbumModal .ins-stage img,
-.ins-modal .ins-stage img{
-  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+.ins-modal .ins-stage img,
+.ins-modal .ins-stage canvas{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;
+  background:#050a14;
 }
 #paneInsights .panel, #uwmPaneInsights .panel{padding-bottom:88px}
 #paneInsights .ins-stage-wrap, #uwmPaneInsights .ins-stage-wrap{width:100%;max-width:100%}
-@media (max-width:520px){
-  .ins-stage{border-radius:10px;max-height:min(calc(100dvh - 160px), calc(100vw * 9 / 16))}
-  .ins-modal .ins-stage,#insPreviewModal .ins-stage,#insAlbumModal .ins-stage{
-    max-height:min(70vh, calc((100vw - 24px) * 9 / 16));
+/* In-page insights also larger */
+#paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
+  min-height:min(52vw, 320px);
+  max-height:min(calc(100dvh - 200px), calc(100vw * 9 / 16));
+}
+@media (orientation:portrait){
+  .ins-modal .ins-stage,
+  #insPreviewModal .ins-stage,
+  #insAlbumModal .ins-stage{
+    height:calc(100dvh - 150px) !important;
+    max-height:calc(100dvh - 150px) !important;
+    min-height:60dvh !important;
   }
+}
+@media (max-width:520px){
+  .ins-stage{border-radius:10px}
 }
 
 
@@ -943,14 +985,6 @@ button:active{transform:scale(.98)}
         <textarea id="insAsk" rows="2" placeholder="Ask about this match…" aria-label="Ask about this match"></textarea>
         <button type="button" id="insSend" class="btn-ok" aria-label="Send question">Send</button>
         <button type="button" id="insViewAlbum" class="btn-sec" aria-label="View published insights album">View published album</button>
-        <div id="insQuickPrompts" role="group" aria-label="Quick host prompts" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;width:100%">
-          <button type="button" class="btn-sec ins-quick" data-q="Compare both Playing XIs in a simple table and one host tip for the stream." style="font-size:12px;padding:6px 10px">Playing XI</button>
-          <button type="button" class="btn-sec ins-quick" data-q="Compare both teams powerplays (overs 1 to 6). Table of runs, wickets, boundaries and one line I can say on live." style="font-size:12px;padding:6px 10px">Powerplay</button>
-          <button type="button" class="btn-sec ins-quick" data-q="Summarise the middle overs (overs 7 to 16) for the batting side. Short host lines." style="font-size:12px;padding:6px 10px">Middle overs</button>
-          <button type="button" class="btn-sec ins-quick" data-q="Death overs (overs 17 to 20) or last 4 overs: runs, wickets, boundaries. Host-ready summary." style="font-size:12px;padding:6px 10px">Death / last 4</button>
-          <button type="button" class="btn-sec ins-quick" data-q="How many boundaries (4s and 6s) in the last 4 overs? Compare if both innings data exists." style="font-size:12px;padding:6px 10px">Boundaries last 4</button>
-          <button type="button" class="btn-sec ins-quick" data-q="Give me 4 short lines I can say on live about the current match situation." style="font-size:12px;padding:6px 10px">Live situation</button>
-        </div>
       </div>
       <p id="insStatus" class="sr-only" role="status" aria-live="polite"></p>
     </div>
@@ -1540,7 +1574,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.03.1.14";
+const APP_VERSION = "2026.09.04.1.15";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -3111,6 +3145,7 @@ if($('boxBowler')){
       '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0" aria-label="Edit bowler, currently '+(bwl.name||'')+'">Edit</button>'+
       '</div>';
     if($('btnEditBowler')) $('btnEditBowler').onclick=function(){ showEditSelectionDlg('bowler'); };
+    if(typeof wireEditSelectionButtons==='function'){ try{ wireEditSelectionButtons(); }catch(e){} }
   } else {
     $('boxBowler').innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
@@ -3118,6 +3153,7 @@ if($('boxBowler')){
       '<button type="button" id="btnEditBowler" class="btn-sec" style="min-height:44px;font-size:12px;padding:4px 10px;flex-shrink:0" aria-label="Select bowler">Edit</button>'+
       '</div>';
     if($('btnEditBowler')) $('btnEditBowler').onclick=function(){ showEditSelectionDlg('bowler'); };
+    if(typeof wireEditSelectionButtons==='function'){ try{ wireEditSelectionButtons(); }catch(e){} }
   }
 }
 
@@ -3164,14 +3200,47 @@ if(ol){
 renderScorecard()}
 
 
+function resizeImageDataUrl(dataUrl, maxSide, quality){
+  return new Promise(function(resolve){
+    try{
+      const img = new Image();
+      img.onload = function(){
+        let w = img.width || maxSide;
+        let h = img.height || maxSide;
+        const scale = Math.min(1, maxSide / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        let out = c.toDataURL('image/jpeg', quality || 0.72);
+        // Keep under ~700KB for Firestore safety
+        if(out.length > 900000){
+          out = c.toDataURL('image/jpeg', 0.55);
+        }
+        resolve(out);
+      };
+      img.onerror = function(){ resolve(dataUrl); };
+      img.src = dataUrl;
+    }catch(e){ resolve(dataUrl); }
+  });
+}
 function openEditPlayerDlg(playerId, teamKey){
   const m=M();
-  if(!m||!isAdmin()) return;
-  const team = teamKey==='teamA'?m.teamA:m.teamB;
-  const p = (team.squad||[]).find(x=>x.id===playerId);
-  if(!p) return;
-  S.temp.editPlayerId = playerId;
-  S.temp.editPlayerTeam = teamKey;
+  if(!m){ alert('Open a match first'); return; }
+  if(typeof isAdmin==='function' && !isAdmin()){ alert('Admin only'); return; }
+  const tk = (teamKey==='teamB') ? 'teamB' : 'teamA';
+  const team = m[tk];
+  if(!team || !Array.isArray(team.squad)){ alert('Team squad missing'); return; }
+  const pid = String(playerId);
+  const p = team.squad.find(function(x){ return x && String(x.id)===pid; });
+  if(!p){ alert('Player not found in squad'); return; }
+  if(!window.S) window.S = {temp:{}};
+  if(!S.temp) S.temp = {};
+  S.temp.editPlayerId = pid;
+  S.temp.editPlayerTeam = tk;
+  S.temp.editPlayerPhotoData = null;
   let overlay = $('dlgEditPlayer');
   if(!overlay){
     overlay = document.createElement('div');
@@ -3182,10 +3251,9 @@ function openEditPlayerDlg(playerId, teamKey){
     overlay.setAttribute('aria-labelledby','editPlayerTitle');
     document.body.appendChild(overlay);
   }
-  overlay.classList.remove('hidden');
   const photoPreview = p.photoUrl
-    ? '<img id="editPlayerPhotoPrev" src="'+p.photoUrl+'" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:8px auto" />'
-    : '<div id="editPlayerPhotoPrev" style="width:64px;height:64px;border-radius:50%;background:var(--sec);margin:8px auto;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px">No photo</div>';
+    ? '<img id="editPlayerPhotoPrev" src="'+p.photoUrl+'" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;display:block;margin:8px auto" />'
+    : '<div id="editPlayerPhotoPrev" style="width:72px;height:72px;border-radius:50%;background:var(--sec);margin:8px auto;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px">No photo</div>';
   overlay.innerHTML =
     '<div class="modal-box">'+
     '<h2 id="editPlayerTitle" tabindex="-1">Edit player</h2>'+
@@ -3193,11 +3261,14 @@ function openEditPlayerDlg(playerId, teamKey){
     '<label for="editPlayerName">Name</label>'+
     '<input id="editPlayerName" type="text" autocomplete="off" value="'+(p.name||'').replace(/"/g,'&quot;')+'" aria-label="Player name" />'+
     '<label for="editPlayerPhoto" style="margin-top:12px">Photo (optional)</label>'+
-    '<input id="editPlayerPhoto" type="file" accept="image/*" aria-label="Choose player photo from device" />'+
+    '<input id="editPlayerPhoto" type="file" accept="image/*" capture="environment" aria-label="Choose player photo from device" />'+
+    '<p style="color:var(--muted);font-size:12px;margin:6px 0 0">Photo is resized automatically for cloud save.</p>'+
     '<div class="btn-stack" style="margin-top:14px">'+
     '<button type="button" id="btnEditPlayerSave" class="btn-ok btn-block">Save</button>'+
     '<button type="button" id="btnEditPlayerCancel" class="btn-sec btn-block">Cancel</button>'+
     '</div></div>';
+  // Use same open path as other dialogs
+  try{ openDlg('dlgEditPlayer'); }catch(e){ overlay.classList.remove('hidden'); }
   const nameInp = $('editPlayerName');
   const photoInp = $('editPlayerPhoto');
   if(photoInp){
@@ -3206,36 +3277,44 @@ function openEditPlayerDlg(playerId, teamKey){
       if(!f) return;
       const r = new FileReader();
       r.onload = function(){
-        S.temp.editPlayerPhotoData = r.result;
-        const prev = $('editPlayerPhotoPrev');
-        if(prev && prev.tagName==='IMG'){ prev.src = r.result; }
-        else if(prev){
-          const img = document.createElement('img');
-          img.id='editPlayerPhotoPrev'; img.src=r.result; img.alt='';
-          img.style.cssText='width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:8px auto';
-          prev.replaceWith(img);
-        }
+        resizeImageDataUrl(r.result, 320, 0.72).then(function(small){
+          S.temp.editPlayerPhotoData = small;
+          const prev = $('editPlayerPhotoPrev');
+          if(prev && prev.tagName==='IMG'){ prev.src = small; }
+          else if(prev){
+            const img = document.createElement('img');
+            img.id='editPlayerPhotoPrev'; img.src=small; img.alt='';
+            img.style.cssText='width:72px;height:72px;border-radius:50%;object-fit:cover;display:block;margin:8px auto';
+            prev.replaceWith(img);
+          }
+        });
       };
       r.readAsDataURL(f);
     };
   }
-  $('btnEditPlayerCancel').onclick = function(){
+  function closeEditPlayer(){
     S.temp.editPlayerPhotoData = null;
-    overlay.classList.add('hidden');
-    overlay.innerHTML = '';
-  };
-  $('btnEditPlayerSave').onclick = function(){
+    try{ closeDlg('dlgEditPlayer'); }catch(e){}
+    if(overlay){ overlay.classList.add('hidden'); }
+  }
+  $('btnEditPlayerCancel').onclick = closeEditPlayer;
+  $('btnEditPlayerSave').onclick = async function(){
     const trimmed = (nameInp && nameInp.value || '').trim();
     if(!trimmed){ alert('Enter a name'); if(nameInp) nameInp.focus(); return; }
     p.name = trimmed;
     if(S.temp.editPlayerPhotoData) p.photoUrl = S.temp.editPlayerPhotoData;
     S.temp.editPlayerPhotoData = null;
-    save();
-    overlay.classList.add('hidden');
-    overlay.innerHTML = '';
+    try{ save(); }catch(e){}
+    try{
+      if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m);
+    }catch(e){
+      console.warn('cloudSaveMatch after edit player', e);
+      alert('Saved on this device. Cloud sync failed — check connection and try again.');
+    }
+    closeEditPlayer();
     try{ renderLive(); }catch(e){}
     try{ renderScorecard(); }catch(e){}
-    if(typeof renderMatchSquadsPane === 'function') renderMatchSquadsPane('admin');
+    try{ if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin'); }catch(e){}
     announce('Player updated: '+p.name);
   };
   setTimeout(function(){ focusEl($('editPlayerTitle')||nameInp); }, 60);
@@ -6205,259 +6284,45 @@ function getMatchInsights(m){
   return arr;
 }
 
-function buildMatchAiContext(m, question){
+function buildMatchAiContext(m){
   if(!m) return {};
-  const q = String(question || '').toLowerCase();
-
-  // ---- detect what the host is asking ----
-  const wantPowerplay = /\bpower\s*play|powerplay|pp\b|\bovers?\s*1\s*[-to]+\s*6\b|\b(first\s*)?six overs\b/.test(q);
-  const wantMiddle = /\bmiddle\s*overs?\b|\bovers?\s*7\s*[-to]+\s*16\b|\bmid(\s|-)?innings\b/.test(q);
-  const wantDeath = /\bdeath\s*overs?\b|\bovers?\s*17\s*[-to]+\s*20\b|\bfinal\s*overs?\b|\blast\s*four\s*overs?\b/.test(q);
-  const wantXi = /\bplaying\s*11\b|\bplaying\s*xi\b|\bxi\b|\bsquads?\b|\bteam\s*list\b|\bline[\s-]*ups?\b|\bpicked\b/.test(q);
-  const wantBoundaries = /\bboundar|\bfours?\b|\bsixes?\b|\b6s\b|\b4s\b/.test(q);
-  const wantLast = /\blast\s*(\d+)\s*overs?\b/.exec(q);
-  const lastN = wantLast ? Math.min(20, Math.max(1, parseInt(wantLast[1], 10) || 4)) : (/\blast\s*overs?\b/.test(q) ? 4 : 0);
-  const wantFirst = /\bfirst\s*(\d+)\s*overs?\b/.exec(q);
-  const firstN = wantFirst ? Math.min(20, Math.max(1, parseInt(wantFirst[1], 10) || 2)) : 0;
-  // If nothing specific — still send short recent + always-on facts
-  const wantAnyPhase = wantPowerplay || wantMiddle || wantDeath || lastN > 0 || firstN > 0;
-
-  function slimBall(b){
-    if(!b) return null;
+  const balls = (typeof collectAllBalls==='function' ? collectAllBalls(m) : []).slice(-80);
+  const slimBalls = balls.map(function(b){
     return {
       over: b.overStr || b.over || '',
-      type: b.type || 'ball',
+      type: b.type || '',
       runs: b.runs,
-      isFour: !!(b.isFour || b.runs === 4),
-      isSix: !!(b.isSix || b.runs === 6),
-      wicket: !!(b.wicket || b.isWicket || b.runs === 'W' || b.type === 'out'),
-      bowler: b.bowler || b.bowlerName || b.bowl || '',
-      batter: b.striker || b.batterName || b.bat || '',
-      text: (b.text || b.desc || '').slice(0, 120)
+      legal: b.legal,
+      isFour: !!(b.isFour || b.runs===4),
+      isSix: !!(b.isSix || b.runs===6),
+      wicket: !!(b.wicket || b.isWicket),
+      bowler: b.bowlerName || b.bowl || '',
+      batter: b.batterName || b.bat || '',
+      text: b.text || b.desc || ''
     };
-  }
-
-  function oversFrom(completedOvers, currentOverBalls, inningsNo){
-    const out = [];
-    (completedOvers || []).forEach(function(o, idx){
-      const balls = (o.balls || []).map(slimBall).filter(Boolean);
-      out.push({
-        innings: inningsNo,
-        overNum: (o.num != null ? o.num : (idx + 1)),
-        bowler: o.bowlerName || o.bowler || '',
-        runs: o.runs != null ? o.runs : balls.reduce(function(s, b){ return s + (typeof b.runs === 'number' ? b.runs : 0); }, 0),
-        wickets: o.wickets != null ? o.wickets : balls.filter(function(b){ return b.wicket; }).length,
-        fours: balls.filter(function(b){ return b.isFour; }).length,
-        sixes: balls.filter(function(b){ return b.isSix; }).length,
-        balls: balls
-      });
-    });
-    if(currentOverBalls && currentOverBalls.length){
-      const balls = currentOverBalls.map(slimBall).filter(Boolean);
-      const overNum = (completedOvers && completedOvers.length) ? (completedOvers.length + 1) : 1;
-      out.push({
-        innings: inningsNo,
-        overNum: overNum,
-        inProgress: true,
-        bowler: (balls[0] && balls[0].bowler) || '',
-        runs: balls.reduce(function(s, b){ return s + (typeof b.runs === 'number' ? b.runs : 0); }, 0),
-        wickets: balls.filter(function(b){ return b.wicket; }).length,
-        fours: balls.filter(function(b){ return b.isFour; }).length,
-        sixes: balls.filter(function(b){ return b.isSix; }).length,
-        balls: balls
-      });
-    }
-    return out;
-  }
-
-  function filterOvers(overs, pred){
-    return (overs || []).filter(pred);
-  }
-  function phaseBlock(overs, fromN, toN, label){
-    const list = filterOvers(overs, function(o){ return o.overNum >= fromN && o.overNum <= toN; });
-    const runs = list.reduce(function(s, o){ return s + (o.runs || 0); }, 0);
-    const wickets = list.reduce(function(s, o){ return s + (o.wickets || 0); }, 0);
-    const fours = list.reduce(function(s, o){ return s + (o.fours || 0); }, 0);
-    const sixes = list.reduce(function(s, o){ return s + (o.sixes || 0); }, 0);
-    return {
-      phase: label,
-      oversFrom: fromN,
-      oversTo: toN,
-      oversCovered: list.map(function(o){ return o.overNum; }),
-      complete: list.filter(function(o){ return !o.inProgress; }).length >= (toN - fromN + 1),
-      runs: runs,
-      wickets: wickets,
-      fours: fours,
-      sixes: sixes,
-      boundaries: fours + sixes,
-      overs: list
-    };
-  }
-  function lastNOvers(overs, n){
-    const done = (overs || []).filter(function(o){ return !o.inProgress; });
-    const slice = done.slice(-n);
-    return phaseBlock(slice, slice.length ? slice[0].overNum : 0, slice.length ? slice[slice.length - 1].overNum : 0, 'last_' + n);
-  }
-  function firstNOvers(overs, n){
-    return phaseBlock(overs, 1, n, 'first_' + n);
-  }
-
-  const innings1Overs = (m.innings1)
-    ? oversFrom(m.innings1.completedOvers, m.innings1.currentOverBalls, 1)
-    : [];
-  const currentInn = m.currentInnings || m.innings || 1;
-  const currentOvers = oversFrom(m.completedOvers, m.currentOverBalls, currentInn);
-
-  // Build only requested phases (saves tokens)
-  const phases = {};
-  if(wantPowerplay || !wantAnyPhase){
-    // Always attach compact powerplay summary when no phase asked? Only if powerplay asked OR general — keep general light
-  }
-  if(wantPowerplay){
-    phases.powerplayInnings1 = phaseBlock(innings1Overs, 1, 6, 'powerplay');
-    phases.powerplayCurrentInnings = phaseBlock(currentOvers, 1, 6, 'powerplay');
-  }
-  if(wantMiddle){
-    phases.middleInnings1 = phaseBlock(innings1Overs, 7, 16, 'middle');
-    phases.middleCurrentInnings = phaseBlock(currentOvers, 7, 16, 'middle');
-  }
-  if(wantDeath){
-    phases.deathInnings1 = phaseBlock(innings1Overs, 17, 20, 'death');
-    phases.deathCurrentInnings = phaseBlock(currentOvers, 17, 20, 'death');
-  }
-  if(lastN > 0){
-    phases['last' + lastN + 'Innings1'] = lastNOvers(innings1Overs, lastN);
-    phases['last' + lastN + 'CurrentInnings'] = lastNOvers(currentOvers, lastN);
-  }
-  if(firstN > 0){
-    phases['first' + firstN + 'Innings1'] = firstNOvers(innings1Overs, firstN);
-    phases['first' + firstN + 'CurrentInnings'] = firstNOvers(currentOvers, firstN);
-  }
-
-  // Short recent balls only when no specific phase (situation / general chat)
-  let recentBalls = [];
-  if(!wantAnyPhase){
-    const flat = [];
-    currentOvers.forEach(function(o){
-      (o.balls || []).forEach(function(b){
-        flat.push(Object.assign({innings: o.innings, overNum: o.overNum}, b));
-      });
-    });
-    recentBalls = flat.slice(-24);
-  }
-
-  function slimPlayer(p){
-    if(!p) return null;
-    return {
-      name: p.name || '',
-      role: p.role || p.type || '',
-      inPlaying11: !!p.inPlaying11,
-      runs: p.runs || 0,
-      balls: p.balls || 0,
-      fours: p.fours || 0,
-      sixes: p.sixes || 0,
-      isOut: !!p.isOut,
-      dismissal: p.dismissal || '',
-      bowlRuns: p.bowlRuns || 0,
-      bowlBalls: p.bowlBalls || 0,
-      wickets: p.wickets || 0
-    };
-  }
-  function teamPack(t){
+  });
+  function teamSnap(t){
     if(!t) return null;
-    const squad = Array.isArray(t.squad) ? t.squad : [];
-    const p11 = squad.filter(function(p){ return p && p.inPlaying11; }).map(slimPlayer);
-    const pack = {
-      name: t.name || '',
-      runs: t.runs || 0,
-      wickets: t.wickets || 0,
-      balls: t.balls || 0,
-      overs: typeof fmtOvers === 'function' ? fmtOvers(t.balls || 0) : (t.balls || 0),
-      playing11: p11.length ? p11 : squad.slice(0, 11).map(slimPlayer)
+    return {
+      name: t.name,
+      runs: t.runs||0,
+      wickets: t.wickets||0,
+      balls: t.balls||0,
+      overs: typeof fmtOvers==='function' ? fmtOvers(t.balls||0) : (t.balls||0)
     };
-    // Full squad only when XI/squad question (slightly larger)
-    if(wantXi){
-      pack.squad = squad.map(slimPlayer);
-    }
-    pack.battingCard = squad.filter(function(p){ return p && ((p.balls || 0) > 0 || p.isOut); }).map(slimPlayer);
-    pack.bowlingCard = squad.filter(function(p){ return p && ((p.bowlBalls || 0) > 0 || (p.wickets || 0) > 0); }).map(slimPlayer);
-    return pack;
   }
-
-  const updates = [];
-  if(Array.isArray(m.updates)){
-    m.updates.slice(-12).forEach(function(u){
-      updates.push({text: (u.text || u.msg || u.message || '').slice(0, 200), at: u.at || u.createdAt || null});
-    });
-  }
-  if(Array.isArray(m.preNotes)){
-    m.preNotes.slice(-8).forEach(function(u){
-      updates.push({text: (u.text || u.msg || '').slice(0, 200), kind: 'pre', at: u.at || u.createdAt || null});
-    });
-  }
-
-  function findName(team, id){
-    if(!team || !Array.isArray(team.squad) || id == null) return '';
-    const p = team.squad.find(function(x){ return x && String(x.id) === String(id); });
-    return p ? (p.name || '') : '';
-  }
-  const batKey = m.battingTeam === 'teamB' ? 'teamB' : 'teamA';
-  const bowlKey = batKey === 'teamA' ? 'teamB' : 'teamA';
-
-  const detected = [];
-  if(wantPowerplay) detected.push('powerplay_1_to_6');
-  if(wantMiddle) detected.push('middle_7_to_16');
-  if(wantDeath) detected.push('death_17_to_20');
-  if(lastN) detected.push('last_' + lastN + '_overs');
-  if(firstN) detected.push('first_' + firstN + '_overs');
-  if(wantXi) detected.push('playing_xi_or_squad');
-  if(wantBoundaries) detected.push('boundaries');
-
   return {
-    persona: {
-      role: 'Cric360 Live studio analyst',
-      style: 'YouTube live host: clear, short, readable on stream. Never invent balls or players. If a phase is incomplete, say so.'
-    },
     series: m.series || m.name || '',
-    matchType: m.matchType || '',
     status: m.status || '',
-    innings: currentInn,
+    innings: m.innings || 1,
     battingTeam: m.battingTeam,
-    toss: m.toss || m.tossInfo || null,
-    venue: m.venue || '',
-    score: {
-      runs: m.totalScore || 0,
-      wickets: m.wickets || 0,
-      balls: m.totalBalls || 0,
-      overs: typeof fmtOvers === 'function' ? fmtOvers(m.totalBalls || 0) : String(m.totalBalls || 0),
-      target: m.target || null
-    },
-    onStrike: {
-      striker: findName(m[batKey], m.strikerId),
-      nonStriker: findName(m[batKey], m.nonStrikerId),
-      bowler: findName(m[bowlKey], m.currentBowlerId)
-    },
-    teamA: teamPack(m.teamA),
-    teamB: teamPack(m.teamB),
-    updates: updates,
-    phases: phases,
-    recentBalls: recentBalls,
-    questionHints: detected,
-    phaseRules: {
-      powerplay: 'overs 1-6',
-      middle: 'overs 7-16',
-      death: 'overs 17-20'
-    },
-    guidance: [
-      'Use phases.* for powerplay/middle/death/last/first over questions — do not assume missing overs.',
-      'Playing XI is in teamA.playing11 and teamB.playing11.',
-      'On-field now: onStrike.',
-      'Prefer Markdown tables for comparisons.',
-      'Host-ready short lines for YouTube live unless more detail is asked.'
-    ].join(' ')
+    teamA: teamSnap(m.teamA),
+    teamB: teamSnap(m.teamB),
+    totalBalls: m.totalBalls||0,
+    recentBalls: slimBalls,
+    note: 'Use only this data. Prefer Markdown tables for numeric comparisons.'
   };
 }
-
 
 function escapeIns(s){
   return String(s==null?'':s)
@@ -6863,13 +6728,7 @@ async function callAskMatchAi(question){
   if(!firebase || !firebase.functions) throw new Error('Functions SDK not loaded');
   const fn = firebase.app().functions('asia-south1').httpsCallable('askMatchAi');
   const m = M();
-  const context = buildMatchAiContext(m, question);
-  const res = await fn({
-    question: question,
-    context: context,
-    persona: context.persona || null,
-    mode: 'youtube_live'
-  });
+  const res = await fn({ question: question, context: buildMatchAiContext(m) });
   return res && res.data ? res.data : {};
 }
 
@@ -7005,13 +6864,6 @@ function wireInsightsUi(){
       if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); insSendQuestion(); }
     });
   }
-  document.querySelectorAll('.ins-quick').forEach(function(btn){
-    btn.onclick = function(){
-      const q = btn.getAttribute('data-q') || '';
-      if($('insAsk')) $('insAsk').value = q;
-      insSendQuestion();
-    };
-  });
   if($('insViewAlbum')) $('insViewAlbum').onclick = openInsAlbumModal;
   if($('insModalClose')) $('insModalClose').onclick = closeInsAlbumModal;
   if($('insAlbumModal')){
@@ -7059,25 +6911,25 @@ function renderMatchSquadsPane(mode){
   if(pre) pre.classList.add('hidden');
   if(live) live.classList.remove('hidden');
   const modePlay = window._squadViewMode !== 'full';
-  function col(team){
-    let list = (team.squad||[]);
+  function col(team, tk){
+    let list = (team && team.squad) ? team.squad.slice() : [];
     if(modePlay){
-      const p11=list.filter(p=>p.inPlaying11);
+      const p11=list.filter(function(p){ return p && p.inPlaying11; });
       if(p11.length) list=p11;
     }
     let h='<div class="squad-col" role="list" aria-label="'+(team.name||'')+' '+(modePlay?'Playing XI':'Full squad')+'">';
     h+='<div class="squad-col-head">'+(team.name||'')+'<div class="squad-col-sub">'+(modePlay?'Playing XI':'Full squad')+' · '+list.length+'</div></div>';
-    list.forEach(p=>{
+    list.forEach(function(p){
+      if(!p) return;
       const role=p.role||p.type||'';
       const label=(p.name||'Player')+(role?(', '+role):'');
       h+='<div class="squad-player" role="listitem" tabindex="0">';
       h+='<span class="sr-only">'+label.replace(/</g,'&lt;').replace(/"/g,'')+'</span>';
       h+='<div aria-hidden="true" style="display:flex;align-items:center;gap:8px;width:100%">';
-      if(p.photoUrl) h+='<img src="'+p.photoUrl+'" alt="" />';
+      if(p.photoUrl) h+='<img class="squad-photo" src="'+p.photoUrl+'" alt="" />';
       h+='<div><div class="nm">'+(p.name||'')+'</div>'+(role?('<div class="rl">'+role+'</div>'):'')+'</div>';
       if(mode==='admin'){
-        const tk = (team===m.teamA || (team&&m.teamA&&team.id===m.teamA.id)) ? 'teamA' : 'teamB';
-        h+='<button type="button" class="btn-sec btn-edit" style="margin-left:auto;padding:4px 8px;font-size:11px;min-height:0" aria-label="Edit player '+(p.name||'').replace(/'/g,'')+'" data-edit-player="'+p.id+'" data-team="'+tk+'">Edit</button>';
+        h+='<button type="button" class="btn-sec btn-edit" style="margin-left:auto;padding:4px 8px;font-size:11px;min-height:0" aria-label="Edit player '+(p.name||'').replace(/'/g,'')+'" data-edit-player="'+String(p.id)+'" data-team="'+tk+'">Edit</button>';
       }
       h+='</div></div>';
     });
@@ -7085,7 +6937,7 @@ function renderMatchSquadsPane(mode){
     return h+'</div>';
   }
   split.className='squad-split';
-  split.innerHTML = col(m.teamA)+col(m.teamB);
+  split.innerHTML = col(m.teamA,'teamA')+col(m.teamB,'teamB');
   if(mode==='admin'){
     split.querySelectorAll('[data-edit-player]').forEach(function(btn){
       btn.onclick = function(ev){
@@ -7364,42 +7216,69 @@ if (auth) {
 <script>
 function showEditSelectionDlg(role) {
   const m = M();
-  if(!m || m.status!=='live') return;
+  if(!m){ alert('Open a match first'); return; }
+  // Allow during live (and when already started even if status string drifts)
+  const st = String(m.status||'').toLowerCase();
+  if(st && st!=='live' && st!=='innings_break' && st!=='completed'){
+    // still allow if crease already set
+    if(!m.strikerId && !m.currentBowlerId){
+      alert('Start the match before editing striker / non-striker / bowler.');
+      return;
+    }
+  }
+  if(!window.S) window.S = {temp:{}};
+  if(!S.temp) S.temp = {};
   S.temp.editSelRole = role;
   const box = $('editSelChoices');
-  if(!box) return;
+  if(!box){ alert('Edit dialog missing'); return; }
   let list = [];
   let title = 'Correct Selection';
   if(role==='bowler') {
      const bowl = m.battingTeam==='teamA'?m.teamB:m.teamA;
-     // Playing XI only; may keep current bowler selectable if correcting a mistake mid-over
-     list = availableBowlers(bowl, []);
+     list = (typeof availableBowlers==='function') ? availableBowlers(bowl, []) : ((bowl&&bowl.squad)||[]);
+     // Fallback: full squad if XI empty
+     if(!list.length && bowl && Array.isArray(bowl.squad)) list = bowl.squad.slice();
      title = 'Correct bowler';
   } else {
      const bat = m.battingTeam==='teamA'?m.teamA:m.teamB;
-     // Playing XI, not out (injury flow stays separate via Injury buttons)
-     list = availableBatters(bat, []);
+     list = (typeof availableBatters==='function') ? availableBatters(bat, []) : ((bat&&bat.squad)||[]).filter(function(p){ return p && !p.isOut; });
+     if(!list.length && bat && Array.isArray(bat.squad)) list = bat.squad.filter(function(p){ return p && !p.isOut; });
      title = role==='striker' ? 'Correct striker' : 'Correct non-striker';
   }
   if($('editSelTitle')) $('editSelTitle').textContent = title;
-  if(!list.length){ alert('No eligible players in Playing XI'); return; }
-  box.innerHTML = list.map(p=>'<label class="choice-btn"><input type="radio" name="editSel" value="'+p.id+'" /> '+p.name+(p.role?(' · '+p.role):'')+'</label>').join('');
-  box.querySelectorAll('input').forEach(r=>{
-    r.onchange = () => { $('btnEditSelConfirm').disabled = false; S.temp.editSelVal = r.value; };
+  if(!list.length){ alert('No eligible players found. Mark Playing XI in Squads, then try again.'); return; }
+  box.innerHTML = list.map(function(p){
+    return '<label class="choice-btn"><input type="radio" name="editSel" value="'+String(p.id)+'" /> '+(p.name||'Player')+(p.role?(' · '+p.role):'')+'</label>';
+  }).join('');
+  box.querySelectorAll('input').forEach(function(r){
+    r.onchange = function(){
+      if($('btnEditSelConfirm')) $('btnEditSelConfirm').disabled = false;
+      S.temp.editSelVal = r.value;
+    };
   });
-  $('btnEditSelConfirm').disabled = true;
+  if($('btnEditSelConfirm')) $('btnEditSelConfirm').disabled = true;
   openDlg('dlgEditSelection');
   setTimeout(function(){ try{ focusEl($('editSelTitle')); }catch(e){} }, 60);
 }
-if($('btnEditStriker')) $('btnEditStriker').onclick = () => showEditSelectionDlg('striker');
-if($('btnEditNon')) $('btnEditNon').onclick = () => showEditSelectionDlg('nonStriker');
-if($('btnEditBowler')) $('btnEditBowler').onclick = () => showEditSelectionDlg('bowler');
-if($('btnEditSelConfirm')) $('btnEditSelConfirm').onclick = () => {
+// Live rebind helper (renderLive replaces buttons)
+function wireEditSelectionButtons(){
+  if($('btnEditStriker')) $('btnEditStriker').onclick = function(){ showEditSelectionDlg('striker'); };
+  if($('btnEditNon')) $('btnEditNon').onclick = function(){ showEditSelectionDlg('nonStriker'); };
+  if($('btnEditBowler')) $('btnEditBowler').onclick = function(){ showEditSelectionDlg('bowler'); };
+}
+wireEditSelectionButtons();
+if($('btnEditSelConfirm')) $('btnEditSelConfirm').onclick = function(){
   const m = M();
-  if(S.temp.editSelRole==='striker') m.strikerId = S.temp.editSelVal;
-  else if(S.temp.editSelRole==='nonStriker') m.nonStrikerId = S.temp.editSelVal;
-  else if(S.temp.editSelRole==='bowler') m.currentBowlerId = S.temp.editSelVal;
-  save(); closeDlg('dlgEditSelection'); renderLive(); announce('Selection updated');
+  if(!m || !S.temp || !S.temp.editSelVal){ alert('Pick a player'); return; }
+  const val = S.temp.editSelVal;
+  if(S.temp.editSelRole==='striker') m.strikerId = val;
+  else if(S.temp.editSelRole==='nonStriker') m.nonStrikerId = val;
+  else if(S.temp.editSelRole==='bowler') m.currentBowlerId = val;
+  try{ save(); }catch(e){}
+  try{ if(typeof cloudSaveMatch==='function') cloudSaveMatch(m); }catch(e){}
+  closeDlg('dlgEditSelection');
+  try{ renderLive(); }catch(e){}
+  announce('Selection updated');
 };
 
 document.addEventListener('keydown', function(e) {

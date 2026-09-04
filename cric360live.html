@@ -640,10 +640,29 @@ button:active{transform:scale(.98)}
   aspect-ratio:auto !important; min-height:0 !important; max-height:none !important;
   background:#0D1B2A !important;
 }
+/* Desktop / large screens: cap width so stream-scale fonts don't look huge */
+@media (min-width: 768px){
+  #paneInsights .ins-stage-wrap, #uwmPaneInsights .ins-stage-wrap,
+  #paneInsights .ins-stage, #uwmPaneInsights .ins-stage,
+  .ins-modal .ins-stage, #insAlbumModal .ins-stage, #insPreviewModal .ins-stage{
+    max-width: 640px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+@media (min-width: 1100px){
+  #paneInsights .ins-stage, #uwmPaneInsights .ins-stage,
+  .ins-modal .ins-stage, #insAlbumModal .ins-stage, #insPreviewModal .ins-stage{
+    max-width: 720px !important;
+  }
+}
 @media (max-width:520px){
   .ins-stage{border-radius:10px}
   .ins-pill-text{font-size:14px}
   .ins-pill-num{font-size:17px}
+  #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
+    max-width: 100% !important;
+  }
 }
 
 
@@ -1683,7 +1702,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.04.1.27";
+const APP_VERSION = "2026.09.04.1.29";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -6984,29 +7003,29 @@ function polishInsightTitle(raw){
 
 function insightTakeaway(ins){
   function clean(s){
-    s = String(s||'').replace(/[#*_`]/g,'').replace(/\s+/g,' ').trim();
-    if(!s || s.length < 10) return '';
-    if(/^(summary|breakdown|takeaway|notes?|key\s*points?|bowlers?\s+conceding|batter\s+comparison)[:\s]*$/i.test(s)) return '';
-    if(/^[-*•·.\s]+$/.test(s)) return '';
-    // strip leading label-only "Something:"
+    s = String(s||'').replace(/[#*_`]/g,'').replace(/^\s*[-•·]+\s*/,'').replace(/\s+/g,' ').trim();
+    if(!s || s.length < 12) return '';
+    if(/^(summary|breakdown|takeaway|notes?|key\s*points?)[:\s]*$/i.test(s)) return '';
+    // all-caps label with no sentence value
+    if(/^[A-Z0-9 ,\-|–—:]+$/.test(s) && !/[.!?]"/.test(s) && s.length < 90) return '';
+    if(/^[-•·.\s]+$/.test(s)) return '';
     s = s.replace(/^(summary\s*breakdown|quick\s*note)\s*:\s*/i,'');
-    if(s.length < 10) return '';
+    if(s.length < 12) return '';
     return s;
   }
   var t = clean(ins && (ins.takeaway || ins.hook || ins.summary));
-  if(t) return t.length > 120 ? t.slice(0,117)+'…' : t;
+  if(t) return t.length > 110 ? t.slice(0,107)+'…' : t;
   var raw = String((ins && ins.text) || '');
   var lines = raw.split(/\n/);
   for(var i=0;i<lines.length;i++){
-    var line = lines[i].replace(/^\s*[-*•]\s*/,'').trim();
-    line = clean(line);
-    // skip table rows
-    if(line.indexOf('|')>=0) continue;
-    if(line && line.length >= 24){
-      return line.length > 120 ? line.slice(0,117)+'…' : line;
+    var line = clean(lines[i].replace(/^\s*[-*•]\s*/,''));
+    if(!line || line.indexOf('|')>=0) continue;
+    // Prefer a real sentence
+    if(line.length >= 28 && /[a-z]/.test(line)){
+      return line.length > 110 ? line.slice(0,107)+'…' : line;
     }
   }
-  return ''; // empty → no footer drawn
+  return '';
 }
 
 
@@ -7048,9 +7067,20 @@ function teamColorForLabel(lab){
 
 /** 16:9 broadcast card for YouTube live overlays — readable in 2–3 seconds */
 function drawInsightGraphic(ins, title){
-  // 16:9 broadcast card. Fonts sized so they stay readable when shown full-width on a ~360px phone
-  // (scale factor ~1920/360 ≈ 5.3 → target 16px screen ≈ 85px canvas)
-  const W = 1920, H = 1080;
+  // Canvas is always 1920-wide. Fonts are chosen for a *display* width of ~400–560px
+  // (phone full-width or desktop capped card) so type is readable but not huge on Windows Chrome.
+  // Optional device scale: slightly larger on narrow phones, slightly tighter on desktop publish.
+  var viewW = 400;
+  try{ viewW = Math.min(window.innerWidth || 400, 720); }catch(e){}
+  // scaleMul: 1.0 at ~420px view; up to 1.12 on small phones; down to 0.88 on wide desktop
+  var scaleMul = 1;
+  if(viewW < 400) scaleMul = 1.12;
+  else if(viewW < 520) scaleMul = 1.05;
+  else if(viewW >= 900) scaleMul = 0.88;
+  else if(viewW >= 700) scaleMul = 0.94;
+  function fs(px){ return Math.round(px * scaleMul); }
+
+  const W = 1920, H = 1280;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
@@ -7060,51 +7090,52 @@ function drawInsightGraphic(ins, title){
   bg.addColorStop(1,'#10172A');
   ctx.fillStyle = bg;
   ctx.fillRect(0,0,W,H);
-
   ctx.strokeStyle = 'rgba(255,255,255,0.14)';
   ctx.lineWidth = 3;
   ctx.strokeRect(10, 10, W-20, H-20);
 
   const t = polishInsightTitle(title || (ins && ins.title) || 'Key Match Insight');
   const sub = insightSubtitle(ins, t);
-  const takeaway = insightTakeaway(ins);
-  const hasFooter = !!(takeaway && String(takeaway).trim().length >= 10);
+  let takeaway = insightTakeaway(ins);
+  if(takeaway){
+    var tk = String(takeaway).trim();
+    if(/^[A-Z0-9 ,\-|–—:]+$/.test(tk) && tk.length < 80) takeaway = '';
+    if(/^[-•·.\s]+$/.test(tk)) takeaway = '';
+  }
+  const hasFooter = !!(takeaway && String(takeaway).trim().length >= 12);
 
-  // Header ~18% for readable title
-  const headerH = Math.round(H * 0.18);
-  const footerH = hasFooter ? Math.round(H * 0.14) : Math.round(H * 0.04);
+  const headerH = Math.round(H * 0.15);
+  const footerH = hasFooter ? Math.round(H * 0.11) : 20;
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.fillRect(10, 10, W-20, headerH);
 
   // LIVE badge
   ctx.fillStyle = '#EF4444';
-  roundRect(ctx, 40, 40, 120, 48, 10);
+  roundRect(ctx, 40, 40, fs(120), fs(46), 10);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = '800 28px "Plus Jakarta Sans",sans-serif';
+  ctx.font = '700 '+fs(26)+'px "Plus Jakarta Sans",sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('LIVE', 100, 73);
+  ctx.fillText('LIVE', 40 + fs(60), 40 + fs(30));
   ctx.textAlign = 'left';
 
-  // Title — ~18px on a 360px phone
+  // Title — balanced weight (700 not 800)
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '800 72px "Space Grotesk","Plus Jakarta Sans",sans-serif';
-  wrapCanvasText(ctx, t, 180, 52, W - 420, 72, 2);
+  ctx.font = '700 '+fs(58)+'px "Space Grotesk","Plus Jakarta Sans",sans-serif';
+  wrapCanvasText(ctx, t, 180, 44, W - 420, fs(60), 2);
 
-  // Subtitle
   ctx.fillStyle = '#94A3B8';
-  ctx.font = '600 36px "Plus Jakarta Sans",sans-serif';
+  ctx.font = '600 '+fs(28)+'px "Plus Jakarta Sans",sans-serif';
   ctx.fillText(sub, 180, headerH - 18);
 
-  // Brand
   ctx.fillStyle = '#38BDF8';
-  ctx.font = '800 32px "Plus Jakarta Sans",sans-serif';
+  ctx.font = '700 '+fs(26)+'px "Plus Jakarta Sans",sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText('CRIC360', W - 48, 72);
+  ctx.fillText('CRIC360', W - 48, 70);
   ctx.textAlign = 'left';
 
-  const mainTop = headerH + 20;
-  const mainBottom = H - footerH - 12;
+  const mainTop = headerH + 24;
+  const mainBottom = H - footerH - 14;
   const mainH = mainBottom - mainTop;
 
   const chart = (ins && ins.chart) || (typeof autoChartFromText==='function' ? autoChartFromText(ins && ins.text) : null);
@@ -7127,32 +7158,36 @@ function drawInsightGraphic(ins, title){
     var useHorizontal = !isOvers && (nameLike >= Math.ceil(n*0.4) || n <= 8);
 
     if(useHorizontal && !isTeamCompare){
-      var left = 48, right = W - 48;
-      // Thick rows that fill vertical space (broadcast bars, not thin loaders)
-      var rowH = Math.max(110, Math.min(160, Math.floor(mainH / Math.max(n, 1))));
+      const nameColW = fs(480);
+      const leftPad = 48;
+      const valueColW = fs(280);
+      const gap = 24;
+      const trackX = leftPad + nameColW + gap;
+      const trackW = W - trackX - valueColW - leftPad;
+
+      var rowH = Math.max(fs(110), Math.min(fs(155), Math.floor(mainH / Math.max(n, 1))));
       var totalBlock = rowH * n;
       var startY = mainTop + Math.max(8, Math.floor((mainH - totalBlock) / 2));
+
       for(var i=0;i<n;i++){
         var y = startY + i*rowH;
         var lab = labels[i] || String(i+1);
         var v = Number(series[0].values[i]||0);
         var barColor = teamColorForLabel(lab) || palette[i % palette.length];
 
-        // Name ~16px on phone
-        ctx.fillStyle = '#F8FAFC';
-        ctx.font = '700 64px "Plus Jakarta Sans",sans-serif';
+        ctx.fillStyle = '#F1F5F9';
+        ctx.font = '600 '+fs(48)+'px "Plus Jakarta Sans",sans-serif';
         ctx.textAlign = 'left';
-        var nameDraw = lab.length > 18 ? lab.slice(0,17)+'…' : lab;
-        ctx.fillText(nameDraw, left, y + rowH*0.62);
+        var nameDraw = lab;
+        while(nameDraw.length > 3 && ctx.measureText(nameDraw).width > nameColW - 8){
+          nameDraw = nameDraw.slice(0, -2);
+        }
+        if(nameDraw !== lab) nameDraw = nameDraw.replace(/\s+\S?$/,'') + '…';
+        ctx.fillText(nameDraw, leftPad, y + rowH*0.60);
 
-        var nameW = Math.min(420, ctx.measureText(nameDraw).width + 36);
-        var trackX = left + nameW;
-        var trackW = Math.max(280, right - trackX - 320);
-        // Bar thickness ~28–32px on phone → ~150px canvas
-        var bh = Math.max(56, Math.min(90, rowH * 0.48));
+        var bh = Math.max(fs(52), Math.min(fs(78), rowH * 0.46));
         var by = y + (rowH - bh) / 2;
-
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillStyle = 'rgba(255,255,255,0.11)';
         roundRect(ctx, trackX, by, trackW, bh, 14);
         ctx.fill();
         var fw = Math.max(12, trackW * (v / max));
@@ -7169,30 +7204,26 @@ function drawInsightGraphic(ins, title){
           if(mm){
             var allSq = [].concat((mm.teamA&&mm.teamA.squad)||[], (mm.teamB&&mm.teamB.squad)||[]);
             var pname = String(lab).trim().toLowerCase();
-            var pl = null;
             for(var pi=0;pi<allSq.length;pi++){
-              if(allSq[pi] && String(allSq[pi].name||'').trim().toLowerCase()===pname){ pl=allSq[pi]; break; }
-            }
-            if(pl && (pl.balls||0) > 0){
-              var srV = ((pl.runs||0)/(pl.balls||1)*100).toFixed(0);
-              metric = (pl.runs||v)+' ('+(pl.balls)+'b) · SR '+srV;
+              if(allSq[pi] && String(allSq[pi].name||'').trim().toLowerCase()===pname){
+                var pl = allSq[pi];
+                if((pl.balls||0)>0) metric = (pl.runs||v)+' ('+pl.balls+'b)';
+                break;
+              }
             }
           }
         }catch(e){}
         try{
-          if(chart && chart.balls && chart.balls[i]!=null){
-            var bb = chart.balls[i];
-            metric = v+' ('+bb+'b) · SR '+(bb>0?((v/bb)*100).toFixed(0):'0');
-          }
+          if(chart && chart.balls && chart.balls[i]!=null) metric = v+' ('+chart.balls[i]+'b)';
         }catch(e){}
 
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = metric.length > 14 ? '800 48px "Plus Jakarta Sans",sans-serif' : '800 64px "Plus Jakarta Sans",sans-serif';
+        ctx.font = '700 '+fs(48)+'px "Plus Jakarta Sans",sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(metric, trackX + fw + 20, y + rowH*0.62);
+        ctx.fillText(metric, trackX + trackW + 20, y + rowH*0.60);
       }
     } else if(isTeamCompare){
-      var left2 = 80, right2 = W - 80, top2 = mainTop + 40, bottom2 = mainBottom - 50;
+      var left2 = 80, right2 = W - 80, top2 = mainTop + 44, bottom2 = mainBottom - 56;
       var plotW = right2 - left2, plotH = bottom2 - top2;
       var groupW = plotW / n;
       var barW = Math.max(36, (groupW - 32) / series.length);
@@ -7212,39 +7243,27 @@ function drawInsightGraphic(ins, title){
           roundRect(ctx, x, y2, barW-6, Math.max(8, bh2), 10);
           ctx.fill();
           ctx.fillStyle = '#fff';
-          ctx.font = '800 40px sans-serif';
+          ctx.font = '700 '+fs(36)+'px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(String(v2), x+(barW-6)/2, y2 - 14);
         });
         ctx.fillStyle = '#E2E8F0';
-        ctx.font = '700 36px sans-serif';
+        ctx.font = '600 '+fs(32)+'px sans-serif';
         ctx.textAlign = 'center';
         var lab2 = labels[i2]||'';
         ctx.fillText(lab2.length>14?lab2.slice(0,13)+'…':lab2, left2+i2*groupW+groupW/2, bottom2+40);
       }
-      var lx = left2;
-      series.forEach(function(s, si){
-        var col = teamColorForLabel(s.name) || palette[si % palette.length];
-        ctx.fillStyle = col;
-        roundRect(ctx, lx, mainTop, 28, 28, 6); ctx.fill();
-        ctx.fillStyle = '#E2E8F0';
-        ctx.font = '700 32px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(s.name||('Series '+(si+1)), lx+36, mainTop+24);
-        lx += ctx.measureText(s.name||'').width + 70;
-      });
     } else {
-      // Vertical over columns
-      var left3 = 100, right3 = W - 80, top3 = mainTop + 40, bottom3 = mainBottom - 60;
+      var left3 = 100, right3 = W - 90, top3 = mainTop + 44, bottom3 = mainBottom - 64;
       var plotW3 = right3 - left3, plotH3 = bottom3 - top3;
       var groupW3 = plotW3 / n;
-      var barW3 = Math.max(40, groupW3 * 0.55);
+      var barW3 = Math.max(44, groupW3 * 0.55);
       for(var g3=0;g3<=4;g3++){
         var gy3 = top3 + plotH3*(g3/4);
         ctx.strokeStyle = 'rgba(255,255,255,0.12)';
         ctx.beginPath(); ctx.moveTo(left3, gy3); ctx.lineTo(right3, gy3); ctx.stroke();
         ctx.fillStyle = '#94A3B8';
-        ctx.font = '700 28px sans-serif';
+        ctx.font = '600 '+fs(26)+'px sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText(String(Math.round(max*(1-g3/4))), left3-14, gy3+10);
       }
@@ -7253,26 +7272,21 @@ function drawInsightGraphic(ins, title){
         var bh3 = (v3/max)*plotH3;
         var x3 = left3 + i3*groupW3 + (groupW3-barW3)/2;
         var y3 = bottom3 - bh3;
-        var col3 = palette[i3 % palette.length];
-        var grd3 = ctx.createLinearGradient(0,y3,0,bottom3);
-        grd3.addColorStop(0, col3);
-        grd3.addColorStop(1, '#0284c7');
-        ctx.fillStyle = grd3;
+        ctx.fillStyle = palette[i3 % palette.length];
         roundRect(ctx, x3, y3, barW3, Math.max(8, bh3), 12);
         ctx.fill();
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '800 44px sans-serif';
+        ctx.font = '700 '+fs(40)+'px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(String(v3), x3+barW3/2, y3-16);
         ctx.fillStyle = '#E2E8F0';
-        ctx.font = '700 34px sans-serif';
+        ctx.font = '600 '+fs(30)+'px sans-serif';
         var lab3 = labels[i3] || String(i3+1);
         if(!/^over/i.test(lab3) && /^\d+(\.\d+)?$/.test(lab3)) lab3 = 'Over '+lab3;
-        ctx.fillText(lab3, x3+barW3/2, bottom3+42);
+        ctx.fillText(lab3, x3+barW3/2, bottom3+44);
       }
     }
   } else {
-    // Fact pills
     var raw = String((ins && ins.text)||'').replace(/\r\n/g,'\n');
     var bullets = [];
     raw.split('\n').forEach(function(line){
@@ -7289,37 +7303,37 @@ function drawInsightGraphic(ins, title){
     bullets = bullets.filter(function(b){ var k=b.toLowerCase(); if(seen[k]) return false; seen[k]=1; return true; }).slice(0,3);
     if(!bullets.length) bullets = ['Ask AI360 for a table or chart from live data.'];
     var icons = ['①','②','③'];
-    var by = mainTop + 30;
-    var pillH = Math.max(140, Math.floor((mainH - 40) / Math.max(bullets.length,1)) - 20);
+    var by = mainTop + 20;
+    var pillH = Math.max(fs(130), Math.floor((mainH - 32) / Math.max(bullets.length,1)) - 16);
     bullets.forEach(function(b, idx){
-      ctx.fillStyle = 'rgba(56,189,248,0.14)';
-      roundRect(ctx, 56, by, W-112, pillH, 18);
+      ctx.fillStyle = 'rgba(56,189,248,0.12)';
+      roundRect(ctx, 48, by, W-96, pillH, 16);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(56,189,248,0.35)';
-      ctx.lineWidth = 3;
-      roundRect(ctx, 56, by, W-112, pillH, 18);
+      ctx.strokeStyle = 'rgba(56,189,248,0.30)';
+      ctx.lineWidth = 2;
+      roundRect(ctx, 48, by, W-96, pillH, 16);
       ctx.stroke();
       ctx.fillStyle = '#38BDF8';
-      ctx.font = '800 64px "Plus Jakarta Sans",sans-serif';
+      ctx.font = '700 '+fs(52)+'px "Plus Jakarta Sans",sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(icons[idx]||'•', 88, by + pillH*0.58);
-      ctx.fillStyle = '#F8FAFC';
-      ctx.font = '700 52px "Plus Jakarta Sans",sans-serif';
-      wrapCanvasText(ctx, b, 180, by + 40, W-320, 56, 3);
-      by += pillH + 20;
+      ctx.fillText(icons[idx]||'•', 80, by + pillH*0.58);
+      ctx.fillStyle = '#F1F5F9';
+      ctx.font = '600 '+fs(42)+'px "Plus Jakarta Sans",sans-serif';
+      wrapCanvasText(ctx, b, 170, by + 36, W-300, fs(46), 3);
+      by += pillH + 16;
     });
   }
 
   if(hasFooter){
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
     ctx.fillRect(10, H - footerH - 10, W-20, footerH);
     ctx.fillStyle = '#38BDF8';
-    ctx.font = '800 40px sans-serif';
+    ctx.font = '700 '+fs(34)+'px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('🎙️', 48, H - footerH/2 + 8);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '700 44px "Plus Jakarta Sans",sans-serif';
-    wrapCanvasText(ctx, takeaway, 120, H - footerH + 36, W - 200, 48, 2);
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = '600 '+fs(36)+'px "Plus Jakarta Sans",sans-serif';
+    wrapCanvasText(ctx, takeaway, 120, H - footerH + 30, W - 200, fs(40), 2);
   }
 
   return canvas.toDataURL('image/jpeg', 0.9);

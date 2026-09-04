@@ -479,23 +479,24 @@ button:active{transform:scale(.98)}
 }
 .pre-note time{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
 
-/* Insights — card fills width, 16:9, no black letterbox */
+/* Insights — NO letterbox: image defines height */
 .ins-stage-wrap{
   width:100%;
   max-width:100%;
   display:flex;
   flex-direction:column;
-  gap:6px;
+  gap:8px;
   margin:0;
   padding:0;
 }
-/* Hide duplicate title when broadcast image already has the title */
-.ins-stage-wrap.has-img .ins-card-head{
+/* Hide app-level title when the graphic already has the title */
+.ins-stage-wrap.has-img > .ins-card-head{
   position:absolute !important;
   width:1px !important;height:1px !important;
   padding:0 !important;margin:-1px !important;
   overflow:hidden !important;clip:rect(0,0,0,0) !important;
   border:0 !important;
+  white-space:nowrap !important;
 }
 .ins-stage-wrap .ins-card-head{
   margin:0;
@@ -505,30 +506,72 @@ button:active{transform:scale(.98)}
   color:var(--primary-bright);
   line-height:1.25;
 }
+/* Stage sizes to the image — no fixed height, no black bars */
 .ins-stage{
-  width:100%;
-  max-width:100%;
-  aspect-ratio:16 / 9;
-  height:auto;
-  min-height:0;
-  max-height:none;
-  background:#0D1B2A; /* match card navy — not pure black */
-  border:1px solid rgba(255,255,255,0.1);
+  width:100% !important;
+  max-width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  background:#0D1B2A;
+  border:1px solid rgba(255,255,255,0.12);
   border-radius:12px;
   overflow:hidden;
   position:relative;
   display:block;
   margin:0 auto;
+  line-height:0; /* kill inline-img gap */
 }
-.ins-stage img,.ins-stage canvas{
-  width:100%;
-  height:100%;
-  object-fit:contain; /* 16:9 image in 16:9 box = full fill, no bars */
-  object-position:center center;
-  display:block;
+.ins-stage img{
+  position:static !important; /* critical: natural height */
+  width:100% !important;
+  height:auto !important;
+  max-width:100% !important;
+  display:block !important;
+  object-fit:unset !important;
   background:#0D1B2A;
-  position:absolute;
-  inset:0;
+  margin:0;
+  padding:0;
+  border:0;
+}
+.ins-stage canvas{
+  position:static !important;
+  width:100% !important;
+  height:auto !important;
+  display:block !important;
+  background:#0D1B2A;
+}
+/* HTML body inside stage (no image) — readable cards */
+.ins-stage .ins-card-body{
+  position:relative !important;
+  inset:auto !important;
+  height:auto !important;
+  min-height:180px;
+  padding:16px !important;
+  overflow:visible !important;
+  line-height:1.4;
+  font-size:15px;
+  color:#e2e8f0;
+}
+.ins-pill-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.ins-pill{
+  display:flex;align-items:flex-start;gap:12px;
+  background:rgba(56,189,248,0.12);
+  border:1px solid rgba(56,189,248,0.25);
+  border-radius:12px;
+  padding:14px 16px;
+}
+.ins-pill-num{
+  flex:0 0 auto;
+  font-size:18px;font-weight:800;color:#38BDF8;
+  line-height:1.3;
+}
+.ins-pill-text{
+  flex:1 1 auto;
+  font-size:15px;font-weight:600;color:#F1F5F9;
+  line-height:1.35;
+  word-break:break-word;
 }
 .ins-film-nav{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -539,110 +582,94 @@ button:active{transform:scale(.98)}
 }
 .ins-film-nav .ins-pos{color:var(--muted);font-weight:700;font-size:13px}
 
-/* Full-screen album / preview — true edge-to-edge */
+/* Full-screen album / preview */
 .ins-modal-backdrop{
-  position:fixed !important;
-  inset:0 !important;
-  z-index:5000 !important;
-  background:#000 !important;
-  display:flex !important;
-  align-items:stretch !important;
-  justify-content:stretch !important;
-  padding:0 !important;
-  margin:0 !important;
-  width:100vw !important;
-  height:100dvh !important;
-  max-width:100vw !important;
-  max-height:100dvh !important;
+  position:fixed !important; inset:0 !important; z-index:5000 !important;
+  background:#0a0f1a !important; display:flex !important;
+  align-items:stretch !important; justify-content:stretch !important;
+  padding:0 !important; margin:0 !important;
+  width:100vw !important; height:100dvh !important;
 }
 .ins-modal-backdrop.hidden{display:none!important}
 .ins-modal{
-  width:100% !important;
-  max-width:100% !important;
-  height:100% !important;
-  max-height:100% !important;
-  min-height:100% !important;
-  border-radius:0 !important;
-  border:none !important;
-  margin:0 !important;
-  padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px)) !important;
-  overflow:hidden !important;
-  display:flex !important;
-  flex-direction:column !important;
-  box-sizing:border-box !important;
-  background:#000 !important;
-  box-shadow:none !important;
+  width:100% !important; max-width:100% !important;
+  height:100% !important; max-height:100% !important;
+  border-radius:0 !important; border:none !important; margin:0 !important;
+  padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px)) !important;
+  overflow:auto !important; display:flex !important; flex-direction:column !important;
+  box-sizing:border-box !important; background:#0a0f1a !important; box-shadow:none !important;
 }
 .ins-modal .ins-stage-wrap,
 #insAlbumModal .ins-stage-wrap,
 #insPreviewModal .ins-stage-wrap{
-  width:100% !important;
-  flex:1 1 auto !important;
-  display:flex !important;
-  flex-direction:column !important;
-  min-height:0 !important;
-  gap:6px !important;
-  max-width:none !important;
+  width:100% !important; flex:1 1 auto !important;
+  display:flex !important; flex-direction:column !important;
+  min-height:0 !important; gap:8px !important; max-width:none !important;
 }
 .ins-modal .ins-card-head,
 #insModalHead, #insPreviewHead{
-  flex:0 0 auto;
-  margin:0 !important;
-  padding:4px 4px 2px !important;
-  font-size:clamp(1rem, 3.2vw, 1.25rem) !important;
-  color:#e2e8f0 !important;
+  flex:0 0 auto; margin:0 !important; padding:4px !important;
+  font-size:clamp(1rem, 3.2vw, 1.25rem) !important; color:#e2e8f0 !important;
 }
 .ins-modal .ins-stage,
 #insPreviewModal .ins-stage,
 #insAlbumModal .ins-stage{
-  width:100% !important;
-  max-width:100% !important;
-  flex:0 0 auto !important;
-  aspect-ratio:16 / 9 !important;
-  height:auto !important;
-  max-height:min(78dvh, calc(100vw * 9 / 16)) !important;
-  min-height:0 !important;
-  border-radius:12px !important;
-  border:1px solid rgba(255,255,255,0.1) !important;
-  background:#0D1B2A !important;
-  position:relative !important;
-  margin:0 auto !important;
+  width:100% !important; max-width:100% !important;
+  flex:0 0 auto !important; height:auto !important;
+  aspect-ratio:auto !important; min-height:0 !important; max-height:none !important;
+  border-radius:12px !important; border:1px solid rgba(255,255,255,0.12) !important;
+  background:#0D1B2A !important; position:relative !important; margin:0 auto !important;
+  line-height:0 !important;
 }
 #insPreviewModal .ins-stage img,
 #insAlbumModal .ins-stage img,
 .ins-modal .ins-stage img,
 .ins-modal .ins-stage canvas{
-  position:absolute !important;
-  inset:0 !important;
-  width:100% !important;
-  height:100% !important;
-  object-fit:contain !important;
-  background:#0D1B2A !important;
+  position:static !important; width:100% !important; height:auto !important;
+  object-fit:unset !important; background:#0D1B2A !important; display:block !important;
 }
 .ins-modal .ins-film-nav,
 .ins-modal .ins-modal-actions{
-  flex:0 0 auto;
-  position:relative !important;
-  bottom:auto !important;
-  margin:6px 0 0 !important;
-  background:transparent !important;
-  border:none !important;
-  backdrop-filter:none !important;
+  flex:0 0 auto; position:relative !important; bottom:auto !important;
+  margin:8px 0 0 !important; background:transparent !important; border:none !important;
 }
 #paneInsights .panel, #uwmPaneInsights .panel{padding-bottom:88px}
 #paneInsights .ins-stage-wrap, #uwmPaneInsights .ins-stage-wrap{width:100%;max-width:100%}
 #paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
-  width:100% !important;
-  height:auto !important;
-  aspect-ratio:16 / 9 !important;
-  min-height:0 !important;
-  max-height:none !important;
+  width:100% !important; height:auto !important;
+  aspect-ratio:auto !important; min-height:0 !important; max-height:none !important;
   background:#0D1B2A !important;
 }
 @media (max-width:520px){
   .ins-stage{border-radius:10px}
+  .ins-pill-text{font-size:14px}
+  .ins-pill-num{font-size:17px}
 }
 
+
+/* Force album area to hug the card — no tall black panel */
+#insAlbum.ins-album, #uwmInsAlbum.ins-album, .ins-album{
+  min-height:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  background:transparent !important;
+}
+.ins-dots{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:6px 4px !important; margin:0 !important;
+  min-height:0 !important;
+}
+.ins-dot{
+  width:10px;height:10px;border-radius:50%;
+  border:0;padding:0;margin:0;
+  background:rgba(255,255,255,0.25);
+  min-width:10px;min-height:10px;
+}
+.ins-dot[aria-current="true"]{background:#38BDF8}
+#paneInsights .panel{background:transparent}
+#paneInsights .ins-stage, #uwmPaneInsights .ins-stage{
+  box-shadow:0 8px 28px rgba(0,0,0,0.35);
+}
 
 /* Insight bars (in-page HTML chart) */
 .ins-chart{padding:8px 4px 4px}
@@ -1052,8 +1079,8 @@ button:active{transform:scale(.98)}
     <div id="insAdminBar" class="ins-admin-bar hidden">
       <div id="insDraft" class="ins-draft hidden" aria-live="polite"></div>
       <div class="ins-ask-row">
-        <label for="insAsk" class="sr-only">Ask about this match</label>
-        <textarea id="insAsk" rows="2" placeholder="Ask about this match…" aria-label="Ask about this match"></textarea>
+        <label for="insAsk" class="sr-only">AI360 screen content</label>
+        <textarea id="insAsk" rows="2" placeholder="AI360 — e.g. powerplay top scorers, compare both XI…" aria-label="Ask AI360 for a table or chart"></textarea>
         <button type="button" id="insSend" class="btn-ok" aria-label="Send question">Send</button>
         <button type="button" id="insViewAlbum" class="btn-sec" aria-label="View published insights album">View published album</button>
       </div>
@@ -1656,7 +1683,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.04.1.22";
+const APP_VERSION = "2026.09.04.1.26";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -6534,14 +6561,83 @@ function buildMatchAiContext(m){
     var p11 = team.squad.filter(function(p){ return p && p.inPlaying11; });
     if(!p11.length) p11 = team.squad.slice(0, 11);
     return p11.map(function(p){
-      return { name: p.name||'', role: p.role||p.type||'', runs: p.runs||0, balls: p.balls||0, isOut: !!p.isOut };
+      var bb = p.bowlBalls||0;
+      var br = p.bowlRuns||0;
+      return {
+        name: p.name||'',
+        role: p.role||p.type||'',
+        runs: p.runs||0,
+        balls: p.balls||0,
+        fours: p.fours||0,
+        sixes: p.sixes||0,
+        isOut: !!p.isOut,
+        bowlOvers: typeof fmtOvers==='function' ? fmtOvers(bb) : String(bb),
+        bowlBalls: bb,
+        bowlRuns: br,
+        wickets: p.wickets||0,
+        maidens: p.maidens||0,
+        economy: bb>0 ? (br / (bb/6)).toFixed(2) : '0.00'
+      };
     });
   }
   function squadList(team){
     if(!team || !Array.isArray(team.squad)) return [];
     return team.squad.map(function(p){
-      return { name: p.name||'', role: p.role||p.type||'', inPlaying11: !!p.inPlaying11 };
+      var bb = p.bowlBalls||0;
+      var br = p.bowlRuns||0;
+      return {
+        name: p.name||'',
+        role: p.role||p.type||'',
+        inPlaying11: !!p.inPlaying11,
+        runs: p.runs||0,
+        balls: p.balls||0,
+        bowlOvers: typeof fmtOvers==='function' ? fmtOvers(bb) : String(bb),
+        bowlBalls: bb,
+        bowlRuns: br,
+        wickets: p.wickets||0,
+        economy: bb>0 ? (br / (bb/6)).toFixed(2) : '0.00'
+      };
     });
+  }
+  /** Batters who have faced or are out — for scorecard-style tables */
+  function battingCard(team){
+    if(!team || !Array.isArray(team.squad)) return [];
+    return team.squad.filter(function(p){
+      return p && ((p.balls||0)>0 || p.isOut || p.retiredHurt);
+    }).map(function(p){
+      var b = p.balls||0;
+      var r = p.runs||0;
+      return {
+        name: p.name||'',
+        runs: r,
+        balls: b,
+        fours: p.fours||0,
+        sixes: p.sixes||0,
+        sr: b>0 ? ((r/b)*100).toFixed(1) : '0.0',
+        isOut: !!p.isOut,
+        dismissal: p.dismissal||'',
+        retiredHurt: !!p.retiredHurt
+      };
+    });
+  }
+  /** Bowlers who have bowled at least one ball — for bowling comparison tables */
+  function bowlingCard(team){
+    if(!team || !Array.isArray(team.squad)) return [];
+    return team.squad.filter(function(p){
+      return p && ((p.bowlBalls||0)>0 || (p.bowlRuns||0)>0 || (p.wickets||0)>0);
+    }).map(function(p){
+      var bb = p.bowlBalls||0;
+      var br = p.bowlRuns||0;
+      return {
+        name: p.name||'',
+        overs: typeof fmtOvers==='function' ? fmtOvers(bb) : String(bb),
+        bowlBalls: bb,
+        maidens: p.maidens||0,
+        runs: br,
+        wickets: p.wickets||0,
+        economy: bb>0 ? (br / (bb/6)).toFixed(2) : '0.00'
+      };
+    }).sort(function(a,b){ return (b.wickets - a.wickets) || (a.runs - b.runs); });
   }
 
   var batKey = m.battingTeam === 'teamB' ? 'teamB' : 'teamA';
@@ -6645,16 +6741,28 @@ function buildMatchAiContext(m){
     teamA: teamSnap(m.teamA, batKey==='teamA'),
     teamB: teamSnap(m.teamB, batKey==='teamB'),
 
-    // Playing XI — always included
+    // Playing XI — with bat + bowl stats
     playing11: {
       teamA: { name: (m.teamA && m.teamA.name) || 'Team A', players: xiA },
       teamB: { name: (m.teamB && m.teamB.name) || 'Team B', players: xiB }
     },
-    // Full squads (names + roles) for depth questions
+    // Full squads with bat + bowl stats
     squads: {
       teamA: squadList(m.teamA),
       teamB: squadList(m.teamB)
     },
+    // Scorecard cards — USE THESE for batting / bowling comparisons
+    battingCard: {
+      teamA: { name: (m.teamA && m.teamA.name) || 'Team A', players: battingCard(m.teamA) },
+      teamB: { name: (m.teamB && m.teamB.name) || 'Team B', players: battingCard(m.teamB) }
+    },
+    bowlingCard: {
+      teamA: { name: (m.teamA && m.teamA.name) || 'Team A', players: bowlingCard(m.teamA) },
+      teamB: { name: (m.teamB && m.teamB.name) || 'Team B', players: bowlingCard(m.teamB) }
+    },
+    // Convenience: current bowling side's used bowlers
+    usedBowlers: bowlingCard(bowlTeam),
+    usedBatters: battingCard(batTeam),
 
     // Who is at the crease right now
     onStrike: {
@@ -6675,10 +6783,13 @@ function buildMatchAiContext(m){
     allBallsCount: allBallsChrono.length,
 
     note: [
+      'You are AI360. Host speaks; you only show tables, short fact bullets, and charts.',
       'Use ONLY this CONTEXT. Do not invent players or scores.',
-      'playing11 has both teams XI. onStrike has current striker, non-striker, bowler.',
-      'scoreboard has live runs/wickets/overs. phases has powerplay (1-6), middle (7-16), death (17-20) balls.',
-      'Ball fields use batter and bowler names. Prefer Markdown tables for comparisons.'
+      'For bowling comparison: use bowlingCard.teamA / bowlingCard.teamB or usedBowlers (players who have bowled).',
+      'For batting comparison: use battingCard.teamA / battingCard.teamB or usedBatters.',
+      'Each bowling row has: name, overs, bowlBalls, maidens, runs, wickets, economy.',
+      'playing11 and squads also include bowlOvers, bowlRuns, wickets, economy.',
+      'Always fill table ROWS from these arrays — never output header-only tables.'
     ].join(' ')
   };
 }
@@ -6817,6 +6928,19 @@ function wrapCanvasText(ctx, text, x, y, maxW, lineH, maxLines){
   return cy;
 }
 
+function cleanInsightText(s){
+  s = String(s||'');
+  // strip markdown tables / pipes / separators
+  s = s.replace(/^\s*\|?\s*:?-{3,}:?\s*\|.*$/gm, '');
+  s = s.replace(/\|/g, ' · ');
+  s = s.replace(/[*_`#]+/g, '');
+  s = s.replace(/\s{2,}/g, ' ').trim();
+  // drop pure separator / empty
+  if(/^[-·.:\s]+$/.test(s)) return '';
+  if(/^(summary|breakdown|takeaway|notes?)[:\s]*$/i.test(s)) return '';
+  return s;
+}
+
 function polishInsightTitle(raw){
   var t = String(raw||'').trim();
   if(!t) return 'Key Match Insight';
@@ -6844,30 +6968,30 @@ function polishInsightTitle(raw){
 function insightTakeaway(ins){
   function clean(s){
     s = String(s||'').replace(/[#*_`]/g,'').replace(/\s+/g,' ').trim();
-    // Drop empty / label-only noise
-    if(!s || s.length < 8) return '';
-    if(/^(summary|breakdown|takeaway|notes?|key\s*points?)[:\s]*$/i.test(s)) return '';
+    if(!s || s.length < 10) return '';
+    if(/^(summary|breakdown|takeaway|notes?|key\s*points?|bowlers?\s+conceding|batter\s+comparison)[:\s]*$/i.test(s)) return '';
     if(/^[-*•·.\s]+$/.test(s)) return '';
+    // strip leading label-only "Something:"
+    s = s.replace(/^(summary\s*breakdown|quick\s*note)\s*:\s*/i,'');
+    if(s.length < 10) return '';
     return s;
   }
   var t = clean(ins && (ins.takeaway || ins.hook || ins.summary));
   if(t) return t.length > 120 ? t.slice(0,117)+'…' : t;
   var raw = String((ins && ins.text) || '');
-  // Prefer a real bullet with content
   var lines = raw.split(/\n/);
   for(var i=0;i<lines.length;i++){
     var line = lines[i].replace(/^\s*[-*•]\s*/,'').trim();
     line = clean(line);
-    if(line && line.length >= 20){
+    // skip table rows
+    if(line.indexOf('|')>=0) continue;
+    if(line && line.length >= 24){
       return line.length > 120 ? line.slice(0,117)+'…' : line;
     }
   }
-  var plain = clean(raw.replace(/\|/g,' '));
-  if(!plain) return 'Ayush setting the tempo — use this graphic to contrast aggression vs anchor.';
-  var cut = plain.split(/(?<=[.!?])\s+/).filter(function(x){ return clean(x).length >= 20; })[0] || plain;
-  cut = clean(cut) || plain;
-  return cut.length > 120 ? cut.slice(0,117)+'…' : cut;
+  return ''; // empty → no footer drawn
 }
+
 
 function insightSubtitle(ins, title){
   if(ins && ins.subtitle) return String(ins.subtitle);
@@ -6945,8 +7069,8 @@ function drawInsightGraphic(ins, title){
 
   // Title
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '700 44px "Space Grotesk","Plus Jakarta Sans",sans-serif';
-  wrapCanvasText(ctx, t, 160, 48, W - 360, 48, 2);
+  ctx.font = '700 52px "Space Grotesk","Plus Jakarta Sans",sans-serif';
+  wrapCanvasText(ctx, t, 160, 44, W - 360, 54, 2);
 
   // Subtitle
   ctx.fillStyle = '#94A3B8';
@@ -6987,43 +7111,44 @@ function drawInsightGraphic(ins, title){
     var useHorizontal = !isOvers && (nameLike >= Math.ceil(n*0.4) || n <= 8);
 
     if(useHorizontal && !isTeamCompare){
-      // Batting / player horizontal bars — stream readable
-      var left = 64, right = W - 64;
-      var rowH = Math.min(72, Math.max(48, mainH / Math.max(n, 1)));
-      var startY = mainTop + Math.max(0, (mainH - rowH*n) / 2);
+      // Batting / player horizontal bars — FILL the main area (no empty navy void)
+      var left = 56, right = W - 56;
+      // Row height fills available mainH so 2–6 players still look full-screen
+      var rowH = Math.max(88, Math.min(140, Math.floor(mainH / Math.max(n, 1))));
+      var totalBlock = rowH * n;
+      var startY = mainTop + Math.max(12, Math.floor((mainH - totalBlock) / 2));
       for(var i=0;i<n;i++){
         var y = startY + i*rowH;
         var lab = labels[i] || String(i+1);
         var v = Number(series[0].values[i]||0);
         var barColor = teamColorForLabel(lab) || palette[i % palette.length];
 
-        // Player name
+        // Player name — large for stream
         ctx.fillStyle = '#F8FAFC';
-        ctx.font = '600 28px "Plus Jakarta Sans",sans-serif';
+        ctx.font = '700 36px "Plus Jakarta Sans",sans-serif';
         ctx.textAlign = 'left';
-        var nameDraw = lab.length > 22 ? lab.slice(0,21)+'…' : lab;
-        ctx.fillText(nameDraw, left, y + rowH*0.55);
+        var nameDraw = lab.length > 20 ? lab.slice(0,19)+'…' : lab;
+        ctx.fillText(nameDraw, left, y + rowH*0.58);
 
-        var nameW = Math.min(340, ctx.measureText(nameDraw).width + 24);
+        var nameW = Math.min(380, ctx.measureText(nameDraw).width + 28);
         var trackX = left + nameW;
-        var trackW = right - trackX - 220;
-        var bh = Math.max(22, rowH * 0.42);
+        var trackW = right - trackX - 280;
+        if(trackW < 200) trackW = 200;
+        var bh = Math.max(28, rowH * 0.38);
         var by = y + (rowH - bh) / 2;
 
-        // track
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        roundRect(ctx, trackX, by, trackW, bh, 8);
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        roundRect(ctx, trackX, by, trackW, bh, 10);
         ctx.fill();
-        // fill
-        var fw = Math.max(6, trackW * (v / max));
+        var fw = Math.max(8, trackW * (v / max));
         var grd = ctx.createLinearGradient(trackX, 0, trackX+fw, 0);
         grd.addColorStop(0, barColor);
-        grd.addColorStop(1, shadeColor(barColor, 0.25));
+        grd.addColorStop(1, shadeColor(barColor, 0.22));
         ctx.fillStyle = grd;
-        roundRect(ctx, trackX, by, fw, bh, 8);
+        roundRect(ctx, trackX, by, fw, bh, 10);
         ctx.fill();
 
-        // Metric: runs (balls) · SR — look up player from match when possible
+        // Metric: runs (balls) · SR when available
         var metric = String(v);
         try{
           var mm = (typeof currentInsightsMatch==='function') ? currentInsightsMatch() : (typeof M==='function'?M():null);
@@ -7037,29 +7162,26 @@ function drawInsightGraphic(ins, title){
             if(!pl){
               for(var pj=0;pj<allSq.length;pj++){
                 var nn = String(allSq[pj]&&allSq[pj].name||'').trim().toLowerCase();
-                if(nn && (pname.indexOf(nn)===0 || nn.indexOf(pname)===0 || pname.indexOf(nn.split(' ')[0])>=0)){ pl=allSq[pj]; break; }
+                if(nn && (pname.indexOf(nn)===0 || nn.indexOf(pname)===0)){ pl=allSq[pj]; break; }
               }
             }
             if(pl && (pl.balls||0) > 0){
               var srV = ((pl.runs||0)/(pl.balls||1)*100).toFixed(0);
-              metric = (pl.runs||v)+' ('+(pl.balls)+'b)  ·  SR '+srV;
+              metric = (pl.runs||v)+' ('+(pl.balls)+'b) · SR '+srV;
             }
           }
         }catch(e){}
-        // Also use chart detail arrays if present
         try{
           if(chart && chart.balls && chart.balls[i]!=null){
             var bb = chart.balls[i];
             var sr2 = bb>0 ? ((v/bb)*100).toFixed(0) : '0';
-            metric = v+' ('+bb+'b)  ·  SR '+sr2;
+            metric = v+' ('+bb+'b) · SR '+sr2;
           }
         }catch(e){}
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '700 26px "Plus Jakarta Sans",sans-serif';
+        ctx.font = metric.length > 16 ? '700 26px "Plus Jakarta Sans",sans-serif' : '700 32px "Plus Jakarta Sans",sans-serif';
         ctx.textAlign = 'left';
-        // If metric is long, use slightly smaller font
-        if(metric.length > 14) ctx.font = '700 22px "Plus Jakarta Sans",sans-serif';
-        ctx.fillText(metric, trackX + fw + 14, y + rowH*0.55);
+        ctx.fillText(metric, trackX + fw + 16, y + rowH*0.58);
       }
     } else if(isTeamCompare){
       // Dual series side-by-side bars
@@ -7146,47 +7268,64 @@ function drawInsightGraphic(ins, title){
       }
     }
   } else {
-    // AI summary → 3 key takeaway bullets (no wall of text)
+    // AI summary → 3 clean fact pills (no raw markdown)
     var raw = String((ins && ins.text)||'').replace(/\r\n/g,'\n');
     var bullets = [];
     raw.split('\n').forEach(function(line){
-      line = line.replace(/^\s*[-*•]\s*/,'').replace(/[#*_`]/g,'').trim();
-      if(line.length > 8 && line.length < 140) bullets.push(line);
+      // skip table separator rows
+      if(/^\s*\|?\s*:?-{2,}/.test(line)) return;
+      line = line.replace(/^\s*[-*•①②③④⑤\d\.\)\s]+/, '');
+      line = cleanInsightText(line);
+      if(line.length >= 8 && line.length <= 160) bullets.push(line);
     });
     if(bullets.length < 2){
-      var parts = raw.replace(/\|/g,' ').replace(/[#*_`]/g,'').split(/(?<=[.!?])\s+/).map(function(x){return x.trim();}).filter(function(x){return x.length>12;});
+      var parts = cleanInsightText(raw).split(/(?<=[.!?])\s+/).filter(function(x){ return x.length >= 12; });
       bullets = parts.slice(0,3);
     }
-    bullets = bullets.slice(0,3);
-    if(!bullets.length) bullets = ['Insight ready for voiceover — highlight the phase that matters most.'];
+    // unique
+    var seen = {};
+    bullets = bullets.filter(function(b){
+      var k = b.toLowerCase();
+      if(seen[k]) return false;
+      seen[k] = 1;
+      return true;
+    }).slice(0,3);
+    if(!bullets.length) bullets = ['Open Live and ask AI360 for a table or chart.'];
     var icons = ['①','②','③'];
-    var by = mainTop + 40;
+    var by = mainTop + 50;
+    var pillH = Math.min(160, Math.floor((mainH - 40) / Math.max(bullets.length,1)) - 16);
+    pillH = Math.max(100, pillH);
     bullets.forEach(function(b, idx){
-      ctx.fillStyle = 'rgba(56,189,248,0.12)';
-      roundRect(ctx, 64, by, W-128, 110, 12);
+      ctx.fillStyle = 'rgba(56,189,248,0.14)';
+      roundRect(ctx, 64, by, W-128, pillH, 16);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(56,189,248,0.3)';
+      ctx.lineWidth = 2;
+      roundRect(ctx, 64, by, W-128, pillH, 16);
+      ctx.stroke();
       ctx.fillStyle = '#38BDF8';
-      ctx.font = '700 36px sans-serif';
+      ctx.font = '800 48px "Plus Jakarta Sans",sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(icons[idx]||'•', 88, by+68);
-      ctx.fillStyle = '#F1F5F9';
-      ctx.font = '600 30px "Plus Jakarta Sans",sans-serif';
-      wrapCanvasText(ctx, b, 150, by+36, W-260, 36, 2);
-      by += 130;
+      ctx.fillText(icons[idx]||'•', 96, by + pillH*0.58);
+      ctx.fillStyle = '#F8FAFC';
+      ctx.font = '700 40px "Plus Jakarta Sans",sans-serif';
+      wrapCanvasText(ctx, b, 180, by + 36, W-320, 44, 3);
+      by += pillH + 18;
     });
   }
 
-  // --- Takeaway strip (bottom ~15%) ---
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(8, H - footerH - 8, W-16, footerH);
-  ctx.fillStyle = '#38BDF8';
-  ctx.font = '700 22px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('🎙️', 48, H - footerH/2 - 8 + 8);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = '700 26px "Plus Jakarta Sans",sans-serif';
-  var hook = takeaway;
-  wrapCanvasText(ctx, hook, 100, H - footerH + 28, W - 160, 32, 2);
+  // --- Takeaway strip only when real text exists (no empty •) ---
+  if(takeaway && String(takeaway).trim().length >= 10){
+    ctx.fillStyle = 'rgba(0,0,0,0.40)';
+    ctx.fillRect(8, H - footerH - 8, W-16, footerH);
+    ctx.fillStyle = '#38BDF8';
+    ctx.font = '700 28px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🎙️', 48, H - footerH/2 + 4);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '700 30px "Plus Jakarta Sans",sans-serif';
+    wrapCanvasText(ctx, takeaway, 110, H - footerH + 32, W - 180, 36, 2);
+  }
 
   return canvas.toDataURL('image/jpeg', 0.88);
 }
@@ -7259,17 +7398,27 @@ function insightBodyHtml(ins){
   if(!ins) return '';
   let h = '';
   if(ins.chart) h += renderInsChart(ins.chart);
-  if(ins.html) h += ins.html;
-  else if(ins.text){
-    var raw = String(ins.text||'');
-    // Turn role lists into chips when pattern like "Batters: a, b | Bowlers: c"
-    raw = raw.replace(/(Batter(?:s)?|Bowler(?:s)?|All-?rounder(?:s)?|WK(?:-Batter)?)\s*:\s*([^\n]+)/gi, function(_, role, names){
-      var chips = String(names).split(/,|·|\|/).map(function(n){ return n.trim(); }).filter(Boolean)
-        .map(function(n){ return '<span class="ins-chip">'+escapeIns(n)+'</span>'; }).join('');
-      return '<div><strong>'+escapeIns(role)+'</strong><div class="ins-role-chips">'+chips+'</div></div>';
+  if(ins.html){ h += ins.html; return h; }
+  var raw = String(ins.text||'');
+  if(!raw) return h;
+  // Build clean fact pills from lines (no raw markdown pipes)
+  var bullets = [];
+  raw.replace(/\r\n/g,'\n').split('\n').forEach(function(line){
+    if(/^\s*\|?\s*:?-{2,}/.test(line)) return;
+    line = line.replace(/^\s*[-*•①②③④⑤\d\.\)\s]+/, '');
+    line = (typeof cleanInsightText==='function') ? cleanInsightText(line) : line.replace(/\|/g,' ').trim();
+    if(line.length >= 8 && line.length <= 180) bullets.push(line);
+  });
+  if(bullets.length >= 1){
+    h += '<ul class="ins-pill-list">';
+    bullets.slice(0,5).forEach(function(b, i){
+      h += '<li class="ins-pill"><span class="ins-pill-num" aria-hidden="true">'+(i+1)+'</span><span class="ins-pill-text">'+escapeIns(b)+'</span></li>';
     });
-    // Side-by-side team sections when both team names appear as headings
-    h += '<div class="ins-ai-body">'+markdownLiteToHtml(raw)+'</div>';
+    h += '</ul>';
+  } else {
+    // fallback cleaned markdown
+    var cleaned = (typeof cleanInsightText==='function') ? cleanInsightText(raw) : raw.replace(/\|/g,' ');
+    h += '<div class="ins-ai-body">'+markdownLiteToHtml(cleaned)+'</div>';
   }
   return h;
 }
@@ -7289,8 +7438,22 @@ function paintInsightAlbum(box, list, index, opts){
   const img = ins.image || '';
   const title = polishInsightTitle(ins.title || 'Insight');
   // When image exists: only "Insights" page title remains — card carries its own title (no triple header)
+  // Image cards: NO outer title, NO dots above (kills black gap + duplicate header)
   let h = '<article class="ins-stage-wrap'+(img?' has-img':'')+'" aria-label="Insight: '+escapeIns(title)+', '+pos+'">';
-  h += '<h2 class="ins-card-head" tabindex="-1" id="'+(opts.headId||'insCardHead')+'">'+escapeIns(title)+'</h2>';
+  if(!img){
+    h += '<h2 class="ins-card-head" tabindex="-1" id="'+(opts.headId||'insCardHead')+'">'+escapeIns(title)+'</h2>';
+  } else {
+    // sr-only title for focus / a11y without visual duplicate
+    h += '<h2 class="ins-card-head sr-only" tabindex="-1" id="'+(opts.headId||'insCardHead')+'">'+escapeIns(title)+'</h2>';
+  }
+  h += '<div class="ins-stage" role="img" aria-label="'+escapeIns(title)+'">';
+  if(img){
+    h += '<img src="'+img+'" alt="'+escapeIns(title)+'" loading="eager" decoding="async" />';
+  } else {
+    h += '<div class="ins-card-body ins-ai-body">'+insightBodyHtml(ins)+'</div>';
+  }
+  h += '</div>';
+  // Dots BELOW the card only when multiple
   if(list.length > 1){
     h += '<div class="ins-dots" role="tablist" aria-label="Insight slides">';
     for(var di=0; di<list.length; di++){
@@ -7298,13 +7461,6 @@ function paintInsightAlbum(box, list, index, opts){
     }
     h += '</div>';
   }
-  h += '<div class="ins-stage" role="img" aria-label="'+escapeIns(title)+'">';
-  if(img){
-    h += '<img src="'+img+'" alt="'+escapeIns(title)+'" />';
-  } else {
-    h += '<div class="ins-card-body ins-ai-body" style="padding:14px;overflow:auto;height:100%;position:absolute;inset:0">'+insightBodyHtml(ins)+'</div>';
-  }
-  h += '</div>';
   h += '<div class="ins-film-nav" role="group" aria-label="Insight navigation">';
   h += '<button type="button" class="btn-sec insPrev" '+(index<=0?'disabled':'')+' aria-label="Previous insight">‹</button>';
   h += '<span class="ins-pos" aria-live="polite">'+pos+'</span>';
@@ -7466,7 +7622,18 @@ async function callAskMatchAi(question){
   if(!firebase || !firebase.functions) throw new Error('Functions SDK not loaded');
   const fn = firebase.app().functions('asia-south1').httpsCallable('askMatchAi');
   const m = M();
-  const res = await fn({ question: question, context: buildMatchAiContext(m) });
+  const ctx = buildMatchAiContext(m);
+  ctx.persona = {
+    brand: 'AI360',
+    role: 'AI360 on-screen data editor for a live cricket commentator',
+    style: 'tables, short bullets, charts only — no long summaries'
+  };
+  ctx.guidance = [
+    'Respond as AI360. Host speaks; you only show facts.',
+    'Output: short title + Markdown table and/or 2-4 fact bullets + CHART_JSON when numbers exist.',
+    'No paragraphs. No filler. Missing data → one line: Missing: <field>.'
+  ].join(' ');
+  const res = await fn({ question: question, context: ctx, mode: 'ai360_editor' });
   return res && res.data ? res.data : {};
 }
 
@@ -7477,7 +7644,7 @@ async function insSendQuestion(){
   if(!q){ alert('Type a question'); return; }
   if(!M()){ alert('Open a match first'); return; }
   window._insBusy = true;
-  if($('insStatus')) $('insStatus').textContent = 'Generating answer…';
+  if($('insStatus')) $('insStatus').textContent = 'AI360 building table…';
   if($('insSend')){ $('insSend').disabled = true; $('insSend').textContent = '…'; }
   try{
     const data = await callAskMatchAi(q);
@@ -7489,7 +7656,7 @@ async function insSendQuestion(){
       title: q.length > 60 ? q.slice(0,57)+'…' : q
     };
     renderInsDraft();
-    if($('insStatus')) $('insStatus').textContent = 'Answer ready. Review and publish if you want.';
+    if($('insStatus')) $('insStatus').textContent = 'AI360 ready. Review table/chart and publish.';
     announce('Answer ready');
     focusEl($('insPublish')||$('insDraft'));
   }catch(err){

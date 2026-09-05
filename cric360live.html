@@ -1704,7 +1704,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.05.1.38";
+const APP_VERSION = "2026.09.05.1.39";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1763,6 +1763,17 @@ async function cloudSaveMatch(match) {
       return;
     }
     const payload = JSON.parse(JSON.stringify(match));
+    // Strip undo snapshots — they duplicate the whole match per over and can exceed Firestore 1MB
+    // (silent write failure left cloud stuck mid-innings after "complete")
+    try{
+      delete payload._currentOverStartSnapshot;
+      if(Array.isArray(payload.completedOvers)){
+        payload.completedOvers.forEach(function(ov){ if(ov) delete ov.startSnapshot; });
+      }
+      if(payload.innings1 && Array.isArray(payload.innings1.completedOvers)){
+        payload.innings1.completedOvers.forEach(function(ov){ if(ov) delete ov.startSnapshot; });
+      }
+    }catch(eStrip){}
     // Ensure selection ids are plain strings before cloud write
     if(payload.strikerId!=null) payload.strikerId = String(payload.strikerId);
     if(payload.nonStrikerId!=null) payload.nonStrikerId = String(payload.nonStrikerId);
@@ -1770,8 +1781,11 @@ async function cloudSaveMatch(match) {
     payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     payload.updatedBy = user ? user.email : '';
     // Full document write (not merge) so squad / overs / selection ids cannot stay half-stale
-    await db.collection('cric360_matches').doc(match.id).set(payload);
-  } catch (e) { console.warn('cloudSaveMatch', e); }
+    await db.collection('cric360_matches').doc(String(match.id)).set(payload);
+  } catch (e) {
+    console.warn('cloudSaveMatch', e);
+    try{ announce('Cloud save failed. Keep the match open and try again.'); }catch(e2){}
+  }
 }
 
 async function cloudSaveAuction(auction) {
@@ -4549,28 +4563,48 @@ function confirmInningsEnd(){
   }, 100);
 }
 
-function finishMatch(resultMsg){
+async function finishMatch(resultMsg){
   const m=M();
+  if(!m) return;
   m.status='completed';
   m.resultMsg=resultMsg||'Match completed';
   m.closureMsg=m.closureMsg||'';
-  save();
-  speak(m.resultMsg);
-  $('resultMsg').textContent=m.resultMsg;
-  $('closureMsg').value=m.closureMsg||'';
+  m._scoreRev = (Number(m._scoreRev)||0) + 10; // jump so stale live snapshots cannot win
+  m.completedAt = Date.now();
+  try{ save(); }catch(e){}
+  // Must reach cloud before user closes — otherwise reopen shows mid-innings
+  window._adminWritePending = true;
+  window._adminLocalWriteAt = Date.now();
+  try{
+    if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m);
+  }catch(e){ console.warn(e); }
+  window._adminWritePending = false;
+  window._adminLocalWriteAt = Date.now();
+  try{ speak(m.resultMsg); }catch(e){}
+  if($('resultMsg')) $('resultMsg').textContent=m.resultMsg;
+  if($('closureMsg')) $('closureMsg').value=m.closureMsg||'';
   openDlg('dlgResult');
-  renderLive();
+  try{ renderLive(); }catch(e){}
 }
-$('btnResultConfirm').onclick=()=>{
+$('btnResultConfirm').onclick=async function(){
   const m=M();
-  m.closureMsg=($('closureMsg').value||'').trim();
+  if(!m) return;
+  m.closureMsg=(($('closureMsg')&&$('closureMsg').value)||'').trim();
   m.status='completed';
-  save();
+  m._scoreRev = (Number(m._scoreRev)||0) + 5;
+  m.completedAt = m.completedAt || Date.now();
+  try{ save(); }catch(e){}
+  window._adminWritePending = true;
+  try{
+    if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m);
+  }catch(e){}
+  window._adminWritePending = false;
+  window._adminLocalWriteAt = Date.now();
   closeDlg('dlgResult');
-  renderLive();
-  switchTab('tabLive');
-  speak(m.resultMsg+(m.closureMsg?'. '+m.closureMsg:''));
-  focusEl($('liveMatchTitle'));
+  try{ renderLive(); }catch(e){}
+  try{ switchTab('tabLive'); }catch(e){}
+  try{ speak(m.resultMsg+(m.closureMsg?'. '+m.closureMsg:'')); }catch(e){}
+  try{ focusEl($('liveMatchTitle')); }catch(e){}
 };
 
 
@@ -5881,7 +5915,16 @@ $('aucUnsoldYes').onclick=()=>{
   afterSoldOrUnsold();
 };
 
-if($('btnLiveBack')) $('btnLiveBack').onclick=function(){
+if($('btnLiveBack')) $('btnLiveBack').onclick=async function(){
+  // Flush current match to cloud before leaving (prevents reopen stuck mid-over)
+  try{
+    var cur = typeof M==='function' ? M() : null;
+    if(cur && cur.id && typeof cloudSaveMatch==='function'){
+      window._adminWritePending = true;
+      try{ await cloudSaveMatch(cur); }catch(e){}
+      window._adminWritePending = false;
+    }
+  }catch(e){}
   try{ stopAdminMatchWatch(); }catch(e){}
   S.curId=null; S.history=[];
   document.body.classList.remove('has-tabbar');
@@ -6175,7 +6218,13 @@ function startAdminMatchWatch(id){
         var cInn = Number(cloud.currentInnings)||1;
         // Local already in 2nd innings, cloud still 1st / break / not_started prep
         if(lInn > cInn) return;
-        if(local.status==='live' && (cloud.status==='not_started' || cloud.status==='setup' || cloud.status==='innings_break' || cloud.status==='innings_ending')) return;
+        // Always accept completed cloud (final result must stick on reopen)
+        if(cloud.status==='completed' || cloud.status==='ended'){
+          // fall through to apply
+        } else if(local.status==='completed' || local.status==='ended'){
+          // never let live/mid-innings cloud overwrite a completed local
+          return;
+        } else if(local.status==='live' && (cloud.status==='not_started' || cloud.status==='setup' || cloud.status==='innings_break' || cloud.status==='innings_ending')) return;
 
         if(local.status==='live' || local.status==='innings_break' || local.status==='innings_ending'){
           var lb = Number(local.totalBalls)||0;

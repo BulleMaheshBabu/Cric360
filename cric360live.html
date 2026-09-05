@@ -897,7 +897,14 @@ button:active{transform:scale(.98)}
 
 <section id="uwmPaneMore" class="wrap hidden" role="tabpanel" aria-label="More">
   <div class="panel">
-    <button type="button" id="btnShareMatchUser" class="btn-ok btn-block" style="margin-bottom:14px" aria-label="Share match link">Share match link</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+      <h2 tabindex="-1" style="margin:0;font-size:1.05rem">Overs</h2>
+      <button type="button" id="btnShareMatchUser" class="btn-ok" style="min-height:44px;padding:10px 14px" aria-label="Share match link">Share</button>
+    </div>
+    <div class="user-match-tabs" role="tablist" aria-label="Innings overs" style="display:flex;gap:8px;margin:0 0 12px">
+      <button type="button" role="tab" id="uwmInnTab1" class="btn-sec active" aria-selected="true" style="flex:1;min-height:42px;font-weight:800">1st innings</button>
+      <button type="button" role="tab" id="uwmInnTab2" class="btn-sec" aria-selected="false" style="flex:1;min-height:42px;font-weight:800">2nd innings</button>
+    </div>
     <div id="uwmOversList"></div>
     <div id="uwmOverDetail" class="hidden" role="region" aria-label="Over detail">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px">
@@ -1119,13 +1126,19 @@ button:active{transform:scale(.98)}
 
 <section id="paneMore" class="wrap hidden" role="tabpanel">
   <div class="panel">
-    <h2 tabindex="-1">Match Controls</h2>
-    <button type="button" id="btnEndInnings" class="btn-block" style="background:linear-gradient(135deg,#d97706,#b45309)">End Innings</button>
-    <button type="button" id="btnStart2nd" class="btn-block btn-ok hidden">Start 2nd Innings</button>
-    <button type="button" id="btnShareMatchAdmin" class="btn-sec btn-block" style="margin-bottom:10px">Share match link</button>
-    <button type="button" id="btnEndMatch" class="btn-block btn-danger">End Match</button>
-    <button type="button" id="btnDownloadMatch" class="btn-block btn-ok" style="margin-top:12px" aria-label="Download full match file">Download match file</button>
-    <h2 style="margin-top:24px" tabindex="-1">Overs History</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+      <button type="button" id="btnEndMatch" class="btn-danger" style="min-height:44px;flex:0 0 auto;padding:10px 14px" aria-label="End match">End match</button>
+      <h2 tabindex="-1" style="margin:0;font-size:1.05rem;flex:1;text-align:center">More</h2>
+      <button type="button" id="btnShareMatchAdmin" class="btn-ok" style="min-height:44px;flex:0 0 auto;padding:10px 14px" aria-label="Share match link">Share</button>
+    </div>
+    <button type="button" id="btnEndInnings" class="btn-block" style="background:linear-gradient(135deg,#d97706,#b45309);margin-bottom:8px">End Innings</button>
+    <button type="button" id="btnStart2nd" class="btn-block btn-ok hidden" style="margin-bottom:8px">Start 2nd Innings</button>
+    <button type="button" id="btnDownloadMatch" class="btn-block btn-sec" style="margin-bottom:16px" aria-label="Download full match file">Download match file</button>
+    <h2 style="margin:0 0 10px;font-size:1rem" tabindex="-1">Overs history</h2>
+    <div class="user-match-tabs" role="tablist" aria-label="Innings overs" style="display:flex;gap:8px;margin:0 0 12px">
+      <button type="button" role="tab" id="moreInnTab1" class="btn-sec active" aria-selected="true" style="flex:1;min-height:42px;font-weight:800">1st innings</button>
+      <button type="button" role="tab" id="moreInnTab2" class="btn-sec" aria-selected="false" style="flex:1;min-height:42px;font-weight:800">2nd innings</button>
+    </div>
     <div id="oversList"><p style="color:var(--muted)">No overs completed yet</p></div>
   </div>
 </section>
@@ -1742,7 +1755,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.05.1.41";
+const APP_VERSION = "2026.09.05.1.42";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -3510,33 +3523,80 @@ if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(function(b){re
   }
 }
 $('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnings===1));$('btnStart2nd').classList.toggle('hidden',!(m.status==='innings_break'||m.status==='innings_ending'));
-const ol=$('oversList');
-if(ol){
-  const oversMore=[];
-  if(m.innings1 && Array.isArray(m.innings1.completedOvers)){
-    m.innings1.completedOvers.forEach(function(o){ oversMore.push(Object.assign({_inn:1}, o)); });
-  }
-  (m.completedOvers||[]).forEach(function(o){ oversMore.push(Object.assign({_inn:m.currentInnings||2}, o)); });
-  if(!oversMore.length){
-    ol.innerHTML='<p style="color:var(--muted)">No overs completed yet</p>';
-  } else {
-    ol.innerHTML='';
-    oversMore.forEach(function(o, idx){
-      const onum=(o.num!=null?o.num:(idx+1));
-      const innTag = o._inn ? ('Innings '+o._inn+' · ') : '';
-      const label=innTag+'Over '+onum+' – '+(o.bowlerName||'');
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='list-btn';
-      btn.style.textAlign='left';
-      btn.setAttribute('aria-label', label);
-      btn.innerHTML='<strong>'+label+'</strong>';
-      btn.onclick=function(){ showOverDetail(onum, o._inn); };
-      ol.appendChild(btn);
-    });
-  }
-}
+try{ renderMoreOversList(m); }catch(e){}
 renderScorecard()}
+
+window._moreInnTab = window._moreInnTab || 1;
+function setMoreInnTab(n){
+  window._moreInnTab = (n===2) ? 2 : 1;
+  if($('moreInnTab1')){
+    $('moreInnTab1').classList.toggle('active', window._moreInnTab===1);
+    $('moreInnTab1').setAttribute('aria-selected', window._moreInnTab===1?'true':'false');
+  }
+  if($('moreInnTab2')){
+    $('moreInnTab2').classList.toggle('active', window._moreInnTab===2);
+    $('moreInnTab2').setAttribute('aria-selected', window._moreInnTab===2?'true':'false');
+  }
+  try{ renderMoreOversList(typeof M==='function'?M():null); }catch(e){}
+}
+function collectOversByInnings(m){
+  var inn1 = [], inn2 = [];
+  if(!m) return { inn1:inn1, inn2:inn2 };
+  if(m.innings1 && Array.isArray(m.innings1.completedOvers)){
+    m.innings1.completedOvers.forEach(function(o){ inn1.push(Object.assign({}, o, {_inn:1})); });
+  }
+  var curInn = Number(m.currentInnings)||1;
+  (m.completedOvers||[]).forEach(function(o){
+    var row = Object.assign({}, o, {_inn: curInn});
+    if(curInn===1) inn1.push(row); else inn2.push(row);
+  });
+  // After innings break, live completedOvers are 2nd; innings1 holds 1st
+  if(curInn>=2 && m.innings1 && Array.isArray(m.innings1.completedOvers) && inn1.length===0){
+    m.innings1.completedOvers.forEach(function(o){ inn1.push(Object.assign({}, o, {_inn:1})); });
+  }
+  return { inn1:inn1, inn2:inn2 };
+}
+function renderMoreOversList(m){
+  var ol = $('oversList');
+  if(!ol) return;
+  if(!m){ ol.innerHTML='<p style="color:var(--muted)">No match open</p>'; return; }
+  var packs = collectOversByInnings(m);
+  var tab = window._moreInnTab || 1;
+  // Auto-select 2nd if only 2nd has data and we're in 2nd
+  if(tab===1 && !packs.inn1.length && packs.inn2.length) tab = 2;
+  if(tab===2 && !packs.inn2.length && packs.inn1.length) tab = 1;
+  window._moreInnTab = tab;
+  if($('moreInnTab1')){
+    $('moreInnTab1').classList.toggle('active', tab===1);
+    $('moreInnTab1').setAttribute('aria-selected', tab===1?'true':'false');
+  }
+  if($('moreInnTab2')){
+    $('moreInnTab2').classList.toggle('active', tab===2);
+    $('moreInnTab2').setAttribute('aria-selected', tab===2?'true':'false');
+  }
+  var list = tab===2 ? packs.inn2 : packs.inn1;
+  if(!list.length){
+    ol.innerHTML='<p style="color:var(--muted)">No overs in '+(tab===1?'1st':'2nd')+' innings yet</p>';
+    return;
+  }
+  ol.innerHTML='';
+  list.forEach(function(o, idx){
+    var onum = (o.num!=null?o.num:(idx+1));
+    var scoreBit = (o.scoreAtEnd!=null) ? (' · '+o.scoreAtEnd+'/'+(o.wicketsAtEnd!=null?o.wicketsAtEnd:'—')) : '';
+    var label = 'Over '+onum+' – '+(o.bowlerName||'Bowler')+scoreBit;
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.className='list-btn';
+    btn.style.textAlign='left';
+    btn.setAttribute('aria-label', (tab===1?'1st':'2nd')+' innings, '+label);
+    btn.innerHTML='<strong>'+label+'</strong>';
+    btn.onclick=function(){ showOverDetail(onum, tab); };
+    ol.appendChild(btn);
+  });
+}
+if($('moreInnTab1')) $('moreInnTab1').onclick=function(){ setMoreInnTab(1); };
+if($('moreInnTab2')) $('moreInnTab2').onclick=function(){ setMoreInnTab(2); };
+
 
 
 function resizeImageDataUrl(dataUrl, maxSide, quality){
@@ -6639,25 +6699,44 @@ function setMetaTag(attr, key, value){
   }
   el.setAttribute('content', value);
 }
+function matchShareBaseUrl(){
+  try{
+    var origin = (location && location.origin) ? location.origin : 'https://cric360teluguyt.in';
+    // Clean public link — never expose raw HTML filenames
+    return origin.replace(/\/$/, '') + '/';
+  }catch(e){
+    return 'https://cric360teluguyt.in/';
+  }
+}
+function matchShareUrl(m){
+  var base = matchShareBaseUrl();
+  if(m && m.id) return base + '?match=' + encodeURIComponent(String(m.id));
+  return base;
+}
 function buildMatchShareText(m){
   if(!m) m = (typeof M==='function' ? M() : null) || window._uwmMatch;
   if(!m) return '';
   var a = (m.teamA&&m.teamA.name)||'Team A';
   var b = (m.teamB&&m.teamB.name)||'Team B';
   var st = (m.status||'').toLowerCase();
-  var line = '';
+  var headline = '';
   if(st==='completed'||st==='ended'){
-    line = (m.resultMsg && String(m.resultMsg).trim()) || (a+' vs '+b+' — Match completed');
+    headline = (m.resultMsg && String(m.resultMsg).trim()) || (a + ' vs ' + b + ' — final result on Cric360');
   } else if(st==='not_started'){
-    line = 'Pre-match: '+a+' vs '+b+(m.series?(' · '+m.series):'');
+    headline = a + ' vs ' + b + ' is about to begin' + (m.series ? (' · ' + m.series) : '');
+  } else if(st==='innings_break'||st==='innings_ending'){
+    headline = a + ' vs ' + b + ' · Innings break · Target ' + (m.target||'—');
   } else {
     var bat = m.battingTeam==='teamB' ? b : a;
-    line = 'Live: '+bat+' '+(m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+' ov) — '+a+' vs '+b;
-    if(m.target) line += ' · Target '+m.target;
+    headline = 'LIVE · ' + bat + ' ' + (m.totalScore||0) + '/' + (m.wickets||0) + ' (' + fmtOvers(m.totalBalls||0) + ' ov) · ' + a + ' vs ' + b;
+    if(m.target) headline += ' · Target ' + m.target;
   }
-  var promo = 'Watch cricketing action in 360 degrees only on Cric360 — where experts publish their views in 360 dimensions. Get match insights with AI360, a cricket-trained AI.';
-  var url = (typeof location!=='undefined' ? (location.origin + location.pathname) : 'https://cric360teluguyt.in/') + (m.id ? ('?match='+encodeURIComponent(m.id)) : '');
-  return line + '\\n\\n' + promo + '\\n\\n' + url;
+  var promo =
+    'Follow every delivery in true 360° coverage on Cric360 — the home of immersive cricket storytelling. ' +
+    'Our analysts publish expert views across 360 dimensions, and AI360 (trained on cricket context) turns live data into sharp match insights.';
+  var url = matchShareUrl(m);
+  // Real newlines for WhatsApp / Telegram (not the characters \n)
+  return headline + '\n\n' + promo + '\n\n' + url;
 }
 function updateShareMetaFromMatch(m){
   if(!m) return;
@@ -6667,16 +6746,17 @@ function updateShareMetaFromMatch(m){
   var title = a+' vs '+b+' | Cric360 Live';
   var desc = '';
   if(st==='completed'||st==='ended'){
-    desc = (m.resultMsg||'Match completed') + ' · Watch on Cric360 — 360° cricket, expert views & AI360 insights.';
+    desc = (m.resultMsg||'Match completed') + ' · Immersive 360° cricket and AI360 insights on Cric360.';
   } else if(st==='not_started'){
-    desc = 'Pre-match '+a+' vs '+b+'. Live scores & AI360 insights on Cric360.';
+    desc = a+' vs '+b+' — pre-match on Cric360. Live scores, 360° views, AI360 insights.';
   } else {
-    desc = 'Live '+a+' vs '+b+': '+(m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+' ov). Watch in 360° on Cric360 with AI360 insights.';
+    desc = 'LIVE '+a+' vs '+b+': '+(m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+' ov). Only on Cric360.';
   }
   try{ document.title = title; }catch(e){}
   setMetaTag('name', 'description', desc);
   setMetaTag('property', 'og:title', title);
   setMetaTag('property', 'og:description', desc);
+  setMetaTag('property', 'og:url', matchShareUrl(m));
   setMetaTag('name', 'twitter:title', title);
   setMetaTag('name', 'twitter:description', desc);
 }
@@ -6685,10 +6765,11 @@ async function shareMatchLink(){
   if(!m){ alert('Open a match first'); return; }
   updateShareMetaFromMatch(m);
   var text = buildMatchShareText(m);
-  var url = (location.origin + location.pathname) + (m.id ? ('?match='+encodeURIComponent(m.id)) : '');
+  var url = matchShareUrl(m);
   try{
     if(navigator.share){
-      await navigator.share({ title: document.title, text: text, url: url });
+      // text only (includes URL once) — avoids duplicate link on many apps
+      await navigator.share({ title: (m.teamA&&m.teamA.name||'Match')+' vs '+(m.teamB&&m.teamB.name||''), text: text });
       try{ announce('Share sheet opened'); }catch(e){}
       return;
     }
@@ -6696,7 +6777,7 @@ async function shareMatchLink(){
   try{
     if(navigator.clipboard && navigator.clipboard.writeText){
       await navigator.clipboard.writeText(text);
-      alert('Match link and message copied. Paste it in your group.');
+      alert('Match message copied. Paste it in your group.');
       try{ announce('Copied match share text'); }catch(e){}
       return;
     }
@@ -7077,31 +7158,61 @@ function watchMatch(id) {
 }
 
 
+window._uwmInnTab = window._uwmInnTab || 1;
+function setUwmInnTab(n){
+  window._uwmInnTab = (n===2) ? 2 : 1;
+  if($('uwmInnTab1')){
+    $('uwmInnTab1').classList.toggle('active', window._uwmInnTab===1);
+    $('uwmInnTab1').setAttribute('aria-selected', window._uwmInnTab===1?'true':'false');
+  }
+  if($('uwmInnTab2')){
+    $('uwmInnTab2').classList.toggle('active', window._uwmInnTab===2);
+    $('uwmInnTab2').setAttribute('aria-selected', window._uwmInnTab===2?'true':'false');
+  }
+  try{ paintUwmOversList(window._uwmMatch); }catch(e){}
+}
 function paintUwmOversList(m){
   const box=$('uwmOversList');
   if(!box) return;
   const detail=$('uwmOverDetail');
   if(detail) detail.classList.add('hidden');
   box.classList.remove('hidden');
-  const oversV=(m&&m.completedOvers)||[];
-  if(!oversV.length){
-    box.innerHTML='<p style="color:var(--muted)">No completed overs yet</p>';
+  var packs = (typeof collectOversByInnings==='function') ? collectOversByInnings(m) : { inn1:[], inn2:[] };
+  var tab = window._uwmInnTab || 1;
+  if(tab===1 && !packs.inn1.length && packs.inn2.length) tab = 2;
+  if(tab===2 && !packs.inn2.length && packs.inn1.length) tab = 1;
+  window._uwmInnTab = tab;
+  if($('uwmInnTab1')){
+    $('uwmInnTab1').classList.toggle('active', tab===1);
+    $('uwmInnTab1').setAttribute('aria-selected', tab===1?'true':'false');
+  }
+  if($('uwmInnTab2')){
+    $('uwmInnTab2').classList.toggle('active', tab===2);
+    $('uwmInnTab2').setAttribute('aria-selected', tab===2?'true':'false');
+  }
+  var list = tab===2 ? packs.inn2 : packs.inn1;
+  if(!list.length){
+    box.innerHTML='<p style="color:var(--muted)">No overs in '+(tab===1?'1st':'2nd')+' innings yet</p>';
     return;
   }
   box.innerHTML='';
-  oversV.forEach(function(o, idx){
+  list.forEach(function(o, idx){
     const onum=(o.num!=null?o.num:(idx+1));
+    var scoreBit = (o.scoreAtEnd!=null) ? (o.scoreAtEnd+'/'+(o.wicketsAtEnd!=null?o.wicketsAtEnd:'—')) : ((o.balls||[]).length+' balls');
     const label='Over '+onum+' – '+(o.bowlerName||'');
     const btn=document.createElement('button');
     btn.type='button';
     btn.className='list-btn';
     btn.style.textAlign='left';
-    btn.setAttribute('aria-label', label+', '+(o.balls||[]).length+' balls');
-    btn.innerHTML='<strong>'+label+'</strong><div style="color:var(--muted);font-size:13px;margin-top:4px">'+(o.balls||[]).length+' balls</div>';
+    btn.setAttribute('aria-label', (tab===1?'1st':'2nd')+' innings, '+label+', '+scoreBit);
+    btn.innerHTML='<strong>'+label+'</strong><div style="color:var(--muted);font-size:13px;margin-top:4px">'+scoreBit+'</div>';
     btn.onclick=function(){ openUwmOverDetail(o, onum); };
     box.appendChild(btn);
   });
 }
+if($('uwmInnTab1')) $('uwmInnTab1').onclick=function(){ setUwmInnTab(1); };
+if($('uwmInnTab2')) $('uwmInnTab2').onclick=function(){ setUwmInnTab(2); };
+
 function openUwmOverDetail(o, onum){
   const box=$('uwmOversList');
   const detail=$('uwmOverDetail');

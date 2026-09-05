@@ -1024,6 +1024,7 @@ button:active{transform:scale(.98)}
       <!-- Action controls directly under bowler so admin can always reach them without scrolling past ball log -->
       <div id="adminBallControls" class="action-bar" role="toolbar" aria-label="Actions" style="margin-top:10px">
         <button type="button" id="btnPrevBall" class="act-btn" disabled aria-keyshortcuts="Alt+P" aria-label="Previous ball, Alt P"><span class="act-ico" aria-hidden="true">←</span><span>Previous ball</span></button>
+        <button type="button" id="btnUndoLastOver" class="act-btn" disabled aria-label="Undo last over, step back one over and recalculate scores"><span class="act-ico" aria-hidden="true">↩</span><span>Undo over</span></button>
         <button type="button" id="btnFieldComment" class="act-btn" aria-keyshortcuts="Alt+C" aria-label="Commentary, Alt C"><span class="act-ico" aria-hidden="true">🎤</span><span>Commentary</span></button>
         <button type="button" id="btnNextBall" class="act-btn primary" aria-keyshortcuts="Alt+N" aria-label="Next ball, Alt N"><span class="act-ico" aria-hidden="true">🏏</span><span>Next ball</span></button>
       </div>
@@ -1249,9 +1250,9 @@ button:active{transform:scale(.98)}
 
 <!-- Setup dialogs -->
 <div id="dlgBatting" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgBatTitle"><div class="modal-box"><h2 id="dlgBatTitle" tabindex="-1">Select Batting Team</h2><div id="battingChoices" role="radiogroup" aria-label="Batting team"></div><button type="button" id="dlgBatNext" class="btn-ok btn-block" style="margin-top:16px" disabled>Next →</button></div></div>
-<div id="dlgStriker" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgStrTitle"><div class="modal-box"><h2 id="dlgStrTitle" tabindex="-1">Select Striker</h2><p style="color:var(--muted);font-size:13px">Who will face the first ball?</p><div id="strikerChoices" role="radiogroup" aria-label="Striker"></div><button type="button" id="dlgStrNext" class="btn-ok btn-block" style="margin-top:16px" disabled>Next →</button></div></div>
-<div id="dlgNonStriker" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgNonTitle"><div class="modal-box"><h2 id="dlgNonTitle" tabindex="-1">Select Non-Striker</h2><p style="color:var(--muted);font-size:13px">The other opener</p><div id="nonStrikerChoices" role="radiogroup" aria-label="Non-striker"></div><button type="button" id="dlgNonNext" class="btn-ok btn-block" style="margin-top:16px" disabled>Next →</button></div></div>
-<div id="dlgBowler" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgBowlTitle"><div class="modal-box"><h2 id="dlgBowlTitle" tabindex="-1">Select Opening Bowler</h2><p style="color:var(--muted);font-size:13px">Who will bowl the first over?</p><div id="bowlerChoices" role="radiogroup" aria-label="Opening bowler"></div><button type="button" id="dlgBowlStart" class="btn-ok btn-block" style="margin-top:16px" disabled>Start Match</button></div></div>
+<div id="dlgStriker" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgStrTitle"><div class="modal-box"><h2 id="dlgStrTitle" tabindex="-1">Select Striker</h2><p style="color:var(--muted);font-size:13px">Who will face the first ball?</p><div id="strikerChoices" role="radiogroup" aria-label="Striker"></div><div style="display:flex;gap:10px;margin-top:16px"><button type="button" id="dlgStrBack" class="btn-sec" style="flex:1" aria-label="Previous, cancel striker selection">← Previous</button><button type="button" id="dlgStrNext" class="btn-ok" style="flex:1" disabled>Next →</button></div></div></div>
+<div id="dlgNonStriker" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgNonTitle"><div class="modal-box"><h2 id="dlgNonTitle" tabindex="-1">Select Non-Striker</h2><p style="color:var(--muted);font-size:13px">The other opener</p><div id="nonStrikerChoices" role="radiogroup" aria-label="Non-striker"></div><div style="display:flex;gap:10px;margin-top:16px"><button type="button" id="dlgNonBack" class="btn-sec" style="flex:1" aria-label="Previous, go back to select striker">← Previous</button><button type="button" id="dlgNonNext" class="btn-ok" style="flex:1" disabled>Next →</button></div></div></div>
+<div id="dlgBowler" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgBowlTitle"><div class="modal-box"><h2 id="dlgBowlTitle" tabindex="-1">Select Opening Bowler</h2><p style="color:var(--muted);font-size:13px">Who will bowl the first over?</p><div id="bowlerChoices" role="radiogroup" aria-label="Opening bowler"></div><div style="display:flex;gap:10px;margin-top:16px"><button type="button" id="dlgBowlBack" class="btn-sec" style="flex:1" aria-label="Previous, go back to select non-striker">← Previous</button><button type="button" id="dlgBowlStart" class="btn-ok" style="flex:1" disabled>Start Match</button></div></div></div>
 <div id="dlgNextBowler" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgNextBowlTitle"><div class="modal-box"><h2 id="dlgNextBowlTitle" tabindex="-1">Over Finished</h2><p id="overFinishedMsg" style="color:var(--muted);font-size:13px">Select next bowler</p><div id="nextBowlerChoices" role="radiogroup" aria-label="Next bowler"></div><button type="button" id="dlgNextBowlStart" class="btn-ok btn-block" style="margin-top:16px" disabled>Start Next Over</button></div></div>
 <div id="dlgWicket" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dlgWicketTitle"><div class="modal-box"><h2 id="dlgWicketTitle" tabindex="-1" style="color:var(--danger)">Wicket!</h2><p style="color:var(--muted);font-size:13px">Select next batsman (comes in as non-striker)</p><div id="newBatChoices" role="radiogroup" aria-label="New batsman"></div><button type="button" id="dlgWicketConfirm" class="btn-ok btn-block" style="margin-top:16px" disabled>Confirm</button></div></div>
 
@@ -1702,7 +1703,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.04.1.32";
+const APP_VERSION = "2026.09.05.1.35";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1958,7 +1959,19 @@ function importMatchFromFile(file){
   });
 }
 function M(){const id=S.curId!=null?String(S.curId):null;return (S.matches||[]).find(function(m){return m&&String(m.id)===id;})}
-function focusEl(el){if(!el)return;try{el.setAttribute('tabindex','-1');el.focus({preventScroll:false})}catch(e){}}
+function focusEl(el){
+  if(!el) return;
+  try{
+    if(!el.hasAttribute('tabindex') && el.tabIndex < 0) el.setAttribute('tabindex','-1');
+    // Make temporarily programmatically focusable
+    if(el.tabIndex < 0) el.setAttribute('tabindex','-1');
+    el.focus({preventScroll:false});
+    // Some Android TalkBack need a second tick
+    setTimeout(function(){
+      try{ if(document.activeElement!==el) el.focus({preventScroll:false}); }catch(e2){}
+    }, 50);
+  }catch(e){}
+}
 function announce(msg,assertive){const el=document.getElementById(assertive?'live':'liveSoft');if(el){el.textContent='';setTimeout(()=>{el.textContent=msg},40)}}
 let voices=[],speaking=false,speakQueue=[];
 function loadVoices(){voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en')||v.lang.startsWith('hi')||v.lang.startsWith('ta')||v.lang.startsWith('te'));if(!voices.length)voices=speechSynthesis.getVoices();const sel=document.getElementById('voiceSelect');if(!sel)return;sel.innerHTML='';if(!voices.length){sel.innerHTML='<option value="">No voices found</option>';return}voices.forEach(v=>{const opt=document.createElement('option');opt.value=v.voiceURI;opt.textContent=v.name+' ('+v.lang+')';if(S.selectedVoiceURI===v.voiceURI)opt.selected=true;sel.appendChild(opt)});if(!S.selectedVoiceURI&&voices.length){S.selectedVoiceURI=voices[0].voiceURI;sel.value=S.selectedVoiceURI;save()}}
@@ -2030,8 +2043,50 @@ function newMatch(series, teamAName, teamBName, matchType, squadA, squadB){
 }
 function $(id){return document.getElementById(id)}
 
+
+/** Deep clone match for over-start restore (strip nested snapshots to limit size). */
+function cloneMatchSnapshot(match){
+  try{
+    var o = JSON.parse(JSON.stringify(match));
+    delete o._currentOverStartSnapshot;
+    if(Array.isArray(o.completedOvers)){
+      o.completedOvers = o.completedOvers.map(function(ov){
+        if(!ov || typeof ov!=='object') return ov;
+        var c = Object.assign({}, ov);
+        delete c.startSnapshot;
+        return c;
+      });
+    }
+    return o;
+  }catch(e){ return null; }
+}
+function applyMatchSnapshot(snap){
+  if(!snap || !snap.id) return false;
+  var idx = S.matches.findIndex(function(x){ return x && String(x.id)===String(snap.id); });
+  if(idx < 0) return false;
+  var restored = JSON.parse(JSON.stringify(snap));
+  delete restored._currentOverStartSnapshot;
+  if(Array.isArray(restored.completedOvers)){
+    restored.completedOvers.forEach(function(ov){ if(ov) delete ov.startSnapshot; });
+  }
+  // Clear transient UI flags
+  restored._lastOutWasStriker = undefined;
+  restored._lastOutPlayerId = undefined;
+  S.matches[idx] = restored;
+  S.curId = restored.id;
+  if(S.temp){
+    S.temp.needsNewBatsman = false;
+    S.temp.pendingNewBatsman = false;
+  }
+  return true;
+}
+
 function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='striker'){
   S.history.push(JSON.parse(JSON.stringify(match)));
+  // Snapshot at the first ball of an over — used by Undo last over (no dialogs)
+  if(!(match.currentOverBalls && match.currentOverBalls.length) && !match._currentOverStartSnapshot){
+    match._currentOverStartSnapshot = cloneMatchSnapshot(match);
+  }
   const isOutAttempt=runsOrOut==='out';let runs=isOutAttempt?0:parseInt(runsOrOut,10);const wasFH=match.freeHit;const isOut=isOutAttempt;
   const batSide=match.battingTeam==='teamA'?match.teamA:match.teamB;const bowlSide=match.battingTeam==='teamA'?match.teamB:match.teamA;
   const striker=batSide.squad.find(p=>p&&String(p.id)===String(match.strikerId));const bowler=bowlSide.squad.find(p=>p&&String(p.id)===String(match.currentBowlerId));
@@ -2153,9 +2208,11 @@ function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='strike
       overIndex: (match.completedOvers||[]).length,
       bowlerId:match.currentBowlerId,
       bowlerName:shared,
-      balls:[...match.currentOverBalls]
+      balls:[...match.currentOverBalls],
+      startSnapshot: match._currentOverStartSnapshot || null
     });
     match.currentOverBalls=[];
+    match._currentOverStartSnapshot = null;
   }
   speak(line);
   if((desc||'').trim())speak(desc.trim());
@@ -2321,7 +2378,10 @@ function bindPhotoBtn(c, btn){
   btn.onclick=()=>{
     const pid=btn.getAttribute('data-for');
     const inp=document.createElement('input');
-    inp.type='file'; inp.accept='image/*';
+    inp.type='file';
+    // No capture= — opens gallery / files on phone and file picker on Windows
+    inp.accept='image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp';
+    inp.setAttribute('aria-label','Choose photo from gallery or files');
     inp.onchange=()=>{
       const f=inp.files&&inp.files[0]; if(!f)return;
       const reader=new FileReader();
@@ -2665,10 +2725,21 @@ async function finishCreateMatch(){
         $('btnStartMatch').classList.remove('hidden');
       }
       if(typeof renderPreStartAdmin==='function') renderPreStartAdmin();
-      announce('Match created. Publish Playing 11, post an update, or tap Start Match.');
+      announce('Match is live for the audience as pre-match. Publish Playing 11, post an update, or tap Start Match to begin scoring.');
       setTimeout(function(){
-        try{ focusEl($('btnStartMatch')); }catch(e2){}
-      }, 120);
+        try{
+          if($('preStart')) $('preStart').classList.remove('hidden');
+          var b=$('btnStartMatch');
+          if(b){
+            b.disabled=false;
+            b.classList.remove('hidden');
+            b.setAttribute('tabindex','0');
+            focusEl(b);
+          } else {
+            focusEl($('liveMatchTitle'));
+          }
+        }catch(e2){}
+      }, 200);
     }catch(e){}
   }catch(err){
     console.error(err);
@@ -3072,6 +3143,7 @@ function renderLive(){const m=M();if(!m)return; try{ repairMatchLivePointers(m);
 if($('btnInjNon'))$('btnInjNon').classList.toggle('hidden', m.status!=='live');
 if($('btnNextBall'))$('btnNextBall').disabled=done||onBreak||m.status==='not_started';
   if($('btnPrevBall')&&(done||onBreak))$('btnPrevBall').disabled=true;
+  if($('btnUndoLastOver')&&(done||onBreak))$('btnUndoLastOver').disabled=true;
   if($('preStart')){
     const needStart = m.status==='not_started';
     $('preStart').classList.toggle('hidden', !needStart);
@@ -3297,6 +3369,13 @@ if($('ballLog')){
 }
 if($('pastOversLive')) $('pastOversLive').innerHTML='';
 if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(function(b){return b.type!=='comment'&&b.type!=='force_bowler';}).length);
+  if($('btnUndoLastOver')){
+    var canUndoOver = (m.status==='live') && (
+      (overBalls && overBalls.length > 0) ||
+      ((m.completedOvers||[]).length > 0)
+    );
+    $('btnUndoLastOver').disabled = !canUndoOver;
+  }
 }
 $('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnings===1));$('btnStart2nd').classList.toggle('hidden',m.status!=='innings_break');
 const ol=$('oversList');
@@ -3389,7 +3468,7 @@ function openEditPlayerDlg(playerId, teamKey){
     '<label for="editPlayerName">Name</label>'+
     '<input id="editPlayerName" type="text" autocomplete="off" value="'+(p.name||'').replace(/"/g,'&quot;')+'" aria-label="Player name" />'+
     '<label for="editPlayerPhoto" style="margin-top:12px">Photo (optional)</label>'+
-    '<input id="editPlayerPhoto" type="file" accept="image/*" capture="environment" aria-label="Choose player photo from device" />'+
+    '<input id="editPlayerPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp" aria-label="Choose player photo from gallery or files" />'+
     '<p style="color:var(--muted);font-size:12px;margin:6px 0 0">Photo is resized automatically for cloud save.</p>'+
     '<div class="btn-stack" style="margin-top:14px">'+
     '<button type="button" id="btnEditPlayerSave" class="btn-ok btn-block">Save</button>'+
@@ -3710,23 +3789,34 @@ function switchTab(tabId){
   if($('aucTabbar')) $('aucTabbar').classList.add('hidden');
   if(tabId==='tabLive'){
     if($('screenLive')) $('screenLive').classList.remove('hidden');
-    focusEl($('liveMatchTitle'));
+    // After Insights → Live, re-render then focus so TalkBack/NVDA land on content
+    try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
+    setTimeout(function(){
+      var m = typeof M==='function' ? M() : null;
+      if(m && m.status==='not_started' && $('btnStartMatch') && !$('preStart').classList.contains('hidden')){
+        focusEl($('btnStartMatch'));
+      } else if($('liveMatchTitle')){
+        focusEl($('liveMatchTitle'));
+      } else {
+        focusEl($('tabLive'));
+      }
+    }, 80);
   } else if(tabId==='tabScore'){
     if($('paneScore')) $('paneScore').classList.remove('hidden');
     try{ const mm=M(); if(mm&&!window._scMode){ window._scMode=mm.battingTeam||'teamA'; window._scTeamFocus=window._scMode; } renderScorecard(); }catch(e){}
-    focusEl($('batHeader'));
+    setTimeout(function(){ focusEl($('batHeader')||$('tabScore')); }, 60);
   } else if(tabId==='tabSquads'){
     if($('paneSquads')) $('paneSquads').classList.remove('hidden');
     try{ renderMatchSquadsPane('admin'); }catch(e){}
-    focusEl($('matchSquadsH'));
+    setTimeout(function(){ focusEl($('matchSquadsH')||$('tabSquads')); }, 60);
   } else if(tabId==='tabInsights'){
     if($('paneInsights')) $('paneInsights').classList.remove('hidden');
     try{ renderInsightsPane('admin'); }catch(e){}
-    focusEl($('insTitle'));
+    setTimeout(function(){ focusEl($('insTitle')||$('tabInsights')); }, 60);
   } else {
     if($('paneMore')) $('paneMore').classList.remove('hidden');
     try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
-    focusEl($('paneMore')&&$('paneMore').querySelector('h2'));
+    setTimeout(function(){ focusEl(($('paneMore')&&$('paneMore').querySelector('h2'))||$('tabMore')); }, 60);
   }
 }
 if($('tabLive')) $('tabLive').onclick=()=>switchTab('tabLive');
@@ -3759,29 +3849,39 @@ function p11GridHtml(team){
 function preMatchNotesHtml(m){
   const notes=(m&&m.preMatchNotes)||[];
   if(!notes.length) return '';
-  let h='<div class="pre-notes" aria-label="Pitch updates">';
-  h+='<h3 style="margin:0 0 4px">Pitch updates</h3>';
-  notes.slice().reverse().forEach(function(n){
+  // Newest first (same as ball-by-ball)
+  let h='<div class="pre-notes" aria-label="Pitch updates, latest first">';
+  h+='<h3 style="margin:0 0 8px">Pitch updates</h3>';
+  notes.slice().sort(function(a,b){ return (b.at||0)-(a.at||0); }).forEach(function(n){
     const t=n.at ? new Date(n.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
-    h+='<div class="pre-note"><time>'+escapeIns(t)+'</time>'+escapeIns(n.text||'')+'</div>';
+    h+='<div class="pre-note" role="listitem"><time>'+escapeIns(t)+'</time>'+escapeIns(n.text||'')+'</div>';
   });
   h+='</div>';
   return h;
 }
 function audienceLobbyHtml(m){
   if(!m) return '<p style="color:var(--muted)">Waiting for match…</p>';
+  // Latest-first feed (same idea as ball log):
+  // 1) Pitch updates (newest on top)
+  // 2) Playing 11 (when published)
+  // 3) Toss (oldest / base info)
   const tossW = m.tossWinner==='teamA'?m.teamA.name:(m.tossWinner==='teamB'?m.teamB.name:'');
-  let h='<div class="match-head"><h2 class="mh-title" style="font-size:1.15rem">Toss & teams</h2>';
-  h+='<p class="mh-sub">'+(tossW? (escapeIns(tossW)+(m.tossDecision?(' chose to '+escapeIns(m.tossDecision)) : '')) : 'Toss done')+'</p></div>';
+  let h = '<div class="prematch-feed" aria-label="Pre-match updates, latest first">';
+  // Updates first
+  h += preMatchNotesHtml(m);
+  // Playing 11 next
   if(m.p11Published){
-    h+='<div class="p11-board">'+p11GridHtml(m.teamA)+p11GridHtml(m.teamB)+'</div>';
+    h += '<div class="p11-board" style="margin-top:12px">'+p11GridHtml(m.teamA)+p11GridHtml(m.teamB)+'</div>';
   } else {
-    h+='<p style="color:var(--muted);margin-top:12px">Playing 11 will appear here when the scorer publishes it.</p>';
+    h += '<p style="color:var(--muted);margin-top:12px">Playing 11 will appear here when the scorer publishes it.</p>';
   }
-  h+=preMatchNotesHtml(m);
+  // Toss at the bottom of the feed
+  h += '<div class="match-head" style="margin-top:16px"><h2 class="mh-title" style="font-size:1.1rem">Toss</h2>';
+  h += '<p class="mh-sub">'+(tossW? (escapeIns(tossW)+(m.tossDecision?(' chose to '+escapeIns(m.tossDecision)) : '')) : 'Toss pending')+'</p></div>';
   if(!m.p11Published && !(m.preMatchNotes&&m.preMatchNotes.length)){
-    h+='<p style="font-weight:800;text-align:center;margin-top:18px">Waiting for the match to begin</p>';
+    h += '<p style="font-weight:800;text-align:center;margin-top:18px">Waiting for the match to begin</p>';
   }
+  h += '</div>';
   return h;
 }
 function renderPreStartAdmin(){
@@ -3878,6 +3978,8 @@ function availableBowlers(team, excludeIds){
 }
 function openStrikerFromPlaying11(){
   const m=M(); if(!m) return;
+  if(!S.temp) S.temp={};
+  S.temp.battingTeam = S.temp.battingTeam || m.battingTeam;
   const bat = S.temp.battingTeam==='teamA' ? m.teamA : m.teamB;
   const list = playingList(bat);
   const box=$('strikerChoices'); if(!box) return;
@@ -3888,11 +3990,16 @@ function openStrikerFromPlaying11(){
     lab.innerHTML='<input type="radio" name="strikerPick" value="'+p.id+'" /> '+(p.name||'Player');
     box.appendChild(lab);
   });
+  var hasSel=false;
   box.querySelectorAll('input').forEach(r=>{
     r.onchange=()=>{ $('dlgStrNext').disabled=false; S.temp.strikerId=r.value; };
+    if(S.temp.strikerId && String(r.value)===String(S.temp.strikerId)){
+      r.checked=true; hasSel=true;
+    }
   });
-  $('dlgStrNext').disabled=true;
+  $('dlgStrNext').disabled = !hasSel;
   openDlg('dlgStriker');
+  setTimeout(function(){ try{ focusEl($('dlgStrTitle')); }catch(e){} }, 60);
 }
 
 if($('dlgBatNext')) $('dlgBatNext').onclick=()=>{
@@ -3901,27 +4008,97 @@ if($('dlgBatNext')) $('dlgBatNext').onclick=()=>{
   S.temp.battingTeam = S.temp.battingTeam || m.battingTeam;
   openStrikerFromPlaying11();
 };
+function openNonStrikerFromPlaying11(){
+  const m=M(); if(!m) return;
+  const bat=S.temp.battingTeam==='teamA'?m.teamA:m.teamB;
+  const list=playingList(bat);
+  const box=$('nonStrikerChoices'); if(!box) return;
+  box.innerHTML=list.filter(p=>String(p.id)!==String(S.temp.strikerId)).map(p=>'<label class="choice-btn"><input type="radio" name="nonStriker" value="'+p.id+'" /> '+p.name+'</label>').join('');
+  box.querySelectorAll('input').forEach(r=>{
+    r.onchange=()=>{ $('dlgNonNext').disabled=false; S.temp.nonStrikerId=r.value; };
+    // re-select previous choice if still valid
+    if(S.temp.nonStrikerId && String(r.value)===String(S.temp.nonStrikerId) && String(r.value)!==String(S.temp.strikerId)){
+      r.checked=true; $('dlgNonNext').disabled=false;
+    }
+  });
+  if(!S.temp.nonStrikerId || String(S.temp.nonStrikerId)===String(S.temp.strikerId)){
+    S.temp.nonStrikerId=null;
+    $('dlgNonNext').disabled=true;
+  }
+  openDlg('dlgNonStriker');
+  setTimeout(function(){ try{ focusEl($('dlgNonTitle')); }catch(e){} }, 60);
+}
+function openBowlerFromPlaying11(){
+  const m=M(); if(!m) return;
+  const bowl=S.temp.battingTeam==='teamA'?m.teamB:m.teamA;
+  const list=playingList(bowl);
+  const box=$('bowlerChoices'); if(!box) return;
+  box.innerHTML=list.map(p=>'<label class="choice-btn"><input type="radio" name="openerBowler" value="'+p.id+'" /> '+p.name+'</label>').join('');
+  box.querySelectorAll('input').forEach(r=>{
+    r.onchange=()=>{ $('dlgBowlStart').disabled=false; S.temp.bowlerId=r.value; };
+    if(S.temp.bowlerId && String(r.value)===String(S.temp.bowlerId)){
+      r.checked=true; $('dlgBowlStart').disabled=false;
+    }
+  });
+  if(!S.temp.bowlerId) $('dlgBowlStart').disabled=true;
+  openDlg('dlgBowler');
+  setTimeout(function(){ try{ focusEl($('dlgBowlTitle')); }catch(e){} }, 60);
+}
 if($('dlgStrNext')) $('dlgStrNext').onclick=()=>{
   const m=M(); const bat=S.temp.battingTeam==='teamA'?m.teamA:m.teamB;
   const list=playingList(bat);
   const pl=list.find(p=>p.id===S.temp.strikerId)||(bat.squad||[]).find(p=>p.id===S.temp.strikerId);
   speak('Striker, '+(pl&&pl.name||'')); closeDlg('dlgStriker');
-  const box=$('nonStrikerChoices');
-  box.innerHTML=list.filter(p=>p.id!==S.temp.strikerId).map(p=>'<label class="choice-btn"><input type="radio" name="nonStriker" value="'+p.id+'" /> '+p.name+'</label>').join('');
-  box.querySelectorAll('input').forEach(r=>{r.onchange=()=>{$('dlgNonNext').disabled=false;S.temp.nonStrikerId=r.value}});
-  $('dlgNonNext').disabled=true; openDlg('dlgNonStriker');
+  // clear non-striker if it was the same as new striker
+  if(S.temp.nonStrikerId && String(S.temp.nonStrikerId)===String(S.temp.strikerId)) S.temp.nonStrikerId=null;
+  openNonStrikerFromPlaying11();
 };
 if($('dlgNonNext')) $('dlgNonNext').onclick=()=>{
   const m=M();
   const bat=S.temp.battingTeam==='teamA'?m.teamA:m.teamB;
-  const bowl=S.temp.battingTeam==='teamA'?m.teamB:m.teamA;
   const pl=(bat.squad||[]).find(p=>p.id===S.temp.nonStrikerId);
   speak('Non striker, '+(pl&&pl.name||'')); closeDlg('dlgNonStriker');
-  const list=playingList(bowl);
-  const box=$('bowlerChoices');
-  box.innerHTML=list.map(p=>'<label class="choice-btn"><input type="radio" name="openerBowler" value="'+p.id+'" /> '+p.name+'</label>').join('');
-  box.querySelectorAll('input').forEach(r=>{r.onchange=()=>{$('dlgBowlStart').disabled=false;S.temp.bowlerId=r.value}});
-  $('dlgBowlStart').disabled=true; openDlg('dlgBowler');
+  openBowlerFromPlaying11();
+};
+// Previous: Non-striker → Striker
+if($('dlgNonBack')) $('dlgNonBack').onclick=function(){
+  closeDlg('dlgNonStriker');
+  openStrikerFromPlaying11();
+  // re-check previous striker if still set
+  setTimeout(function(){
+    try{
+      var box=$('strikerChoices');
+      if(box && S.temp.strikerId){
+        box.querySelectorAll('input').forEach(function(r){
+          if(String(r.value)===String(S.temp.strikerId)){ r.checked=true; $('dlgStrNext').disabled=false; }
+        });
+      }
+      focusEl($('dlgStrTitle'));
+    }catch(e){}
+  }, 80);
+};
+// Previous: Bowler → Non-striker
+if($('dlgBowlBack')) $('dlgBowlBack').onclick=function(){
+  closeDlg('dlgBowler');
+  openNonStrikerFromPlaying11();
+};
+// Previous: Striker → close wizard (back to pre-start) or batting team if that dialog was used
+if($('dlgStrBack')) $('dlgStrBack').onclick=function(){
+  closeDlg('dlgStriker');
+  var m=M();
+  // If toss already fixed batting team, just return to Start Match screen
+  if(m && m.battingTeam && (m.tossWinner||m.tossDecision)){
+    try{ announce('Cancelled opener selection. Tap Start Match to try again.'); }catch(e){}
+    setTimeout(function(){ try{ focusEl($('btnStartMatch')); }catch(e){} }, 80);
+    return;
+  }
+  // Otherwise reopen batting team choice
+  if($('dlgBatting') && $('battingChoices')){
+    openDlg('dlgBatting');
+    setTimeout(function(){ try{ focusEl($('dlgBatTitle')); }catch(e){} }, 60);
+  } else {
+    setTimeout(function(){ try{ focusEl($('btnStartMatch')); }catch(e){} }, 80);
+  }
 };
 
 $('dlgBowlStart').onclick=()=>{
@@ -3936,21 +4113,109 @@ $('dlgBowlStart').onclick=()=>{
   m.status='live';
   m.freeHit=false;
   m.currentOverBalls=[];
-  m.p11Published=false;
-  m.preMatchNotes=[];
+  // Keep Playing 11 + pitch updates until match is deleted (do not clear)
+  if(!Array.isArray(m.preMatchNotes)) m.preMatchNotes = m.preMatchNotes || [];
   save();
+  if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
   closeDlg('dlgBowler');
   renderLive();
   const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;
   const str=bat.squad.find(p=>p.id===m.strikerId);
   const non=bat.squad.find(p=>p.id===m.nonStrikerId);
   speak('Match started. '+str.name+' and '+non.name+' are the openers. '+name+' to bowl. Audience now sees live scoring.');
-  announce('Match is live. Playing 11 lobby and pitch updates removed for the audience.');
-  focusEl($('liveMatchTitle'));
+  announce('Match is live. Scoring is open. Pitch updates and Playing 11 stay available on Teams.');
+  setTimeout(function(){
+    try{
+      var t=$('liveMatchTitle');
+      if(t){ t.setAttribute('tabindex','-1'); focusEl(t); }
+      else focusEl($('btnNextBall'));
+    }catch(e){}
+  }, 150);
 };
 
 $('btnNextBall').onclick=()=>openBallDlg();
 $('btnPrevBall').onclick=()=>{const m=M();if(!m.currentOverBalls||!m.currentOverBalls.length)return;if(S.history.length){const prev=S.history.pop();const idx=S.matches.findIndex(x=>x.id===prev.id);if(idx!==-1)S.matches[idx]=prev;save()}renderLive();openBallDlg(true)};
+
+/**
+ * Undo last over only (LIFO). No select dialogs.
+ * Current over with balls → restore start of this over.
+ * Else last completed over → restore start of that over.
+ * Striker / non-striker / bowler come from snapshot — no auto dialogs.
+ */
+function undoLastOver(){
+  const m = M();
+  if(!m || m.status!=='live'){
+    try{ announce('Undo over is only available while the match is live'); }catch(e){}
+    return;
+  }
+  const cur = m.currentOverBalls || [];
+  const done = m.completedOvers || [];
+  let snap = null;
+  let label = '';
+
+  if(cur.length > 0){
+    snap = m._currentOverStartSnapshot || null;
+    label = 'current over';
+    if(!snap && S.history && S.history.length){
+      var n = cur.length;
+      if(S.history.length >= n){
+        var prev = null;
+        for(var i=0;i<n;i++) prev = S.history.pop();
+        snap = prev;
+      }
+    }
+  } else if(done.length > 0){
+    var last = done[done.length - 1];
+    snap = (last && last.startSnapshot) ? last.startSnapshot : null;
+    label = 'over ' + (last && last.num != null ? last.num : done.length);
+    if(!snap && S.history && S.history.length){
+      var balls = (last && last.balls) ? last.balls : [];
+      var n2 = balls.length || 0;
+      if(n2 > 0 && S.history.length >= n2){
+        var prev2 = null;
+        for(var j=0;j<n2;j++) prev2 = S.history.pop();
+        snap = prev2;
+      }
+    }
+  } else {
+    try{ announce('No over to undo yet'); }catch(e){}
+    return;
+  }
+
+  if(!snap){
+    alert('Cannot undo this over (no restore point). This can happen after a full page reload. Use Previous ball for recent balls in the current over.');
+    return;
+  }
+
+  if(!applyMatchSnapshot(snap)){
+    alert('Could not restore match state');
+    return;
+  }
+
+  var mm = M();
+  if(mm){
+    if(!Array.isArray(mm.currentOverBalls)) mm.currentOverBalls = [];
+    mm._currentOverStartSnapshot = null;
+  }
+
+  try{ save(); }catch(e){}
+  if(typeof cloudSaveMatch==='function'){
+    try{ cloudSaveMatch(M()); }catch(e){}
+  }
+  try{ renderLive(); }catch(e){}
+  try{ renderScorecard(); }catch(e){}
+  try{ if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin'); }catch(e){}
+
+  var ovLabel = '';
+  try{ ovLabel = fmtOvers((M() && M().totalBalls) || 0); }catch(e){}
+  try{ announce('Undid '+label+'. Score restored. Continue with Next ball. Now at '+ovLabel+' overs.'); }catch(e){}
+  try{ speak('Over undone'); }catch(e){}
+  setTimeout(function(){
+    try{ focusEl($('btnNextBall') || $('liveMatchTitle')); }catch(e){}
+  }, 100);
+}
+if($('btnUndoLastOver')) $('btnUndoLastOver').onclick = function(){ undoLastOver(); };
+
 function openBallDlg(isReentry){const m=M();if(m.status==='completed'){alert('Match is finished');return;}if(m.status==='innings_break'||m.status==='innings_ending'){alert('Innings break — use Resume Match when ready');return;}
   if(S.temp&&S.temp.needsNewBatsman){ alert('Select the new batsman first'); showWicketDlg(); return; }
 $('ballTitle').textContent=isReentry?'Re-enter Ball':'Enter Ball';$('ballSub').textContent='Over '+fmtOvers(m.totalBalls)+' · Ball '+((m.ballsInOver%6)+1);const fhNote=$('freeHitNote');if(m.freeHit){fhNote.classList.remove('hidden')}else{fhNote.classList.add('hidden')}// OUT stays enabled on free hit (run-out still possible)
@@ -6077,22 +6342,43 @@ function listenUserMatches() {
   box.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
   if (!db) { box.innerHTML = '<p style="color:var(--muted)">Cloud not available</p>'; return; }
   liveListUnsub = db.collection('cric360_matches')
-    .where('status', 'in', ['live', 'innings_break', 'innings_ending'])
+    .where('status', 'in', ['not_started', 'live', 'innings_break', 'innings_ending'])
     .onSnapshot(snap => {
       if (snap.empty) {
-        box.innerHTML = '<p style="color:var(--muted)">No live matches right now.</p>';
+        box.innerHTML = '<p style="color:var(--muted)">No matches right now.</p>';
         return;
       }
+      // Client sort: live first, then not_started; newest updated first
+      var rows = [];
+      snap.forEach(function(doc){ rows.push({ id: doc.id, m: doc.data()||{} }); });
+      rows.sort(function(a,b){
+        var rank = function(st){
+          st = (st||'').toLowerCase();
+          if(st==='live'||st==='innings_break'||st==='innings_ending') return 0;
+          if(st==='not_started') return 1;
+          return 2;
+        };
+        var ra = rank(a.m.status), rb = rank(b.m.status);
+        if(ra!==rb) return ra-rb;
+        var ta = a.m.updatedAt && a.m.updatedAt.seconds ? a.m.updatedAt.seconds : (Date.parse(a.m.createdAt||0)||0)/1000;
+        var tb = b.m.updatedAt && b.m.updatedAt.seconds ? b.m.updatedAt.seconds : (Date.parse(b.m.createdAt||0)||0)/1000;
+        return tb - ta;
+      });
       box.innerHTML = '';
-      snap.forEach(doc => {
-        const m = doc.data();
-        const btn = document.createElement('button');
+      rows.forEach(function(row){
+        var m = row.m;
+        var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'list-btn';
-        const title = (m.teamA && m.teamA.name ? m.teamA.name : '?') + ' vs ' + (m.teamB && m.teamB.name ? m.teamB.name : '?');
-        btn.setAttribute('aria-label', title + ', ' + (m.totalScore||0) + ' for ' + (m.wickets||0) + ', ' + (m.status||''));
-        btn.innerHTML = '<strong>'+title+'</strong><div style="color:var(--muted);font-size:13px">'+(m.series||'')+' · '+m.totalScore+'/'+m.wickets+' ('+fmtOvers(m.totalBalls||0)+') · '+m.status+'</div>';
-        btn.onclick = () => watchMatch(doc.id);
+        var title = (m.teamA && m.teamA.name ? m.teamA.name : '?') + ' vs ' + (m.teamB && m.teamB.name ? m.teamB.name : '?');
+        var st = (m.status||'').toLowerCase();
+        var statusLabel = st==='not_started' ? 'Pre-match (toss & teams)' : (st==='innings_break' ? 'Innings break' : (st||'live'));
+        var scoreBit = st==='not_started'
+          ? ((m.p11Published ? 'Playing 11 ready' : 'Waiting for Playing 11') + ((m.preMatchNotes&&m.preMatchNotes.length) ? (' · ' + m.preMatchNotes.length + ' update'+(m.preMatchNotes.length===1?'':'s')) : ''))
+          : ((m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+')');
+        btn.setAttribute('aria-label', title + ', ' + statusLabel + ', ' + scoreBit);
+        btn.innerHTML = '<strong>'+title+'</strong><div style="color:var(--muted);font-size:13px">'+(m.series||'')+' · '+scoreBit+' · '+statusLabel+'</div>';
+        btn.onclick = function(){ watchMatch(row.id); };
         box.appendChild(btn);
       });
     }, err => {

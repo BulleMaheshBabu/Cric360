@@ -14,6 +14,18 @@
 <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Cric360 Live – Uninterrupted live with 360 dimensions</title>
+<meta name="description" content="Watch cricket live in 360 degrees on Cric360. Live scores, ball-by-ball, expert views in 360 dimensions, and match insights with AI360." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Cric360 Live" />
+<meta property="og:title" content="Cric360 Live – Watch cricket in 360 degrees" />
+<meta property="og:description" content="Live scores, ball-by-ball action, expert 360 views, and AI360 match insights. Only on Cric360." />
+<meta property="og:url" content="https://cric360teluguyt.in/" />
+<meta property="og:image" content="https://cric360teluguyt.in/icons/icon-512.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Cric360 Live – Watch cricket in 360 degrees" />
+<meta name="twitter:description" content="Live scores, ball-by-ball, expert 360 views, and AI360 insights. Only on Cric360." />
+<meta name="twitter:image" content="https://cric360teluguyt.in/icons/icon-512.png" />
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -287,6 +299,8 @@ a.btn-sec,a.btn-ok{text-decoration:none}
 .ball-tag.extra{background:rgba(245,158,11,.25);color:var(--accent-gold)}
 .ball-tag.update{background:rgba(167,139,250,.22);color:#c4b5fd;letter-spacing:.04em}
 .ball-row-update{opacity:.95;border-left:3px solid rgba(167,139,250,.55);padding-left:8px;margin-left:2px}
+.ball-row-overend{opacity:.98;border-left:3px solid rgba(0,180,216,.65);padding-left:8px;margin-left:2px;background:rgba(0,180,216,.06)}
+.ball-row-overend .ball-desc{font-weight:700;color:var(--primary-bright)}
 .ball-row-update .ball-desc{font-style:italic;color:var(--text-muted)}
 .ball-desc{flex:1;color:var(--text-secondary);min-width:0}
 .squads-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -883,6 +897,7 @@ button:active{transform:scale(.98)}
 
 <section id="uwmPaneMore" class="wrap hidden" role="tabpanel" aria-label="More">
   <div class="panel">
+    <button type="button" id="btnShareMatchUser" class="btn-ok btn-block" style="margin-bottom:14px" aria-label="Share match link">Share match link</button>
     <div id="uwmOversList"></div>
     <div id="uwmOverDetail" class="hidden" role="region" aria-label="Over detail">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px">
@@ -1107,6 +1122,7 @@ button:active{transform:scale(.98)}
     <h2 tabindex="-1">Match Controls</h2>
     <button type="button" id="btnEndInnings" class="btn-block" style="background:linear-gradient(135deg,#d97706,#b45309)">End Innings</button>
     <button type="button" id="btnStart2nd" class="btn-block btn-ok hidden">Start 2nd Innings</button>
+    <button type="button" id="btnShareMatchAdmin" class="btn-sec btn-block" style="margin-bottom:10px">Share match link</button>
     <button type="button" id="btnEndMatch" class="btn-block btn-danger">End Match</button>
     <button type="button" id="btnDownloadMatch" class="btn-block btn-ok" style="margin-top:12px" aria-label="Download full match file">Download match file</button>
     <h2 style="margin-top:24px" tabindex="-1">Overs History</h2>
@@ -1726,7 +1742,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.05.1.40";
+const APP_VERSION = "2026.09.05.1.41";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -2258,12 +2274,36 @@ function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='strike
     });
     if(bowler&&bowler.name&&names.indexOf(bowler.name)<0) names.push(bowler.name);
     const shared = names.length ? names.join(' / ') : (bowler&&bowler.name||'');
+    // Live commentary card: end of over + bowler figures + score so scrollers see context
+    try{
+      var ovNum = match.currentOver;
+      var bName = (bowler && bowler.name) ? bowler.name : (shared || 'Bowler');
+      var bFig = fmtOvers(bowler && bowler.bowlBalls || 0) + '-' + (bowler && bowler.bowlRuns != null ? bowler.bowlRuns : 0) + '-' + (bowler && bowler.wickets != null ? bowler.wickets : 0);
+      var scLine = (match.totalScore||0) + '/' + (match.wickets||0) + ' (' + fmtOvers(match.totalBalls||0) + ' ov)';
+      var endTxt = 'End of over ' + ovNum + ' · ' + bName + ' ' + bFig + ' · Score ' + scLine;
+      match.currentOverBalls.push({
+        type: 'over_end',
+        legal: false,
+        text: endTxt,
+        bowler: bName,
+        overStr: String(ovNum),
+        overNum: ovNum,
+        scoreAtEnd: match.totalScore||0,
+        wicketsAtEnd: match.wickets||0,
+        oversAtEnd: fmtOvers(match.totalBalls||0),
+        bowlerFigures: bFig,
+        outcomeText: endTxt,
+        at: Date.now()
+      });
+    }catch(eEnd){}
     match.completedOvers.push({
       num:match.currentOver, // 1-based over that just finished
       overIndex: (match.completedOvers||[]).length,
       bowlerId:match.currentBowlerId,
       bowlerName:shared,
       balls:[...match.currentOverBalls],
+      scoreAtEnd: match.totalScore||0,
+      wicketsAtEnd: match.wickets||0,
       startSnapshot: match._currentOverStartSnapshot || null
     });
     match.currentOverBalls=[];
@@ -2926,6 +2966,7 @@ function downloadFullMatchFile(){
 
 function ballEventTag(b){
   if(!b) return {cls:'', text:''};
+  if(b.type==='over_end') return {cls:'overend', text:'OVER'};
   if(b.type==='comment'||b.type==='force_bowler') return {cls:'update', text:'UPDATE'};
   // Prefer structured fields — never scan full text for lone "4"/"6" (matches over numbers like 4.5)
   if(b.runs==='W'||b.type==='out'||b.dismissal) return {cls:'wicket', text:'W'};
@@ -3029,7 +3070,7 @@ function dismissVisual(d){
 }
 function formatBallRow(b, i, overBalls){
   if(!b) return '';
-  const isUpdate = (b.type==='comment' || b.type==='force_bowler');
+  const isUpdate = (b.type==='comment' || b.type==='force_bowler' || b.type==='over_end');
   const overLabel = (!isUpdate && b.overStr) ? String(b.overStr) : '';
   const bowl = b.bowler || '';
   const bat = b.striker || '';
@@ -3037,7 +3078,11 @@ function formatBallRow(b, i, overBalls){
   let outcomeAria = '';
   let tag = ballEventTag(b);
   const isWicket = b.runs==='W' || b.type==='out' || (b.dismissal);
-  if(b.type==='comment'){
+  if(b.type==='over_end'){
+    outcomeAria = String(b.text||'End of over');
+    outcomeVis = String(b.text||'End of over');
+    tag = {cls:'overend', text:'OVER'};
+  } else if(b.type==='comment'){
     outcomeAria = 'Update: ' + String(b.text||'Field update').replace(/^\d+\.\d+\s*/,'');
     outcomeVis = String(b.text||'Field update').replace(/^\d+\.\d+\s*/,'');
     tag = {cls:'update', text:'UPDATE'};
@@ -3045,6 +3090,7 @@ function formatBallRow(b, i, overBalls){
     outcomeAria = 'Update: ' + String(b.text||'Bowler change').replace(/^\d+\.\d+\s*/,'');
     outcomeVis = String(b.text||'Bowler change').replace(/^\d+\.\d+\s*/,'');
     tag = {cls:'update', text:'UPDATE'};
+  } else if(isWicket){
   } else if(isWicket){
     const dSpeak = dismissSpeak(b.dismissal || b.outcomeText || 'out');
     const dVis = dismissVisual(b.dismissal || '');
@@ -3097,12 +3143,14 @@ function formatBallRow(b, i, overBalls){
     mainVis = outcomeVis || (b.text||'');
   }
   // Spoken text MUST be real text (sr-only). aria-label alone reads blank in browse mode.
-  const rowCls = isUpdate ? 'ball-row ball-row-update' : 'ball-row';
+  const rowCls = (b.type==='over_end') ? 'ball-row ball-row-overend' : (isUpdate ? 'ball-row ball-row-update' : 'ball-row');
   const spoken = String(aria).replace(/&quot;/g, '"');
   let h = '<li class="'+rowCls+'" tabindex="0">';
   h += '<span class="sr-only">'+spoken.replace(/</g,'&lt;')+'</span>';
   h += '<div aria-hidden="true" class="ball-row-visual">';
-  if(isUpdate){
+  if(b.type==='over_end'){
+    h += '<span class="ball-tag overend">OVER</span>';
+  } else if(isUpdate){
     h += '<span class="ball-tag update">UPDATE</span>';
   } else {
     h += '<span class="ball-tag">'+(overLabel||'·')+'</span>';
@@ -3155,7 +3203,7 @@ function renderFlatBallList(containerId, m, moreBtnId){
   }
 }
 
-function renderLive(){const m=M();if(!m)return; try{ repairMatchLivePointers(m); }catch(e){}
+function renderLive(){const m=M();if(!m)return; try{ repairMatchLivePointers(m); }catch(e){} try{ updateShareMetaFromMatch(m); }catch(e){}
   // Single heading: series · match type · Team A vs Team B (one announcement)
   const seriesPart = [m.series, m.matchType].filter(Boolean).join(' · ');
   const vsPart = (m.teamA&&m.teamA.name||'?')+' vs '+(m.teamB&&m.teamB.name||'?');
@@ -3452,7 +3500,7 @@ if($('ballLog')){
   renderFlatBallList('ballLog', m, 'btnLoadMoreBalls');
 }
 if($('pastOversLive')) $('pastOversLive').innerHTML='';
-if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(function(b){return b.type!=='comment'&&b.type!=='force_bowler';}).length);
+if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(function(b){return b.type!=='comment'&&b.type!=='force_bowler'&&b.type!=='over_end';}).length);
   if($('btnUndoLastOver')){
     var canUndoOver = (m.status==='live') && (
       (overBalls && overBalls.length > 0) ||
@@ -4257,7 +4305,9 @@ function undoLastOver(){
     snap = (last && last.startSnapshot) ? last.startSnapshot : null;
     label = 'over ' + (last && last.num != null ? last.num : done.length);
     if(!snap && S.history && S.history.length){
-      var balls = (last && last.balls) ? last.balls : [];
+      var balls = (last && last.balls) ? last.balls.filter(function(b){
+        return b && b.type!=='over_end' && b.type!=='comment' && b.type!=='force_bowler';
+      }) : [];
       var n2 = balls.length || 0;
       if(n2 > 0 && S.history.length >= n2){
         var prev2 = null;
@@ -4524,6 +4574,8 @@ function endInnings(){
 }
 $('btnStart2nd').onclick=()=>resumeSecondInnings();
 if($('btnDownloadMatch'))$('btnDownloadMatch').onclick=()=>downloadFullMatchFile();
+if($('btnShareMatchAdmin')) $('btnShareMatchAdmin').onclick=function(){ shareMatchLink(); };
+if($('btnShareMatchUser')) $('btnShareMatchUser').onclick=function(){ shareMatchLink(); };
 $('btnEndMatch').onclick=()=>{if(!confirm('End the entire match?'))return;const m=M();const batTeam=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowlTeam=m.battingTeam==='teamA'?m.teamB:m.teamA;let msg='Match ended';if(m.currentInnings===2&&m.target){if(m.totalScore>=m.target){const w=10-m.wickets;msg=batTeam.name+' won by '+w+' wicket'+(w!==1?'s':'');}else{const margin=m.target-1-m.totalScore;msg=bowlTeam.name+' won by '+margin+' run'+(margin!==1?'s':'');}}finishMatch(msg);};
 
 window.showOverDetail=function(num, inn){const m=M();
@@ -6510,12 +6562,29 @@ function enterAppHome() {
     // Cloud merge in background — never blocks first paint
     loadCloudMatchesForAdmin().then(function(){
       try { renderMatches(); } catch(e){}
+      try { openMatchFromQuery(); } catch(e){}
     }).catch(function(){});
   } else {
     setHubTab('user', 'hubUserMatches');
     if ($('userEmailLabel') && user) $('userEmailLabel').textContent = user.email || '';
     try { focusEl($('userHomeTitle')); } catch(e){}
+    try { listenUserMatches(); } catch(e){}
+    try { openMatchFromQuery(); } catch(e){}
   }
+}
+function openMatchFromQuery(){
+  try{
+    var q = new URLSearchParams(location.search||'');
+    var mid = q.get('match') || q.get('m');
+    if(!mid) return;
+    if(window._openedMatchQuery === mid) return;
+    window._openedMatchQuery = mid;
+    if(typeof isAdmin==='function' && isAdmin() && typeof openMatch==='function'){
+      openMatch(mid);
+    } else if(typeof watchMatch==='function'){
+      watchMatch(mid);
+    }
+  }catch(e){ console.warn('openMatchFromQuery', e); }
 }
 
 async function loadCloudMatchesForAdmin() {
@@ -6557,6 +6626,83 @@ if ($('btnBackUserAuctions')) $('btnBackUserAuctions').onclick = () => { if (liv
 if ($('btnBackUserMore')) $('btnBackUserMore').onclick = () => { showScreen('screenUserHome'); setHubTab('user','hubUserMore'); };
 if ($('btnUserSettings')) $('btnUserSettings').onclick = openSettingsMenu;
 if ($('btnUserSettings2')) $('btnUserSettings2').onclick = openSettingsMenu;
+
+
+function setMetaTag(attr, key, value){
+  if(!value) return;
+  var sel = 'meta['+attr+'="'+key+'"]';
+  var el = document.querySelector(sel);
+  if(!el){
+    el = document.createElement('meta');
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', value);
+}
+function buildMatchShareText(m){
+  if(!m) m = (typeof M==='function' ? M() : null) || window._uwmMatch;
+  if(!m) return '';
+  var a = (m.teamA&&m.teamA.name)||'Team A';
+  var b = (m.teamB&&m.teamB.name)||'Team B';
+  var st = (m.status||'').toLowerCase();
+  var line = '';
+  if(st==='completed'||st==='ended'){
+    line = (m.resultMsg && String(m.resultMsg).trim()) || (a+' vs '+b+' — Match completed');
+  } else if(st==='not_started'){
+    line = 'Pre-match: '+a+' vs '+b+(m.series?(' · '+m.series):'');
+  } else {
+    var bat = m.battingTeam==='teamB' ? b : a;
+    line = 'Live: '+bat+' '+(m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+' ov) — '+a+' vs '+b;
+    if(m.target) line += ' · Target '+m.target;
+  }
+  var promo = 'Watch cricketing action in 360 degrees only on Cric360 — where experts publish their views in 360 dimensions. Get match insights with AI360, a cricket-trained AI.';
+  var url = (typeof location!=='undefined' ? (location.origin + location.pathname) : 'https://cric360teluguyt.in/') + (m.id ? ('?match='+encodeURIComponent(m.id)) : '');
+  return line + '\\n\\n' + promo + '\\n\\n' + url;
+}
+function updateShareMetaFromMatch(m){
+  if(!m) return;
+  var a = (m.teamA&&m.teamA.name)||'Team A';
+  var b = (m.teamB&&m.teamB.name)||'Team B';
+  var st = (m.status||'').toLowerCase();
+  var title = a+' vs '+b+' | Cric360 Live';
+  var desc = '';
+  if(st==='completed'||st==='ended'){
+    desc = (m.resultMsg||'Match completed') + ' · Watch on Cric360 — 360° cricket, expert views & AI360 insights.';
+  } else if(st==='not_started'){
+    desc = 'Pre-match '+a+' vs '+b+'. Live scores & AI360 insights on Cric360.';
+  } else {
+    desc = 'Live '+a+' vs '+b+': '+(m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+' ov). Watch in 360° on Cric360 with AI360 insights.';
+  }
+  try{ document.title = title; }catch(e){}
+  setMetaTag('name', 'description', desc);
+  setMetaTag('property', 'og:title', title);
+  setMetaTag('property', 'og:description', desc);
+  setMetaTag('name', 'twitter:title', title);
+  setMetaTag('name', 'twitter:description', desc);
+}
+async function shareMatchLink(){
+  var m = (typeof M==='function' ? M() : null) || window._uwmMatch;
+  if(!m){ alert('Open a match first'); return; }
+  updateShareMetaFromMatch(m);
+  var text = buildMatchShareText(m);
+  var url = (location.origin + location.pathname) + (m.id ? ('?match='+encodeURIComponent(m.id)) : '');
+  try{
+    if(navigator.share){
+      await navigator.share({ title: document.title, text: text, url: url });
+      try{ announce('Share sheet opened'); }catch(e){}
+      return;
+    }
+  }catch(e){}
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      alert('Match link and message copied. Paste it in your group.');
+      try{ announce('Copied match share text'); }catch(e){}
+      return;
+    }
+  }catch(e){}
+  prompt('Copy this message:', text);
+}
 
 window._userMatchSubTab = window._userMatchSubTab || 'live';
 window._userRecentUnsub = null;
@@ -6779,6 +6925,7 @@ function watchMatch(id) {
     }
     const m = snap.data();
     window._uwmMatch = m;
+    try{ updateShareMetaFromMatch(m); }catch(e){}
     try{
       if($('uwmTabInsights') && $('uwmTabInsights').getAttribute('aria-selected')==='true')
         renderInsightsPane('viewer');

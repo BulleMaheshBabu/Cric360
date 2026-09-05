@@ -1704,7 +1704,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.05.1.36";
+const APP_VERSION = "2026.09.05.1.38";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -1836,9 +1836,25 @@ function save(){
       }
       const cur = S.matches.find(m => m.id === S.curId);
       if(cur){
+        // Hold lock until write finishes so onSnapshot cannot wipe a just-scored ball
         window._adminLocalWriteAt = Date.now();
-        if(cur.type==='auction') cloudSaveAuction(cur);
-        else cloudSaveMatch(cur);
+        window._adminWritePending = true;
+        var p = null;
+        try{
+          if(cur.type==='auction') p = cloudSaveAuction(cur);
+          else p = cloudSaveMatch(cur);
+        }catch(eW){ window._adminWritePending = false; }
+        if(p && typeof p.then==='function'){
+          p.then(function(){
+            window._adminLocalWriteAt = Date.now();
+            window._adminWritePending = false;
+          }).catch(function(){
+            window._adminWritePending = false;
+          });
+        } else {
+          // sync path / undefined
+          setTimeout(function(){ window._adminWritePending = false; window._adminLocalWriteAt = Date.now(); }, 800);
+        }
       }
     }
   }catch(e){}
@@ -2084,6 +2100,8 @@ function applyMatchSnapshot(snap){
 
 function processBall(match,type,runsOrOut,desc='',dismissal='',runOutWho='striker'){
   S.history.push(JSON.parse(JSON.stringify(match)));
+  // Monotonic revision — cloud snapshots with a lower rev must never wipe local scoring
+  match._scoreRev = (Number(match._scoreRev)||0) + 1;
   // Snapshot at the first ball of an over — used by Undo last over (no dialogs)
   if(!(match.currentOverBalls && match.currentOverBalls.length) && !match._currentOverStartSnapshot){
     match._currentOverStartSnapshot = cloneMatchSnapshot(match);
@@ -4143,9 +4161,13 @@ $('dlgBowlStart').onclick=()=>{
   m.status='live';
   m.freeHit=false;
   m.currentOverBalls=[];
+  m._scoreRev = (Number(m._scoreRev)||0) + 1;
   // Keep Playing 11 + pitch updates until match is deleted (do not clear)
   if(!Array.isArray(m.preMatchNotes)) m.preMatchNotes = m.preMatchNotes || [];
+  window._adminLocalWriteAt = Date.now();
+  window._adminWritePending = true;
   save();
+  setTimeout(function(){ if(window._adminWritePending) window._adminWritePending = false; }, 2000);
   if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
   closeDlg('dlgBowler');
   renderLive();
@@ -4577,7 +4599,12 @@ function resumeSecondInnings(){
   const newBowl=m.battingTeam==='teamA'?m.teamB:m.teamA;
   (newBowl.squad||[]).forEach(p=>{p.bowlRuns=0;p.bowlBalls=0;p.wickets=0;p.maidens=0});
   m.status='not_started'; // waiting for openers — Start Match visible
+  m._scoreRev = (Number(m._scoreRev)||0) + 1;
   try{ save(); }catch(e){}
+  // Extra lock: 2nd-innings transition fires several snapshots; protect longer
+  window._adminLocalWriteAt = Date.now();
+  window._adminWritePending = true;
+  setTimeout(function(){ window._adminWritePending = false; }, 2500);
   if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
   try{ renderLive(); }catch(e){}
   try{ switchTab('tabLive'); }catch(e){}
@@ -6097,8 +6124,10 @@ function startAdminMatchWatch(id){
   adminMatchUnsub = db.collection('cric360_matches').doc(docId).onSnapshot(function(snap){
     if(!snap.exists) return;
     if(String(S.curId) !== docId) return;
-    // Skip only a brief echo of our own write (avoid flicker while tapping Next ball)
-    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<1200) return;
+    // While our write is in flight, never replace local (prevents 6/0 → 0/0 wipe)
+    if(window._adminWritePending) return;
+    if(window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<4000) return;
+
     let cloud = Object.assign({}, snap.data()||{}, { id: snap.id });
     // Normalize arrays / ids (same as openMatch)
     try{
@@ -6130,6 +6159,46 @@ function startAdminMatchWatch(id){
       if(cloud.nonStrikerId!=null && cloud.nonStrikerId!=='') cloud.nonStrikerId = String(cloud.nonStrikerId);
       if(cloud.currentBowlerId!=null && cloud.currentBowlerId!=='') cloud.currentBowlerId = String(cloud.currentBowlerId);
     }catch(e){ console.warn('adminWatch normalize', e); }
+
+    // CRITICAL: never let older cloud wipe a newer local score
+    // (Very common right after 2nd innings start: resume+start+first ball → several snapshots)
+    try{
+      var local = null;
+      var li = (S.matches||[]).findIndex(function(x){ return x && String(x.id)===docId; });
+      if(li>=0) local = S.matches[li];
+      if(local){
+        var lRev = Number(local._scoreRev)||0;
+        var cRev = Number(cloud._scoreRev)||0;
+        if(lRev > cRev) return; // local has scored more events than this cloud doc
+
+        var lInn = Number(local.currentInnings)||1;
+        var cInn = Number(cloud.currentInnings)||1;
+        // Local already in 2nd innings, cloud still 1st / break / not_started prep
+        if(lInn > cInn) return;
+        if(local.status==='live' && (cloud.status==='not_started' || cloud.status==='setup' || cloud.status==='innings_break' || cloud.status==='innings_ending')) return;
+
+        if(local.status==='live' || local.status==='innings_break' || local.status==='innings_ending'){
+          var lb = Number(local.totalBalls)||0;
+          var cb = Number(cloud.totalBalls)||0;
+          var ls = Number(local.totalScore)||0;
+          var cs = Number(cloud.totalScore)||0;
+          var lc = (local.currentOverBalls&&local.currentOverBalls.length)||0;
+          var cc = (cloud.currentOverBalls&&cloud.currentOverBalls.length)||0;
+          var lDone = (local.completedOvers&&local.completedOvers.length)||0;
+          var cDone = (cloud.completedOvers&&cloud.completedOvers.length)||0;
+          // Same innings only: compare progress
+          if(lInn === cInn){
+            if(lb > cb) return;
+            if(lb === cb && lc > cc) return;
+            if(lDone > cDone) return;
+            if(lb === cb && lc === cc && ls > cs) return;
+          }
+          // Same progress — keep local after recent write
+          if(lInn === cInn && lb === cb && lc === cc && ls === cs && window._adminLocalWriteAt && (Date.now()-window._adminLocalWriteAt)<10000) return;
+        }
+      }
+    }catch(eSkip){}
+
     if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(cloud);
     const idx = (S.matches||[]).findIndex(function(x){ return x && String(x.id)===docId; });
     if(idx>=0) S.matches[idx]=cloud; else S.matches.unshift(cloud);

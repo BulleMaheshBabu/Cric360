@@ -386,6 +386,7 @@ h1,h2{letter-spacing:-0.02em;color:var(--text)}
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
 .ball-log-item{border-bottom:1px solid var(--border-soft);padding:10px 14px;font-size:14px}
+.user-match-tabs .btn-sec.active{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary-glow);color:var(--primary-bright)}
 .status-live{color:var(--ok-bright);font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:12px}
 input,select,textarea{
   background:#131b2e;border:1px solid var(--border-soft);color:var(--text);
@@ -766,7 +767,16 @@ button:active{transform:scale(.98)}
 <section id="screenUserHome" class="wrap panel hidden" role="region" aria-labelledby="userHomeTitle">
   <h1 id="userHomeTitle" class="sr-only" tabindex="-1">Matches</h1>
   <div id="hubUserPaneMatches">
-    <div id="userMatchesList"><p style="color:var(--muted)">Loading…</p></div>
+    <div class="user-match-tabs" role="tablist" aria-label="Match lists" style="display:flex;gap:8px;margin:0 0 12px">
+      <button type="button" role="tab" id="userTabLive" class="btn-sec active" aria-selected="true" style="flex:1;min-height:44px;font-weight:800">Live</button>
+      <button type="button" role="tab" id="userTabRecent" class="btn-sec" aria-selected="false" style="flex:1;min-height:44px;font-weight:800">Recent</button>
+    </div>
+    <div id="userMatchesLivePanel" role="tabpanel" aria-labelledby="userTabLive">
+      <div id="userMatchesListLive"><p style="color:var(--muted)">Loading…</p></div>
+    </div>
+    <div id="userMatchesRecentPanel" role="tabpanel" aria-labelledby="userTabRecent" class="hidden">
+      <div id="userMatchesListRecent"><p style="color:var(--muted)">Ended matches appear here.</p></div>
+    </div>
   </div>
   <div id="hubUserPaneAuctions" class="hidden">
     <div id="userAuctionsList"><p style="color:var(--muted)">Loading…</p></div>
@@ -783,9 +793,21 @@ button:active{transform:scale(.98)}
 
 <section id="screenUserMatches" class="wrap panel hidden" role="region" aria-labelledby="userMatchesTitle">
   <button type="button" class="btn-sec" id="btnBackUserMatches" aria-label="Back">Back</button>
-  <h2 id="userMatchesTitle" class="sr-only" tabindex="-1">Live matches</h2>
-  <div id="userMatchesList"></div>
+  <h2 id="userMatchesTitle" class="sr-only" tabindex="-1">Matches</h2>
+  <p style="color:var(--muted);font-size:13px">Use the Matches tab on Home for Live and Recent lists.</p>
 </section>
+
+<!-- Undo last over confirm -->
+<div id="dlgUndoOver" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="undoOverTitle">
+  <div class="modal-box">
+    <h2 id="undoOverTitle" tabindex="-1">Undo last over?</h2>
+    <p id="undoOverMsg" style="color:var(--muted);font-size:14px;margin:12px 0">This removes the latest over and restores the score. This cannot be auto-redone after you leave the match.</p>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button type="button" id="undoOverNo" class="btn-sec" style="flex:1">No</button>
+      <button type="button" id="undoOverYes" class="btn-ok" style="flex:1">Yes, undo</button>
+    </div>
+  </div>
+</div>
 
 <section id="screenUserAuctions" class="wrap panel hidden" role="region" aria-labelledby="userAuctionsTitle">
   <button type="button" class="btn-sec" id="btnBackUserAuctions" aria-label="Back">Back</button>
@@ -1704,7 +1726,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.05.1.39";
+const APP_VERSION = "2026.09.05.1.40";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -4280,7 +4302,32 @@ function undoLastOver(){
     try{ focusEl($('btnNextBall') || $('liveMatchTitle')); }catch(e){}
   }, 100);
 }
-if($('btnUndoLastOver')) $('btnUndoLastOver').onclick = function(){ undoLastOver(); };
+function askUndoLastOver(){
+  const m = M();
+  if(!m || m.status!=='live'){
+    try{ announce('Undo over is only available while the match is live'); }catch(e){}
+    return;
+  }
+  const cur = m.currentOverBalls || [];
+  const done = m.completedOvers || [];
+  if(!cur.length && !done.length){
+    try{ announce('No over to undo yet'); }catch(e){}
+    return;
+  }
+  var label = cur.length ? 'the current over' : ('over ' + ((done[done.length-1]&&done[done.length-1].num)!=null ? done[done.length-1].num : done.length));
+  if($('undoOverMsg')){
+    $('undoOverMsg').textContent = 'Undo '+label+'? Scores, wickets and player stats for that over will be restored. Continue with Next ball after undo.';
+  }
+  openDlg('dlgUndoOver');
+  setTimeout(function(){ try{ focusEl($('undoOverTitle')); }catch(e){} }, 60);
+}
+if($('btnUndoLastOver')) $('btnUndoLastOver').onclick = function(){ askUndoLastOver(); };
+if($('undoOverNo')) $('undoOverNo').onclick = function(){ closeDlg('dlgUndoOver'); setTimeout(function(){ try{ focusEl($('btnUndoLastOver')); }catch(e){} }, 40); };
+if($('undoOverYes')) $('undoOverYes').onclick = function(){
+  closeDlg('dlgUndoOver');
+  undoLastOver();
+};
+
 
 function openBallDlg(isReentry){const m=M();if(m.status==='completed'){alert('Match is finished');return;}if(m.status==='innings_break'||m.status==='innings_ending'){alert('Innings break — use Resume Match when ready');return;}
   if(S.temp&&S.temp.needsNewBatsman){ alert('Select the new batsman first'); showWicketDlg(); return; }
@@ -6511,20 +6558,85 @@ if ($('btnBackUserMore')) $('btnBackUserMore').onclick = () => { showScreen('scr
 if ($('btnUserSettings')) $('btnUserSettings').onclick = openSettingsMenu;
 if ($('btnUserSettings2')) $('btnUserSettings2').onclick = openSettingsMenu;
 
-function listenUserMatches() {
+window._userMatchSubTab = window._userMatchSubTab || 'live';
+window._userRecentUnsub = null;
+
+function setUserMatchSubTab(which){
+  window._userMatchSubTab = which === 'recent' ? 'recent' : 'live';
+  var liveOn = window._userMatchSubTab === 'live';
+  if($('userTabLive')){
+    $('userTabLive').classList.toggle('active', liveOn);
+    $('userTabLive').setAttribute('aria-selected', liveOn ? 'true' : 'false');
+  }
+  if($('userTabRecent')){
+    $('userTabRecent').classList.toggle('active', !liveOn);
+    $('userTabRecent').setAttribute('aria-selected', !liveOn ? 'true' : 'false');
+  }
+  if($('userMatchesLivePanel')) $('userMatchesLivePanel').classList.toggle('hidden', !liveOn);
+  if($('userMatchesRecentPanel')) $('userMatchesRecentPanel').classList.toggle('hidden', liveOn);
+  if(liveOn) listenUserMatchesLive();
+  else listenUserMatchesRecent();
+}
+
+function matchFixtureTitle(m){
+  return (m.teamA && m.teamA.name ? m.teamA.name : '?') + ' vs ' + (m.teamB && m.teamB.name ? m.teamB.name : '?');
+}
+
+function matchResultLine(m){
+  var st = (m.status||'').toLowerCase();
+  if(st==='completed' || st==='ended'){
+    return (m.resultMsg && String(m.resultMsg).trim()) || 'Match completed';
+  }
+  if(st==='not_started') return 'Pre-match';
+  if(st==='innings_break' || st==='innings_ending') return 'Innings break · Target '+(m.target||'—');
+  var score = (m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+')';
+  if(m.currentInnings===2 && m.target) return score + ' · Target '+m.target;
+  return score;
+}
+
+function renderUserMatchButton(row, opts){
+  opts = opts || {};
+  var m = row.m || {};
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'list-btn';
+  var title = matchFixtureTitle(m);
+  var st = (m.status||'').toLowerCase();
+  var result = matchResultLine(m);
+  var series = m.series || '';
+  var type = m.matchType || '';
+  var statusLabel = (st==='completed'||st==='ended') ? 'Ended' : (st==='not_started' ? 'Pre-match' : (st==='innings_break' ? 'Break' : 'Live'));
+  btn.setAttribute('aria-label', title + '. ' + result + '. ' + statusLabel);
+  var resultHtml = (st==='completed'||st==='ended')
+    ? '<div style="color:var(--ok-bright);font-size:13px;font-weight:700;margin-top:4px">'+escapeIns(result)+'</div>'
+    : '<div style="color:var(--muted);font-size:13px;margin-top:4px">'+escapeIns(result)+'</div>';
+  btn.innerHTML = '<strong>'+escapeIns(title)+'</strong>'
+    + '<div style="color:var(--muted);font-size:12px;margin-top:2px">'
+    + escapeIns([series, type, statusLabel].filter(Boolean).join(' · '))
+    + '</div>'
+    + resultHtml;
+  btn.onclick = function(){ watchMatch(row.id); };
+  return btn;
+}
+
+function listenUserMatches(){
+  // Default to Live sub-tab when opening Matches
+  setUserMatchSubTab(window._userMatchSubTab || 'live');
+}
+
+function listenUserMatchesLive() {
   if (liveListUnsub) { try{liveListUnsub();}catch(e){} liveListUnsub=null; }
-  const box = $('userMatchesList');
+  const box = $('userMatchesListLive');
   if (!box) return;
-  box.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+  box.innerHTML = '<p style="color:var(--muted)">Loading live matches…</p>';
   if (!db) { box.innerHTML = '<p style="color:var(--muted)">Cloud not available</p>'; return; }
   liveListUnsub = db.collection('cric360_matches')
     .where('status', 'in', ['not_started', 'live', 'innings_break', 'innings_ending'])
     .onSnapshot(snap => {
       if (snap.empty) {
-        box.innerHTML = '<p style="color:var(--muted)">No matches right now.</p>';
+        box.innerHTML = '<p style="color:var(--muted)">No live matches right now.</p>';
         return;
       }
-      // Client sort: live first, then not_started; newest updated first
       var rows = [];
       snap.forEach(function(doc){ rows.push({ id: doc.id, m: doc.data()||{} }); });
       rows.sort(function(a,b){
@@ -6541,26 +6653,62 @@ function listenUserMatches() {
         return tb - ta;
       });
       box.innerHTML = '';
-      rows.forEach(function(row){
-        var m = row.m;
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'list-btn';
-        var title = (m.teamA && m.teamA.name ? m.teamA.name : '?') + ' vs ' + (m.teamB && m.teamB.name ? m.teamB.name : '?');
-        var st = (m.status||'').toLowerCase();
-        var statusLabel = st==='not_started' ? 'Pre-match (toss & teams)' : (st==='innings_break' ? 'Innings break' : (st||'live'));
-        var scoreBit = st==='not_started'
-          ? ((m.p11Published ? 'Playing 11 ready' : 'Waiting for Playing 11') + ((m.preMatchNotes&&m.preMatchNotes.length) ? (' · ' + m.preMatchNotes.length + ' update'+(m.preMatchNotes.length===1?'':'s')) : ''))
-          : ((m.totalScore||0)+'/'+(m.wickets||0)+' ('+fmtOvers(m.totalBalls||0)+')');
-        btn.setAttribute('aria-label', title + ', ' + statusLabel + ', ' + scoreBit);
-        btn.innerHTML = '<strong>'+title+'</strong><div style="color:var(--muted);font-size:13px">'+(m.series||'')+' · '+scoreBit+' · '+statusLabel+'</div>';
-        btn.onclick = function(){ watchMatch(row.id); };
-        box.appendChild(btn);
-      });
+      rows.forEach(function(row){ box.appendChild(renderUserMatchButton(row)); });
     }, err => {
       box.innerHTML = '<p style="color:var(--danger)">Could not load matches. '+((err&&err.message)||'')+'</p>';
     });
 }
+
+function listenUserMatchesRecent() {
+  if (window._userRecentUnsub) { try{window._userRecentUnsub();}catch(e){} window._userRecentUnsub=null; }
+  const box = $('userMatchesListRecent');
+  if (!box) return;
+  box.innerHTML = '<p style="color:var(--muted)">Loading ended matches…</p>';
+  if (!db) { box.innerHTML = '<p style="color:var(--muted)">Cloud not available</p>'; return; }
+
+  function paintRecent(docs){
+    var rows = [];
+    docs.forEach(function(doc){
+      var m = doc.data()||{};
+      var st = (m.status||'').toLowerCase();
+      if(st==='completed' || st==='ended') rows.push({ id: doc.id, m: m });
+    });
+    rows.sort(function(a,b){
+      var ta = a.m.completedAt || (a.m.updatedAt && a.m.updatedAt.seconds ? a.m.updatedAt.seconds*1000 : (Date.parse(a.m.createdAt||0)||0));
+      var tb = b.m.completedAt || (b.m.updatedAt && b.m.updatedAt.seconds ? b.m.updatedAt.seconds*1000 : (Date.parse(b.m.createdAt||0)||0));
+      return tb - ta;
+    });
+    if(!rows.length){
+      box.innerHTML = '<p style="color:var(--muted)">No ended matches yet.</p>';
+      return;
+    }
+    box.innerHTML = '';
+    rows.forEach(function(row){ box.appendChild(renderUserMatchButton(row, { recent:true })); });
+  }
+
+  // Prefer filtered query; fallback to scan if index missing
+  try{
+    window._userRecentUnsub = db.collection('cric360_matches')
+      .where('status', 'in', ['completed', 'ended'])
+      .limit(40)
+      .onSnapshot(function(snap){
+        paintRecent(snap.docs||[]);
+      }, function(err){
+        console.warn('recent matches query', err);
+        db.collection('cric360_matches').limit(60).get().then(function(all){
+          paintRecent(all.docs||[]);
+        }).catch(function(e2){
+          box.innerHTML = '<p style="color:var(--danger)">Could not load recent matches.</p>';
+        });
+      });
+  }catch(e){
+    box.innerHTML = '<p style="color:var(--danger)">Could not load recent matches.</p>';
+  }
+}
+
+if($('userTabLive')) $('userTabLive').onclick = function(){ setUserMatchSubTab('live'); };
+if($('userTabRecent')) $('userTabRecent').onclick = function(){ setUserMatchSubTab('recent'); };
+
 
 function listenUserAuctions() {
   if (liveListUnsub) { try{liveListUnsub();}catch(e){} liveListUnsub=null; }
@@ -6648,9 +6796,13 @@ function watchMatch(id) {
       try{ renderMatchSquadsPane('viewer'); }catch(e){}
       return;
     }
-    $('uwmSub').textContent = (m.series||'')+' · '+(m.matchType||'')+' · Innings '+(m.currentInnings||1)+' · '+m.status;
+    var stWatch = (m.status||'').toLowerCase();
+    var doneWatch = stWatch==='completed' || stWatch==='ended';
+    $('uwmSub').textContent = (m.series||'')+' · '+(m.matchType||'')+' · '+(doneWatch ? ('Result: '+(m.resultMsg||'Match completed')) : ('Innings '+(m.currentInnings||1)+' · '+m.status));
     const ov = fmtOvers(m.totalBalls||0);
-    const scoreLine = (m.totalScore||0)+'/'+(m.wickets||0)+' ('+ov+' ov)'+(m.target?(' · Target '+m.target):'');
+    const scoreLine = doneWatch
+      ? ((m.resultMsg||'Match completed') + (m.target ? (' · Target was '+m.target) : ''))
+      : ((m.totalScore||0)+'/'+(m.wickets||0)+' ('+ov+' ov)'+(m.target?(' · Target '+m.target):''));
     const balls = m.totalBalls||0;
     const crr = balls>0 ? ((m.totalScore||0)/(balls/6)).toFixed(2) : '0.00';
     let rateExtra = ' · CRR '+crr;
@@ -7270,7 +7422,7 @@ function buildMatchAiContext(m){
       'For batting comparison: use battingCard.teamA / battingCard.teamB or usedBatters.',
       'Each bowling row has: name, overs, bowlBalls, maidens, runs, wickets, economy.',
       'playing11 and squads also include bowlOvers, bowlRuns, wickets, economy.',
-      'Always fill table ROWS from these arrays — never output header-only tables.'
+      'Always fill table ROWS from these arrays — never output header-only tables. No ** stars or star emoji — plain text for study.'
     ].join(' ')
   };
 }
@@ -7283,6 +7435,10 @@ function escapeIns(s){
 function markdownLiteToHtml(text){
   if(!text) return '';
   let t = String(text).replace(/\r\n/g,'\n').trim();
+  // Plain study text — remove markdown emphasis / star symbols
+  t = t.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1');
+  t = t.replace(/__([^_]+)__/g, '$1').replace(/_([^_]+)_/g, '$1');
+  t = t.replace(/[★☆✦✧✪⭐✨]/g, '');
   // simple pipe tables
   const lines = t.split('\n');
   let out = [];
@@ -7411,12 +7567,16 @@ function wrapCanvasText(ctx, text, x, y, maxW, lineH, maxLines){
 
 function cleanInsightText(s){
   s = String(s||'');
-  // strip markdown tables / pipes / separators
+  // strip markdown tables / pipes / separators / stars (study-friendly plain text)
   s = s.replace(/^\s*\|?\s*:?-{3,}:?\s*\|.*$/gm, '');
   s = s.replace(/\|/g, ' · ');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '$1');
+  s = s.replace(/\*([^*]+)\*/g, '$1');
+  s = s.replace(/__([^_]+)__/g, '$1');
+  s = s.replace(/_([^_]+)_/g, '$1');
   s = s.replace(/[*_`#]+/g, '');
+  s = s.replace(/[★☆✦✧✪⭐✨]/g, '');
   s = s.replace(/\s{2,}/g, ' ').trim();
-  // drop pure separator / empty
   if(/^[-·.:\s]+$/.test(s)) return '';
   if(/^(summary|breakdown|takeaway|notes?)[:\s]*$/i.test(s)) return '';
   return s;

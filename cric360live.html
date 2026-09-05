@@ -1348,15 +1348,16 @@ button:active{transform:scale(.98)}
 
 
 
-<!-- Innings Break Dialog -->
-<div id="dlgInningsEnd" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="inningsEndTitle">
+<!-- Innings Break Dialog — must finish (or save break) so status is never stuck on innings_ending -->
+<div id="dlgInningsEnd" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="inningsEndTitle" data-no-dismiss="1">
   <div class="modal-box">
     <h2 id="inningsEndTitle" tabindex="-1">Innings Finished</h2>
     <p id="inningsEndSummary" style="font-size:1.1rem;font-weight:700;margin:12px 0"></p>
-    <p style="color:var(--muted);font-size:13px">Waiting for break message. Type a message then finish the innings.</p>
-    <label for="inningsBreakMsg">Break message</label>
-    <textarea id="inningsBreakMsg" rows="3"></textarea>
-    <button type="button" id="btnFinishInnings" class="btn-ok btn-block" style="margin-top:16px">Finish Innings</button>
+    <p style="color:var(--muted);font-size:13px">Optional break message for the audience, then continue. First-innings data is kept.</p>
+    <label for="inningsBreakMsg">Break message (optional)</label>
+    <textarea id="inningsBreakMsg" rows="3" placeholder="e.g. India Women 148/6 — Pakistan need 149"></textarea>
+    <button type="button" id="btnFinishInnings" class="btn-ok btn-block" style="margin-top:16px">Save break &amp; continue</button>
+    <p style="color:var(--muted);font-size:12px;margin-top:10px;text-align:center">You can start the 2nd innings from the Live tab after this.</p>
   </div>
 </div>
 
@@ -1703,7 +1704,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.05.1.35";
+const APP_VERSION = "2026.09.05.1.36";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -2346,6 +2347,19 @@ function openDlg(id){
 }
 function closeDlg(id){
   removeDlgFocusTrap();
+  // Closing innings dialog must never leave innings_ending (blank Live)
+  if(id==='dlgInningsEnd'){
+    try{
+      var mm = typeof M==='function' ? M() : null;
+      if(mm && (mm.status==='innings_ending' || mm.status==='innings_break')){
+        if(typeof snapshotInnings1==='function') snapshotInnings1(mm);
+        mm.status='innings_break';
+        try{ save(); }catch(e){}
+        if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(mm); }catch(e){}
+        try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
+      }
+    }catch(e){}
+  }
   const dlg = $(id);
   if(dlg){
     dlg.classList.add('hidden');
@@ -3114,6 +3128,13 @@ function renderLive(){const m=M();if(!m)return; try{ repairMatchLivePointers(m);
   }
   $('freeHitBanner').classList.toggle('hidden',!(m.freeHit&&m.status==='live'));
 
+  // Recover blank Live: innings_ending → proper innings_break with snapshot
+  try{
+    if(ensureInningsBreakRecoverable(m)){
+      try{ save(); }catch(e0){}
+      if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e1){}
+    }
+  }catch(eR){}
   const done=m.status==='completed';
   const onBreak=m.status==='innings_break'||m.status==='innings_ending';
   if($('matchResultBanner')){
@@ -3124,14 +3145,23 @@ function renderLive(){const m=M();if(!m)return; try{ repairMatchLivePointers(m);
     }
   }
   if($('inningsBreakBanner')){
-    $('inningsBreakBanner').classList.toggle('hidden',m.status!=='innings_break');
-    if(m.status==='innings_break'){
-      const batName=(m.innings1?(m.innings1.battingTeam==='teamA'?m.innings1.teamA:m.innings1.teamB): (m.battingTeam==='teamA'?m.teamA:m.teamB)).name;
+    var showBreak = (m.status==='innings_break' || m.status==='innings_ending');
+    $('inningsBreakBanner').classList.toggle('hidden', !showBreak);
+    if(showBreak){
+      var batSide = null;
+      try{
+        if(m.innings1 && m.innings1.battingTeam){
+          batSide = m.innings1.battingTeam==='teamA' ? (m.innings1.teamA||m.teamA) : (m.innings1.teamB||m.teamB);
+        } else {
+          batSide = m.battingTeam==='teamA' ? m.teamA : m.teamB;
+        }
+      }catch(e){ batSide = m.battingTeam==='teamA' ? m.teamA : m.teamB; }
+      const batName=(batSide&&batSide.name)||'Team';
       const sc=m.firstInningsScore!=null?m.firstInningsScore:m.totalScore;
       const wk=m.firstInningsWickets!=null?m.firstInningsWickets:m.wickets;
-      const ov=m.firstInningsOvers||fmtOvers(m.totalBalls);
-      $('breakBannerScore').textContent=batName+' '+sc+'/'+wk+' ('+ov+' overs). Target '+(m.target||sc+1);
-      $('breakBannerMsg').textContent=m.breakMsg||'';
+      const ov=m.firstInningsOvers||fmtOvers(m.totalBalls||0);
+      if($('breakBannerScore')) $('breakBannerScore').textContent=batName+' '+sc+'/'+wk+' ('+ov+' overs). Target '+(m.target||((Number(sc)||0)+1));
+      if($('breakBannerMsg')) $('breakBannerMsg').textContent=m.breakMsg||'Tap Resume Match to start the second innings.';
     }
   }
   // Hide live scoring UI during break/complete/ending
@@ -3377,7 +3407,7 @@ if($('btnPrevBall')) $('btnPrevBall').disabled=!(overBalls.filter(function(b){re
     $('btnUndoLastOver').disabled = !canUndoOver;
   }
 }
-$('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnings===1));$('btnStart2nd').classList.toggle('hidden',m.status!=='innings_break');
+$('btnEndInnings').classList.toggle('hidden',!(m.status==='live'&&m.currentInnings===1));$('btnStart2nd').classList.toggle('hidden',!(m.status==='innings_break'||m.status==='innings_ending'));
 const ol=$('oversList');
 if(ol){
   const oversMore=[];
@@ -4384,24 +4414,14 @@ $('btnEndInnings').onclick=()=>{if(confirm('End this innings?'))endInnings()};
 function endInnings(){
   const m=M();
   if(m.currentInnings===1){
-    m.firstInningsScore=m.totalScore;
-    m.firstInningsWickets=m.wickets;
-    m.firstInningsOvers=fmtOvers(m.totalBalls);
-    m.target=m.totalScore+1;
+    snapshotInnings1(m);
     m.status='innings_break';
-    // snapshot for scorecard
-    m.innings1={
-      battingTeam:m.battingTeam,
-      totalScore:m.totalScore,
-      wickets:m.wickets,
-      totalBalls:m.totalBalls,
-      extras:JSON.parse(JSON.stringify(m.extras)),
-      completedOvers:JSON.parse(JSON.stringify(m.completedOvers||[])),
-      teamA:JSON.parse(JSON.stringify(m.teamA)),
-      teamB:JSON.parse(JSON.stringify(m.teamB))
-    };
     speak('First innings ended. '+m.totalScore+' for '+m.wickets+'. Target is '+m.target+'.');
-    save();renderLive();switchTab('tabMore');
+    try{ save(); }catch(e){}
+    if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
+    renderLive();
+    switchTab('tabLive');
+    setTimeout(function(){ try{ focusEl($('btnResumeMatch')||$('liveMatchTitle')); }catch(e){} }, 80);
   } else {
     // 2nd innings manual end — compute result
     const batTeam=m.battingTeam==='teamA'?m.teamA:m.teamB;
@@ -4437,43 +4457,74 @@ $('closeOverDetail').onclick=()=>closeDlg('dlgOverDetail');
 
 
 
+/** Snapshot 1st innings scorecard/overs so reopen never loses ball data. */
+function snapshotInnings1(m){
+  if(!m) return;
+  try{
+    m.innings1={
+      battingTeam:m.battingTeam,
+      totalScore:m.totalScore,
+      wickets:m.wickets,
+      totalBalls:m.totalBalls,
+      extras:JSON.parse(JSON.stringify(m.extras||{wide:0,noball:0,bye:0,legbye:0})),
+      completedOvers:JSON.parse(JSON.stringify(m.completedOvers||[])),
+      currentOverBalls:JSON.parse(JSON.stringify(m.currentOverBalls||[])),
+      teamA:JSON.parse(JSON.stringify(m.teamA)),
+      teamB:JSON.parse(JSON.stringify(m.teamB)),
+      strikerId:m.strikerId,
+      nonStrikerId:m.nonStrikerId,
+      currentBowlerId:m.currentBowlerId
+    };
+    m.firstInningsScore = m.totalScore;
+    m.firstInningsWickets = m.wickets;
+    m.firstInningsOvers = fmtOvers(m.totalBalls||0);
+    if(m.target==null) m.target = (Number(m.totalScore)||0)+1;
+  }catch(e){ console.warn('snapshotInnings1', e); }
+}
+/**
+ * If status was left as innings_ending (dialog closed / reload), promote to
+ * innings_break with a safe snapshot so Live is never a blank screen.
+ */
+function ensureInningsBreakRecoverable(m){
+  if(!m) return false;
+  var st = (m.status||'').toLowerCase();
+  if(st!=='innings_ending') return false;
+  if((m.currentInnings||1)!==1) return false;
+  snapshotInnings1(m);
+  m.status = 'innings_break';
+  return true;
+}
 function promptInningsEnd(){
   const m=M();
+  if(!m) return;
+  // Snapshot immediately so even if dialog is dismissed, data is safe
+  snapshotInnings1(m);
+  m.status='innings_break'; // never leave match on innings_ending (blank Live bug)
+  try{ save(); }catch(e){}
+  if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
+  try{ renderLive(); }catch(e){}
   const bat=m.battingTeam==='teamA'?m.teamA:m.teamB;
-  const summary=bat.name+' scored '+m.totalScore+' for '+m.wickets+' in '+fmtOvers(m.totalBalls)+' overs';
-  m.status='innings_ending'; // lock scoring until finished
-  save();
-  renderLive();
-  $('inningsEndSummary').textContent=summary;
-  $('inningsBreakMsg').value=m.breakMsg||'';
+  const summary=(bat&&bat.name?bat.name:'Team')+' scored '+m.totalScore+' for '+m.wickets+' in '+fmtOvers(m.totalBalls)+' overs. Target '+(m.target||'—');
+  if($('inningsEndSummary')) $('inningsEndSummary').textContent=summary;
+  if($('inningsBreakMsg')) $('inningsBreakMsg').value=m.breakMsg||'';
   openDlg('dlgInningsEnd');
   speak('Innings finished. '+summary);
 }
 function confirmInningsEnd(){
   const m=M();
-  m.breakMsg=($('inningsBreakMsg').value||'').trim();
-  // snapshot innings 1
-  m.innings1={
-    battingTeam:m.battingTeam,
-    totalScore:m.totalScore,
-    wickets:m.wickets,
-    totalBalls:m.totalBalls,
-    extras:JSON.parse(JSON.stringify(m.extras)),
-    completedOvers:JSON.parse(JSON.stringify(m.completedOvers||[])),
-    teamA:JSON.parse(JSON.stringify(m.teamA)),
-    teamB:JSON.parse(JSON.stringify(m.teamB))
-  };
-  m.firstInningsScore=m.totalScore;
-  m.firstInningsWickets=m.wickets;
-  m.firstInningsOvers=fmtOvers(m.totalBalls);
-  m.target=m.totalScore+1;
+  if(!m) return;
+  m.breakMsg=(($('inningsBreakMsg')&&$('inningsBreakMsg').value)||'').trim();
+  snapshotInnings1(m);
   m.status='innings_break';
-  save();
+  try{ save(); }catch(e){}
+  if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
   closeDlg('dlgInningsEnd');
-  renderLive();
-  switchTab('tabLive');
-  speak('Innings break. Target is '+m.target+'. '+(m.breakMsg||''));
-  focusEl($('breakBannerTitle')||$('liveMatchTitle'));
+  try{ renderLive(); }catch(e){}
+  try{ switchTab('tabLive'); }catch(e){}
+  speak('Innings break. Target is '+m.target+'. '+(m.breakMsg||'')+'. Use Resume Match when ready for the second innings.');
+  setTimeout(function(){
+    try{ focusEl($('btnResumeMatch')||$('breakBannerTitle')||$('liveMatchTitle')); }catch(e){}
+  }, 100);
 }
 
 function finishMatch(resultMsg){
@@ -4505,32 +4556,37 @@ if($('btnFinishInnings'))$('btnFinishInnings').onclick=()=>confirmInningsEnd();
 if($('btnResumeMatch'))$('btnResumeMatch').onclick=()=>resumeSecondInnings();
 function resumeSecondInnings(){
   const m=M();
-  if(m.status!=='innings_break')return;
-  // Prepare 2nd innings state but keep innings1 snapshot
-  if(!m.innings1){
-    m.innings1={
-      battingTeam:m.battingTeam,totalScore:m.totalScore,wickets:m.wickets,totalBalls:m.totalBalls,
-      extras:JSON.parse(JSON.stringify(m.extras)),completedOvers:JSON.parse(JSON.stringify(m.completedOvers||[])),
-      teamA:JSON.parse(JSON.stringify(m.teamA)),teamB:JSON.parse(JSON.stringify(m.teamB))
-    };
+  if(!m) return;
+  // Allow recovery from stuck innings_ending too
+  if(m.status==='innings_ending') ensureInningsBreakRecoverable(m);
+  if(m.status!=='innings_break'){
+    try{ announce('Resume is only available during innings break'); }catch(e){}
+    return;
   }
+  // Always keep 1st innings snapshot (never lose ball data)
+  if(!m.innings1) snapshotInnings1(m);
   m.battingTeam=m.battingTeam==='teamA'?'teamB':'teamA';
   m.currentInnings=2;
   m.totalScore=0;m.wickets=0;m.totalBalls=0;m.ballsInOver=0;m.currentOver=0;
   m.extras={wide:0,noball:0,bye:0,legbye:0};m.freeHit=false;
   m.currentOverBalls=[];m.completedOvers=[];
   m.strikerId=null;m.nonStrikerId=null;m.currentBowlerId=null;
+  m._currentOverStartSnapshot=null;
   const newBat=m.battingTeam==='teamA'?m.teamA:m.teamB;
-  newBat.squad.forEach(p=>{p.runs=0;p.balls=0;p.fours=0;p.sixes=0;p.isOut=false;p.retiredHurt=false;p.dismissal='';});
+  (newBat.squad||[]).forEach(p=>{p.runs=0;p.balls=0;p.fours=0;p.sixes=0;p.isOut=false;p.retiredHurt=false;p.dismissal='';});
   const newBowl=m.battingTeam==='teamA'?m.teamB:m.teamA;
-  newBowl.squad.forEach(p=>{p.bowlRuns=0;p.bowlBalls=0;p.wickets=0;p.maidens=0});
-  m.status='not_started';
-  save();
-  renderLive();
-  switchTab('tabLive');
-  speak('Second innings. Target '+m.target+'. Click Start Match to select openers and bowler.');
-  // Auto-open start match flow
-  setTimeout(()=>{if($('btnStartMatch'))$('btnStartMatch').click();},300);
+  (newBowl.squad||[]).forEach(p=>{p.bowlRuns=0;p.bowlBalls=0;p.wickets=0;p.maidens=0});
+  m.status='not_started'; // waiting for openers — Start Match visible
+  try{ save(); }catch(e){}
+  if(typeof cloudSaveMatch==='function') try{ cloudSaveMatch(m); }catch(e){}
+  try{ renderLive(); }catch(e){}
+  try{ switchTab('tabLive'); }catch(e){}
+  speak('Second innings. Target '+m.target+'. Tap Start Match when ready to select openers and bowler.');
+  announce('Second innings ready. First innings is saved on Scorecard. Tap Start Match to begin.');
+  // Do NOT auto-open striker dialog — user may close it and get stuck
+  setTimeout(function(){
+    try{ focusEl($('btnStartMatch')||$('liveMatchTitle')); }catch(e){}
+  }, 120);
 }
 
 /* Keyboard shortcuts — match + auction + viewer */
@@ -5828,6 +5884,8 @@ $('aucBtnEnd').onclick=()=>{
 function repairMatchLivePointers(m){
   if(!m || m.type==='auction') return m;
   try{
+    // Stuck after closing innings dialog: never leave blank Live
+    try{ ensureInningsBreakRecoverable(m); }catch(e0){}
     if(!Array.isArray(m.completedOvers)) m.completedOvers = [];
     if(!Array.isArray(m.currentOverBalls)) m.currentOverBalls = [];
     ['teamA','teamB'].forEach(function(k){

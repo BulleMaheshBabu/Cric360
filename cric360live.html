@@ -1772,7 +1772,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.07.1.45";
+const APP_VERSION = "2026.09.07.1.46";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -7594,30 +7594,166 @@ function findSideNodes(match){
   return { a: a, b: b };
 }
 
+
+function nameKeyToDisplay(key){
+  if(!key) return '';
+  var s = String(key).replace(/_/g,' ').replace(/\s+/g,' ').trim();
+  if(!s) return '';
+  return s.replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+}
+
+function collectPlayersMap(match){
+  var map = {};
+  function absorb(node){
+    if(!node || typeof node!=='object') return;
+    // direct player objects keyed by id
+    Object.keys(node).forEach(function(k){
+      var v = node[k];
+      if(!v || typeof v!=='object') return;
+      if(v.name || v.fullname || v.full_name || v.display_name){
+        map[k] = v;
+        if(v.key) map[v.key] = v;
+      }
+    });
+  }
+  // common locations for player dictionary
+  absorb(match.players);
+  absorb(pickRoanuz(match, ['data.players']));
+  absorb(match.players_map);
+  var sides = [match.teams, match.team, pickRoanuz(match, ['data.teams'])];
+  sides.forEach(function(t){
+    if(!t) return;
+    ['a','b','A','B'].forEach(function(side){
+      if(!t[side]) return;
+      absorb(t[side].players);
+      if(t[side].match) absorb(t[side].match.players);
+      absorb(t[side]);
+    });
+  });
+  // card style
+  absorb(pickRoanuz(match, ['card.players']));
+  absorb(pickRoanuz(match, ['data.card.players']));
+  return map;
+}
+
+function listFromPlayingXi(sideNode, playersMap){
+  var out = [];
+  if(!sideNode) return out;
+  var xi = null;
+  if(sideNode.match && Array.isArray(sideNode.match.playing_xi)) xi = sideNode.match.playing_xi;
+  else if(Array.isArray(sideNode.playing_xi)) xi = sideNode.playing_xi;
+  else if(Array.isArray(sideNode.playing11)) xi = sideNode.playing11;
+  else if(sideNode.match && Array.isArray(sideNode.match.players)) xi = sideNode.match.players;
+  else if(Array.isArray(sideNode.players) && typeof sideNode.players[0]==='string') xi = sideNode.players;
+
+  if(xi && xi.length){
+    xi.forEach(function(key){
+      if(typeof key === 'object' && key){
+        var mapped = mapPlayerFromApi(key);
+        if(mapped) out.push(mapped);
+        return;
+      }
+      var k = String(key);
+      var p = playersMap[k];
+      if(p){
+        var m = mapPlayerFromApi(p);
+        if(m){ out.push(m); return; }
+      }
+      out.push(playerShell(nameKeyToDisplay(k) || k, 'Batter', { inPlaying11: true }));
+    });
+    return out;
+  }
+
+  // players as array of objects
+  var arr = extractPlayersArray(sideNode);
+  if(!arr.length && sideNode.match) arr = extractPlayersArray(sideNode.match);
+  arr.forEach(function(p){
+    if(typeof p === 'string'){
+      var pp = playersMap[p];
+      out.push(pp ? (mapPlayerFromApi(pp)||playerShell(nameKeyToDisplay(p),'Batter',{inPlaying11:true}))
+                  : playerShell(nameKeyToDisplay(p),'Batter',{inPlaying11:true}));
+    } else {
+      var mm = mapPlayerFromApi(p);
+      if(mm) out.push(mm);
+    }
+  });
+  return out;
+}
+
 function hydrateSquads(m, match){
+  var playersMap = collectPlayersMap(match);
   var sides = findSideNodes(match);
-  var sqA = buildSquadFromSide(sides.a, m.teamA.name);
-  var sqB = buildSquadFromSide(sides.b, m.teamB.name);
-  // Also try scorecard style arrays
-  if(!sqA.length){
-    var batA = pickRoanuz(match, ['scorecard.team_a.batting','innings.0.batting','batting.team_a']);
-    sqA = buildSquadFromSide({ players: batA }, m.teamA.name);
+  var sqA = listFromPlayingXi(sides.a, playersMap);
+  var sqB = listFromPlayingXi(sides.b, playersMap);
+
+  // innings batting cards often have real names + stats
+  function mergeStatsFromInnings(){
+    var inns = match.innings || pickRoanuz(match, ['data.innings']) || pickRoanuz(match, ['card.innings']);
+    if(!inns) return;
+    var list = Array.isArray(inns) ? inns : Object.keys(inns).map(function(k){ return inns[k]; });
+    list.forEach(function(inn){
+      if(!inn || typeof inn!=='object') return;
+      var bat = inn.batting || inn.batsmen || inn.batters || [];
+      var bowl = inn.bowling || inn.bowlers || [];
+      if(!Array.isArray(bat) && typeof bat==='object') bat = Object.keys(bat).map(function(k){ return bat[k]; });
+      if(!Array.isArray(bowl) && typeof bowl==='object') bowl = Object.keys(bowl).map(function(k){ return bowl[k]; });
+      (bat||[]).forEach(function(row){
+        var mapped = mapPlayerFromApi(row);
+        if(!mapped) return;
+        // attach to team by name match or batting team flag
+        var target = m.teamA.squad;
+        var hit = findPlayerByName(m.teamA.squad, mapped.name) || findPlayerByName(m.teamB.squad, mapped.name);
+        if(hit){
+          hit.runs = mapped.runs; hit.balls = mapped.balls; hit.fours = mapped.fours; hit.sixes = mapped.sixes;
+          hit.isOut = mapped.isOut; hit.dismissal = mapped.dismissal;
+        } else {
+          // if squad still placeholders, prefer real names into A then B by order
+          if(sqA.length < 11) sqA.push(mapped);
+          else if(sqB.length < 11) sqB.push(mapped);
+        }
+      });
+      (bowl||[]).forEach(function(row){
+        var mapped = mapPlayerFromApi(row);
+        if(!mapped) return;
+        var hit = findPlayerByName(m.teamA.squad, mapped.name) || findPlayerByName(m.teamB.squad, mapped.name);
+        if(hit){
+          hit.bowlRuns = mapped.bowlRuns; hit.bowlBalls = mapped.bowlBalls;
+          hit.wickets = mapped.wickets; hit.maidens = mapped.maidens;
+        }
+      });
+    });
   }
-  if(!sqB.length){
-    var batB = pickRoanuz(match, ['scorecard.team_b.batting','innings.1.batting','batting.team_b']);
-    sqB = buildSquadFromSide({ players: batB }, m.teamB.name);
+
+  if(sqA.length) m.teamA.squad = sqA;
+  if(sqB.length) m.teamB.squad = sqB;
+
+  // If still empty, try object-map players on each side
+  if(!m.teamA.squad.length && sides.a && typeof sides.a.players==='object' && !Array.isArray(sides.a.players)){
+    Object.keys(sides.a.players).forEach(function(k){
+      var mapped = mapPlayerFromApi(sides.a.players[k]) || playerShell(nameKeyToDisplay(k),'Batter',{inPlaying11:true});
+      m.teamA.squad.push(mapped);
+    });
   }
-  if(sqA.length){
-    m.teamA.squad = sqA;
-  } else if(!(m.teamA.squad && m.teamA.squad.length)){
+  if(!m.teamB.squad.length && sides.b && typeof sides.b.players==='object' && !Array.isArray(sides.b.players)){
+    Object.keys(sides.b.players).forEach(function(k){
+      var mapped = mapPlayerFromApi(sides.b.players[k]) || playerShell(nameKeyToDisplay(k),'Batter',{inPlaying11:true});
+      m.teamB.squad.push(mapped);
+    });
+  }
+
+  try{ mergeStatsFromInnings(); }catch(e){ console.warn(e); }
+
+  var usedPlaceholder = false;
+  if(!(m.teamA.squad && m.teamA.squad.length)){
+    usedPlaceholder = true;
     for(var i=1;i<=11;i++) m.teamA.squad.push(playerShell(m.teamA.name+' Player '+i,'Batter',{inPlaying11:true}));
   }
-  if(sqB.length){
-    m.teamB.squad = sqB;
-  } else if(!(m.teamB.squad && m.teamB.squad.length)){
+  if(!(m.teamB.squad && m.teamB.squad.length)){
+    usedPlaceholder = true;
     for(var j=1;j<=11;j++) m.teamB.squad.push(playerShell(m.teamB.name+' Player '+j,'Batter',{inPlaying11:true}));
   }
   m.p11Published = true;
+  m._roanuzPlaceholderSquad = usedPlaceholder;
 }
 
 function findPlayerByName(squad, name){
@@ -7772,22 +7908,35 @@ function detectPhaseHint(m){
 function applyScoreFields(m, match){
   var runs = pickRoanuz(match, [
     'score.runs','score.total','now.runs','now.score','innings.score','batting.score',
-    'play.score.runs','live.score','runs','total_runs','now.runs_str'
+    'play.score.runs','live.score','runs','total_runs','now.runs_str',
+    'live.score.runs','live.score.total','card.score.runs'
   ]);
   var wkts = pickRoanuz(match, [
     'score.wickets','score.wicket','now.wickets','innings.wickets','batting.wickets',
-    'play.score.wickets','wickets'
+    'play.score.wickets','wickets','live.score.wickets','card.score.wickets'
   ]);
-  // parse "123/4" style
-  var scoreStr = pickRoanuz(match, ['score_str','scoreString','now.score_str','display_score']);
+  var scoreStr = pickRoanuz(match, ['score_str','scoreString','now.score_str','display_score','live.score_str']);
   if(scoreStr && (runs==null || wkts==null)){
     var mm = String(scoreStr).match(/(\d+)\s*\/\s*(\d+)/);
     if(mm){ runs = runs!=null?runs:mm[1]; wkts = wkts!=null?wkts:mm[2]; }
   }
+  // Roanuz innings objects: innings.a.runs / innings.b.runs or array
+  var inns = match.innings || pickRoanuz(match, ['data.innings']) || pickRoanuz(match, ['card.innings']);
+  if(inns && (runs==null || wkts==null)){
+    var innList = Array.isArray(inns) ? inns : Object.keys(inns).map(function(k){ return inns[k]; });
+    // use last innings with runs
+    for(var i=innList.length-1;i>=0;i--){
+      var inn = innList[i];
+      if(!inn) continue;
+      var ir = inn.runs != null ? inn.runs : (inn.score != null ? inn.score : (inn.total && inn.total.runs));
+      var iw = inn.wickets != null ? inn.wickets : (inn.wicket != null ? inn.wicket : (inn.total && inn.total.wickets));
+      if(ir!=null){ runs = runs!=null?runs:ir; wkts = wkts!=null?wkts:iw; break; }
+    }
+  }
   if(runs!=null && !isNaN(Number(runs))) m.totalScore = Number(runs);
   if(wkts!=null && !isNaN(Number(wkts))) m.wickets = Number(wkts);
 
-  var overs = pickRoanuz(match, ['score.overs','now.overs','innings.overs','batting.overs','overs','over']);
+  var overs = pickRoanuz(match, ['score.overs','now.overs','innings.overs','batting.overs','overs','over','live.overs','live.score.overs']);
   if(overs!=null){
     if(typeof overs === 'object'){
       m.currentOver = Number(overs.overs!=null?overs.overs:overs.over||0)||0;
@@ -7803,13 +7952,35 @@ function applyScoreFields(m, match){
       }
     }
   }
-  var result = pickRoanuz(match, ['result','result_text','outcome','status_note','winner_note']);
-  if(result) m.result = String(result);
+  var result = pickRoanuz(match, ['result','result_text','outcome','status_note','winner_note','msgs.result','data.result']);
+  if(result){
+    if(typeof result === 'object') result = result.text || result.message || result.name || JSON.stringify(result);
+    m.result = String(result);
+  }
+  // better completed result line
+  if(!m.result && m.status==='completed'){
+    m.result = (m.teamA && m.teamA.name || 'Team A') + ' vs ' + (m.teamB && m.teamB.name || 'Team B') + ' — match completed';
+  }
 }
 
 function hydrateMatchFromRoanuz(m, payload, phase){
   if(!m || !payload) return m;
   var match = unwrapRoanuzMatch(payload);
+  m._roanuzMeta = payload._meta || null;
+  if(match && match.error){
+    m._roanuzMatchError = String(match.error);
+  } else {
+    m._roanuzMatchError = '';
+  }
+  // Some responses nest under data.card
+  if(match && match.card && typeof match.card==='object'){
+    // merge card shallowly for pickers
+    try{
+      Object.keys(match.card).forEach(function(k){
+        if(match[k]==null) match[k] = match.card[k];
+      });
+    }catch(e){}
+  }
   var names = parseTeamNamesFromRoanuz(match, m.roanuzMatchKey);
   if(names.teamA) m.teamA.name = names.teamA;
   if(names.teamB) m.teamB.name = names.teamB;
@@ -7937,6 +8108,14 @@ async function refreshRoanuzPickerList(){
   }
 }
 
+function payloadHasNoScore(data){
+  try{
+    var m = unwrapRoanuzMatch(data||{});
+    var r = pickRoanuz(m, ['score.runs','live.score.runs','runs']);
+    return r==null || Number(r)===0;
+  }catch(e){ return true; }
+}
+
 async function confirmAndCreateRoanuz(matchKey, listStatus, btnEl){
   matchKey = String(matchKey||'').trim();
   if(!matchKey) return;
@@ -7992,9 +8171,12 @@ async function confirmAndCreateRoanuz(matchKey, listStatus, btnEl){
       var go2 = confirm('Match not started yet.\n\nSquads/teams imported.\n\nTurn ON auto-sync so when play begins score updates for viewers?\n\nYes = sync ON\nNo = leave manual');
       if(go2) startRoanuzSync(matchKey);
     } else {
-      // completed — one-shot already filled
-      setRoanuzStatus('Completed match imported (scorecard / teams / result).');
-      alert('Completed match imported.\nScorecard, teams and result are filled.\nLive tab shows the result.');
+      setRoanuzStatus('Completed match imported.');
+      var warn = '';
+      if(m._roanuzMatchError) warn += '\nAPI match error: '+m._roanuzMatchError;
+      if(m._roanuzPlaceholderSquad) warn += '\n\nSquad was NOT in API response — placeholder names used. Check Business+ match access / endpoint.';
+      if(payloadHasNoScore(data)) warn += '\nScore was 0 — API may not have returned innings score for this key.';
+      alert('Completed match imported.'+warn);
     }
 
     try{ if(typeof renderLive==='function') renderLive(); }catch(e){}

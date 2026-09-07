@@ -1772,7 +1772,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.07.1.46";
+const APP_VERSION = "2026.09.07.1.47";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -8080,6 +8080,12 @@ async function refreshRoanuzPickerList(){
     var res = await fn({});
     var data = res && res.data ? res.data : {};
     var list = data.matches || [];
+    window._roanuzFeaturedCache = window._roanuzFeaturedCache || {};
+    list.forEach(function(item){
+      if(item && item.key){
+        window._roanuzFeaturedCache[String(item.key)] = item.summary || item;
+      }
+    });
     var box = $('roanuzPickList');
     if(!box) return;
     if(!list.length){
@@ -8104,7 +8110,7 @@ async function refreshRoanuzPickerList(){
     });
   }catch(e){
     if($('roanuzPickStatus')) $('roanuzPickStatus').textContent = 'Error: '+(e.message||e);
-    alert('Roanuz list failed: '+(e.message||e));
+    console.error(e);
   }
 }
 
@@ -8137,9 +8143,11 @@ async function confirmAndCreateRoanuz(matchKey, listStatus, btnEl){
       return;
     }
 
+    var featuredSummary = (window._roanuzFeaturedCache && window._roanuzFeaturedCache[matchKey]) || null;
     var fn = firebase.app().functions('asia-south1').httpsCallable('fetchRoanuzMatch');
-    var res = await fn({ matchKey: matchKey });
+    var res = await fn({ matchKey: matchKey, featuredSummary: featuredSummary });
     var data = res && res.data ? res.data : {};
+    console.log('[Roanuz import meta]', data._meta);
     var matchObj = unwrapRoanuzMatch(data);
     var phase = detectRoanuzPhase(matchObj, { status: listStatus });
     var names = parseTeamNamesFromRoanuz(matchObj, matchKey);
@@ -8162,7 +8170,13 @@ async function confirmAndCreateRoanuz(matchKey, listStatus, btnEl){
     closeDlg('dlgRoanuzPick');
     await openMatch(m.id);
 
-    // After open: ask sync only for live / not_started that may go live
+    var meta = data._meta || {};
+    var diag = '';
+    if(meta.matchStatus) diag += '\nMatch API HTTP: ' + meta.matchStatus;
+    if(meta.matchMessage) diag += '\nMatch API msg: ' + meta.matchMessage;
+    if(meta.matchTopKeys && meta.matchTopKeys.length) diag += '\nMatch keys: ' + meta.matchTopKeys.join(', ');
+    if(meta.usedFeaturedFallback) diag += '\nUsed featured-list summary (Match detail empty).';
+
     if(phase === 'live'){
       var go = confirm('Match is LIVE on Roanuz.\n\nStart auto-sync every 12 seconds so score, balls, striker and scorecard update while you voiceover?\n\nYes = sync ON\nNo = import only (manual controls)');
       if(go) startRoanuzSync(matchKey);
@@ -8174,9 +8188,10 @@ async function confirmAndCreateRoanuz(matchKey, listStatus, btnEl){
       setRoanuzStatus('Completed match imported.');
       var warn = '';
       if(m._roanuzMatchError) warn += '\nAPI match error: '+m._roanuzMatchError;
-      if(m._roanuzPlaceholderSquad) warn += '\n\nSquad was NOT in API response — placeholder names used. Check Business+ match access / endpoint.';
-      if(payloadHasNoScore(data)) warn += '\nScore was 0 — API may not have returned innings score for this key.';
-      alert('Completed match imported.'+warn);
+      if(m._roanuzPlaceholderSquad) warn += '\n\nSquad still missing after featured+match merge.';
+      if(payloadHasNoScore(data)) warn += '\nScore still 0 after merge.';
+      if(warn || diag) alert('Completed match imported.'+warn+diag);
+      else alert('Completed match imported. Scorecard, teams and result filled.');
     }
 
     try{ if(typeof renderLive==='function') renderLive(); }catch(e){}

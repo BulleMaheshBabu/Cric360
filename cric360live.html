@@ -981,14 +981,6 @@ button:active{transform:scale(.98)}
       <button type="button" id="btnCreateMatch" class="btn-ok" aria-label="Create match">Create</button>
       <input type="file" id="importFileInput" accept="application/json,.json" class="sr-only" aria-label="Choose saved match JSON file to rerun" />
     </div>
-
-    <div id="roanuzHubBox" style="margin:0 0 14px;padding:12px;border:1px solid rgba(56,189,248,.4);border-radius:12px;background:rgba(15,23,42,.6)">
-      <h2 style="margin:0 0 6px;font-size:1rem;color:#7dd3fc" tabindex="-1">Roanuz Live</h2>
-      <p id="roanuzHubStatus" style="color:var(--muted);font-size:13px;margin:0 0 10px">One tap: pull a live match, create it here, go live, and auto-sync score for viewers.</p>
-      <button type="button" id="btnRoanuzHubLoad" class="btn-block btn-ok" style="margin-bottom:8px">Refresh Roanuz live list</button>
-      <div id="roanuzHubList" aria-live="polite"></div>
-    </div>
-
     <div id="matchesList"></div>
   </div>
   <div id="hubAdminPaneAuctions" class="hidden">
@@ -1144,16 +1136,10 @@ button:active{transform:scale(.98)}
     <button type="button" id="btnDownloadMatch" class="btn-block btn-sec" style="margin-bottom:16px" aria-label="Download full match file">Download match file</button>
 
     <div id="roanuzBox" style="margin:0 0 16px;padding:12px;border:1px solid rgba(56,189,248,.35);border-radius:12px;background:rgba(15,23,42,.55)">
-      <h2 style="margin:0 0 8px;font-size:1rem;color:#7dd3fc" tabindex="-1">Roanuz API (auto score)</h2>
-      <p id="roanuzStatus" style="color:var(--muted);font-size:13px;margin:0 0 10px">Manual mode. Link a Roanuz match to auto-update score while you voiceover.</p>
-      <button type="button" id="btnRoanuzLoad" class="btn-block btn-sec" style="margin-bottom:8px">Load featured matches</button>
-      <div id="roanuzList" class="hidden" style="max-height:220px;overflow:auto;margin-bottom:8px"></div>
-      <label for="roanuzKeyInput" class="sr-only">Roanuz match key</label>
-      <input type="text" id="roanuzKeyInput" placeholder="Or paste Roanuz match key" style="width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" />
-      <button type="button" id="btnRoanuzLink" class="btn-block btn-ok" style="margin-bottom:8px">Link &amp; start auto-sync</button>
-      <button type="button" id="btnRoanuzStop" class="btn-block btn-danger hidden" style="margin-bottom:4px">Stop auto-sync (back to manual)</button>
+      <h2 style="margin:0 0 8px;font-size:1rem;color:#7dd3fc" tabindex="-1">Roanuz sync</h2>
+      <p id="roanuzStatus" style="color:var(--muted);font-size:13px;margin:0 0 10px">Off</p>
+      <button type="button" id="btnRoanuzStop" class="btn-block btn-danger hidden" style="margin-bottom:4px">Stop auto-sync</button>
     </div>
-
     <h2 style="margin:0 0 10px;font-size:1rem" tabindex="-1">Overs history</h2>
     <div class="user-match-tabs" role="tablist" aria-label="Innings overs" style="display:flex;gap:8px;margin:0 0 12px">
       <button type="button" role="tab" id="moreInnTab1" class="btn-sec active" aria-selected="true" style="flex:1;min-height:42px;font-weight:800">1st innings</button>
@@ -1223,7 +1209,18 @@ button:active{transform:scale(.98)}
     <p style="color:var(--muted);font-size:14px;margin:0 0 14px">How do you want to start?</p>
     <button type="button" id="btnRunNewMatch" class="btn-ok btn-block" aria-label="Run new match, open setup wizard">Run new match</button>
     <button type="button" id="btnRerunOldMatch" class="btn-sec btn-block" style="margin-top:10px" aria-label="Rerun old match, import saved JSON file">Rerun old match</button>
+    <button type="button" id="btnCreateFromRoanuz" class="btn-sec btn-block" style="margin-top:10px;border-color:#38bdf8;color:#7dd3fc" aria-label="Create from Roanuz API match list">Create from Roanuz</button>
     <button type="button" id="btnCreateChoiceCancel" class="btn-sec btn-block" style="margin-top:14px" aria-label="Cancel">Cancel</button>
+  </div>
+</div>
+
+<div id="dlgRoanuzPick" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="roanuzPickTitle">
+  <div class="modal-box wide">
+    <h2 id="roanuzPickTitle" tabindex="-1">Roanuz matches</h2>
+    <p id="roanuzPickStatus" style="color:var(--muted);font-size:13px;margin:0 0 10px">Loading…</p>
+    <div id="roanuzPickList" style="max-height:55vh;overflow:auto"></div>
+    <button type="button" id="btnRoanuzPickRefresh" class="btn-sec btn-block" style="margin-top:10px">Refresh list</button>
+    <button type="button" id="btnRoanuzPickCancel" class="btn-sec btn-block" style="margin-top:8px">Cancel</button>
   </div>
 </div>
 
@@ -1775,7 +1772,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.07.1.44";
+const APP_VERSION = "2026.09.07.1.45";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -7427,7 +7424,8 @@ $('btnBackUwa').onclick = () => {
 
 
 
-/* ===== Roanuz API auto-sync (v1.43) ===== */
+
+/* ===== Roanuz API — create + hydrate + sync (v1.45) ===== */
 let _roanuzTimer = null;
 let _roanuzBusy = false;
 
@@ -7440,11 +7438,11 @@ function stopRoanuzSync(){
   if(_roanuzTimer){ clearInterval(_roanuzTimer); _roanuzTimer = null; }
   var m = M();
   if(m){
-    m.scoringMode = 'manual';
+    m.scoringMode = m.scoringMode === 'api' ? 'manual' : (m.scoringMode || 'manual');
     m.roanuzSyncing = false;
   }
   if($('btnRoanuzStop')) $('btnRoanuzStop').classList.add('hidden');
-  setRoanuzStatus('Auto-sync stopped. Manual scoring is on.');
+  setRoanuzStatus('Auto-sync stopped. Manual controls on.');
   try{ if(typeof cloudSaveMatch==='function' && m) cloudSaveMatch(m); }catch(e){}
 }
 
@@ -7462,116 +7460,413 @@ function pickRoanuz(obj, paths){
   return null;
 }
 
-function applyRoanuzToMatch(m, payload){
-  if(!m || !payload) return false;
-  var match = payload.match || payload;
-  // unwrap common wrappers
-  if(match.data) match = match.data;
-  if(match.match) match = match.match;
+function unwrapRoanuzMatch(payload){
+  var match = (payload && payload.match) ? payload.match : payload;
+  if(!match) return {};
+  if(match.data && typeof match.data==='object') match = match.data;
+  if(match.match && typeof match.match==='object') match = match.match;
+  return match || {};
+}
 
-  var changed = false;
+function unwrapRoanuzBalls(payload){
+  var balls = (payload && payload.balls) ? payload.balls : payload;
+  if(!balls) return null;
+  if(balls.data && typeof balls.data==='object') balls = balls.data;
+  if(balls.error) return null;
+  return balls;
+}
+
+function detectRoanuzPhase(match, listItem){
+  var s = String(
+    pickRoanuz(match, ['play_status','playStatus','status','match_status','state']) ||
+    (listItem && listItem.status) || ''
+  ).toLowerCase();
+  if(/complete|finished|result|ended|closed/.test(s)) return 'completed';
+  if(/live|in progress|innings|play/.test(s)) return 'live';
+  if(/scheduled|fixture|upcoming|not started|toss|preview/.test(s)) return 'not_started';
+  // score present → treat as live
+  var runs = pickRoanuz(match, ['score.runs','now.runs','play.score.runs','runs']);
+  if(runs!=null && Number(runs)>0) return 'live';
+  return 'not_started';
+}
+
+function playerShell(name, role, extra){
+  extra = extra || {};
+  return {
+    id: extra.id || ('p_' + uid()),
+    name: String(name || 'Player').trim() || 'Player',
+    photoUrl: extra.photoUrl || '',
+    role: role || extra.role || 'Batter',
+    inPlaying11: extra.inPlaying11 !== false,
+    runs: Number(extra.runs)||0,
+    balls: Number(extra.balls)||0,
+    fours: Number(extra.fours)||0,
+    sixes: Number(extra.sixes)||0,
+    isOut: !!extra.isOut,
+    retiredHurt: false,
+    dismissal: extra.dismissal || '',
+    bowlRuns: Number(extra.bowlRuns)||0,
+    bowlBalls: Number(extra.bowlBalls)||0,
+    wickets: Number(extra.wickets)||0,
+    maidens: Number(extra.maidens)||0
+  };
+}
+
+function extractPlayersArray(node){
+  if(!node) return [];
+  if(Array.isArray(node)) return node;
+  if(Array.isArray(node.players)) return node.players;
+  if(Array.isArray(node.squad)) return node.squad;
+  if(Array.isArray(node.lineup)) return node.lineup;
+  if(Array.isArray(node.playing_xi)) return node.playing_xi;
+  if(Array.isArray(node.playing11)) return node.playing11;
+  if(Array.isArray(node.batsmen)) return node.batsmen;
+  if(Array.isArray(node.bowlers)) return node.bowlers;
+  return [];
+}
+
+function mapPlayerFromApi(p){
+  if(!p) return null;
+  if(typeof p === 'string') return playerShell(p, 'Batter', { inPlaying11: true });
+  var name = p.name || p.fullname || p.player_name || p.display_name || p.short_name || '';
+  if(!name && p.player) name = p.player.name || p.player.fullname || '';
+  if(!name) return null;
+  var role = p.role || p.playing_role || p.seasonal_role || 'Batter';
+  var runs = p.runs != null ? p.runs : (p.score != null ? p.score : (p.batting && p.batting.runs));
+  var balls = p.balls != null ? p.balls : (p.ball != null ? p.ball : (p.batting && p.batting.balls));
+  var fours = p.fours != null ? p.fours : (p.fours_scored != null ? p.fours_scored : (p.batting && p.batting.fours));
+  var sixes = p.sixes != null ? p.sixes : (p.sixes_scored != null ? p.sixes_scored : (p.batting && p.batting.sixes));
+  var isOut = !!(p.is_out || p.out || p.dismissal || (p.batting && p.batting.dismissal));
+  var dismissal = '';
+  if(p.dismissal) dismissal = typeof p.dismissal === 'string' ? p.dismissal : (p.dismissal.text || p.dismissal.name || '');
+  var bowlRuns = p.bowlRuns != null ? p.bowlRuns : (p.runs_conceded != null ? p.runs_conceded : (p.bowling && p.bowling.runs));
+  var bowlBalls = p.bowlBalls != null ? p.bowlBalls : (p.balls_bowled != null ? p.balls_bowled : (p.bowling && p.bowling.balls));
+  var oversB = p.overs != null ? p.overs : (p.bowling && p.bowling.overs);
+  if(bowlBalls==null && oversB!=null){
+    var os = String(oversB);
+    if(os.indexOf('.')>=0){
+      var pp = os.split('.');
+      bowlBalls = (parseInt(pp[0],10)||0)*6 + (parseInt(pp[1],10)||0);
+    } else {
+      bowlBalls = Math.round(Number(oversB)*6);
+    }
+  }
+  var wickets = p.wickets != null ? p.wickets : (p.bowling && p.bowling.wickets);
+  var maidens = p.maidens != null ? p.maidens : (p.bowling && p.bowling.maidens);
+  return playerShell(name, role, {
+    runs: runs, balls: balls, fours: fours, sixes: sixes,
+    isOut: isOut, dismissal: dismissal,
+    bowlRuns: bowlRuns, bowlBalls: bowlBalls, wickets: wickets, maidens: maidens,
+    inPlaying11: p.inPlaying11 !== false
+  });
+}
+
+function parseTeamNamesFromRoanuz(match, fallbackKey){
+  var a = pickRoanuz(match, ['teams.a.name','team_a.name','teamA.name','localteam.name','teams.home.name']);
+  var b = pickRoanuz(match, ['teams.b.name','team_b.name','teamB.name','visitorteam.name','teams.away.name']);
+  if(typeof a === 'object' && a) a = a.name || a.code || null;
+  if(typeof b === 'object' && b) b = b.name || b.code || null;
+  var title = pickRoanuz(match, ['name','title','short_name','shortName']) || fallbackKey || 'Match';
+  if((!a || !b) && title && / vs /i.test(String(title))){
+    var parts = String(title).split(/ vs /i);
+    if(parts.length>=2){ a = a || parts[0].trim(); b = b || parts[1].trim(); }
+  }
+  return {
+    teamA: String(a||'Team A').trim()||'Team A',
+    teamB: String(b||'Team B').trim()||'Team B',
+    series: String(title).slice(0,80)
+  };
+}
+
+function buildSquadFromSide(sideNode, teamName){
+  var arr = extractPlayersArray(sideNode);
+  var out = [];
+  arr.forEach(function(p){
+    var mapped = mapPlayerFromApi(p);
+    if(mapped) out.push(mapped);
+  });
+  return out;
+}
+
+function findSideNodes(match){
+  var a = pickRoanuz(match, ['teams.a','team_a','teamA','localteam','teams.home']) || null;
+  var b = pickRoanuz(match, ['teams.b','team_b','teamB','visitorteam','teams.away']) || null;
+  return { a: a, b: b };
+}
+
+function hydrateSquads(m, match){
+  var sides = findSideNodes(match);
+  var sqA = buildSquadFromSide(sides.a, m.teamA.name);
+  var sqB = buildSquadFromSide(sides.b, m.teamB.name);
+  // Also try scorecard style arrays
+  if(!sqA.length){
+    var batA = pickRoanuz(match, ['scorecard.team_a.batting','innings.0.batting','batting.team_a']);
+    sqA = buildSquadFromSide({ players: batA }, m.teamA.name);
+  }
+  if(!sqB.length){
+    var batB = pickRoanuz(match, ['scorecard.team_b.batting','innings.1.batting','batting.team_b']);
+    sqB = buildSquadFromSide({ players: batB }, m.teamB.name);
+  }
+  if(sqA.length){
+    m.teamA.squad = sqA;
+  } else if(!(m.teamA.squad && m.teamA.squad.length)){
+    for(var i=1;i<=11;i++) m.teamA.squad.push(playerShell(m.teamA.name+' Player '+i,'Batter',{inPlaying11:true}));
+  }
+  if(sqB.length){
+    m.teamB.squad = sqB;
+  } else if(!(m.teamB.squad && m.teamB.squad.length)){
+    for(var j=1;j<=11;j++) m.teamB.squad.push(playerShell(m.teamB.name+' Player '+j,'Batter',{inPlaying11:true}));
+  }
+  m.p11Published = true;
+}
+
+function findPlayerByName(squad, name){
+  if(!squad || !name) return null;
+  var n = String(name).toLowerCase().trim();
+  for(var i=0;i<squad.length;i++){
+    if(squad[i] && String(squad[i].name||'').toLowerCase().trim()===n) return squad[i];
+  }
+  // partial
+  for(var j=0;j<squad.length;j++){
+    var sn = String(squad[j].name||'').toLowerCase();
+    if(sn.indexOf(n)>=0 || n.indexOf(sn)>=0) return squad[j];
+  }
+  return null;
+}
+
+function applyLivePointers(m, match){
+  var strikerName = pickRoanuz(match, [
+    'now.striker.name','play.striker.name','batting.striker.name','striker.name','players.striker.name','live.striker.name'
+  ]);
+  var nonName = pickRoanuz(match, [
+    'now.non_striker.name','now.nonStriker.name','play.non_striker.name','non_striker.name','nonStriker.name','live.non_striker.name'
+  ]);
+  var bowlName = pickRoanuz(match, [
+    'now.bowler.name','play.bowler.name','bowling.bowler.name','bowler.name','live.bowler.name'
+  ]);
+  var batSide = m.battingTeam==='teamA' ? m.teamA : m.teamB;
+  var bowlSide = m.battingTeam==='teamA' ? m.teamB : m.teamA;
+  if(strikerName){
+    var sp = findPlayerByName(batSide.squad, strikerName);
+    if(!sp){ sp = playerShell(strikerName,'Batter',{inPlaying11:true}); batSide.squad.push(sp); }
+    m.strikerId = sp.id;
+  }
+  if(nonName){
+    var np = findPlayerByName(batSide.squad, nonName);
+    if(!np){ np = playerShell(nonName,'Batter',{inPlaying11:true}); batSide.squad.push(np); }
+    m.nonStrikerId = np.id;
+  }
+  if(bowlName){
+    var bp = findPlayerByName(bowlSide.squad, bowlName);
+    if(!bp){ bp = playerShell(bowlName,'Bowler',{inPlaying11:true}); bowlSide.squad.push(bp); }
+    m.currentBowlerId = bp.id;
+  }
+  // defaults so Live UI is never empty when live
+  if(!m.strikerId && batSide.squad[0]) m.strikerId = batSide.squad[0].id;
+  if(!m.nonStrikerId && batSide.squad[1]) m.nonStrikerId = batSide.squad[1].id;
+  if(!m.currentBowlerId && bowlSide.squad[0]) m.currentBowlerId = bowlSide.squad[0].id;
+}
+
+function mapBallEvent(b){
+  if(!b || typeof b!=='object') return null;
+  var runs = b.runs != null ? Number(b.runs) : (b.run != null ? Number(b.run) : 0);
+  if(isNaN(runs)) runs = 0;
+  var text = b.commentary || b.comment || b.text || b.description || b.short_text || '';
+  var wicket = !!(b.wicket || b.is_wicket || b.dismissal);
+  var extra = b.extra_type || b.extras_type || b.type || '';
+  var type = 'normal';
+  var el = String(extra).toLowerCase();
+  if(el.indexOf('wide')>=0) type = 'wide';
+  else if(el.indexOf('no')>=0) type = 'noball';
+  else if(el.indexOf('leg')>=0) type = 'legbye';
+  else if(el.indexOf('bye')>=0) type = 'bye';
+  else if(wicket) type = 'out';
+  var over = b.over != null ? b.over : b.over_number;
+  var ball = b.ball != null ? b.ball : b.ball_number;
+  return {
+    type: type,
+    runs: runs,
+    text: String(text||''),
+    over: over,
+    ball: ball,
+    wicket: wicket,
+    batsman: (b.batsman && (b.batsman.name||b.batsman)) || b.batsman_name || '',
+    bowler: (b.bowler && (b.bowler.name||b.bowler)) || b.bowler_name || ''
+  };
+}
+
+function hydrateBallsAndOvers(m, ballsPayload){
+  var root = unwrapRoanuzBalls(ballsPayload);
+  if(!root) return;
+  var list = [];
+  if(Array.isArray(root)) list = root;
+  else if(Array.isArray(root.balls)) list = root.balls;
+  else if(Array.isArray(root.ball_by_ball)) list = root.ball_by_ball;
+  else if(Array.isArray(root.data)) list = root.data;
+  else if(root.innings && Array.isArray(root.innings)){
+    root.innings.forEach(function(inn){
+      var bl = inn.balls || inn.deliveries || inn.overs || [];
+      if(Array.isArray(bl)) list = list.concat(bl);
+    });
+  }
+  if(!list.length) return;
+
+  // Prefer structured overs if present
+  var overs = [];
+  if(root.overs && Array.isArray(root.overs)){
+    overs = root.overs;
+  } else {
+    // group by over number
+    var byOver = {};
+    list.forEach(function(raw){
+      var ev = mapBallEvent(raw);
+      if(!ev) return;
+      var on = ev.over != null ? Number(ev.over) : 0;
+      if(isNaN(on)) on = 0;
+      if(!byOver[on]) byOver[on] = [];
+      byOver[on].push(ev);
+    });
+    Object.keys(byOver).sort(function(a,b){ return Number(a)-Number(b); }).forEach(function(k){
+      overs.push({ overNumber: Number(k), balls: byOver[k] });
+    });
+  }
+
+  var completed = [];
+  var currentBalls = [];
+  var totalBalls = 0;
+  overs.forEach(function(ov, idx){
+    var balls = [];
+    var srcBalls = ov.balls || ov.deliveries || [];
+    if(!Array.isArray(srcBalls) && Array.isArray(ov)) srcBalls = ov;
+    srcBalls.forEach(function(rb){
+      var ev = rb.type ? rb : mapBallEvent(rb);
+      if(!ev) return;
+      balls.push(ev);
+      if(ev.type!=='wide' && ev.type!=='noball') totalBalls++;
+    });
+    var isLast = idx === overs.length - 1;
+    var overNum = ov.overNumber != null ? ov.overNumber : (ov.number != null ? ov.number : idx);
+    if(isLast && detectPhaseHint(m) === 'live'){
+      currentBalls = balls;
+      m.currentOver = Number(overNum)||0;
+      m.currentBall = balls.filter(function(x){ return x.type!=='wide' && x.type!=='noball'; }).length % 6;
+    } else {
+      var bowlName = (balls[0] && balls[0].bowler) || '';
+      completed.push({
+        overNumber: Number(overNum)|| (idx+1),
+        bowlerName: bowlName,
+        balls: balls,
+        type: 'over'
+      });
+    }
+  });
+  if(completed.length) m.completedOvers = completed;
+  if(currentBalls.length) m.currentOverBalls = currentBalls;
+  if(totalBalls) m.totalBalls = totalBalls;
+}
+
+function detectPhaseHint(m){
+  return m.status || 'live';
+}
+
+function applyScoreFields(m, match){
   var runs = pickRoanuz(match, [
     'score.runs','score.total','now.runs','now.score','innings.score','batting.score',
-    'play.score.runs','live.score','runs','total_runs'
+    'play.score.runs','live.score','runs','total_runs','now.runs_str'
   ]);
   var wkts = pickRoanuz(match, [
     'score.wickets','score.wicket','now.wickets','innings.wickets','batting.wickets',
     'play.score.wickets','wickets'
   ]);
-  var overs = pickRoanuz(match, [
-    'score.overs','now.overs','innings.overs','batting.overs','overs','over'
-  ]);
-  var balls = pickRoanuz(match, [
-    'score.balls','now.balls','ball','balls'
-  ]);
+  // parse "123/4" style
+  var scoreStr = pickRoanuz(match, ['score_str','scoreString','now.score_str','display_score']);
+  if(scoreStr && (runs==null || wkts==null)){
+    var mm = String(scoreStr).match(/(\d+)\s*\/\s*(\d+)/);
+    if(mm){ runs = runs!=null?runs:mm[1]; wkts = wkts!=null?wkts:mm[2]; }
+  }
+  if(runs!=null && !isNaN(Number(runs))) m.totalScore = Number(runs);
+  if(wkts!=null && !isNaN(Number(wkts))) m.wickets = Number(wkts);
 
-  if(runs!=null && !isNaN(Number(runs))){
-    var r = Number(runs);
-    if(m.totalScore !== r){ m.totalScore = r; changed = true; }
-  }
-  if(wkts!=null && !isNaN(Number(wkts))){
-    var w = Number(wkts);
-    if(m.wickets !== w){ m.wickets = w; changed = true; }
-  }
+  var overs = pickRoanuz(match, ['score.overs','now.overs','innings.overs','batting.overs','overs','over']);
   if(overs!=null){
-    var ovStr = String(overs);
-    // formats: "12.3" or 12.3 or {overs:12,balls:3}
-    if(typeof overs === 'object' && overs){
-      var oo = Number(overs.overs!=null?overs.overs:overs.over||0);
-      var bb = Number(overs.balls!=null?overs.balls:0);
-      if(!isNaN(oo)){ if(m.currentOver!==oo){ m.currentOver=oo; changed=true; } }
-      if(!isNaN(bb)){ if(m.currentBall!==bb){ m.currentBall=bb; changed=true; } }
-    } else if(ovStr.indexOf('.')>=0){
-      var parts = ovStr.split('.');
-      var oo2 = parseInt(parts[0],10); var bb2 = parseInt(parts[1],10);
-      if(!isNaN(oo2) && m.currentOver!==oo2){ m.currentOver=oo2; changed=true; }
-      if(!isNaN(bb2) && m.currentBall!==bb2){ m.currentBall=bb2; changed=true; }
-    } else if(!isNaN(Number(ovStr))){
-      var ovn = Number(ovStr);
-      if(m.currentOver!==ovn){ m.currentOver=ovn; changed=true; }
+    if(typeof overs === 'object'){
+      m.currentOver = Number(overs.overs!=null?overs.overs:overs.over||0)||0;
+      m.currentBall = Number(overs.balls!=null?overs.balls:0)||0;
+    } else {
+      var ovStr = String(overs);
+      if(ovStr.indexOf('.')>=0){
+        var p = ovStr.split('.');
+        m.currentOver = parseInt(p[0],10)||0;
+        m.currentBall = parseInt(p[1],10)||0;
+      } else if(!isNaN(Number(ovStr))){
+        m.currentOver = Number(ovStr);
+      }
     }
   }
-  if(balls!=null && !isNaN(Number(balls))){
-    var b = Number(balls);
-    if(m.currentBall!==b){ m.currentBall=b; changed=true; }
+  var result = pickRoanuz(match, ['result','result_text','outcome','status_note','winner_note']);
+  if(result) m.result = String(result);
+}
+
+function hydrateMatchFromRoanuz(m, payload, phase){
+  if(!m || !payload) return m;
+  var match = unwrapRoanuzMatch(payload);
+  var names = parseTeamNamesFromRoanuz(match, m.roanuzMatchKey);
+  if(names.teamA) m.teamA.name = names.teamA;
+  if(names.teamB) m.teamB.name = names.teamB;
+  if(names.series) m.series = names.series;
+
+  hydrateSquads(m, match);
+  applyScoreFields(m, match);
+
+  // batting team guess
+  var batName = pickRoanuz(match, ['batting_team.name','now.batting_team','play.batting_team.name']);
+  if(batName){
+    var bn = String(batName).toLowerCase();
+    if(bn.indexOf(String(m.teamA.name).toLowerCase())>=0) m.battingTeam = 'teamA';
+    else if(bn.indexOf(String(m.teamB.name).toLowerCase())>=0) m.battingTeam = 'teamB';
   }
 
-  // players: best-effort names only (do not break ids)
-  var strikerName = pickRoanuz(match, [
-    'now.striker.name','play.striker.name','batting.striker.name','striker.name','players.striker.name'
-  ]);
-  var nonName = pickRoanuz(match, [
-    'now.non_striker.name','now.nonStriker.name','play.non_striker.name','non_striker.name','nonStriker.name'
-  ]);
-  var bowlName = pickRoanuz(match, [
-    'now.bowler.name','play.bowler.name','bowling.bowler.name','bowler.name'
-  ]);
-  function setPlayerName(role, name){
-    if(!name) return;
-    name = String(name).trim();
-    if(!name) return;
-    if(role==='striker'){
-      if(!m.striker) m.striker = { name: name };
-      else if(m.striker.name !== name){ m.striker.name = name; changed = true; }
-    } else if(role==='non'){
-      if(!m.nonStriker) m.nonStriker = { name: name };
-      else if(m.nonStriker.name !== name){ m.nonStriker.name = name; changed = true; }
-    } else if(role==='bowler'){
-      if(!m.bowler) m.bowler = { name: name };
-      else if(m.bowler.name !== name){ m.bowler.name = name; changed = true; }
-    }
-  }
-  setPlayerName('striker', strikerName);
-  setPlayerName('non', nonName);
-  setPlayerName('bowler', bowlName);
+  applyLivePointers(m, match);
+  try{ hydrateBallsAndOvers(m, payload.balls); }catch(e){ console.warn('hydrateBalls', e); }
 
-  m.roanuzLastSyncAt = Date.now();
-  m.roanuzRawHint = {
-    runs: runs, wickets: wkts, overs: overs,
-    striker: strikerName, nonStriker: nonName, bowler: bowlName
-  };
-  return changed;
+  if(phase === 'completed'){
+    m.status = 'completed';
+    if(!m.result) m.result = (m.teamA.name + ' vs ' + m.teamB.name + ' — completed');
+  } else if(phase === 'live'){
+    m.status = 'live';
+  } else {
+    m.status = 'not_started';
+  }
+
+  m.updatedAt = new Date().toISOString();
+  m._scoreRev = (Number(m._scoreRev)||0) + 1;
+  return m;
+}
+
+// keep name used by older sync
+function applyRoanuzToMatch(m, payload){
+  var phase = m.status === 'completed' ? 'completed' : 'live';
+  hydrateMatchFromRoanuz(m, payload, phase);
+  return true;
 }
 
 async function roanuzSyncOnce(){
   if(_roanuzBusy) return;
   var m = M();
-  if(!m || !m.roanuzMatchKey) return;
+  if(!m || !m.roanuzMatchKey || !m.roanuzSyncing) return;
   if(!firebase || !firebase.functions) return;
   _roanuzBusy = true;
   try{
     var fn = firebase.app().functions('asia-south1').httpsCallable('fetchRoanuzMatch');
     var res = await fn({ matchKey: m.roanuzMatchKey });
     var data = res && res.data ? res.data : {};
-    var changed = applyRoanuzToMatch(m, data);
-    setRoanuzStatus('API sync ON · key ' + m.roanuzMatchKey + ' · last ' + new Date().toLocaleTimeString() +
-      (data.match && data.match.error ? ' · match err' : '') +
-      (m.roanuzRawHint ? (' · score ' + (m.totalScore!=null?m.totalScore:'?') + '/' + (m.wickets!=null?m.wickets:'?')) : ''));
-    if(changed){
-      try{ if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m); }catch(e){}
-      try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
-      try{ if(typeof renderScorecard==='function') renderScorecard(); }catch(e){}
-    }
+    hydrateMatchFromRoanuz(m, data, m.status === 'completed' ? 'completed' : 'live');
+    setRoanuzStatus('Sync ON · ' + m.roanuzMatchKey + ' · ' + (m.totalScore!=null?m.totalScore:0) + '/' + (m.wickets!=null?m.wickets:0) + ' · ' + new Date().toLocaleTimeString());
+    try{ if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m); }catch(e){}
+    try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
+    try{ if(typeof renderScorecard==='function') renderScorecard(); }catch(e){}
+    try{ if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin'); }catch(e){}
+    try{ if(typeof paintUwmOversList==='function') paintUwmOversList(m); }catch(e){}
   }catch(e){
     setRoanuzStatus('Sync error: ' + (e.message || e));
     console.warn('roanuzSyncOnce', e);
@@ -7582,237 +7877,100 @@ async function roanuzSyncOnce(){
 
 function startRoanuzSync(matchKey){
   var m = M();
-  if(!m){ alert('Open a match first'); return; }
-  matchKey = String(matchKey||'').trim();
-  if(!matchKey){ alert('Enter or select a Roanuz match key'); return; }
+  if(!m) return;
+  matchKey = String(matchKey || m.roanuzMatchKey || '').trim();
+  if(!matchKey) return;
   m.roanuzMatchKey = matchKey;
   m.scoringMode = 'api';
   m.roanuzSyncing = true;
   if($('btnRoanuzStop')) $('btnRoanuzStop').classList.remove('hidden');
-  setRoanuzStatus('Starting auto-sync for ' + matchKey + '…');
+  setRoanuzStatus('Starting sync…');
   try{ if(typeof cloudSaveMatch==='function') cloudSaveMatch(m); }catch(e){}
   if(_roanuzTimer) clearInterval(_roanuzTimer);
   roanuzSyncOnce();
   _roanuzTimer = setInterval(roanuzSyncOnce, 12000);
 }
 
-async function roanuzLoadFeatured(){
-  if(!firebase || !firebase.functions){ alert('Firebase Functions not loaded'); return; }
-  if(typeof isAdmin==='function' && !isAdmin()){ alert('Admin only'); return; }
-  setRoanuzStatus('Loading featured matches…');
-  if($('btnRoanuzLoad')){ $('btnRoanuzLoad').disabled = true; }
-  try{
-    var fn = firebase.app().functions('asia-south1').httpsCallable('testRoanuz');
-    var res = await fn({});
-    var data = res && res.data ? res.data : {};
-    var list = data.matches || [];
-    var box = $('roanuzList');
-    if(!box) return;
-    box.classList.remove('hidden');
-    if(!list.length){
-      box.innerHTML = '<p style="color:var(--muted)">No featured matches returned. Paste a match key manually.</p>';
-      setRoanuzStatus(data.message || 'Connected but no matches in list');
-      return;
-    }
-    box.innerHTML = list.map(function(item){
-      var key = (item.key||'').replace(/"/g,'');
-      var label = (item.teams || item.name || key) + (item.status ? (' · ' + item.status) : '');
-      return '<button type="button" class="btn-block btn-sec roanuz-pick" data-key="'+key+'" style="margin-bottom:6px;text-align:left;font-size:13px">'+
-        label.replace(/</g,'&lt;') + '<br><span style="opacity:.7;font-size:11px">'+key+'</span></button>';
-    }).join('');
-    box.querySelectorAll('.roanuz-pick').forEach(function(btn){
-      btn.onclick = function(){
-        var k = btn.getAttribute('data-key')||'';
-        if($('roanuzKeyInput')) $('roanuzKeyInput').value = k;
-        startRoanuzSync(k);
-      };
-    });
-    setRoanuzStatus(data.message || ('Loaded ' + list.length + ' matches. Tap one to sync.'));
-  }catch(e){
-    setRoanuzStatus('Error: ' + (e.message || e));
-    alert('Roanuz test failed: ' + (e.message || e));
-    console.error(e);
-  }finally{
-    if($('btnRoanuzLoad')) $('btnRoanuzLoad').disabled = false;
+async function openRoanuzPicker(){
+  closeDlg('dlgCreateChoice');
+  openDlg('dlgRoanuzPick');
+  if($('roanuzPickStatus')) $('roanuzPickStatus').textContent = 'Loading Roanuz matches…';
+  if($('roanuzPickList')) $('roanuzPickList').innerHTML = '';
+  await refreshRoanuzPickerList();
+}
+
+async function refreshRoanuzPickerList(){
+  if(!firebase || !firebase.functions){
+    if($('roanuzPickStatus')) $('roanuzPickStatus').textContent = 'Firebase Functions not loaded';
+    return;
   }
-}
-
-function wireRoanuzUi(){
-  if($('btnRoanuzHubLoad')) $('btnRoanuzHubLoad').onclick = function(){ roanuzHubRefresh(); };
-  if($('btnRoanuzLoad')) $('btnRoanuzLoad').onclick = function(){ roanuzLoadFeatured(); };
-  if($('btnRoanuzLink')) $('btnRoanuzLink').onclick = function(){
-    var k = ($('roanuzKeyInput') && $('roanuzKeyInput').value) || '';
-    startRoanuzSync(k);
-  };
-  if($('btnRoanuzStop')) $('btnRoanuzStop').onclick = function(){ stopRoanuzSync(); };
-  // resume if match already linked
-  try{
-    var m = M();
-    if(m && m.scoringMode==='api' && m.roanuzMatchKey){
-      if($('roanuzKeyInput')) $('roanuzKeyInput').value = m.roanuzMatchKey;
-      if($('btnRoanuzStop')) $('btnRoanuzStop').classList.remove('hidden');
-      startRoanuzSync(m.roanuzMatchKey);
-    }
-  }catch(e){}
-}
-
-
-/* ===== Roanuz one-tap create from Matches tab ===== */
-async function roanuzHubRefresh(){
-  if(!firebase || !firebase.functions){ alert('Firebase Functions not loaded'); return; }
-  if(typeof isAdmin==='function' && !isAdmin()){ alert('Admin only'); return; }
-  var st = $('roanuzHubStatus');
-  var listEl = $('roanuzHubList');
-  if(st) st.textContent = 'Loading Roanuz featured / live matches…';
-  if($('btnRoanuzHubLoad')) $('btnRoanuzHubLoad').disabled = true;
   try{
     var fn = firebase.app().functions('asia-south1').httpsCallable('testRoanuz');
     var res = await fn({});
     var data = res && res.data ? res.data : {};
     var list = data.matches || [];
-    if(!listEl) return;
+    var box = $('roanuzPickList');
+    if(!box) return;
     if(!list.length){
-      listEl.innerHTML = '<p style="color:var(--muted);font-size:13px">No matches returned. Check Roanuz coverage / trial.</p>';
-      if(st) st.textContent = data.message || 'Connected, empty list';
+      box.innerHTML = '<p style="color:var(--muted)">No matches returned.</p>';
+      if($('roanuzPickStatus')) $('roanuzPickStatus').textContent = data.message || 'Empty list';
       return;
     }
-    listEl.innerHTML = list.map(function(item){
+    if($('roanuzPickStatus')) $('roanuzPickStatus').textContent = (data.message||('Found '+list.length)) + ' · Select a match';
+    box.innerHTML = list.map(function(item){
       var key = String(item.key||'').replace(/"/g,'&quot;');
-      var label = (item.teams || item.name || key);
-      var status = item.status ? String(item.status) : '';
-      return '<button type="button" class="list-btn roanuz-hub-pick" data-key="'+key+'" style="margin-bottom:8px;text-align:left">'
+      var label = item.teams || item.name || key;
+      var status = item.status || '';
+      return '<button type="button" class="list-btn roanuz-pick-item" data-key="'+key+'" data-status="'+String(status).replace(/"/g,'&quot;')+'" style="margin-bottom:8px;text-align:left">'
         +'<span style="font-weight:800">'+String(label).replace(/</g,'&lt;')+'</span>'
         +(status?('<br><span style="font-size:12px;color:var(--ok-bright)">'+String(status).replace(/</g,'&lt;')+'</span>'):'')
-        +'<br><span style="font-size:11px;opacity:.65">'+key+'</span>'
-        +'<br><span style="font-size:12px;color:#7dd3fc">Tap → create match & go live</span></button>';
+        +'<br><span style="font-size:11px;opacity:.65">'+key+'</span></button>';
     }).join('');
-    listEl.querySelectorAll('.roanuz-hub-pick').forEach(function(btn){
+    box.querySelectorAll('.roanuz-pick-item').forEach(function(btn){
       btn.onclick = function(){
-        var k = btn.getAttribute('data-key')||'';
-        createMatchFromRoanuz(k, btn);
+        confirmAndCreateRoanuz(btn.getAttribute('data-key'), btn.getAttribute('data-status'), btn);
       };
     });
-    if(st) st.textContent = (data.message || ('Found '+list.length+' matches')) + ' · Tap one to create & go live';
   }catch(e){
-    if(st) st.textContent = 'Error: '+(e.message||e);
+    if($('roanuzPickStatus')) $('roanuzPickStatus').textContent = 'Error: '+(e.message||e);
     alert('Roanuz list failed: '+(e.message||e));
-    console.error(e);
-  }finally{
-    if($('btnRoanuzHubLoad')) $('btnRoanuzHubLoad').disabled = false;
   }
 }
 
-function parseTeamNamesFromRoanuz(matchPayload, fallbackKey){
-  var match = matchPayload || {};
-  if(match.data) match = match.data;
-  if(match.match) match = match.match;
-  var a = null, b = null;
-  // common shapes
-  try{
-    a = pickRoanuz(match, ['teams.a.name','team_a.name','teamA.name','teams.a','localteam.name','batting_team.name']);
-    b = pickRoanuz(match, ['teams.b.name','team_b.name','teamB.name','teams.b','visitorteam.name','bowling_team.name']);
-  }catch(e){}
-  if(typeof a === 'object' && a) a = a.name || a.code || null;
-  if(typeof b === 'object' && b) b = b.name || b.code || null;
-  var title = pickRoanuz(match, ['name','title','short_name','shortName']) || fallbackKey || 'Match';
-  if((!a || !b) && title && String(title).toLowerCase().indexOf(' vs ')>=0){
-    var parts = String(title).split(/ vs /i);
-    if(parts.length>=2){ a = a || parts[0].trim(); b = b || parts[1].trim(); }
-  }
-  a = String(a||'Team A').trim() || 'Team A';
-  b = String(b||'Team B').trim() || 'Team B';
-  return { teamA: a, teamB: b, series: String(title).slice(0,80) };
-}
-
-function extractSquadNames(sideObj){
-  var out = [];
-  if(!sideObj) return out;
-  var players = sideObj.players || sideObj.squad || sideObj.lineup || sideObj.playing11 || [];
-  if(!Array.isArray(players)) return out;
-  players.forEach(function(p){
-    var name = (p && (p.name || p.fullname || p.player_name)) || '';
-    if(name) out.push({ name: String(name), role: p.role || 'Batter', inPlaying11: true });
-  });
-  return out;
-}
-
-async function createMatchFromRoanuz(matchKey, btnEl){
+async function confirmAndCreateRoanuz(matchKey, listStatus, btnEl){
   matchKey = String(matchKey||'').trim();
-  if(!matchKey){ alert('Missing match key'); return; }
-  if(!firebase || !firebase.functions){ alert('Firebase Functions not loaded'); return; }
-  if(typeof isAdmin==='function' && !isAdmin()){ alert('Admin only'); return; }
+  if(!matchKey) return;
+  var label = (btnEl && btnEl.innerText) ? btnEl.innerText.split('\n')[0] : matchKey;
+  if(!confirm('Create Cric360 match from:\n\n' + label + '\n\nYes = import data to Firebase.\nNo = cancel.')) return;
 
-  // Avoid duplicate if same Roanuz key already open as live match
+  if(btnEl){ btnEl.disabled = true; }
+  if($('roanuzPickStatus')) $('roanuzPickStatus').textContent = 'Importing…';
+
   try{
     var existing = (S.matches||[]).find(function(x){
       return x && x.roanuzMatchKey === matchKey && x.status !== 'completed' && x.status !== 'ended';
     });
     if(existing){
-      if(!confirm('This Roanuz match is already linked as "'+(existing.teamA&&existing.teamA.name)+' vs '+(existing.teamB&&existing.teamB.name)+'". Open it?')) return;
-      S.curId = existing.id;
-      startRoanuzSync(matchKey);
-      if(typeof openMatch==='function') openMatch(existing.id);
-      else { try{ showScreen('screenLive'); renderLive(); }catch(e){} }
+      if(confirm('Already imported. Open existing match?')){
+        closeDlg('dlgRoanuzPick');
+        await openMatch(existing.id);
+      }
       return;
     }
-  }catch(e){}
 
-  var prevLabel = btnEl ? btnEl.innerHTML : '';
-  if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Creating…'; }
-  var st = $('roanuzHubStatus');
-  if(st) st.textContent = 'Fetching match '+matchKey+' and creating Cric360 match…';
-
-  try{
     var fn = firebase.app().functions('asia-south1').httpsCallable('fetchRoanuzMatch');
     var res = await fn({ matchKey: matchKey });
     var data = res && res.data ? res.data : {};
-    var names = parseTeamNamesFromRoanuz(data.match, matchKey);
+    var matchObj = unwrapRoanuzMatch(data);
+    var phase = detectRoanuzPhase(matchObj, { status: listStatus });
+    var names = parseTeamNamesFromRoanuz(matchObj, matchKey);
 
-    var squadA = [];
-    var squadB = [];
-    try{
-      var raw = data.match || {};
-      if(raw.data) raw = raw.data;
-      if(raw.match) raw = raw.match;
-      squadA = extractSquadNames(raw.teams && (raw.teams.a || raw.teams.A));
-      squadB = extractSquadNames(raw.teams && (raw.teams.b || raw.teams.B));
-      if(!squadA.length) squadA = extractSquadNames(raw.squad_a || raw.team_a || raw.teamA);
-      if(!squadB.length) squadB = extractSquadNames(raw.squad_b || raw.team_b || raw.teamB);
-    }catch(e){}
-
-    // Placeholder XI if API did not send squad yet
-    if(!squadA.length){
-      for(var i=1;i<=11;i++) squadA.push({ name: names.teamA+' Player '+i, role:'Batter', inPlaying11:true });
-    }
-    if(!squadB.length){
-      for(var j=1;j<=11;j++) squadB.push({ name: names.teamB+' Player '+j, role:'Batter', inPlaying11:true });
-    }
-
-    var m = newMatch(names.series || 'Roanuz Live', names.teamA, names.teamB, 'T20', squadA, squadB);
-    m.scoringMode = 'api';
+    var m = newMatch(names.series || 'Roanuz', names.teamA, names.teamB, 'T20', [], []);
     m.roanuzMatchKey = matchKey;
-    m.roanuzSyncing = true;
-    m.status = 'live';
-    m.p11Published = true;
-    m.preMatchNotes = m.preMatchNotes || [];
-    m.preMatchNotes.unshift({
-      type: 'api_import',
-      text: 'Imported from Roanuz · key '+matchKey,
-      at: Date.now()
-    });
-    // Apply first score snapshot if any
-    try{ applyRoanuzToMatch(m, data); }catch(e){}
+    m.scoringMode = 'api';
+    m.roanuzSyncing = false;
+    hydrateMatchFromRoanuz(m, data, phase);
 
-    // Ensure openers / bowler pointers exist so Live UI does not look empty
-    try{
-      var bat = m.teamA;
-      var bowl = m.teamB;
-      if(!m.strikerId && bat.squad[0]) m.strikerId = bat.squad[0].id;
-      if(!m.nonStrikerId && bat.squad[1]) m.nonStrikerId = bat.squad[1].id;
-      if(!m.currentBowlerId && bowl.squad[0]) m.currentBowlerId = bowl.squad[0].id;
-    }catch(e){}
-
-    m._scoreRev = (Number(m._scoreRev)||0) + 1;
     S.matches = S.matches || [];
     S.matches.unshift(m);
     S.curId = m.id;
@@ -7822,25 +7980,52 @@ async function createMatchFromRoanuz(matchKey, btnEl){
     try{ if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m); }catch(e){ console.warn(e); }
     setTimeout(function(){ window._adminWritePending = false; }, 2500);
 
-    // Open live admin view
-    try{
-      if(typeof openMatch==='function') await openMatch(m.id);
-      else {
-        try{ showScreen('screenLive'); if(typeof renderLive==='function') renderLive(); }catch(e){}
-      }
-    }catch(e){ console.warn(e); }
+    closeDlg('dlgRoanuzPick');
+    await openMatch(m.id);
 
-    startRoanuzSync(matchKey);
-    if(st) st.textContent = 'Live: '+names.teamA+' vs '+names.teamB+' · auto-sync every 12s';
-    try{ announce('Match created from Roanuz and is live. Auto score sync started.'); }catch(e){}
+    // After open: ask sync only for live / not_started that may go live
+    if(phase === 'live'){
+      var go = confirm('Match is LIVE on Roanuz.\n\nStart auto-sync every 12 seconds so score, balls, striker and scorecard update while you voiceover?\n\nYes = sync ON\nNo = import only (manual controls)');
+      if(go) startRoanuzSync(matchKey);
+      else setRoanuzStatus('Imported live snapshot. Sync is OFF.');
+    } else if(phase === 'not_started'){
+      var go2 = confirm('Match not started yet.\n\nSquads/teams imported.\n\nTurn ON auto-sync so when play begins score updates for viewers?\n\nYes = sync ON\nNo = leave manual');
+      if(go2) startRoanuzSync(matchKey);
+    } else {
+      // completed — one-shot already filled
+      setRoanuzStatus('Completed match imported (scorecard / teams / result).');
+      alert('Completed match imported.\nScorecard, teams and result are filled.\nLive tab shows the result.');
+    }
+
+    try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
+    try{ if(typeof renderScorecard==='function') renderScorecard(); }catch(e){}
+    try{ if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin'); }catch(e){}
   }catch(e){
-    if(st) st.textContent = 'Create failed: '+(e.message||e);
-    alert('Could not create match from Roanuz: '+(e.message||e));
+    alert('Import failed: '+(e.message||e));
     console.error(e);
   }finally{
-    if(btnEl){ btnEl.disabled = false; btnEl.innerHTML = prevLabel; }
+    if(btnEl) btnEl.disabled = false;
   }
 }
+
+function wireRoanuzUi(){
+  if($('btnCreateFromRoanuz')) $('btnCreateFromRoanuz').onclick = function(){ openRoanuzPicker(); };
+  if($('btnRoanuzPickRefresh')) $('btnRoanuzPickRefresh').onclick = function(){ refreshRoanuzPickerList(); };
+  if($('btnRoanuzPickCancel')) $('btnRoanuzPickCancel').onclick = function(){ closeDlg('dlgRoanuzPick'); };
+  if($('btnRoanuzStop')) $('btnRoanuzStop').onclick = function(){ stopRoanuzSync(); };
+  // resume sync if match already syncing
+  try{
+    var m = M();
+    if(m && m.roanuzSyncing && m.roanuzMatchKey){
+      if($('btnRoanuzStop')) $('btnRoanuzStop').classList.remove('hidden');
+      startRoanuzSync(m.roanuzMatchKey);
+    } else if(m && m.roanuzMatchKey){
+      setRoanuzStatus('Linked to Roanuz · sync OFF');
+      if($('btnRoanuzStop')) $('btnRoanuzStop').classList.add('hidden');
+    }
+  }catch(e){}
+}
+
 
 /* ===== Insights + Gemini askMatchAi ===== */
 window._insIndex = 0;

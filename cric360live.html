@@ -981,6 +981,14 @@ button:active{transform:scale(.98)}
       <button type="button" id="btnCreateMatch" class="btn-ok" aria-label="Create match">Create</button>
       <input type="file" id="importFileInput" accept="application/json,.json" class="sr-only" aria-label="Choose saved match JSON file to rerun" />
     </div>
+
+    <div id="roanuzHubBox" style="margin:0 0 14px;padding:12px;border:1px solid rgba(56,189,248,.4);border-radius:12px;background:rgba(15,23,42,.6)">
+      <h2 style="margin:0 0 6px;font-size:1rem;color:#7dd3fc" tabindex="-1">Roanuz Live</h2>
+      <p id="roanuzHubStatus" style="color:var(--muted);font-size:13px;margin:0 0 10px">One tap: pull a live match, create it here, go live, and auto-sync score for viewers.</p>
+      <button type="button" id="btnRoanuzHubLoad" class="btn-block btn-ok" style="margin-bottom:8px">Refresh Roanuz live list</button>
+      <div id="roanuzHubList" aria-live="polite"></div>
+    </div>
+
     <div id="matchesList"></div>
   </div>
   <div id="hubAdminPaneAuctions" class="hidden">
@@ -1134,6 +1142,18 @@ button:active{transform:scale(.98)}
     <button type="button" id="btnEndInnings" class="btn-block" style="background:linear-gradient(135deg,#d97706,#b45309);margin-bottom:8px">End Innings</button>
     <button type="button" id="btnStart2nd" class="btn-block btn-ok hidden" style="margin-bottom:8px">Start 2nd Innings</button>
     <button type="button" id="btnDownloadMatch" class="btn-block btn-sec" style="margin-bottom:16px" aria-label="Download full match file">Download match file</button>
+
+    <div id="roanuzBox" style="margin:0 0 16px;padding:12px;border:1px solid rgba(56,189,248,.35);border-radius:12px;background:rgba(15,23,42,.55)">
+      <h2 style="margin:0 0 8px;font-size:1rem;color:#7dd3fc" tabindex="-1">Roanuz API (auto score)</h2>
+      <p id="roanuzStatus" style="color:var(--muted);font-size:13px;margin:0 0 10px">Manual mode. Link a Roanuz match to auto-update score while you voiceover.</p>
+      <button type="button" id="btnRoanuzLoad" class="btn-block btn-sec" style="margin-bottom:8px">Load featured matches</button>
+      <div id="roanuzList" class="hidden" style="max-height:220px;overflow:auto;margin-bottom:8px"></div>
+      <label for="roanuzKeyInput" class="sr-only">Roanuz match key</label>
+      <input type="text" id="roanuzKeyInput" placeholder="Or paste Roanuz match key" style="width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" />
+      <button type="button" id="btnRoanuzLink" class="btn-block btn-ok" style="margin-bottom:8px">Link &amp; start auto-sync</button>
+      <button type="button" id="btnRoanuzStop" class="btn-block btn-danger hidden" style="margin-bottom:4px">Stop auto-sync (back to manual)</button>
+    </div>
+
     <h2 style="margin:0 0 10px;font-size:1rem" tabindex="-1">Overs history</h2>
     <div class="user-match-tabs" role="tablist" aria-label="Innings overs" style="display:flex;gap:8px;margin:0 0 12px">
       <button type="button" role="tab" id="moreInnTab1" class="btn-sec active" aria-selected="true" style="flex:1;min-height:42px;font-weight:800">1st innings</button>
@@ -1755,7 +1775,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.05.1.42";
+const APP_VERSION = "2026.09.07.1.44";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -4635,6 +4655,7 @@ function endInnings(){
 $('btnStart2nd').onclick=()=>resumeSecondInnings();
 if($('btnDownloadMatch'))$('btnDownloadMatch').onclick=()=>downloadFullMatchFile();
 if($('btnShareMatchAdmin')) $('btnShareMatchAdmin').onclick=function(){ shareMatchLink(); };
+try{ wireRoanuzUi(); }catch(e){ console.warn('wireRoanuzUi', e); }
 if($('btnShareMatchUser')) $('btnShareMatchUser').onclick=function(){ shareMatchLink(); };
 $('btnEndMatch').onclick=()=>{if(!confirm('End the entire match?'))return;const m=M();const batTeam=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowlTeam=m.battingTeam==='teamA'?m.teamB:m.teamA;let msg='Match ended';if(m.currentInnings===2&&m.target){if(m.totalScore>=m.target){const w=10-m.wickets;msg=batTeam.name+' won by '+w+' wicket'+(w!==1?'s':'');}else{const margin=m.target-1-m.totalScore;msg=bowlTeam.name+' won by '+margin+' run'+(margin!==1?'s':'');}}finishMatch(msg);};
 
@@ -7404,6 +7425,422 @@ $('btnBackUwa').onclick = () => {
 };
 
 
+
+
+/* ===== Roanuz API auto-sync (v1.43) ===== */
+let _roanuzTimer = null;
+let _roanuzBusy = false;
+
+function setRoanuzStatus(msg){
+  var el = $('roanuzStatus');
+  if(el) el.textContent = msg || '';
+}
+
+function stopRoanuzSync(){
+  if(_roanuzTimer){ clearInterval(_roanuzTimer); _roanuzTimer = null; }
+  var m = M();
+  if(m){
+    m.scoringMode = 'manual';
+    m.roanuzSyncing = false;
+  }
+  if($('btnRoanuzStop')) $('btnRoanuzStop').classList.add('hidden');
+  setRoanuzStatus('Auto-sync stopped. Manual scoring is on.');
+  try{ if(typeof cloudSaveMatch==='function' && m) cloudSaveMatch(m); }catch(e){}
+}
+
+function pickRoanuz(obj, paths){
+  for(var i=0;i<paths.length;i++){
+    var parts = paths[i].split('.');
+    var cur = obj;
+    var ok = true;
+    for(var j=0;j<parts.length;j++){
+      if(cur==null || typeof cur!=='object' || !(parts[j] in cur)){ ok=false; break; }
+      cur = cur[parts[j]];
+    }
+    if(ok && cur!=null && cur!=='') return cur;
+  }
+  return null;
+}
+
+function applyRoanuzToMatch(m, payload){
+  if(!m || !payload) return false;
+  var match = payload.match || payload;
+  // unwrap common wrappers
+  if(match.data) match = match.data;
+  if(match.match) match = match.match;
+
+  var changed = false;
+  var runs = pickRoanuz(match, [
+    'score.runs','score.total','now.runs','now.score','innings.score','batting.score',
+    'play.score.runs','live.score','runs','total_runs'
+  ]);
+  var wkts = pickRoanuz(match, [
+    'score.wickets','score.wicket','now.wickets','innings.wickets','batting.wickets',
+    'play.score.wickets','wickets'
+  ]);
+  var overs = pickRoanuz(match, [
+    'score.overs','now.overs','innings.overs','batting.overs','overs','over'
+  ]);
+  var balls = pickRoanuz(match, [
+    'score.balls','now.balls','ball','balls'
+  ]);
+
+  if(runs!=null && !isNaN(Number(runs))){
+    var r = Number(runs);
+    if(m.totalScore !== r){ m.totalScore = r; changed = true; }
+  }
+  if(wkts!=null && !isNaN(Number(wkts))){
+    var w = Number(wkts);
+    if(m.wickets !== w){ m.wickets = w; changed = true; }
+  }
+  if(overs!=null){
+    var ovStr = String(overs);
+    // formats: "12.3" or 12.3 or {overs:12,balls:3}
+    if(typeof overs === 'object' && overs){
+      var oo = Number(overs.overs!=null?overs.overs:overs.over||0);
+      var bb = Number(overs.balls!=null?overs.balls:0);
+      if(!isNaN(oo)){ if(m.currentOver!==oo){ m.currentOver=oo; changed=true; } }
+      if(!isNaN(bb)){ if(m.currentBall!==bb){ m.currentBall=bb; changed=true; } }
+    } else if(ovStr.indexOf('.')>=0){
+      var parts = ovStr.split('.');
+      var oo2 = parseInt(parts[0],10); var bb2 = parseInt(parts[1],10);
+      if(!isNaN(oo2) && m.currentOver!==oo2){ m.currentOver=oo2; changed=true; }
+      if(!isNaN(bb2) && m.currentBall!==bb2){ m.currentBall=bb2; changed=true; }
+    } else if(!isNaN(Number(ovStr))){
+      var ovn = Number(ovStr);
+      if(m.currentOver!==ovn){ m.currentOver=ovn; changed=true; }
+    }
+  }
+  if(balls!=null && !isNaN(Number(balls))){
+    var b = Number(balls);
+    if(m.currentBall!==b){ m.currentBall=b; changed=true; }
+  }
+
+  // players: best-effort names only (do not break ids)
+  var strikerName = pickRoanuz(match, [
+    'now.striker.name','play.striker.name','batting.striker.name','striker.name','players.striker.name'
+  ]);
+  var nonName = pickRoanuz(match, [
+    'now.non_striker.name','now.nonStriker.name','play.non_striker.name','non_striker.name','nonStriker.name'
+  ]);
+  var bowlName = pickRoanuz(match, [
+    'now.bowler.name','play.bowler.name','bowling.bowler.name','bowler.name'
+  ]);
+  function setPlayerName(role, name){
+    if(!name) return;
+    name = String(name).trim();
+    if(!name) return;
+    if(role==='striker'){
+      if(!m.striker) m.striker = { name: name };
+      else if(m.striker.name !== name){ m.striker.name = name; changed = true; }
+    } else if(role==='non'){
+      if(!m.nonStriker) m.nonStriker = { name: name };
+      else if(m.nonStriker.name !== name){ m.nonStriker.name = name; changed = true; }
+    } else if(role==='bowler'){
+      if(!m.bowler) m.bowler = { name: name };
+      else if(m.bowler.name !== name){ m.bowler.name = name; changed = true; }
+    }
+  }
+  setPlayerName('striker', strikerName);
+  setPlayerName('non', nonName);
+  setPlayerName('bowler', bowlName);
+
+  m.roanuzLastSyncAt = Date.now();
+  m.roanuzRawHint = {
+    runs: runs, wickets: wkts, overs: overs,
+    striker: strikerName, nonStriker: nonName, bowler: bowlName
+  };
+  return changed;
+}
+
+async function roanuzSyncOnce(){
+  if(_roanuzBusy) return;
+  var m = M();
+  if(!m || !m.roanuzMatchKey) return;
+  if(!firebase || !firebase.functions) return;
+  _roanuzBusy = true;
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('fetchRoanuzMatch');
+    var res = await fn({ matchKey: m.roanuzMatchKey });
+    var data = res && res.data ? res.data : {};
+    var changed = applyRoanuzToMatch(m, data);
+    setRoanuzStatus('API sync ON · key ' + m.roanuzMatchKey + ' · last ' + new Date().toLocaleTimeString() +
+      (data.match && data.match.error ? ' · match err' : '') +
+      (m.roanuzRawHint ? (' · score ' + (m.totalScore!=null?m.totalScore:'?') + '/' + (m.wickets!=null?m.wickets:'?')) : ''));
+    if(changed){
+      try{ if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m); }catch(e){}
+      try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
+      try{ if(typeof renderScorecard==='function') renderScorecard(); }catch(e){}
+    }
+  }catch(e){
+    setRoanuzStatus('Sync error: ' + (e.message || e));
+    console.warn('roanuzSyncOnce', e);
+  }finally{
+    _roanuzBusy = false;
+  }
+}
+
+function startRoanuzSync(matchKey){
+  var m = M();
+  if(!m){ alert('Open a match first'); return; }
+  matchKey = String(matchKey||'').trim();
+  if(!matchKey){ alert('Enter or select a Roanuz match key'); return; }
+  m.roanuzMatchKey = matchKey;
+  m.scoringMode = 'api';
+  m.roanuzSyncing = true;
+  if($('btnRoanuzStop')) $('btnRoanuzStop').classList.remove('hidden');
+  setRoanuzStatus('Starting auto-sync for ' + matchKey + '…');
+  try{ if(typeof cloudSaveMatch==='function') cloudSaveMatch(m); }catch(e){}
+  if(_roanuzTimer) clearInterval(_roanuzTimer);
+  roanuzSyncOnce();
+  _roanuzTimer = setInterval(roanuzSyncOnce, 12000);
+}
+
+async function roanuzLoadFeatured(){
+  if(!firebase || !firebase.functions){ alert('Firebase Functions not loaded'); return; }
+  if(typeof isAdmin==='function' && !isAdmin()){ alert('Admin only'); return; }
+  setRoanuzStatus('Loading featured matches…');
+  if($('btnRoanuzLoad')){ $('btnRoanuzLoad').disabled = true; }
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('testRoanuz');
+    var res = await fn({});
+    var data = res && res.data ? res.data : {};
+    var list = data.matches || [];
+    var box = $('roanuzList');
+    if(!box) return;
+    box.classList.remove('hidden');
+    if(!list.length){
+      box.innerHTML = '<p style="color:var(--muted)">No featured matches returned. Paste a match key manually.</p>';
+      setRoanuzStatus(data.message || 'Connected but no matches in list');
+      return;
+    }
+    box.innerHTML = list.map(function(item){
+      var key = (item.key||'').replace(/"/g,'');
+      var label = (item.teams || item.name || key) + (item.status ? (' · ' + item.status) : '');
+      return '<button type="button" class="btn-block btn-sec roanuz-pick" data-key="'+key+'" style="margin-bottom:6px;text-align:left;font-size:13px">'+
+        label.replace(/</g,'&lt;') + '<br><span style="opacity:.7;font-size:11px">'+key+'</span></button>';
+    }).join('');
+    box.querySelectorAll('.roanuz-pick').forEach(function(btn){
+      btn.onclick = function(){
+        var k = btn.getAttribute('data-key')||'';
+        if($('roanuzKeyInput')) $('roanuzKeyInput').value = k;
+        startRoanuzSync(k);
+      };
+    });
+    setRoanuzStatus(data.message || ('Loaded ' + list.length + ' matches. Tap one to sync.'));
+  }catch(e){
+    setRoanuzStatus('Error: ' + (e.message || e));
+    alert('Roanuz test failed: ' + (e.message || e));
+    console.error(e);
+  }finally{
+    if($('btnRoanuzLoad')) $('btnRoanuzLoad').disabled = false;
+  }
+}
+
+function wireRoanuzUi(){
+  if($('btnRoanuzHubLoad')) $('btnRoanuzHubLoad').onclick = function(){ roanuzHubRefresh(); };
+  if($('btnRoanuzLoad')) $('btnRoanuzLoad').onclick = function(){ roanuzLoadFeatured(); };
+  if($('btnRoanuzLink')) $('btnRoanuzLink').onclick = function(){
+    var k = ($('roanuzKeyInput') && $('roanuzKeyInput').value) || '';
+    startRoanuzSync(k);
+  };
+  if($('btnRoanuzStop')) $('btnRoanuzStop').onclick = function(){ stopRoanuzSync(); };
+  // resume if match already linked
+  try{
+    var m = M();
+    if(m && m.scoringMode==='api' && m.roanuzMatchKey){
+      if($('roanuzKeyInput')) $('roanuzKeyInput').value = m.roanuzMatchKey;
+      if($('btnRoanuzStop')) $('btnRoanuzStop').classList.remove('hidden');
+      startRoanuzSync(m.roanuzMatchKey);
+    }
+  }catch(e){}
+}
+
+
+/* ===== Roanuz one-tap create from Matches tab ===== */
+async function roanuzHubRefresh(){
+  if(!firebase || !firebase.functions){ alert('Firebase Functions not loaded'); return; }
+  if(typeof isAdmin==='function' && !isAdmin()){ alert('Admin only'); return; }
+  var st = $('roanuzHubStatus');
+  var listEl = $('roanuzHubList');
+  if(st) st.textContent = 'Loading Roanuz featured / live matches…';
+  if($('btnRoanuzHubLoad')) $('btnRoanuzHubLoad').disabled = true;
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('testRoanuz');
+    var res = await fn({});
+    var data = res && res.data ? res.data : {};
+    var list = data.matches || [];
+    if(!listEl) return;
+    if(!list.length){
+      listEl.innerHTML = '<p style="color:var(--muted);font-size:13px">No matches returned. Check Roanuz coverage / trial.</p>';
+      if(st) st.textContent = data.message || 'Connected, empty list';
+      return;
+    }
+    listEl.innerHTML = list.map(function(item){
+      var key = String(item.key||'').replace(/"/g,'&quot;');
+      var label = (item.teams || item.name || key);
+      var status = item.status ? String(item.status) : '';
+      return '<button type="button" class="list-btn roanuz-hub-pick" data-key="'+key+'" style="margin-bottom:8px;text-align:left">'
+        +'<span style="font-weight:800">'+String(label).replace(/</g,'&lt;')+'</span>'
+        +(status?('<br><span style="font-size:12px;color:var(--ok-bright)">'+String(status).replace(/</g,'&lt;')+'</span>'):'')
+        +'<br><span style="font-size:11px;opacity:.65">'+key+'</span>'
+        +'<br><span style="font-size:12px;color:#7dd3fc">Tap → create match & go live</span></button>';
+    }).join('');
+    listEl.querySelectorAll('.roanuz-hub-pick').forEach(function(btn){
+      btn.onclick = function(){
+        var k = btn.getAttribute('data-key')||'';
+        createMatchFromRoanuz(k, btn);
+      };
+    });
+    if(st) st.textContent = (data.message || ('Found '+list.length+' matches')) + ' · Tap one to create & go live';
+  }catch(e){
+    if(st) st.textContent = 'Error: '+(e.message||e);
+    alert('Roanuz list failed: '+(e.message||e));
+    console.error(e);
+  }finally{
+    if($('btnRoanuzHubLoad')) $('btnRoanuzHubLoad').disabled = false;
+  }
+}
+
+function parseTeamNamesFromRoanuz(matchPayload, fallbackKey){
+  var match = matchPayload || {};
+  if(match.data) match = match.data;
+  if(match.match) match = match.match;
+  var a = null, b = null;
+  // common shapes
+  try{
+    a = pickRoanuz(match, ['teams.a.name','team_a.name','teamA.name','teams.a','localteam.name','batting_team.name']);
+    b = pickRoanuz(match, ['teams.b.name','team_b.name','teamB.name','teams.b','visitorteam.name','bowling_team.name']);
+  }catch(e){}
+  if(typeof a === 'object' && a) a = a.name || a.code || null;
+  if(typeof b === 'object' && b) b = b.name || b.code || null;
+  var title = pickRoanuz(match, ['name','title','short_name','shortName']) || fallbackKey || 'Match';
+  if((!a || !b) && title && String(title).toLowerCase().indexOf(' vs ')>=0){
+    var parts = String(title).split(/ vs /i);
+    if(parts.length>=2){ a = a || parts[0].trim(); b = b || parts[1].trim(); }
+  }
+  a = String(a||'Team A').trim() || 'Team A';
+  b = String(b||'Team B').trim() || 'Team B';
+  return { teamA: a, teamB: b, series: String(title).slice(0,80) };
+}
+
+function extractSquadNames(sideObj){
+  var out = [];
+  if(!sideObj) return out;
+  var players = sideObj.players || sideObj.squad || sideObj.lineup || sideObj.playing11 || [];
+  if(!Array.isArray(players)) return out;
+  players.forEach(function(p){
+    var name = (p && (p.name || p.fullname || p.player_name)) || '';
+    if(name) out.push({ name: String(name), role: p.role || 'Batter', inPlaying11: true });
+  });
+  return out;
+}
+
+async function createMatchFromRoanuz(matchKey, btnEl){
+  matchKey = String(matchKey||'').trim();
+  if(!matchKey){ alert('Missing match key'); return; }
+  if(!firebase || !firebase.functions){ alert('Firebase Functions not loaded'); return; }
+  if(typeof isAdmin==='function' && !isAdmin()){ alert('Admin only'); return; }
+
+  // Avoid duplicate if same Roanuz key already open as live match
+  try{
+    var existing = (S.matches||[]).find(function(x){
+      return x && x.roanuzMatchKey === matchKey && x.status !== 'completed' && x.status !== 'ended';
+    });
+    if(existing){
+      if(!confirm('This Roanuz match is already linked as "'+(existing.teamA&&existing.teamA.name)+' vs '+(existing.teamB&&existing.teamB.name)+'". Open it?')) return;
+      S.curId = existing.id;
+      startRoanuzSync(matchKey);
+      if(typeof openMatch==='function') openMatch(existing.id);
+      else { try{ showScreen('screenLive'); renderLive(); }catch(e){} }
+      return;
+    }
+  }catch(e){}
+
+  var prevLabel = btnEl ? btnEl.innerHTML : '';
+  if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Creating…'; }
+  var st = $('roanuzHubStatus');
+  if(st) st.textContent = 'Fetching match '+matchKey+' and creating Cric360 match…';
+
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('fetchRoanuzMatch');
+    var res = await fn({ matchKey: matchKey });
+    var data = res && res.data ? res.data : {};
+    var names = parseTeamNamesFromRoanuz(data.match, matchKey);
+
+    var squadA = [];
+    var squadB = [];
+    try{
+      var raw = data.match || {};
+      if(raw.data) raw = raw.data;
+      if(raw.match) raw = raw.match;
+      squadA = extractSquadNames(raw.teams && (raw.teams.a || raw.teams.A));
+      squadB = extractSquadNames(raw.teams && (raw.teams.b || raw.teams.B));
+      if(!squadA.length) squadA = extractSquadNames(raw.squad_a || raw.team_a || raw.teamA);
+      if(!squadB.length) squadB = extractSquadNames(raw.squad_b || raw.team_b || raw.teamB);
+    }catch(e){}
+
+    // Placeholder XI if API did not send squad yet
+    if(!squadA.length){
+      for(var i=1;i<=11;i++) squadA.push({ name: names.teamA+' Player '+i, role:'Batter', inPlaying11:true });
+    }
+    if(!squadB.length){
+      for(var j=1;j<=11;j++) squadB.push({ name: names.teamB+' Player '+j, role:'Batter', inPlaying11:true });
+    }
+
+    var m = newMatch(names.series || 'Roanuz Live', names.teamA, names.teamB, 'T20', squadA, squadB);
+    m.scoringMode = 'api';
+    m.roanuzMatchKey = matchKey;
+    m.roanuzSyncing = true;
+    m.status = 'live';
+    m.p11Published = true;
+    m.preMatchNotes = m.preMatchNotes || [];
+    m.preMatchNotes.unshift({
+      type: 'api_import',
+      text: 'Imported from Roanuz · key '+matchKey,
+      at: Date.now()
+    });
+    // Apply first score snapshot if any
+    try{ applyRoanuzToMatch(m, data); }catch(e){}
+
+    // Ensure openers / bowler pointers exist so Live UI does not look empty
+    try{
+      var bat = m.teamA;
+      var bowl = m.teamB;
+      if(!m.strikerId && bat.squad[0]) m.strikerId = bat.squad[0].id;
+      if(!m.nonStrikerId && bat.squad[1]) m.nonStrikerId = bat.squad[1].id;
+      if(!m.currentBowlerId && bowl.squad[0]) m.currentBowlerId = bowl.squad[0].id;
+    }catch(e){}
+
+    m._scoreRev = (Number(m._scoreRev)||0) + 1;
+    S.matches = S.matches || [];
+    S.matches.unshift(m);
+    S.curId = m.id;
+    window._adminLocalWriteAt = Date.now();
+    window._adminWritePending = true;
+    try{ if(typeof save==='function') save(); }catch(e){}
+    try{ if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m); }catch(e){ console.warn(e); }
+    setTimeout(function(){ window._adminWritePending = false; }, 2500);
+
+    // Open live admin view
+    try{
+      if(typeof openMatch==='function') await openMatch(m.id);
+      else {
+        try{ showScreen('screenLive'); if(typeof renderLive==='function') renderLive(); }catch(e){}
+      }
+    }catch(e){ console.warn(e); }
+
+    startRoanuzSync(matchKey);
+    if(st) st.textContent = 'Live: '+names.teamA+' vs '+names.teamB+' · auto-sync every 12s';
+    try{ announce('Match created from Roanuz and is live. Auto score sync started.'); }catch(e){}
+  }catch(e){
+    if(st) st.textContent = 'Create failed: '+(e.message||e);
+    alert('Could not create match from Roanuz: '+(e.message||e));
+    console.error(e);
+  }finally{
+    if(btnEl){ btnEl.disabled = false; btnEl.innerHTML = prevLabel; }
+  }
+}
 
 /* ===== Insights + Gemini askMatchAi ===== */
 window._insIndex = 0;

@@ -639,7 +639,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.7.00</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.8.00</p>
   </div>
 </section>
 
@@ -1758,8 +1758,18 @@ function enterHome(){
   helperMode=false; ownerMode=false; myTeamId=null;
   // Keep auctionId only if needed; clear live T to avoid ghost UI
   T=null;
+  // Clear ALL speech/sfx memory so reopening does not replay old sold/player lines
   window._lastBidKey=null;
+  window._lastResultKey=null;
+  window._lastAlertKey=null;
+  window._sayPlayerKey=null;
+  window._playerSfxForGap=false;
   window._countdownSec=null;
+  window._liveJoinQuiet=false;
+  window._aucSig=null;
+  try{ queueClearSpeech(); }catch(e){}
+  try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
+  try{ if(typeof stopTimerSfx==='function') stopTimerSfx(); }catch(e){}
   const ban=$('timerBanner'); if(ban){ ban.classList.add('hidden'); ban.textContent=''; }
   showScreen('screenHome');
   $('homeHello').textContent='Signed in as '+(user.displayName||user.email||'');
@@ -2195,8 +2205,35 @@ function applyAuctionData(data){
     const onWait=$('screenWait') && !$('screenWait').classList.contains('hidden');
     const onLiveScreen=onAuction||onWatch||onWait;
 
-    // Player change — once per player; skip pause / intermission / manual wait
-    if(onLiveScreen && data.players && !data.paused){
+    // Quiet join: remember current state without speaking (fixes reopen replay)
+    const quietJoin = !!window._liveJoinQuiet;
+    if(quietJoin){
+      try{
+        if(data.lastResult && data.lastResult.name){
+          const lr=data.lastResult;
+          window._lastResultKey='lr|'+(lr.name||'')+'|'+(lr.sold?'s':'u')+'|'+(lr.price||'')+'|'+(lr.team||'')+'|'+(lr.at||'');
+        }
+        if(data.lastAlert && data.lastAlert.at){
+          window._lastAlertKey='al|'+data.lastAlert.at;
+        }
+        if(data.mode==='virtual' && data.bid && data.bid.leaderTeamName!=null && data.bid.price!=null){
+          window._lastBidKey=(data.bid.leaderTeamId||'')+'|'+data.bid.price+'|'+(data.bid.playerIndex||0)+'|'+(data.meta&&data.meta.currentIndex);
+        }
+        if(data.players && !data.paused){
+          let idx=(data.meta&&data.meta.currentIndex)||0;
+          const pl=data.players||[];
+          while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
+          if(idx<pl.length){
+            window._sayPlayerKey='pl|'+idx+'|'+(pl[idx].name||'');
+            window._playerSfxForGap=true;
+          }
+        }
+      }catch(e){}
+      window._liveJoinQuiet=false;
+    }
+
+    // Player change — once per player; skip pause / intermission / manual wait / quiet join
+    if(!quietJoin && onLiveScreen && data.players && !data.paused){
       const inGap = (data.intermissionUntil && data.intermissionUntil > Date.now()) || window._gapPendingPlayer;
       const bidPhase = data.bid && data.bid.phase;
       const waitingManual = !!(data.awaitNextPlayer || bidPhase==='await_next' || T.awaitNextPlayer);
@@ -2211,7 +2248,7 @@ function applyAuctionData(data){
       }
     }
     // Squad/purse alerts broadcast
-    if(onLiveScreen && data.lastAlert && data.lastAlert.at && data.lastAlert.text){
+    if(!quietJoin && onLiveScreen && data.lastAlert && data.lastAlert.at && data.lastAlert.text){
       const ak='al|'+data.lastAlert.at;
       if(window._lastAlertKey!==ak){
         window._lastAlertKey=ak;
@@ -2221,7 +2258,7 @@ function applyAuctionData(data){
     }
 
     // lastResult — once per sale (at stamp); viewers get speech + SFX
-    if(onLiveScreen && data.lastResult && data.lastResult.name){
+    if(!quietJoin && onLiveScreen && data.lastResult && data.lastResult.name){
       const lr=data.lastResult;
       const rk='lr|'+(lr.name||'')+'|'+(lr.sold?'s':'u')+'|'+(lr.price||'')+'|'+(lr.team||'')+'|'+(lr.at||'');
       if(window._lastResultKey!==rk){
@@ -2238,7 +2275,7 @@ function applyAuctionData(data){
     }
 
     // Bid / lead change
-    if(data.mode==='virtual' && data.bid && data.bid.leaderTeamName!=null && data.bid.price!=null){
+    if(!quietJoin && data.mode==='virtual' && data.bid && data.bid.leaderTeamName!=null && data.bid.price!=null){
       const key = (data.bid.leaderTeamId||'')+'|'+data.bid.price+'|'+(data.bid.playerIndex||0)+'|'+(data.meta&&data.meta.currentIndex);
       if(window._lastBidKey !== key){
         window._lastBidKey = key;
@@ -2460,6 +2497,10 @@ function startAuctionLive(id){
     showAppError('Cannot connect to live auction. Missing auction id.');
     return;
   }
+  // First snapshot only seeds "already heard" keys — no speech/SFX replay on reopen
+  window._liveJoinQuiet=true;
+  try{ queueClearSpeech(); }catch(e){}
+  try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
   try{ unlockSfx(); }catch(e){}
   auctionLiveUnsub=db.collection('auctions').doc(id).onSnapshot(doc=>{
     try{
@@ -2520,6 +2561,9 @@ async function openAuction(id){
     resumeAuction(id,data); return;
   }
   showScreen('screenWatch');
+  window._liveJoinQuiet=true;
+  try{ queueClearSpeech(); }catch(e){}
+  try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
   try{
     const raw=safeStorageGet('at_tts');
     if(raw) ttsPref=Object.assign({}, TTS_DEFAULTS, JSON.parse(raw));
@@ -2572,6 +2616,10 @@ async function openAuction(id){
 
 function resumeAuction(id, data){
   auctionId=id;
+  // Seed without replaying sold/player commentary from last session
+  window._liveJoinQuiet=true;
+  try{ queueClearSpeech(); }catch(e){}
+  try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
   applyAuctionData(data);
   showScreen('screenAuction');
   startAuctionLive(id);
@@ -2690,6 +2738,29 @@ function processLiveSpeech(data, opts){
   const onAuction = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
   const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
   if(!onAuction && !onWatch) return;
+  // First paint after open/reopen: seed keys only, no speech/SFX
+  if(window._liveJoinQuiet){
+    try{
+      if(data.lastResult && data.lastResult.name){
+        const lr=data.lastResult;
+        window._lastResultKey='lr|'+(lr.name||'')+'|'+(lr.sold?'s':'u')+'|'+(lr.price||'')+'|'+(lr.team||'')+'|'+(lr.at||'');
+      }
+      if(data.lastAlert && data.lastAlert.at) window._lastAlertKey='al|'+data.lastAlert.at;
+      if(data.bid && data.bid.extendAt) window._lastExtendAt=data.bid.extendAt;
+      if(data.bid){
+        window._lastBidKey='bid|'+(data.bid.playerIndex)+'|'+(data.bid.leaderTeamId)+'|'+(data.bid.price)+'|'+(data.bid.lastRaiseType||'');
+      }
+      let idx=(data.meta&&data.meta.currentIndex)||0;
+      const pl=data.players||[];
+      while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
+      if(idx<pl.length){
+        window._sayPlayerKey='pl|'+idx+'|'+(pl[idx].name||'');
+        window._playerSfxForGap=true;
+      }
+    }catch(e){}
+    window._liveJoinQuiet=false;
+    return;
+  }
   if(data.paused){
     if(window._sayPaused!=='1'){
       window._sayPaused='1';
@@ -2752,32 +2823,41 @@ function processLiveSpeech(data, opts){
     }
   }
 
-  // Leading bid (virtual)
-  if(data.mode==='virtual' && data.bid && data.bid.leaderTeamName && data.bid.price!=null){
+  // Leading bid (virtual) — skip on quiet join
+  if(!window._liveJoinQuiet && data.mode==='virtual' && data.bid && data.bid.leaderTeamName && data.bid.price!=null){
     const bk='bid|'+(data.bid.playerIndex)+'|'+(data.bid.leaderTeamId)+'|'+(data.bid.price)+'|'+(data.bid.lastRaiseType||'');
     if(window._lastBidKey!==bk){
       window._lastBidKey=bk;
-      // Skip first paint of empty base with no leader change spam on join
       if(data.bid.leaderTeamId){
         try{ unlockSfx(); }catch(e){}
         try{ playSfx(data.bid.lastRaiseType==='ultimate'?'ultimate':'bid'); }catch(e){}
         sayEvent(data.bid.leaderTeamName+' leads at '+data.bid.price, 'bid', false, { priority:'p0' });
       }
     }
+  } else if(window._liveJoinQuiet && data.mode==='virtual' && data.bid){
+    window._lastBidKey='bid|'+(data.bid.playerIndex)+'|'+(data.bid.leaderTeamId)+'|'+(data.bid.price)+'|'+(data.bid.lastRaiseType||'');
   }
-  // New player after gap — never during manual await_next
-  const inGap = data.intermissionUntil && data.intermissionUntil > Date.now();
-  const bidPhase = data.bid && data.bid.phase;
-  const waitingManual = !!(data.awaitNextPlayer || bidPhase==='await_next');
-  const gapOver = !inGap && !waitingManual && (bidPhase!=='intermission' || !data.intermissionUntil || data.intermissionUntil<=Date.now());
-  if(gapOver && data.players && !data.paused){
+  // New player after gap — never during manual await_next or quiet join
+  if(window._liveJoinQuiet){
     let idx=(data.meta&&data.meta.currentIndex)||0;
     const pl=data.players||[];
     while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
-    if(idx<pl.length){
-      window._gapPendingPlayer=false;
-      if(window._sayPlayerKey==='__in_gap__') window._sayPlayerKey=null;
-      announceNowPlayer(idx, pl[idx].name, pl.length);
+    if(idx<pl.length) window._sayPlayerKey='pl|'+idx+'|'+(pl[idx].name||'');
+    window._playerSfxForGap=true;
+  } else {
+    const inGap = data.intermissionUntil && data.intermissionUntil > Date.now();
+    const bidPhase = data.bid && data.bid.phase;
+    const waitingManual = !!(data.awaitNextPlayer || bidPhase==='await_next');
+    const gapOver = !inGap && !waitingManual && (bidPhase!=='intermission' || !data.intermissionUntil || data.intermissionUntil<=Date.now());
+    if(gapOver && data.players && !data.paused){
+      let idx=(data.meta&&data.meta.currentIndex)||0;
+      const pl=data.players||[];
+      while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
+      if(idx<pl.length){
+        window._gapPendingPlayer=false;
+        if(window._sayPlayerKey==='__in_gap__') window._sayPlayerKey=null;
+        announceNowPlayer(idx, pl[idx].name, pl.length);
+      }
     }
   }
 }
@@ -3767,11 +3847,8 @@ function switchTab(which){
     if(tab){
       tab.classList.toggle('hidden',!on);
       tab.setAttribute('aria-hidden', on ? 'false' : 'true');
-      if(!on){
-        tab.setAttribute('inert','');
-      } else {
-        tab.removeAttribute('inert');
-      }
+      // Never use inert here — it blocks all taps on mobile WebViews
+      tab.removeAttribute('inert');
     }
     if($('tabBtn'+n)){
       $('tabBtn'+n).classList.toggle('active',on);
@@ -3970,7 +4047,8 @@ function renderAuction(opts){
     '<button type="button" id="btnUnsold" class="btn-danger btn-block" aria-label="Unsold">Unsold</button></div>'+
     '<div id="soldForm" class="hidden panel" style="margin-top:8px"></div>'+
     (recentLineHtml(recent)||'');
-  announceNowPlayer(idx, p.name, pl.length);
+  // Do not re-announce on every redraw — only when key is new (quiet join seeds key)
+  if(!window._liveJoinQuiet) announceNowPlayer(idx, p.name, pl.length);
   if(!opts.skipFocus && !window._soldFormOpen && !window._modalOpen && !isUiLocked()){
     const fk='physfocus|'+idx+'|'+(p.name||'');
     if(window._bidFocusKey!==fk){
@@ -5512,87 +5590,101 @@ function renderSquads(){
   focusEl(h);
 }
 
-/* One click handler for all squad buttons — never lost when list re-renders */
+/* Document-level squad clicks — works even if panel re-renders or overlay glitches */
+function handleSquadAction(btn){
+  if(!btn) return;
+  const action=btn.getAttribute('data-squad-action');
+  if(!action) return;
+  try{
+    const o=$('msgOverlay'); if(o) o.classList.add('hidden');
+    const pe=$('priceEditOverlay'); if(pe && action!=='change-price'){ pe.classList.add('hidden'); }
+    document.body.classList.remove('msg-open');
+  }catch(e){}
+  if(action==='open-team'){
+    const ti=parseInt(btn.getAttribute('data-team-index'),10);
+    if(!isNaN(ti)){ squadView=ti; renderSquads(); }
+    return;
+  }
+  if(action==='back-teams'){
+    squadView=null; window._squadFocusList=false; renderSquads();
+    return;
+  }
+  if(action==='change-price'){
+    const ti=parseInt(btn.getAttribute('data-team-index'),10);
+    const pi=parseInt(btn.getAttribute('data-player-index'),10);
+    const pname=btn.getAttribute('data-player-name')||'Player';
+    const pprice=btn.getAttribute('data-player-price')||'0';
+    if(!isNaN(ti) && !isNaN(pi)) openChangePriceDialog(ti, pi, pname, pprice);
+    return;
+  }
+  if(action==='remove-player'){
+    const ti=parseInt(btn.getAttribute('data-team-index'),10);
+    const pi=parseInt(btn.getAttribute('data-player-index'),10);
+    const pname=btn.getAttribute('data-player-name')||'Player';
+    const pprice=btn.getAttribute('data-player-price')||'0';
+    const team=T && T.teams && T.teams[ti];
+    if(!team) return;
+    window._squadBusy=true;
+    ask('Remove player?','Remove '+pname+' from '+team.name+' and return '+pprice+' to purse?', function(){
+      const tm=T.teams[ti];
+      if(!tm || !tm.players || !tm.players[pi]){
+        window._squadBusy=false;
+        alert('Player not found');
+        renderSquads();
+        return;
+      }
+      const row=tm.players[pi];
+      const priceBack=Number(row.price)||0;
+      tm.remaining=Number(tm.remaining||0)+priceBack;
+      const serial=row.serial, name=row.name;
+      tm.players.splice(pi,1);
+      if(tm.maxReached && typeof getTeamMax==='function' && getTeamMax(tm)>0 && tm.players.length<getTeamMax(tm)){
+        tm.maxReached=false;
+      }
+      const mp=(T.players||[]).find(function(x){
+        return (serial!=null && x.serial===serial) || (x.name && name && x.name===name);
+      });
+      if(mp){ mp.sold=false; mp.unsold=true; }
+      saveSquadEdits().then(function(){
+        window._squadBusy=false;
+        renderSquads();
+        announce(pname+' removed');
+      }).catch(function(e){
+        window._squadBusy=false;
+        safeAlert(e);
+        renderSquads();
+      });
+    }, { onNo: function(){ window._squadBusy=false; } });
+    return;
+  }
+  if(action==='add-player'){
+    const ti=parseInt(btn.getAttribute('data-team-index'),10);
+    if(!isNaN(ti)) openAddPlayerDialog(ti);
+  }
+}
 function wireSquadDelegation(){
-  const root=$('tabSquads') || $('sqBody');
-  if(!root || root._squadWired) return;
-  root._squadWired=true;
-  root.addEventListener('click', function(ev){
+  if(window._squadDocWired) return;
+  window._squadDocWired=true;
+  document.addEventListener('click', function(ev){
     const btn=ev.target && ev.target.closest && ev.target.closest('[data-squad-action]');
     if(!btn) return;
-    const action=btn.getAttribute('data-squad-action');
-    if(!action) return;
     try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-    // Clear any invisible blocker first
-    try{
-      const o=$('msgOverlay'); if(o && !o.classList.contains('hidden')) o.classList.add('hidden');
-    }catch(e){}
-    if(action==='open-team'){
-      const ti=parseInt(btn.getAttribute('data-team-index'),10);
-      if(!isNaN(ti)){ squadView=ti; renderSquads(); }
-      return;
-    }
-    if(action==='back-teams'){
-      squadView=null; window._squadFocusList=false; renderSquads();
-      return;
-    }
-    if(action==='change-price'){
-      const ti=parseInt(btn.getAttribute('data-team-index'),10);
-      const pi=parseInt(btn.getAttribute('data-player-index'),10);
-      const pname=btn.getAttribute('data-player-name')||'Player';
-      const pprice=btn.getAttribute('data-player-price')||'0';
-      if(!isNaN(ti) && !isNaN(pi)) openChangePriceDialog(ti, pi, pname, pprice);
-      return;
-    }
-    if(action==='remove-player'){
-      const ti=parseInt(btn.getAttribute('data-team-index'),10);
-      const pi=parseInt(btn.getAttribute('data-player-index'),10);
-      const pname=btn.getAttribute('data-player-name')||'Player';
-      const pprice=btn.getAttribute('data-player-price')||'0';
-      const team=T && T.teams && T.teams[ti];
-      if(!team) return;
-      window._squadBusy=true;
-      ask('Remove player?','Remove '+pname+' from '+team.name+' and return '+pprice+' to purse?', function(){
-        const tm=T.teams[ti];
-        if(!tm || !tm.players || !tm.players[pi]){
-          window._squadBusy=false;
-          alert('Player not found');
-          renderSquads();
-          return;
-        }
-        const row=tm.players[pi];
-        const priceBack=Number(row.price)||0;
-        tm.remaining=Number(tm.remaining||0)+priceBack;
-        const serial=row.serial, name=row.name;
-        tm.players.splice(pi,1);
-        if(tm.maxReached && typeof getTeamMax==='function' && getTeamMax(tm)>0 && tm.players.length<getTeamMax(tm)){
-          tm.maxReached=false;
-        }
-        const mp=(T.players||[]).find(function(x){
-          return (serial!=null && x.serial===serial) || (x.name && name && x.name===name);
-        });
-        if(mp){ mp.sold=false; mp.unsold=true; }
-        saveSquadEdits().then(function(){
-          window._squadBusy=false;
-          renderSquads();
-          announce(pname+' removed');
-        }).catch(function(e){
-          window._squadBusy=false;
-          safeAlert(e);
-          renderSquads();
-        });
-      }, { onNo: function(){ window._squadBusy=false; } });
-      return;
-    }
-    if(action==='add-player'){
-      const ti=parseInt(btn.getAttribute('data-team-index'),10);
-      if(!isNaN(ti)) openAddPlayerDialog(ti);
-      return;
-    }
+    handleSquadAction(btn);
   }, true);
+  document.addEventListener('touchend', function(ev){
+    const btn=ev.target && ev.target.closest && ev.target.closest('[data-squad-action]');
+    if(!btn) return;
+    // Avoid double-fire with click on some phones: only handle if click may not fire
+    if(window._squadTouchHandled) return;
+    window._squadTouchHandled=true;
+    setTimeout(function(){ window._squadTouchHandled=false; }, 400);
+    try{ ev.preventDefault(); }catch(e){}
+    handleSquadAction(btn);
+  }, { capture:true, passive:false });
 }
 try{ wireSquadDelegation(); }catch(e){}
 document.addEventListener('DOMContentLoaded', function(){ try{ wireSquadDelegation(); }catch(e){} });
+setTimeout(function(){ try{ wireSquadDelegation(); }catch(e){} }, 500);
 
 document.querySelectorAll('[data-list]').forEach(btn=>{
   btn.onclick=()=>{

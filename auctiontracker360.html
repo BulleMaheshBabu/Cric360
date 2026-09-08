@@ -635,7 +635,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.5.00</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.6.00</p>
   </div>
 </section>
 
@@ -2145,9 +2145,16 @@ function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInte
 
 function applyAuctionData(data){
   if(data.presence) window._lastPresence=data.presence;
+  // While host is editing squads (price / add / remove), do NOT replace local teams/players
+  // from a mid-flight snapshot — that was wiping the new price before Save finished.
+  const keepLocalSquad = !!(window._squadBusy || window._priceEditOpen || window._modalOpen);
+  const localTeams = keepLocalSquad && T ? T.teams : null;
+  const localPlayers = keepLocalSquad && T ? T.players : null;
   T={
     title:data.title, mode:data.mode||'physical', status:data.status||'live',
-    teams:data.teams||[], players:data.players||[], meta:data.meta||{currentIndex:0},
+    teams: (localTeams != null ? localTeams : (data.teams||[])),
+    players: (localPlayers != null ? localPlayers : (data.players||[])),
+    meta:data.meta||{currentIndex:0},
     activeColumns:data.activeColumns||activeCols, rules:data.rules||null,
     bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
     pendingCoOrganisers:data.pendingCoOrganisers||[], coOrganiserIds:data.coOrganiserIds||[],
@@ -5148,6 +5155,7 @@ async function saveSquadEdits(){
   if(!T||!db||!user) throw new Error('Not signed in or auction not ready');
   if(!auctionId) throw new Error('Auction id missing — cannot save');
   window._squadBusy=true;
+  // Deep clone so Firestore gets plain data
   const payload={
     teams: JSON.parse(JSON.stringify(T.teams||[])),
     players: JSON.parse(JSON.stringify(T.players||[])),
@@ -5155,14 +5163,19 @@ async function saveSquadEdits(){
   };
   try{
     await db.collection('auctions').doc(auctionId).set(payload,{merge:true});
+    // Keep local T in sync with what we just wrote (snapshot may lag)
+    T.teams = payload.teams;
+    T.players = payload.players;
     clearAppError();
   }finally{
-    window._squadBusy=false;
+    // Leave _squadBusy true until caller closes dialog / re-renders
   }
 }
 
-function openChangePriceDialog(t, pl, pi, pname, pprice){
-  if(!t||!pl) return;
+function openChangePriceDialog(teamIndex, playerIndex, pname, pprice){
+  if(!T || !T.teams || T.teams[teamIndex]==null) return;
+  const t0=T.teams[teamIndex];
+  if(!t0 || !t0.players || !t0.players[playerIndex]) return;
   window._squadBusy=true;
   window._priceEditOpen=true;
   window._modalOpen=true;
@@ -5198,13 +5211,23 @@ function openChangePriceDialog(t, pl, pi, pname, pprice){
   $('btnPriceSave').onclick=function(){
     const np=parseInt(String(($('newPrice')&&$('newPrice').value)||'').replace(/\D/g,''),10);
     if(!np||np<0){ alert('Enter a valid price'); focusEl($('newPrice')); return; }
+    // Always resolve from current T by index (not a stale object from an old render)
+    const team=T.teams[teamIndex];
+    if(!team || !team.players || !team.players[playerIndex]){
+      alert('Player not found — go back and open the squad again');
+      closePrice();
+      renderSquads();
+      return;
+    }
+    const pl=team.players[playerIndex];
     const old=Number(pl.price!=null?pl.price:pprice)||0;
     const d=np-old;
-    if(d>Number(t.remaining||0)){ alert('Not enough purse. Remaining: '+t.remaining); return; }
-    t.remaining=Number(t.remaining||0)-d;
+    if(d>Number(team.remaining||0)){ alert('Not enough purse. Remaining: '+team.remaining); return; }
+    team.remaining=Number(team.remaining||0)-d;
     pl.price=np;
+    // Master player list
     const mp=(T.players||[]).find(function(x){
-      return (pl.serial && x.serial===pl.serial) || x.name===pl.name;
+      return (pl.serial!=null && x.serial===pl.serial) || (x.name && pl.name && x.name===pl.name);
     });
     if(mp) mp.price=np;
     saveSquadEdits().then(function(){
@@ -5212,7 +5235,7 @@ function openChangePriceDialog(t, pl, pi, pname, pprice){
       renderSquads();
       announce((pname||'Player')+' price updated to '+np);
     }).catch(function(e){
-      t.remaining=Number(t.remaining||0)+d;
+      team.remaining=Number(team.remaining||0)+d;
       pl.price=old;
       if(mp) mp.price=old;
       closePrice();
@@ -5300,6 +5323,8 @@ function openAddPlayerDialog(teamIndex){
   };
   $('btnAddPlayerSave').onclick=async function(){
     try{
+      const team=T.teams[teamIndex];
+      if(!team){ alert('Team not found'); return; }
       const ix=parseInt($('addSel')&&$('addSel').value,10);
       if(isNaN(ix)||ix<0){ alert('Choose a player'); return; }
       const mp=T.players[ix];
@@ -5310,27 +5335,29 @@ function openAddPlayerDialog(teamIndex){
       }
       const price=parseInt(String($('addPrice')&&$('addPrice').value||'').replace(/\D/g,''),10);
       if(!price||price<0){ alert('Enter price'); return; }
-      if(price>Number(t.remaining||0)){ alert('Not enough purse. Remaining: '+t.remaining); return; }
-      if(typeof isTeamAtMax==='function' && isTeamAtMax(t)){
-        alert('Maximum players filled for '+t.name+'. Unable to proceed.');
+      if(price>Number(team.remaining||0)){ alert('Not enough purse. Remaining: '+team.remaining); return; }
+      if(typeof isTeamAtMax==='function' && isTeamAtMax(team)){
+        alert('Maximum players filled for '+team.name+'. Unable to proceed.');
         return;
       }
-      // Move from another unsold/remaining into this squad
-      t.players=t.players||[];
-      t.players.push({
+      team.players=team.players||[];
+      team.players.push({
         name:mp.name, serial:mp.serial, gamerId:mp.gamerId, state:mp.state,
         price:price
       });
-      t.remaining=Number(t.remaining||0)-price;
-      if(typeof getTeamMax==='function' && getTeamMax(t)>0 && t.players.length>=getTeamMax(t)) t.maxReached=true;
-      mp.sold=true; mp.unsold=false;
+      team.remaining=Number(team.remaining||0)-price;
+      if(typeof getTeamMax==='function' && getTeamMax(team)>0 && team.players.length>=getTeamMax(team)) team.maxReached=true;
+      // Mark master list as sold so status + remaining lists update
+      mp.sold=true;
+      mp.unsold=false;
+      mp.price=price;
       await saveSquadEdits();
       overlay.classList.add('hidden');
       overlay.innerHTML='';
       window._squadBusy=false;
       window._modalOpen=false;
       renderSquads();
-      announce(mp.name+' added to '+t.name+' for '+price);
+      announce((mp.name||'Player')+' added to '+team.name+' for '+price);
     }catch(e){
       window._squadBusy=false;
       window._modalOpen=false;
@@ -5409,7 +5436,7 @@ function renderSquads(){
       ed.setAttribute('aria-label','Change price for '+pname+', currently '+pprice);
       ed.onclick=function(ev){
         try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
-        openChangePriceDialog(t, pl, pi, pname, pprice);
+        openChangePriceDialog(teamIndex, pi, pname, pprice);
       };
 
       const rm=document.createElement('button');
@@ -5420,14 +5447,23 @@ function renderSquads(){
         try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
         window._squadBusy=true;
         ask('Remove player?','Remove '+pname+' from '+t.name+' and return '+pprice+' to purse?', function(){
-          const priceBack=Number(pl.price)||0;
-          t.remaining=Number(t.remaining||0)+priceBack;
-          t.players.splice(pi,1);
-          if(t.maxReached && typeof getTeamMax==='function' && getTeamMax(t)>0 && t.players.length<getTeamMax(t)){
-            t.maxReached=false;
+          const team=T.teams[teamIndex];
+          if(!team || !team.players || !team.players[pi]){
+            window._squadBusy=false;
+            alert('Player not found');
+            renderSquads();
+            return;
+          }
+          const row=team.players[pi];
+          const priceBack=Number(row.price)||0;
+          team.remaining=Number(team.remaining||0)+priceBack;
+          const serial=row.serial, name=row.name;
+          team.players.splice(pi,1);
+          if(team.maxReached && typeof getTeamMax==='function' && getTeamMax(team)>0 && team.players.length<getTeamMax(team)){
+            team.maxReached=false;
           }
           const mp=(T.players||[]).find(function(x){
-            return (pl.serial && x.serial===pl.serial) || (x.name===pl.name);
+            return (serial!=null && x.serial===serial) || (x.name && name && x.name===name);
           });
           if(mp){ mp.sold=false; mp.unsold=true; }
           saveSquadEdits().then(function(){

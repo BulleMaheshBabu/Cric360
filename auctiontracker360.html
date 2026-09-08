@@ -297,9 +297,13 @@ button.btn-sec[aria-label*="Back"]::before,button.btn-sec[aria-label*="back"]::b
 }
 .list-btn:hover,.list-btn:focus-visible{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary-glow)}
 
-.modal{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
-.modal-box{background:rgba(11,19,38,.92);border:1px solid var(--border);padding:22px;border-radius:var(--radius-lg);max-width:440px;width:100%;text-align:center;box-shadow:var(--shadow);backdrop-filter:blur(24px)}
+.modal{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;pointer-events:auto}
+.modal.hidden{display:none!important;pointer-events:none!important;visibility:hidden!important}
+.modal-box{background:rgba(11,19,38,.92);border:1px solid var(--border);padding:22px;border-radius:var(--radius-lg);max-width:440px;width:100%;text-align:center;box-shadow:var(--shadow);backdrop-filter:blur(24px);pointer-events:auto}
 body.light .modal-box{background:var(--panel-solid)}
+/* Squad action buttons — large tap targets, never blocked by inert parents */
+#sqBody button,#tabSquads button{pointer-events:auto;position:relative;z-index:2}
+#tabSquads:not([inert]){pointer-events:auto}
 
 /* Bottom tab bar — match Cric360 Live (full-width bar + solid active pill) */
 .tabbar{
@@ -635,7 +639,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.6.00</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.7.00</p>
   </div>
 </section>
 
@@ -1725,6 +1729,7 @@ function enterHome(){
   try{ queueClearSpeech(); }catch(e){}
   try{ ttsStop(); }catch(e){}
   try{ showIntermissionBar(0); }catch(e){}
+  try{ forceClearBlockingOverlays(); }catch(e){}
   try{
     const f=$('btnMsgFab'); if(f) f.classList.add('hidden');
     const o=$('msgOverlay'); if(o) o.classList.add('hidden');
@@ -3729,6 +3734,22 @@ function teamCanRaiseNow(teamId, bid, rules){
 
 
 /* ========== RENDER AUCTION ========== */
+function forceClearBlockingOverlays(){
+  try{
+    const o=$('msgOverlay'); if(o){ o.classList.add('hidden'); }
+    const mp=$('msgPanel'); if(mp){ mp.setAttribute('aria-hidden','true'); }
+    const qp=$('aucQuickSetPanel'); if(qp) qp.classList.add('hidden');
+    const pe=$('priceEditOverlay'); if(pe){ pe.classList.add('hidden'); pe.innerHTML=''; }
+    const sa=$('squadAddOverlay'); if(sa){ sa.classList.add('hidden'); sa.innerHTML=''; }
+    try{ closeChatComposer(); }catch(e){}
+    document.body.classList.remove('msg-open','chat-open');
+    window._modalOpen=false;
+    window._priceEditOpen=false;
+    window._squadBusy=false;
+    window._chatComposerOpen=false;
+  }catch(e){}
+}
+
 function switchTab(which){
   if(helperMode && which==='tools'){ alert('Tools are host-only.'); which='squads'; }
   if(which==='tools'){ try{ paintDownloadSquadChecks(); wireDownloadPanel(); }catch(e){} }
@@ -3738,14 +3759,8 @@ function switchTab(which){
     const ls=$('liveSoft'); if(ls) ls.textContent='';
     const tb=$('timerBanner'); if(tb){ tb.classList.add('hidden'); tb.textContent=''; }
   }catch(e){}
-  // Close floating panels when leaving auction tab
-  try{
-    if(which!=='auction'){
-      const mp=$('msgPanel'); if(mp){ mp.classList.add('hidden'); mp.setAttribute('aria-hidden','true'); }
-      const qp=$('aucQuickSetPanel'); if(qp) qp.classList.add('hidden');
-      window._modalOpen=false;
-    }
-  }catch(e){}
+  // ALWAYS clear full-screen overlays — they block Squads taps if left open
+  forceClearBlockingOverlays();
   ['Auction','Squads','Tools'].forEach(n=>{
     const on=which.toLowerCase()===n.toLowerCase();
     const tab=$('tab'+n);
@@ -3753,14 +3768,15 @@ function switchTab(which){
       tab.classList.toggle('hidden',!on);
       tab.setAttribute('aria-hidden', on ? 'false' : 'true');
       if(!on){
-        // Prevent explore-by-touch hitting Leave auction / Message on other tabs
         tab.setAttribute('inert','');
       } else {
         tab.removeAttribute('inert');
       }
     }
-    $('tabBtn'+n).classList.toggle('active',on);
-    $('tabBtn'+n).setAttribute('aria-selected',on?'true':'false');
+    if($('tabBtn'+n)){
+      $('tabBtn'+n).classList.toggle('active',on);
+      $('tabBtn'+n).setAttribute('aria-selected',on?'true':'false');
+    }
   });
   if($('tabBtnTools')) $('tabBtnTools').classList.remove('hidden');
   try{
@@ -3770,7 +3786,16 @@ function switchTab(which){
     if(foot) foot.setAttribute('aria-hidden', which==='auction' ? 'false' : 'true');
   }catch(e){}
   if(which==='auction') renderAuction();
-  if(which==='squads'){ squadView=null; window._squadFocusList=false; renderSquads(); setTimeout(function(){ focusEl($('sqTitle')); }, 80); }
+  if(which==='squads'){
+    squadView=null; window._squadFocusList=false;
+    // Ensure Squads panel can receive taps
+    try{
+      const ts=$('tabSquads');
+      if(ts){ ts.removeAttribute('inert'); ts.classList.remove('hidden'); }
+    }catch(e){}
+    renderSquads();
+    setTimeout(function(){ focusEl($('sqTitle')); }, 80);
+  }
   if(which==='tools'){
     toolsKind=null;
     if($('toolsList')){ $('toolsList').innerHTML=''; $('toolsList').classList.add('hidden'); }
@@ -5369,14 +5394,20 @@ function openAddPlayerDialog(teamIndex){
 function renderSquads(){
   const box=$('sqBody');
   if(!box||!T) return;
+  // Always allow taps on this panel
+  try{
+    const ts=$('tabSquads');
+    if(ts){ ts.removeAttribute('inert'); }
+  }catch(e){}
   box.innerHTML='';
   if(squadView===null){
     const grid=document.createElement('div'); grid.className='squad-grid';
     (T.teams||[]).forEach((t,ti)=>{
       const btn=document.createElement('button'); btn.type='button'; btn.className='squad-card';
+      btn.setAttribute('data-squad-action','open-team');
+      btn.setAttribute('data-team-index', String(ti));
       btn.setAttribute('aria-label', t.name+', '+(t.players||[]).length+' players, purse left '+t.remaining);
       btn.innerHTML='<p class="sc-name">'+t.name+'</p><p class="sc-sub">'+(t.players||[]).length+' players · Purse left '+t.remaining+'</p>';
-      btn.onclick=()=>{ squadView=ti; renderSquads(); };
       grid.appendChild(btn);
     });
     box.appendChild(grid);
@@ -5391,8 +5422,8 @@ function renderSquads(){
 
   const back=document.createElement('button');
   back.type='button'; back.className='btn-sec btn-block';
+  back.setAttribute('data-squad-action','back-teams');
   back.textContent='Back to teams';
-  back.onclick=()=>{ squadView=null; window._squadFocusList=false; renderSquads(); };
   box.appendChild(back);
 
   const h=document.createElement('h2');
@@ -5433,52 +5464,22 @@ function renderSquads(){
       const ed=document.createElement('button');
       ed.type='button'; ed.className='btn-sec';
       ed.textContent='Change price';
+      ed.setAttribute('data-squad-action','change-price');
+      ed.setAttribute('data-team-index', String(teamIndex));
+      ed.setAttribute('data-player-index', String(pi));
+      ed.setAttribute('data-player-name', pname);
+      ed.setAttribute('data-player-price', String(pprice));
       ed.setAttribute('aria-label','Change price for '+pname+', currently '+pprice);
-      ed.onclick=function(ev){
-        try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
-        openChangePriceDialog(teamIndex, pi, pname, pprice);
-      };
 
       const rm=document.createElement('button');
       rm.type='button'; rm.className='btn-danger';
       rm.textContent='Remove';
+      rm.setAttribute('data-squad-action','remove-player');
+      rm.setAttribute('data-team-index', String(teamIndex));
+      rm.setAttribute('data-player-index', String(pi));
+      rm.setAttribute('data-player-name', pname);
+      rm.setAttribute('data-player-price', String(pprice));
       rm.setAttribute('aria-label','Remove '+pname+' from squad');
-      rm.onclick=function(ev){
-        try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
-        window._squadBusy=true;
-        ask('Remove player?','Remove '+pname+' from '+t.name+' and return '+pprice+' to purse?', function(){
-          const team=T.teams[teamIndex];
-          if(!team || !team.players || !team.players[pi]){
-            window._squadBusy=false;
-            alert('Player not found');
-            renderSquads();
-            return;
-          }
-          const row=team.players[pi];
-          const priceBack=Number(row.price)||0;
-          team.remaining=Number(team.remaining||0)+priceBack;
-          const serial=row.serial, name=row.name;
-          team.players.splice(pi,1);
-          if(team.maxReached && typeof getTeamMax==='function' && getTeamMax(team)>0 && team.players.length<getTeamMax(team)){
-            team.maxReached=false;
-          }
-          const mp=(T.players||[]).find(function(x){
-            return (serial!=null && x.serial===serial) || (x.name && name && x.name===name);
-          });
-          if(mp){ mp.sold=false; mp.unsold=true; }
-          saveSquadEdits().then(function(){
-            window._squadBusy=false;
-            renderSquads();
-            announce(pname+' removed');
-          }).catch(function(e){
-            window._squadBusy=false;
-            safeAlert(e);
-            renderSquads();
-          });
-        }, {
-          onNo: function(){ window._squadBusy=false; }
-        });
-      };
 
       actions.appendChild(ed);
       actions.appendChild(rm);
@@ -5502,13 +5503,96 @@ function renderSquads(){
     addBtn.className='btn-ok btn-block';
     addBtn.style.marginTop='16px';
     addBtn.textContent='Add player';
+    addBtn.setAttribute('data-squad-action','add-player');
+    addBtn.setAttribute('data-team-index', String(teamIndex));
     addBtn.setAttribute('aria-label','Add player to '+t.name);
-    addBtn.onclick=function(){ openAddPlayerDialog(teamIndex); };
     box.appendChild(addBtn);
   }
 
   focusEl(h);
 }
+
+/* One click handler for all squad buttons — never lost when list re-renders */
+function wireSquadDelegation(){
+  const root=$('tabSquads') || $('sqBody');
+  if(!root || root._squadWired) return;
+  root._squadWired=true;
+  root.addEventListener('click', function(ev){
+    const btn=ev.target && ev.target.closest && ev.target.closest('[data-squad-action]');
+    if(!btn) return;
+    const action=btn.getAttribute('data-squad-action');
+    if(!action) return;
+    try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+    // Clear any invisible blocker first
+    try{
+      const o=$('msgOverlay'); if(o && !o.classList.contains('hidden')) o.classList.add('hidden');
+    }catch(e){}
+    if(action==='open-team'){
+      const ti=parseInt(btn.getAttribute('data-team-index'),10);
+      if(!isNaN(ti)){ squadView=ti; renderSquads(); }
+      return;
+    }
+    if(action==='back-teams'){
+      squadView=null; window._squadFocusList=false; renderSquads();
+      return;
+    }
+    if(action==='change-price'){
+      const ti=parseInt(btn.getAttribute('data-team-index'),10);
+      const pi=parseInt(btn.getAttribute('data-player-index'),10);
+      const pname=btn.getAttribute('data-player-name')||'Player';
+      const pprice=btn.getAttribute('data-player-price')||'0';
+      if(!isNaN(ti) && !isNaN(pi)) openChangePriceDialog(ti, pi, pname, pprice);
+      return;
+    }
+    if(action==='remove-player'){
+      const ti=parseInt(btn.getAttribute('data-team-index'),10);
+      const pi=parseInt(btn.getAttribute('data-player-index'),10);
+      const pname=btn.getAttribute('data-player-name')||'Player';
+      const pprice=btn.getAttribute('data-player-price')||'0';
+      const team=T && T.teams && T.teams[ti];
+      if(!team) return;
+      window._squadBusy=true;
+      ask('Remove player?','Remove '+pname+' from '+team.name+' and return '+pprice+' to purse?', function(){
+        const tm=T.teams[ti];
+        if(!tm || !tm.players || !tm.players[pi]){
+          window._squadBusy=false;
+          alert('Player not found');
+          renderSquads();
+          return;
+        }
+        const row=tm.players[pi];
+        const priceBack=Number(row.price)||0;
+        tm.remaining=Number(tm.remaining||0)+priceBack;
+        const serial=row.serial, name=row.name;
+        tm.players.splice(pi,1);
+        if(tm.maxReached && typeof getTeamMax==='function' && getTeamMax(tm)>0 && tm.players.length<getTeamMax(tm)){
+          tm.maxReached=false;
+        }
+        const mp=(T.players||[]).find(function(x){
+          return (serial!=null && x.serial===serial) || (x.name && name && x.name===name);
+        });
+        if(mp){ mp.sold=false; mp.unsold=true; }
+        saveSquadEdits().then(function(){
+          window._squadBusy=false;
+          renderSquads();
+          announce(pname+' removed');
+        }).catch(function(e){
+          window._squadBusy=false;
+          safeAlert(e);
+          renderSquads();
+        });
+      }, { onNo: function(){ window._squadBusy=false; } });
+      return;
+    }
+    if(action==='add-player'){
+      const ti=parseInt(btn.getAttribute('data-team-index'),10);
+      if(!isNaN(ti)) openAddPlayerDialog(ti);
+      return;
+    }
+  }, true);
+}
+try{ wireSquadDelegation(); }catch(e){}
+document.addEventListener('DOMContentLoaded', function(){ try{ wireSquadDelegation(); }catch(e){} });
 
 document.querySelectorAll('[data-list]').forEach(btn=>{
   btn.onclick=()=>{

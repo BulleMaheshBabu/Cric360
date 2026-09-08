@@ -390,8 +390,22 @@ body.light .player-stage{background:linear-gradient(180deg,#fff 0%,#f0f9ff 100%)
   border-radius:14px;margin-top:10px;min-height:52px;
 }
 
-.msg-fab{font-weight:800;font-size:13px;min-height:44px;max-width:42vw}
-.msg-panel,.auc-settings-panel{
+.msg-fab{font-weight:800;font-size:13px;min-height:44px;max-width:42vw;position:relative;z-index:60;pointer-events:auto}
+/* Center message dialog — above tab bar, stays in foreground while typing */
+.msg-overlay{
+  position:fixed;inset:0;z-index:220;background:var(--overlay);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:16px;
+}
+.msg-overlay.hidden{display:none!important;pointer-events:none!important;visibility:hidden}
+.msg-panel{
+  position:relative;left:auto;right:auto;bottom:auto;top:auto;
+  max-width:min(420px,calc(100vw - 24px));width:100%;margin:0;
+  background:var(--panel-solid);border:1px solid var(--border);border-radius:16px;
+  padding:16px;box-shadow:var(--shadow);max-height:90vh;overflow-y:auto;
+  z-index:221;pointer-events:auto;
+}
+.auc-settings-panel{
   position:fixed;left:12px;right:12px;bottom:88px;top:auto;z-index:180;
   max-width:min(420px,calc(100vw - 24px));width:auto;margin:0 auto;
   background:var(--panel-solid);border:1px solid var(--border);border-radius:16px;
@@ -404,6 +418,25 @@ body.light .player-stage{background:linear-gradient(180deg,#fff 0%,#f0f9ff 100%)
   width:100%;min-height:96px;margin:8px 0;font-size:16px;border-radius:12px;
   border:1px solid var(--border);background:var(--bg2);color:var(--text);padding:12px;
 }
+/* WhatsApp-style custom bid: fixed chat composer, hides tab bar when open */
+.chat-composer{
+  position:fixed;left:0;right:0;bottom:0;z-index:200;
+  display:flex;gap:0;align-items:stretch;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:var(--bg-surface);border-top:1px solid var(--border-subtle);
+  box-shadow:0 -8px 24px rgba(0,0,0,.35);
+}
+.chat-composer.hidden{display:none!important}
+.chat-composer input#ultimateBid{
+  flex:1;margin:0;min-height:48px;font-size:18px;border-radius:24px 0 0 24px;
+  border:1px solid var(--border);background:var(--bg2);color:var(--text);padding:12px 16px;
+}
+.chat-composer #btnUltimateSend{
+  min-height:48px;min-width:88px;border-radius:0 24px 24px 0;flex-shrink:0;margin:0;
+}
+body.chat-open .tabbar{display:none!important}
+body.chat-open{padding-bottom:72px}
+body.msg-open .tabbar{display:none!important}
 .chat-bar input#ultimateBid{
   min-height:48px;font-size:16px;border-radius:12px 0 0 12px;
 }
@@ -602,7 +635,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.3.00</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.4.00</p>
   </div>
 </section>
 
@@ -625,15 +658,18 @@ a{color:var(--primary)}
         </div>
       </div>
       <div id="onlinePanelTop" class="hidden" style="margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>
-      <div id="msgPanel" class="msg-panel hidden" role="dialog" aria-modal="true" aria-labelledby="msgPanelTitle" aria-hidden="true">
-        <h2 id="msgPanelTitle" style="margin-top:0;font-size:1.1rem" tabindex="-1">Send message</h2>
-        <label for="msgText">Type your message</label>
-        <textarea id="msgText" maxlength="120" autocomplete="off" enterkeyhint="send" rows="3" placeholder="Type here, then choose who receives it" aria-describedby="msgHint"></textarea>
-        <p id="msgHint" style="font-size:13px;color:var(--muted);margin:0 0 10px">Host and team owners. Max 120 characters.</p>
-        <button type="button" id="btnMsgHost" class="btn-sec btn-block" aria-label="Send message only to host">Send to host</button>
+      <div id="msgOverlay" class="msg-overlay hidden" role="presentation">
+      <div id="msgPanel" class="msg-panel" role="dialog" aria-modal="true" aria-labelledby="msgPanelTitle" aria-hidden="true">
+        <button type="button" id="btnMsgCloseTop" class="btn-sec" style="width:100%;margin:0 0 10px;min-height:44px" aria-label="Close message box">Close</button>
+        <h2 id="msgPanelTitle" style="margin:0 0 8px;font-size:1.1rem" tabindex="-1">Send message</h2>
+        <label for="msgText">Message</label>
+        <textarea id="msgText" maxlength="120" autocomplete="off" enterkeyhint="send" rows="3" placeholder="Type your message"></textarea>
         <button type="button" id="btnMsgAll" class="btn-ok btn-block" aria-label="Send message to everyone in the room">Send to all</button>
+        <button type="button" id="btnMsgHost" class="btn-sec btn-block" aria-label="Send message only to host">Send to host</button>
         <button type="button" id="btnMsgClose" class="btn-sec btn-block" aria-label="Close message box">Close</button>
       </div>
+      </div>
+      <div id="aucStats" class="stats" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
 <div id="aucQuickSetPanel" class="auc-settings-panel hidden" role="dialog" aria-label="Quick settings">
         <h2 style="margin-top:0;font-size:1.1rem" id="qSetTitle" tabindex="-1">Quick settings</h2>
         <label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="qChkTts" /> Commentary on</label>
@@ -1389,6 +1425,7 @@ function isUiLocked(){
   if(window._modalOpen || (typeof isConfirmOpen==='function' && isConfirmOpen())) return true;
   if(typeof isMsgPanelOpen==='function' && isMsgPanelOpen()) return true;
   if(typeof isSoldFormOpen==='function' && isSoldFormOpen()) return true;
+  if(window._chatComposerOpen) return true;
   const ae=document.activeElement;
   if(ae && (ae.id==='msgText'||ae.id==='sTeam'||ae.id==='sPrice'||ae.id==='ultimateBid'||ae.id==='addQ'||ae.id==='addPrice'||ae.id==='addSel')) return true;
   if(ae && (ae.tagName==='SELECT'||ae.tagName==='TEXTAREA'||ae.tagName==='INPUT')) return true;
@@ -1679,9 +1716,13 @@ function enterHome(){
   try{ showIntermissionBar(0); }catch(e){}
   try{
     const f=$('btnMsgFab'); if(f) f.classList.add('hidden');
-    const p=$('msgPanel'); if(p) p.classList.add('hidden');
+    const o=$('msgOverlay'); if(o) o.classList.add('hidden');
+    const p=$('msgPanel'); if(p){ p.setAttribute('aria-hidden','true'); }
     const q=$('aucQuickSetPanel'); if(q) q.classList.add('hidden');
     const tb=$('timerBanner'); if(tb){ tb.classList.add('hidden'); tb.textContent=''; }
+    try{ closeChatComposer(); }catch(e2){}
+    document.body.classList.remove('msg-open','chat-open');
+    window._modalOpen=false;
     // Clear live regions so empty home space does not read old bids
     const lv=$('live'); if(lv) lv.textContent='';
     const ls=$('liveSoft'); if(ls) ls.textContent='';
@@ -2099,14 +2140,22 @@ function applyAuctionData(data){
     activeColumns:data.activeColumns||activeCols, rules:data.rules||null,
     bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
     pendingCoOrganisers:data.pendingCoOrganisers||[], coOrganiserIds:data.coOrganiserIds||[],
-    ownerId:data.ownerId, meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused, alertRules:data.alertRules||null, lastResult:data.lastResult||null, intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null
+    ownerId:data.ownerId, meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused, alertRules:data.alertRules||null, lastResult:data.lastResult||null, intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
+    playerAdvance: data.playerAdvance==='manual'?'manual':'auto',
+    awaitNextPlayer: !!data.awaitNextPlayer
   };
   helperMode=!!(user && data.ownerId!==user.uid && (data.coOrganiserIds||[]).includes(user.uid));
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
   ownerMode=!!(user && data.mode==='virtual' && ow && ow.teamId);
   myTeamId=ow?ow.teamId:null;
-  // Recover stuck gap: intermission phase but no future until → open contest immediately
-  if(T.bid && T.bid.phase==='intermission' && !(T.intermissionUntil && T.intermissionUntil>Date.now())){
+  // Manual wait for Next player — never auto-open
+  if(T.awaitNextPlayer || (T.bid && T.bid.phase==='await_next')){
+    T.awaitNextPlayer=true;
+    if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
+    T.intermissionUntil=null;
+  }
+  // Recover stuck gap (automatic only)
+  else if(T.bid && T.bid.phase==='intermission' && !(T.intermissionUntil && T.intermissionUntil>Date.now()) && T.playerAdvance!=='manual'){
     T.bid.phase='contest';
     if(!T.bid.timerEndsAt || Date.now() >= T.bid.timerEndsAt){
       T.bid.timerEndsAt=Date.now()+((T.rules&&T.rules.contestSeconds)||30)*1000;
@@ -2963,6 +3012,11 @@ function renderWizard(){
       '<label for="arCustom">Custom player counts (comma separated)</label>'+
       '<input id="arCustom" type="text" inputmode="numeric" placeholder="e.g. 5, 10, 12, 14" value="'+((ar.customCounts||[]).join(', '))+'" autocomplete="off" />'+
       '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="arPurse" '+(ar.purse!==false?'checked':'')+' /> Purse used alerts (50%, 75%, 90%)</label>'+
+      '<h2 style="font-size:1.05rem;margin-top:16px">Next player display</h2>'+
+      '<p style="color:var(--muted);font-size:14px">How the next player appears after Sold or Unsold.</p>'+
+      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="radio" name="wAdvance" value="auto" '+(wiz.playerAdvance!=='manual'?'checked':'')+' /> Automatic — short timer, then next player</label>'+
+      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="radio" name="wAdvance" value="manual" '+(wiz.playerAdvance==='manual'?'checked':'')+' /> Manual — host presses Next player</label>'+
+      '<div id="wGapBox" class="'+(wiz.playerAdvance==='manual'?'hidden':'')+'">'+
       '<label for="wGap">Gap between players (seconds)</label>'+
       '<select id="wGap" aria-label="Gap between players">'+
       '<option value="3"'+(wiz.intermissionSec===3?' selected':'')+'>3 seconds</option>'+
@@ -2970,7 +3024,18 @@ function renderWizard(){
       '<option value="7"'+(wiz.intermissionSec===7?' selected':'')+'>7 seconds</option>'+
       '<option value="10"'+(wiz.intermissionSec===10?' selected':'')+'>10 seconds</option>'+
       '</select>'+
-      '<p style="color:var(--muted);font-size:13px">After each sold or unsold, a short visual wait before the next player. No spoken countdown.</p>';
+      '<p style="color:var(--muted);font-size:13px">After sold or unsold, a short wait before the next player.</p>'+
+      '</div>'+
+      '<p id="wManualHint" class="'+(wiz.playerAdvance==='manual'?'':'hidden')+'" style="color:var(--muted);font-size:13px">No automatic gap. After Sold/Unsold the host uses <strong>Next player</strong>. Everyone else sees “Waiting for next player” until then.</p>';
+    try{
+      document.querySelectorAll('input[name="wAdvance"]').forEach(function(r){
+        r.onchange=function(){
+          const man=(document.querySelector('input[name="wAdvance"]:checked')||{}).value==='manual';
+          if($('wGapBox')) $('wGapBox').classList.toggle('hidden', man);
+          if($('wManualHint')) $('wManualHint').classList.toggle('hidden', !man);
+        };
+      });
+    }catch(e){}
   }
   else if(step===4){
     let h=''; for(let i=0;i<(wiz.teamCount||0);i++) h+='<label for="tn'+i+'">Team '+(i+1)+' name</label><input id="tn'+i+'" type="text" value="'+(wiz.teamNames[i]||'')+'" />';
@@ -3088,14 +3153,22 @@ function wizardNext(){
       purse: !!$('arPurse').checked,
       fired: {}
     };
-    wiz.intermissionSec = parseInt(($('wGap')&&$('wGap').value)||'5', 10) || 5;
+    const advEl=document.querySelector('input[name="wAdvance"]:checked');
+    wiz.playerAdvance=(advEl&&advEl.value==='manual')?'manual':'auto';
+    if(wiz.playerAdvance==='auto'){
+      wiz.intermissionSec=parseInt(($('wGap')&&$('wGap').value)||'5',10)||5;
+    } else {
+      wiz.intermissionSec=0;
+    }
   }
   else if(step===4){
     wiz.teamNames=[]; for(let i=0;i<wiz.teamCount;i++) wiz.teamNames.push(($('tn'+i).value.trim())||('Team '+(i+1)));
     T={ title:wiz.name, mode:'physical', status:'setup', teams:wiz.teamNames.map((nm,i)=>({id:'t'+i,name:nm,purse:wiz.purse,remaining:wiz.purse,players:[],minPlayers:wiz.minP,maxPlayers:wiz.maxP,maxReached:false})),
       players:[], meta:{currentIndex:0}, activeColumns:activeCols, rules:null, bid:null, owners:[], pendingOwners:[], pendingCoOrganisers:[], coOrganiserIds:[], meetLink:'',
       alertRules: wiz.alertRules||{ minPlayers:true, maxPlayers:true, customCounts:[], purse:true, fired:{} },
-      intermissionSec: wiz.intermissionSec||5 };
+      intermissionSec: wiz.intermissionSec||5,
+      playerAdvance: wiz.playerAdvance==='manual'?'manual':'auto',
+      awaitNextPlayer: false };
   }
   else if(step===5){
     const m=document.querySelector('input[name="wMode"]:checked');
@@ -3184,7 +3257,11 @@ async function cloudSave(silent){
     activeColumns:T.activeColumns||activeCols, rules:T.rules||null, bid:T.bid||null,
     owners:T.owners||[], pendingOwners:T.pendingOwners||[],
     pendingCoOrganisers:T.pendingCoOrganisers||[], coOrganiserIds:T.coOrganiserIds||[], coOrganiserEmails:T.coOrganiserEmails||[],
-    meetLink:T.meetLink||'', paused:!!T.paused, alertRules:T.alertRules||null, lastResult:T.lastResult||null, lastAlert:T.lastAlert||null, intermissionSec:T.intermissionSec||5, intermissionUntil:T.intermissionUntil||null, updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    meetLink:T.meetLink||'', paused:!!T.paused, alertRules:T.alertRules||null, lastResult:T.lastResult||null, lastAlert:T.lastAlert||null,
+    intermissionSec:T.intermissionSec||5, intermissionUntil:T.intermissionUntil||null,
+    playerAdvance: T.playerAdvance==='manual'?'manual':'auto',
+    awaitNextPlayer: !!T.awaitNextPlayer,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
   };
   // Do not wipe presence from host saves
   if(T.presence) payload.presence=T.presence;
@@ -3720,8 +3797,10 @@ $('tabBtnSquads').onclick=()=>switchTab('squads');
 $('tabBtnTools').onclick=()=>switchTab('tools');
 
 function isMsgPanelOpen(){
+  const o=$('msgOverlay');
+  if(o && !o.classList.contains('hidden')) return true;
   const p=$('msgPanel');
-  return !!(p && !p.classList.contains('hidden'));
+  return !!(p && p.offsetParent !== null && !p.classList.contains('hidden'));
 }
 function isSoldFormOpen(){
   return !!(window._soldFormOpen && $('soldForm') && !$('soldForm').classList.contains('hidden'));
@@ -3792,6 +3871,13 @@ function renderAuction(opts){
 
   // Do not rebuild UI while host is choosing team/price (prevents select closing)
   if(window._soldFormOpen && $('soldForm') && !$('soldForm').classList.contains('hidden')){
+    return;
+  }
+  // Manual: wait for host Next player
+  if(typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()){
+    box.innerHTML = waitingNextPlayerHtml({ recent: recent });
+    const nb=$('btnNextPlayer');
+    if(nb) nb.onclick=function(){ hostAdvanceNextPlayer(); };
     return;
   }
   // Physical — visual gap only while timer is still running
@@ -3885,14 +3971,23 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
 
   const rules=T.rules||{};
   // Host only creates a new lot when the player index advances — never reset mid-lot (Extend)
-  if(user&&T.ownerId===user.uid){
-    if(!T.bid || T.bid.playerIndex!==idx){
+  // Do not overwrite manual await_next wait
+  if(user&&T.ownerId===user.uid && !(typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer())){
+    if(!T.bid || (T.bid.playerIndex!==idx && T.bid.phase!=='await_next' && T.bid.phase!=='intermission')){
       T.bid=makeBidStateForPlayer(idx);
     }
   }
   const b=T.bid;
   if(!b){
     box.innerHTML='<div class="player-stage"><h2 id="pName" tabindex="-1">'+(p.name||'')+'</h2><p>Waiting for auction state…</p></div>';
+    return;
+  }
+
+  // Manual: wait for host Next player
+  if((typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) || b.phase==='await_next'){
+    box.innerHTML = waitingNextPlayerHtml({ recent: recent });
+    const nb=$('btnNextPlayer');
+    if(nb) nb.onclick=function(){ hostAdvanceNextPlayer(); };
     return;
   }
 
@@ -3940,17 +4035,20 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   const sold=pl.filter(x=>x.sold).length, unsold=pl.filter(x=>x.unsold).length;
   const pending=pl.length-sold-unsold;
 
-  // Stats always local in this panel for owners too (host also has aucStats - update both)
-  const statsKey=sold+'|'+unsold+'|'+pending+'|'+pl.length;
-  if(window._statsKey!==statsKey){
-    window._statsKey=statsKey;
-    $('aucStats').innerHTML=
-      '<div class="stats-4">'+
-      '<span class="stat">Sold<br><strong>'+sold+'</strong></span>'+
-      '<span class="stat">Unsold<br><strong>'+unsold+'</strong></span>'+
-      '<span class="stat">Pending<br><strong>'+pending+'</strong></span>'+
-      '<span class="stat">Total<br><strong>'+pl.length+'</strong></span></div>';
-  }
+  // Safe stats update (never crash if element missing)
+  try{
+    const statsKey=sold+'|'+unsold+'|'+pending+'|'+pl.length;
+    if(window._statsKey!==statsKey){
+      window._statsKey=statsKey;
+      const html='<div class="stats-4" aria-hidden="true">'+
+        '<span class="stat">Sold<br><strong>'+sold+'</strong></span>'+
+        '<span class="stat">Unsold<br><strong>'+unsold+'</strong></span>'+
+        '<span class="stat">Pending<br><strong>'+pending+'</strong></span>'+
+        '<span class="stat">Total<br><strong>'+pl.length+'</strong></span></div>';
+      setHtml('aucStats', html);
+      setHtml('moreStats', html);
+    }
+  }catch(e){}
 
   // Bid buttons — up to 4 per row (hidden when squad at maximum)
   let raiseBtns='';
@@ -3982,19 +4080,16 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     else if(myStatusOut(b)) raiseBtns='<p style="grid-column:1/-1" role="status">You cannot bid on this player</p>';
   }
 
-  // Custom/ultimate bid — chat-style: type amount, then Send (focusable when valid)
+  // Custom/ultimate bid — open chat composer (WhatsApp style, hides tab bar)
   let chat='';
   if(ownerMode && rules.ultimateOn && canRaise && b.leaderTeamId){
     const need = (Number(b.price)||0) + 1;
     const stepNeed = Math.ceil(need/5)*5;
     chat=
-      '<div class="chat-bar" style="margin-top:12px" role="group" aria-label="Custom bid, type amount then send">'+
-      '<label for="ultimateBid" class="sr-only">Custom bid amount, multiple of 5, at least '+stepNeed+'</label>'+
-      '<input id="ultimateBid" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" '+
-      'enterkeyhint="send" autocorrect="off" autocapitalize="off" spellcheck="false" '+
-      'placeholder="'+stepNeed+'+ " aria-label="Custom bid amount, multiple of 5, higher than lead '+ (b.price||0) +'" />'+
-      '<button type="button" id="btnUltimateSend" class="btn-ok" disabled aria-disabled="true" aria-label="Send custom bid">Send</button></div>'+
+      '<button type="button" id="btnOpenCustomBid" class="btn-sec btn-block" style="margin-top:12px;grid-column:1/-1" aria-label="Custom bid">Custom bid</button>'+
       '<p id="ultStatus" class="sr-only" role="status" aria-live="polite"></p>';
+    window._ultStepNeed = stepNeed;
+    window._ultLead = b.price||0;
   }
 
   // Host Teams control lives in top bar beside Quick settings
@@ -4261,7 +4356,39 @@ function showHostTimerDecision(hasLeader){
   }
 }
 
-function wireUltimateBid(b, rules){
+function closeChatComposer(){
+  window._chatComposerOpen=false;
+  document.body.classList.remove('chat-open');
+  const c=$('chatComposer');
+  if(c){ c.classList.add('hidden'); c.innerHTML=''; }
+}
+
+function openChatComposer(b, rules){
+  let c=$('chatComposer');
+  if(!c){
+    c=document.createElement('div');
+    c.id='chatComposer';
+    c.className='chat-composer hidden';
+    document.body.appendChild(c);
+  }
+  const need = b && b.leaderTeamId ? (Number(b.price)||0)+1 : (Number(rules.basePrice)||0);
+  const stepNeed = Math.ceil(need/5)*5;
+  c.innerHTML=
+    '<input id="ultimateBid" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" '+
+    'enterkeyhint="send" placeholder="'+stepNeed+'" aria-label="Custom bid amount" />'+
+    '<button type="button" id="btnUltimateSend" class="btn-ok" disabled aria-disabled="true" aria-label="Send">Send</button>';
+  c.classList.remove('hidden');
+  window._chatComposerOpen=true;
+  document.body.classList.add('chat-open');
+  setTimeout(function(){ try{ $('ultimateBid').focus(); }catch(e){} }, 80);
+  wireUltimateBid(b, rules, true);
+}
+
+function wireUltimateBid(b, rules, fromComposer){
+  const openBtn=$('btnOpenCustomBid');
+  if(openBtn && !fromComposer){
+    openBtn.onclick=function(){ openChatComposer(b, rules); };
+  }
   const input=$('ultimateBid');
   const send=$('btnUltimateSend');
   const status=$('ultStatus');
@@ -4286,7 +4413,7 @@ function wireUltimateBid(b, rules){
       else if(!okDigits) status.textContent = 'Numbers only';
       else if(!okStep) status.textContent = 'Amount must be a multiple of 5';
       else if(val < need) status.textContent = 'Must be at least '+need;
-      else status.textContent = 'Ready to send '+val+'. Swipe to Send button.';
+      else status.textContent = 'Ready '+val;
     }
     return ok;
   }
@@ -4302,18 +4429,15 @@ function wireUltimateBid(b, rules){
     if(ev.key==='Enter'){
       ev.preventDefault();
       if(refresh()){ send.click(); }
-      else if(status) announce(status.textContent || 'Enter a valid amount');
     }
+    if(ev.key==='Escape'){ closeChatComposer(); }
   };
-  // After typing a valid amount, move focus to Send (chat-style)
-  input.addEventListener('blur', function(){
-    /* keep user control — do not force focus */
-  });
 
   send.onclick = function(){
     if(!refresh()) return;
     const val = parseInt(String(input.value).replace(/[^0-9]/g, ''), 10);
     if(!val) return;
+    closeChatComposer();
     doRaise(val, 0, true);
   };
 
@@ -4580,21 +4704,79 @@ function isInGapNow(data){
   return false;
 }
 
-/** Start visual-only gap after a lot. Duration = intermissionSec from create. */
+function isManualAdvance(){ return !!(T && T.playerAdvance==='manual'); }
+function isAwaitingNextPlayer(){
+  if(!T) return false;
+  if(T.awaitNextPlayer) return true;
+  if(T.bid && T.bid.phase==='await_next') return true;
+  return false;
+}
+
+/** Start gap after a lot. Automatic = timer; Manual = wait for host Next player. */
 function beginIntermission(){
-  const sec = intermissionSeconds();
-  T.intermissionUntil = Date.now() + sec * 1000;
   window._gapPendingPlayer = true;
   window._sayPlayerKey = '__in_gap__';
   window._bidFocusKey = null;
   window._playerSfxForGap = false;
   window._gapEndedLocal = false;
+  if(isManualAdvance()){
+    T.awaitNextPlayer = true;
+    T.intermissionUntil = null;
+    if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
+    showIntermissionBar(0);
+    return;
+  }
+  T.awaitNextPlayer = false;
+  const sec = intermissionSeconds();
+  T.intermissionUntil = Date.now() + sec * 1000;
   if(T.bid){
     T.bid.phase = 'intermission';
     T.bid.timerEndsAt = null;
   }
   showIntermissionBar(sec);
   ensureIntermissionTicker();
+}
+
+/** Host: open next player (manual mode). Button only works after sold/unsold wait. */
+async function hostAdvanceNextPlayer(){
+  if(!T || !user || T.ownerId !== user.uid) return;
+  if(!isAwaitingNextPlayer()) return;
+  if(T.status==='ended' || T.paused) return;
+  const pl=T.players||[];
+  let idx=(T.meta&&T.meta.currentIndex)||0;
+  while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
+  T.meta=T.meta||{}; T.meta.currentIndex=idx;
+  T.awaitNextPlayer=false; T.intermissionUntil=null;
+  window._gapPendingPlayer=false; window._gapEndedLocal=true;
+  window._sayPlayerKey=null; window._bidFocusKey=null; window._aucSig=null;
+  showIntermissionBar(0);
+  if(idx>=pl.length){
+    T.bid=null;
+    try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
+    sayEvent('All players processed.','host');
+    renderAuction({ force:true });
+    return;
+  }
+  if(isVirtual()) T.bid=makeBidStateForPlayer(idx);
+  else if(T.bid){ T.bid.phase='contest'; T.bid.playerIndex=idx; T.bid.timerEndsAt=null; }
+  try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
+  try{ unlockSfx(); playSfx('player'); }catch(e){}
+  announceNowPlayer(idx, pl[idx].name, pl.length);
+  renderAuction({ focusBid:true, force:true });
+}
+
+function waitingNextPlayerHtml(opts){
+  opts=opts||{};
+  const isHost=!!(user&&T&&T.ownerId===user.uid);
+  let h='<div class="player-stage"><span class="live-pill" aria-hidden="true">Live</span>'+
+    '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
+    '<h2 class="player-name" id="pName" tabindex="-1">Waiting for next player</h2>'+
+    '<p style="color:var(--muted)">'+(isHost?'Press Next player when ready.':'The host will start the next player shortly.')+'</p></div>';
+  if(isHost){
+    h+='<button type="button" id="btnNextPlayer" class="btn-ok btn-block" style="margin-top:12px;min-height:56px;font-size:17px">Next player</button>';
+  }
+  if(typeof recentLineHtml==='function') h+=recentLineHtml(opts.recent);
+  return h;
 }
 
 /**
@@ -4604,6 +4786,11 @@ function beginIntermission(){
 function endIntermissionIfDue(){
   if(!T) return false;
   if(T.paused || T.status==='ended') return false;
+
+  // Manual advance: only host Next player opens the lot
+  if((typeof isManualAdvance==='function' && isManualAdvance()) || (typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) || (T.bid && T.bid.phase==='await_next')){
+    return false;
+  }
 
   // Never interfere with host decision / locked lot
   if(T.bid && T.bid.phase==='await_host') return false;
@@ -5366,45 +5553,63 @@ function showMsgFab(){
   if(!fab) return;
   const show=canUseRoomMessage() && T && T.status==='live';
   fab.classList.toggle('hidden', !show);
+  fab.style.pointerEvents = show ? 'auto' : '';
+  fab.style.zIndex = show ? '60' : '';
+}
+
+function openMsgDialog(){
+  if($('aucQuickSetPanel')) $('aucQuickSetPanel').classList.add('hidden');
+  const overlay=$('msgOverlay');
+  const panel=$('msgPanel');
+  if(overlay) overlay.classList.remove('hidden');
+  if(panel){
+    panel.classList.remove('hidden');
+    panel.setAttribute('aria-hidden','false');
+  }
+  window._modalOpen=true;
+  document.body.classList.add('msg-open');
+  setTimeout(function(){
+    const ta=$('msgText');
+    if(ta){ try{ ta.focus(); }catch(e){} }
+  }, 100);
+}
+
+function closeMsgDialog(){
+  const overlay=$('msgOverlay');
+  const panel=$('msgPanel');
+  if(overlay) overlay.classList.add('hidden');
+  if(panel){
+    panel.setAttribute('aria-hidden','true');
+  }
+  window._modalOpen=false;
+  document.body.classList.remove('msg-open');
+  try{ focusEl($('btnMsgFab')); }catch(e){}
 }
 
 function wireRoomMessage(){
-  const fab=$('btnMsgFab'), panel=$('msgPanel');
-  if(!fab||!panel) return;
-  fab.onclick=()=>{
-    if($('aucQuickSetPanel')) $('aucQuickSetPanel').classList.add('hidden');
-    const opening = panel.classList.contains('hidden');
-    panel.classList.toggle('hidden');
-    if(opening){
-      panel.setAttribute('aria-hidden','false');
-      window._modalOpen=true;
-      setTimeout(function(){
-        focusEl($('msgText')||$('msgPanelTitle'));
-      }, 80);
-    } else {
-      panel.setAttribute('aria-hidden','true');
-      window._modalOpen=false;
-      focusEl(fab);
-    }
+  const fab=$('btnMsgFab');
+  if(!fab) return;
+  fab.onclick=function(ev){
+    try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
+    if(isMsgPanelOpen()) closeMsgDialog();
+    else openMsgDialog();
   };
-  $('btnMsgClose').onclick=()=>{
-    panel.classList.add('hidden');
-    panel.setAttribute('aria-hidden','true');
-    window._modalOpen=false;
-    focusEl(fab);
+  if($('btnMsgClose')) $('btnMsgClose').onclick=function(){ closeMsgDialog(); };
+  if($('btnMsgCloseTop')) $('btnMsgCloseTop').onclick=function(){ closeMsgDialog(); };
+  if($('msgOverlay')) $('msgOverlay').onclick=function(ev){
+    if(ev.target === $('msgOverlay')) closeMsgDialog();
   };
-  $('btnMsgHost').onclick=()=>sendRoomMessage('host');
-  $('btnMsgAll').onclick=()=>sendRoomMessage('all');
+  if($('btnMsgHost')) $('btnMsgHost').onclick=function(){ sendRoomMessage('host'); };
+  if($('btnMsgAll')) $('btnMsgAll').onclick=function(){ sendRoomMessage('all'); };
   const ta=$('msgText');
   if(ta){
     ta.onkeydown=function(ev){
-      if(ev.key==='Enter' && !ev.shiftKey){
-        // Prefer host path as default on Enter — user can still pick All
-        ev.preventDefault();
-        focusEl($('btnMsgHost'));
-      }
+      if(ev.key==='Escape'){ ev.preventDefault(); closeMsgDialog(); }
     };
   }
+  document.addEventListener('keydown', function(ev){
+    if(ev.key==='Escape' && isMsgPanelOpen()) closeMsgDialog();
+  });
 }
 
 async function sendRoomMessage(audience){

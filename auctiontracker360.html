@@ -635,7 +635,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.4.00</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.5.00</p>
   </div>
 </section>
 
@@ -822,9 +822,12 @@ function queueClearSpeech(){
 /** Announce current player at most once per index+name; never while paused or in gap */
 function announceNowPlayer(idx, name, total){
   if(!T || T.paused) return;
+  // Manual Next player: no speech/SFX until host presses Next
+  if(T.awaitNextPlayer) return;
+  if(T.bid && (T.bid.phase==='await_next' || T.bid.phase==='intermission')) return;
   if(T.intermissionUntil && T.intermissionUntil > Date.now()) return;
-  if(T.bid && T.bid.phase==='intermission') return;
   if(window._sayPlayerKey === '__in_gap__' || window._gapPendingPlayer) return;
+  if(typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
   const pkey = 'pl|'+idx+'|'+(name||'');
   if(window._sayPlayerKey === pkey) return;
   window._sayPlayerKey = pkey;
@@ -1426,10 +1429,12 @@ function isUiLocked(){
   if(typeof isMsgPanelOpen==='function' && isMsgPanelOpen()) return true;
   if(typeof isSoldFormOpen==='function' && isSoldFormOpen()) return true;
   if(window._chatComposerOpen) return true;
-  const ae=document.activeElement;
-  if(ae && (ae.id==='msgText'||ae.id==='sTeam'||ae.id==='sPrice'||ae.id==='ultimateBid'||ae.id==='addQ'||ae.id==='addPrice'||ae.id==='addSel')) return true;
-  if(ae && (ae.tagName==='SELECT'||ae.tagName==='TEXTAREA'||ae.tagName==='INPUT')) return true;
   if(window._squadBusy) return true;
+  if(window._priceEditOpen) return true;
+  const ae=document.activeElement;
+  // Only lock rebuild for known auction/squad form fields (not every input on the page)
+  if(ae && (ae.id==='msgText'||ae.id==='sTeam'||ae.id==='sPrice'||ae.id==='ultimateBid'||ae.id==='addQ'||ae.id==='addPrice'||ae.id==='addSel'||ae.id==='newPrice')) return true;
+  if(ae && ae.closest && ae.closest('#soldForm, #msgPanel, #msgOverlay, #chatComposer, #squadAddOverlay, #priceEditOverlay, #confirmModal')) return true;
   return false;
 }
 /** Run async work with user-visible error handling */
@@ -1583,6 +1588,7 @@ function ask(title,msg,onYes,opts){
   $('cTitle').textContent=title;
   $('cText').textContent=msg;
   pendingFn=onYes;
+  window._pendingNoFn = typeof opts.onNo==='function' ? opts.onNo : null;
   const yesBtn=$('cYes'); const noBtn=$('cNo');
   if(yesBtn){
     yesBtn.textContent = opts.yesLabel || 'Yes';
@@ -1605,26 +1611,31 @@ function ask(title,msg,onYes,opts){
   setTimeout(focusYes, 200);
   setTimeout(focusYes, 500);
 }
-function closeConfirm(){
+function closeConfirm(fromNo){
   const modal=$('confirmModal');
   if(modal){
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden','true');
   }
   window._modalOpen=false;
+  const noFn=window._pendingNoFn;
+  window._pendingNoFn=null;
   pendingFn=null;
   // Restore default button labels
   try{
     if($('cYes')){ $('cYes').textContent='Yes'; $('cYes').setAttribute('aria-label','Yes'); }
     if($('cNo')){ $('cNo').textContent='No'; $('cNo').setAttribute('aria-label','No'); }
   }catch(e){}
+  if(fromNo && typeof noFn==='function'){
+    try{ noFn(); }catch(e){}
+  }
 }
 $('cYes').onclick=()=>{
   const f=pendingFn;
-  closeConfirm();
+  closeConfirm(false);
   if(f) f();
 };
-$('cNo').onclick=()=>{ closeConfirm(); };
+$('cNo').onclick=()=>{ closeConfirm(true); };
 
 /** TalkBack: announce checkbox state after toggle (native often silent on dynamic UI) */
 function checkboxLabelText(cb){
@@ -2172,11 +2183,12 @@ function applyAuctionData(data){
     const onWait=$('screenWait') && !$('screenWait').classList.contains('hidden');
     const onLiveScreen=onAuction||onWatch||onWait;
 
-    // Player change — once per player; skip pause / intermission
+    // Player change — once per player; skip pause / intermission / manual wait
     if(onLiveScreen && data.players && !data.paused){
       const inGap = (data.intermissionUntil && data.intermissionUntil > Date.now()) || window._gapPendingPlayer;
       const bidPhase = data.bid && data.bid.phase;
-      if(!inGap && bidPhase!=='intermission'){
+      const waitingManual = !!(data.awaitNextPlayer || bidPhase==='await_next' || T.awaitNextPlayer);
+      if(!inGap && !waitingManual && bidPhase!=='intermission' && bidPhase!=='await_next'){
         let idx=(data.meta&&data.meta.currentIndex)||0;
         const pl=data.players||[];
         while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
@@ -2741,10 +2753,11 @@ function processLiveSpeech(data, opts){
       }
     }
   }
-  // New player after gap (treat expired until as gap over even if phase still says intermission)
+  // New player after gap — never during manual await_next
   const inGap = data.intermissionUntil && data.intermissionUntil > Date.now();
   const bidPhase = data.bid && data.bid.phase;
-  const gapOver = !inGap && (bidPhase!=='intermission' || !data.intermissionUntil || data.intermissionUntil<=Date.now());
+  const waitingManual = !!(data.awaitNextPlayer || bidPhase==='await_next');
+  const gapOver = !inGap && !waitingManual && (bidPhase!=='intermission' || !data.intermissionUntil || data.intermissionUntil<=Date.now());
   if(gapOver && data.players && !data.paused){
     let idx=(data.meta&&data.meta.currentIndex)||0;
     const pl=data.players||[];
@@ -2807,7 +2820,18 @@ function renderWatch(data){
   // Keep a local copy of until so the ticker can end the gap without a new snapshot
   if(data.intermissionUntil) window._lastWatchData = data;
   const inGap = data.intermissionUntil && data.intermissionUntil > Date.now();
-  if(inGap){
+  const waitingManual = !!(data.awaitNextPlayer || (data.bid && data.bid.phase==='await_next'));
+  if(waitingManual){
+    const gk='await|'+(data.lastResult&&data.lastResult.at||'')+'|'+(data.meta&&data.meta.currentIndex);
+    if(window._watchUIKey!==gk){
+      window._watchUIKey=gk;
+      if(box) box.innerHTML='<div class="player-stage">'+
+        '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
+        '<h2 class="player-name" id="wPN">Waiting for next player</h2>'+
+        '<p style="color:var(--muted)">The host will start the next player shortly.</p></div>'+
+        recentLineHtml(recent);
+    }
+  } else if(inGap){
     try{
       if(T) T.intermissionUntil = data.intermissionUntil;
       tickIntermission();
@@ -4719,6 +4743,8 @@ function beginIntermission(){
   window._bidFocusKey = null;
   window._playerSfxForGap = false;
   window._gapEndedLocal = false;
+  // Drop any queued "now auctioning" lines from the previous advance
+  try{ _speechQueue = (_speechQueue||[]).filter(function(x){ return x.category !== 'player'; }); }catch(e){}
   if(isManualAdvance()){
     T.awaitNextPlayer = true;
     T.intermissionUntil = null;
@@ -4742,27 +4768,39 @@ async function hostAdvanceNextPlayer(){
   if(!T || !user || T.ownerId !== user.uid) return;
   if(!isAwaitingNextPlayer()) return;
   if(T.status==='ended' || T.paused) return;
-  const pl=T.players||[];
-  let idx=(T.meta&&T.meta.currentIndex)||0;
-  while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
-  T.meta=T.meta||{}; T.meta.currentIndex=idx;
-  T.awaitNextPlayer=false; T.intermissionUntil=null;
-  window._gapPendingPlayer=false; window._gapEndedLocal=true;
-  window._sayPlayerKey=null; window._bidFocusKey=null; window._aucSig=null;
-  showIntermissionBar(0);
-  if(idx>=pl.length){
-    T.bid=null;
+  if(window._advancingNext) return;
+  window._advancingNext=true;
+  try{
+    const pl=T.players||[];
+    let idx=(T.meta&&T.meta.currentIndex)||0;
+    while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
+    T.meta=T.meta||{}; T.meta.currentIndex=idx;
+    T.awaitNextPlayer=false; T.intermissionUntil=null;
+    window._gapPendingPlayer=false; window._gapEndedLocal=true;
+    window._playerSfxForGap=false;
+    window._sayPlayerKey=null; window._bidFocusKey=null; window._aucSig=null;
+    showIntermissionBar(0);
+    if(idx>=pl.length){
+      T.bid=null;
+      try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
+      sayEvent('All players processed.','host');
+      renderAuction({ force:true });
+      return;
+    }
+    if(isVirtual()) T.bid=makeBidStateForPlayer(idx);
+    else {
+      T.bid=T.bid||{};
+      T.bid.phase='contest';
+      T.bid.playerIndex=idx;
+      T.bid.timerEndsAt=null;
+    }
     try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
-    sayEvent('All players processed.','host');
-    renderAuction({ force:true });
-    return;
+    // Single announce + sound only when host opens next player
+    announceNowPlayer(idx, pl[idx].name, pl.length);
+    renderAuction({ focusBid:true, force:true });
+  }finally{
+    window._advancingNext=false;
   }
-  if(isVirtual()) T.bid=makeBidStateForPlayer(idx);
-  else if(T.bid){ T.bid.phase='contest'; T.bid.playerIndex=idx; T.bid.timerEndsAt=null; }
-  try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
-  try{ unlockSfx(); playSfx('player'); }catch(e){}
-  announceNowPlayer(idx, pl[idx].name, pl.length);
-  renderAuction({ focusBid:true, force:true });
 }
 
 function waitingNextPlayerHtml(opts){
@@ -5123,10 +5161,74 @@ async function saveSquadEdits(){
   }
 }
 
+function openChangePriceDialog(t, pl, pi, pname, pprice){
+  if(!t||!pl) return;
+  window._squadBusy=true;
+  window._priceEditOpen=true;
+  window._modalOpen=true;
+  let overlay=$('priceEditOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='priceEditOverlay';
+    overlay.className='modal';
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    overlay.setAttribute('aria-labelledby','priceEditTitle');
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove('hidden');
+  overlay.innerHTML=
+    '<div class="modal-box">'+
+    '<h2 id="priceEditTitle" tabindex="-1">Change price</h2>'+
+    '<p style="color:var(--muted);margin:0 0 8px">'+(pname||'Player')+' · current '+pprice+'</p>'+
+    '<label for="newPrice">New price</label>'+
+    '<input id="newPrice" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="'+String(pprice||'')+'" aria-label="New price" />'+
+    '<div class="btn-stack" style="margin-top:12px">'+
+    '<button type="button" id="btnPriceSave" class="btn-ok btn-block">Save price</button>'+
+    '<button type="button" id="btnPriceCancel" class="btn-sec btn-block">Cancel</button>'+
+    '</div></div>';
+  function closePrice(){
+    overlay.classList.add('hidden');
+    overlay.innerHTML='';
+    window._priceEditOpen=false;
+    window._squadBusy=false;
+    window._modalOpen=false;
+  }
+  $('btnPriceCancel').onclick=function(){ closePrice(); renderSquads(); };
+  $('btnPriceSave').onclick=function(){
+    const np=parseInt(String(($('newPrice')&&$('newPrice').value)||'').replace(/\D/g,''),10);
+    if(!np||np<0){ alert('Enter a valid price'); focusEl($('newPrice')); return; }
+    const old=Number(pl.price!=null?pl.price:pprice)||0;
+    const d=np-old;
+    if(d>Number(t.remaining||0)){ alert('Not enough purse. Remaining: '+t.remaining); return; }
+    t.remaining=Number(t.remaining||0)-d;
+    pl.price=np;
+    const mp=(T.players||[]).find(function(x){
+      return (pl.serial && x.serial===pl.serial) || x.name===pl.name;
+    });
+    if(mp) mp.price=np;
+    saveSquadEdits().then(function(){
+      closePrice();
+      renderSquads();
+      announce((pname||'Player')+' price updated to '+np);
+    }).catch(function(e){
+      t.remaining=Number(t.remaining||0)+d;
+      pl.price=old;
+      if(mp) mp.price=old;
+      closePrice();
+      safeAlert(e);
+      renderSquads();
+    });
+  };
+  focusEl($('priceEditTitle'));
+  setTimeout(function(){ focusEl($('newPrice')); }, 80);
+}
+
 function openAddPlayerDialog(teamIndex){
   const t=T && T.teams && T.teams[teamIndex];
   if(!t) return;
   window._squadBusy=true;
+  window._modalOpen=true;
   // Modal panel inside confirm-style overlay
   let overlay=$('squadAddOverlay');
   if(!overlay){
@@ -5193,6 +5295,7 @@ function openAddPlayerDialog(teamIndex){
     overlay.classList.add('hidden');
     overlay.innerHTML='';
     window._squadBusy=false;
+    window._modalOpen=false;
     focusEl($('btnOpenAddPlayer')||$('sqDet'));
   };
   $('btnAddPlayerSave').onclick=async function(){
@@ -5225,10 +5328,12 @@ function openAddPlayerDialog(teamIndex){
       overlay.classList.add('hidden');
       overlay.innerHTML='';
       window._squadBusy=false;
+      window._modalOpen=false;
       renderSquads();
       announce(mp.name+' added to '+t.name+' for '+price);
     }catch(e){
       window._squadBusy=false;
+      window._modalOpen=false;
       safeAlert(e);
     }
   };
@@ -5302,37 +5407,18 @@ function renderSquads(){
       ed.type='button'; ed.className='btn-sec';
       ed.textContent='Change price';
       ed.setAttribute('aria-label','Change price for '+pname+', currently '+pprice);
-      ed.onclick=function(){
-        const raw=prompt('New price for '+pname, String(pprice));
-        if(raw===null) return;
-        const np=parseInt(String(raw).replace(/\D/g,''),10);
-        if(!np||np<0){ alert('Enter a valid price'); return; }
-        const old=Number(pprice)||0;
-        const d=np-old;
-        if(d>Number(t.remaining||0)){ alert('Not enough purse. Remaining: '+t.remaining); return; }
-        t.remaining=Number(t.remaining||0)-d;
-        pl.price=np;
-        // Keep master list price in sync if present
-        const mp=(T.players||[]).find(function(x){
-          return (pl.serial && x.serial===pl.serial) || x.name===pl.name;
-        });
-        saveSquadEdits().then(function(){
-          renderSquads();
-          announce(pname+' price updated to '+np);
-        }).catch(function(e){
-          // rollback local
-          t.remaining=Number(t.remaining||0)+d;
-          pl.price=old;
-          safeAlert(e);
-          renderSquads();
-        });
+      ed.onclick=function(ev){
+        try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
+        openChangePriceDialog(t, pl, pi, pname, pprice);
       };
 
       const rm=document.createElement('button');
       rm.type='button'; rm.className='btn-danger';
       rm.textContent='Remove';
       rm.setAttribute('aria-label','Remove '+pname+' from squad');
-      rm.onclick=function(){
+      rm.onclick=function(ev){
+        try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
+        window._squadBusy=true;
         ask('Remove player?','Remove '+pname+' from '+t.name+' and return '+pprice+' to purse?', function(){
           const priceBack=Number(pl.price)||0;
           t.remaining=Number(t.remaining||0)+priceBack;
@@ -5345,13 +5431,16 @@ function renderSquads(){
           });
           if(mp){ mp.sold=false; mp.unsold=true; }
           saveSquadEdits().then(function(){
+            window._squadBusy=false;
             renderSquads();
             announce(pname+' removed');
           }).catch(function(e){
+            window._squadBusy=false;
             safeAlert(e);
-            // reload from last good state via live listener — force refresh
             renderSquads();
           });
+        }, {
+          onNo: function(){ window._squadBusy=false; }
         });
       };
 

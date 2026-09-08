@@ -1210,6 +1210,7 @@ button:active{transform:scale(.98)}
     <button type="button" id="btnRunNewMatch" class="btn-ok btn-block" aria-label="Run new match, open setup wizard">Run new match</button>
     <button type="button" id="btnRerunOldMatch" class="btn-sec btn-block" style="margin-top:10px" aria-label="Rerun old match, import saved JSON file">Rerun old match</button>
     <button type="button" id="btnCreateFromRoanuz" class="btn-sec btn-block" style="margin-top:10px;border-color:#38bdf8;color:#7dd3fc" aria-label="Create from Roanuz API match list">Create from Roanuz</button>
+    <button type="button" id="btnCreateFromCd" class="btn-sec btn-block" style="margin-top:10px;border-color:#a78bfa;color:#c4b5fd" aria-label="Create from CricketData.org match list">Create from CricketData</button>
     <button type="button" id="btnCreateChoiceCancel" class="btn-sec btn-block" style="margin-top:14px" aria-label="Cancel">Cancel</button>
   </div>
 </div>
@@ -1221,6 +1222,16 @@ button:active{transform:scale(.98)}
     <div id="roanuzPickList" style="max-height:55vh;overflow:auto"></div>
     <button type="button" id="btnRoanuzPickRefresh" class="btn-sec btn-block" style="margin-top:10px">Refresh list</button>
     <button type="button" id="btnRoanuzPickCancel" class="btn-sec btn-block" style="margin-top:8px">Cancel</button>
+  </div>
+</div>
+
+<div id="dlgCdPick" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cdPickTitle">
+  <div class="modal-box wide">
+    <h2 id="cdPickTitle" tabindex="-1">CricketData matches</h2>
+    <p id="cdPickStatus" style="color:var(--muted);font-size:13px;margin:0 0 10px">Loading…</p>
+    <div id="cdPickList" style="max-height:55vh;overflow:auto"></div>
+    <button type="button" id="btnCdPickRefresh" class="btn-sec btn-block" style="margin-top:10px">Refresh list</button>
+    <button type="button" id="btnCdPickCancel" class="btn-sec btn-block" style="margin-top:8px">Cancel</button>
   </div>
 </div>
 
@@ -1772,7 +1783,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.07.1.47";
+const APP_VERSION = "2026.09.08.1.50";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -4653,6 +4664,7 @@ $('btnStart2nd').onclick=()=>resumeSecondInnings();
 if($('btnDownloadMatch'))$('btnDownloadMatch').onclick=()=>downloadFullMatchFile();
 if($('btnShareMatchAdmin')) $('btnShareMatchAdmin').onclick=function(){ shareMatchLink(); };
 try{ wireRoanuzUi(); }catch(e){ console.warn('wireRoanuzUi', e); }
+try{ wireCdUi(); }catch(e){ console.warn('wireCdUi', e); }
 if($('btnShareMatchUser')) $('btnShareMatchUser').onclick=function(){ shareMatchLink(); };
 $('btnEndMatch').onclick=()=>{if(!confirm('End the entire match?'))return;const m=M();const batTeam=m.battingTeam==='teamA'?m.teamA:m.teamB;const bowlTeam=m.battingTeam==='teamA'?m.teamB:m.teamA;let msg='Match ended';if(m.currentInnings===2&&m.target){if(m.totalScore>=m.target){const w=10-m.wickets;msg=batTeam.name+' won by '+w+' wicket'+(w!==1?'s':'');}else{const margin=m.target-1-m.totalScore;msg=bowlTeam.name+' won by '+margin+' run'+(margin!==1?'s':'');}}finishMatch(msg);};
 
@@ -8172,10 +8184,14 @@ async function confirmAndCreateRoanuz(matchKey, listStatus, btnEl){
 
     var meta = data._meta || {};
     var diag = '';
+    if(meta.matchMessage) diag += '\nRoanuz error: ' + meta.matchMessage;
     if(meta.matchStatus) diag += '\nMatch API HTTP: ' + meta.matchStatus;
-    if(meta.matchMessage) diag += '\nMatch API msg: ' + meta.matchMessage;
+    if(meta.matchInnerHttp) diag += '\nInner status: ' + meta.matchInnerHttp;
     if(meta.matchTopKeys && meta.matchTopKeys.length) diag += '\nMatch keys: ' + meta.matchTopKeys.join(', ');
-    if(meta.usedFeaturedFallback) diag += '\nUsed featured-list summary (Match detail empty).';
+    if(meta.usedFeaturedFallback || (data.match && data.match._source === 'featured-summary-fallback'))
+      diag += '\nUsed featured-list only (no full scorecard from Match API).';
+    if(data.balls && data.balls.error) diag += '\nBalls: ' + String(data.balls.error).slice(0,120);
+    if(data.oversSummary && data.oversSummary.error) diag += '\nOvers: ' + String(data.oversSummary.error).slice(0,120);
 
     if(phase === 'live'){
       var go = confirm('Match is LIVE on Roanuz.\n\nStart auto-sync every 12 seconds so score, balls, striker and scorecard update while you voiceover?\n\nYes = sync ON\nNo = import only (manual controls)');
@@ -8209,7 +8225,10 @@ function wireRoanuzUi(){
   if($('btnCreateFromRoanuz')) $('btnCreateFromRoanuz').onclick = function(){ openRoanuzPicker(); };
   if($('btnRoanuzPickRefresh')) $('btnRoanuzPickRefresh').onclick = function(){ refreshRoanuzPickerList(); };
   if($('btnRoanuzPickCancel')) $('btnRoanuzPickCancel').onclick = function(){ closeDlg('dlgRoanuzPick'); };
-  if($('btnRoanuzStop')) $('btnRoanuzStop').onclick = function(){ stopRoanuzSync(); };
+  if($('btnRoanuzStop')) $('btnRoanuzStop').onclick = function(){
+    stopRoanuzSync();
+    try{ stopCdSync(); }catch(e){}
+  };
   // resume sync if match already syncing
   try{
     var m = M();
@@ -8219,6 +8238,342 @@ function wireRoanuzUi(){
     } else if(m && m.roanuzMatchKey){
       setRoanuzStatus('Linked to Roanuz · sync OFF');
       if($('btnRoanuzStop')) $('btnRoanuzStop').classList.add('hidden');
+    }
+  }catch(e){}
+}
+
+
+/* ===== CricketData.org API — create + hydrate + sync (v1.50) ===== */
+let _cdTimer = null;
+let _cdBusy = false;
+
+function setCdStatus(msg){
+  var el = $('roanuzStatus');
+  if(el) el.textContent = msg || '';
+}
+
+function stopCdSync(){
+  if(_cdTimer){ clearInterval(_cdTimer); _cdTimer = null; }
+  var m = M();
+  if(m){
+    m.scoringMode = m.scoringMode === 'api' ? 'manual' : (m.scoringMode || 'manual');
+    m.cdSyncing = false;
+  }
+  if($('btnRoanuzStop')) $('btnRoanuzStop').classList.add('hidden');
+  setCdStatus('CricketData auto-sync stopped. Manual controls on.');
+}
+
+function cdPlayerName(p){
+  if(!p) return '';
+  if(typeof p === 'string') return p;
+  return p.name || p.player || p.fullname || p.fullnamename || p.fullnameName || '';
+}
+
+function hydrateMatchFromCd(m, data, phase){
+  if(!m || !data) return;
+  m.apiSource = 'cricketdata';
+  m.cdMatchId = data.matchId || m.cdMatchId;
+  var info = data.info || {};
+  var card = data.scorecard || {};
+  var squad = data.squad || {};
+
+  // Teams from info
+  var teams = Array.isArray(info.teams) ? info.teams : (Array.isArray(card.teams) ? card.teams : []);
+  if(teams.length >= 1 && teams[0]) m.teamA = String(teams[0]);
+  if(teams.length >= 2 && teams[1]) m.teamB = String(teams[1]);
+  if(info.name) m.series = String(info.name).split(',')[0].trim() || m.series;
+  if(info.matchType) m.format = String(info.matchType).toUpperCase();
+  if(info.status) m.resultText = String(info.status);
+  if(info.tossWinner){
+    m.tossWinner = String(info.tossWinner);
+    m.tossDecision = String(info.tossChoice || info.tossDecision || '');
+  }
+  if(phase === 'completed' || info.matchEnded){
+    m.status = 'completed';
+    m.live = false;
+  } else if(phase === 'live' || info.matchStarted){
+    m.status = 'live';
+    m.live = true;
+  }
+
+  // Score from info.score array
+  var scores = Array.isArray(info.score) ? info.score : (Array.isArray(card.score) ? card.score : []);
+  if(scores.length){
+    var last = scores[scores.length - 1];
+    if(last){
+      m.runs = Number(last.r) || 0;
+      m.wkts = Number(last.w) || 0;
+      m.overs = Number(last.o) || 0;
+      m.inningsLabel = String(last.inning || '');
+    }
+  }
+
+  // Squad / Playing XI
+  function buildSide(teamName, playersArr){
+    var list = [];
+    if(!Array.isArray(playersArr)) return list;
+    playersArr.forEach(function(p, i){
+      var nm = cdPlayerName(p);
+      if(!nm) nm = teamName + ' Player ' + (i + 1);
+      list.push({
+        id: 'cd_' + String(nm).replace(/\s+/g,'_') + '_' + i,
+        name: nm,
+        role: p.role || p.playingRole || 'Batter',
+        batting: {runs:0,balls:0,fours:0,sixes:0,sr:0,out:false},
+        bowling: {overs:0,maidens:0,runs:0,wickets:0,econ:0}
+      });
+    });
+    return list;
+  }
+
+  var squadList = Array.isArray(squad) ? squad : (squad.team || squad.teams || squad.data || null);
+  if(Array.isArray(squadList)){
+    // [{teamName, players:[]}, ...]
+    squadList.forEach(function(side){
+      var tname = side.teamName || side.name || side.team || '';
+      var players = side.players || side.squad || side.player || [];
+      if(String(tname).toLowerCase() === String(m.teamA).toLowerCase() || (!m.squadA || !m.squadA.length)){
+        if(players.length){ m.squadA = buildSide(m.teamA, players); m.xiA = m.squadA.slice(0, 11); }
+      }
+      if(String(tname).toLowerCase() === String(m.teamB).toLowerCase()){
+        if(players.length){ m.squadB = buildSide(m.teamB, players); m.xiB = m.squadB.slice(0, 11); }
+      }
+    });
+  }
+
+  // Scorecard batting/bowling if present
+  try{
+    var sc = card.scorecard || card;
+    var batting = sc.batting || sc.batsmen || [];
+    if(Array.isArray(batting) && batting.length && m.xiA && m.xiA.length){
+      batting.forEach(function(row){
+        var nm = cdPlayerName(row.batsman || row.batter || row);
+        if(!nm) return;
+        var all = (m.xiA || []).concat(m.xiB || []).concat(m.squadA || []).concat(m.squadB || []);
+        var pl = all.find(function(p){ return p && p.name && p.name.toLowerCase() === nm.toLowerCase(); });
+        if(pl && pl.batting){
+          pl.batting.runs = Number(row.r || row.runs || 0);
+          pl.batting.balls = Number(row.b || row.balls || 0);
+          pl.batting.fours = Number(row['4s'] || row.fours || 0);
+          pl.batting.sixes = Number(row['6s'] || row.sixes || 0);
+          if(pl.batting.balls) pl.batting.sr = Math.round((pl.batting.runs / pl.batting.balls) * 1000) / 10;
+          if(row.dismissal || row.out) pl.batting.out = true;
+        }
+      });
+    }
+  }catch(e){}
+
+  // Ensure at least placeholder XI so Live tab is not empty
+  if(!m.xiA || !m.xiA.length){
+    m.xiA = [];
+    for(var i=0;i<11;i++) m.xiA.push({id:'cd_a_'+i, name: m.teamA + ' Player ' + (i+1), role:'Batter', batting:{runs:0,balls:0,fours:0,sixes:0,sr:0,out:false}, bowling:{overs:0,maidens:0,runs:0,wickets:0,econ:0}});
+    m.squadA = m.xiA.slice();
+  }
+  if(!m.xiB || !m.xiB.length){
+    m.xiB = [];
+    for(var j=0;j<11;j++) m.xiB.push({id:'cd_b_'+j, name: m.teamB + ' Player ' + (j+1), role:'Batter', batting:{runs:0,balls:0,fours:0,sixes:0,sr:0,out:false}, bowling:{overs:0,maidens:0,runs:0,wickets:0,econ:0}});
+    m.squadB = m.xiB.slice();
+  }
+
+  if(!m.striker && m.xiA[0]) m.striker = m.xiA[0].id;
+  if(!m.nonStriker && m.xiA[1]) m.nonStriker = m.xiA[1].id;
+  if(!m.bowler && m.xiB[0]) m.bowler = m.xiB[0].id;
+
+  m._cdMeta = data._meta || null;
+  m._cdPlaceholderSquad = !(data._meta && data._meta.squadOk);
+}
+
+async function cdSyncOnce(){
+  if(_cdBusy) return;
+  var m = M();
+  if(!m || !m.cdMatchId || !m.cdSyncing) return;
+  _cdBusy = true;
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('fetchCricketDataMatch');
+    var res = await fn({ matchId: m.cdMatchId });
+    var data = res && res.data ? res.data : {};
+    hydrateMatchFromCd(m, data, data.phase || 'live');
+    window._adminLocalWriteAt = Date.now();
+    window._adminWritePending = true;
+    try{ if(typeof save==='function') save(); }catch(e){}
+    try{ if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m); }catch(e){}
+    setTimeout(function(){ window._adminWritePending = false; }, 2000);
+    setCdStatus('CricketData sync ON · ' + m.cdMatchId + ' · ' + (m.runs||0) + '/' + (m.wkts||0) + ' · ' + new Date().toLocaleTimeString());
+    try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
+    try{ if(typeof renderScorecard==='function') renderScorecard(); }catch(e){}
+  }catch(e){
+    console.warn('[CD sync]', e);
+    setCdStatus('CricketData sync error: ' + (e.message||e));
+  }finally{
+    _cdBusy = false;
+  }
+}
+
+function startCdSync(matchId){
+  var m = M();
+  if(m){
+    m.cdMatchId = matchId || m.cdMatchId;
+    m.cdSyncing = true;
+    m.scoringMode = 'api';
+  }
+  if($('btnRoanuzStop')){
+    $('btnRoanuzStop').classList.remove('hidden');
+    $('btnRoanuzStop').textContent = 'Stop auto-sync';
+  }
+  setCdStatus('CricketData sync ON · ' + (matchId||'') + ' · polling ~30s');
+  if(_cdTimer) clearInterval(_cdTimer);
+  if(_roanuzTimer){ clearInterval(_roanuzTimer); _roanuzTimer = null; }
+  cdSyncOnce();
+  _cdTimer = setInterval(cdSyncOnce, 30000);
+}
+
+async function openCdPicker(){
+  closeDlg('dlgCreateChoice');
+  openDlg('dlgCdPick');
+  if($('cdPickStatus')) $('cdPickStatus').textContent = 'Loading CricketData matches…';
+  if($('cdPickList')) $('cdPickList').innerHTML = '';
+  await refreshCdPickerList();
+}
+
+function renderCdSection(title, items, color){
+  if(!items || !items.length) return '';
+  var html = '<h3 style="margin:14px 0 8px;font-size:13px;color:'+color+';text-transform:uppercase;letter-spacing:.04em">'+title+' ('+items.length+')</h3>';
+  html += items.map(function(item){
+    var id = String(item.id||'').replace(/"/g,'&quot;');
+    var label = item.name || id;
+    var status = item.status || item.phase || '';
+    var hint = item.scoreHint ? (' · ' + item.scoreHint) : '';
+    return '<button type="button" class="list-btn cd-pick-item" data-id="'+id+'" data-phase="'+String(item.phase||'').replace(/"/g,'&quot;')+'" style="margin-bottom:8px;text-align:left">'
+      +'<span style="font-weight:800">'+String(label).replace(/</g,'&lt;')+'</span>'
+      +(status?('<br><span style="font-size:12px;color:var(--ok-bright)">'+String(status).replace(/</g,'&lt;')+hint.replace(/</g,'&lt;')+'</span>'):'')
+      +'<br><span style="font-size:11px;opacity:.65">'+id+'</span></button>';
+  }).join('');
+  return html;
+}
+
+async function refreshCdPickerList(){
+  if(!firebase || !firebase.functions){
+    if($('cdPickStatus')) $('cdPickStatus').textContent = 'Firebase Functions not loaded';
+    return;
+  }
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('listCricketDataMatches');
+    var res = await fn({});
+    var data = res && res.data ? res.data : {};
+    window._cdListCache = data;
+    var box = $('cdPickList');
+    if(!box) return;
+    var total = (data.count || 0);
+    if(!total){
+      box.innerHTML = '<p style="color:var(--muted)">No matches returned. Check API key / hits limit.</p>';
+      if($('cdPickStatus')) $('cdPickStatus').textContent = 'Empty list';
+      return;
+    }
+    if($('cdPickStatus')) $('cdPickStatus').textContent = 'Found ' + total + ' · Select a match';
+    box.innerHTML =
+      renderCdSection('Ongoing', data.ongoing, '#4ade80') +
+      renderCdSection('Yet to start', data.upcoming, '#38bdf8') +
+      renderCdSection('Completed', data.completed, '#94a3b8');
+    box.querySelectorAll('.cd-pick-item').forEach(function(btn){
+      btn.onclick = function(){
+        confirmAndCreateCd(btn.getAttribute('data-id'), btn.getAttribute('data-phase'), btn);
+      };
+    });
+  }catch(e){
+    if($('cdPickStatus')) $('cdPickStatus').textContent = 'Error: '+(e.message||e);
+    console.error(e);
+  }
+}
+
+async function confirmAndCreateCd(matchId, phase, btnEl){
+  matchId = String(matchId||'').trim();
+  if(!matchId) return;
+  var label = (btnEl && btnEl.innerText) ? btnEl.innerText.split('\n')[0] : matchId;
+  if(!confirm('Create Cric360 match from CricketData:\n\n' + label + '\n\nYes = import to Firebase.\nNo = cancel.')) return;
+
+  if(btnEl) btnEl.disabled = true;
+  if($('cdPickStatus')) $('cdPickStatus').textContent = 'Importing…';
+
+  try{
+    var existing = (S.matches||[]).find(function(x){
+      return x && x.cdMatchId === matchId && x.status !== 'completed' && x.status !== 'ended';
+    });
+    if(existing){
+      if(confirm('Already imported. Open existing match?')){
+        closeDlg('dlgCdPick');
+        await openMatch(existing.id);
+      }
+      return;
+    }
+
+    var fn = firebase.app().functions('asia-south1').httpsCallable('fetchCricketDataMatch');
+    var res = await fn({ matchId: matchId });
+    var data = res && res.data ? res.data : {};
+    console.log('[CD import meta]', data._meta);
+    var p = data.phase || phase || 'unknown';
+    var info = data.info || {};
+    var teams = Array.isArray(info.teams) ? info.teams : ['Team A','Team B'];
+    var series = (info.name || 'CricketData').split(',')[0].trim();
+    var fmt = String(info.matchType || 'T20').toUpperCase();
+
+    var m = newMatch(series, teams[0] || 'Team A', teams[1] || 'Team B', fmt, [], []);
+    m.cdMatchId = matchId;
+    m.apiSource = 'cricketdata';
+    m.scoringMode = 'api';
+    m.cdSyncing = false;
+    hydrateMatchFromCd(m, data, p);
+
+    S.matches = S.matches || [];
+    S.matches.unshift(m);
+    S.curId = m.id;
+    window._adminLocalWriteAt = Date.now();
+    window._adminWritePending = true;
+    try{ if(typeof save==='function') save(); }catch(e){}
+    try{ if(typeof cloudSaveMatch==='function') await cloudSaveMatch(m); }catch(e){ console.warn(e); }
+    setTimeout(function(){ window._adminWritePending = false; }, 2500);
+
+    closeDlg('dlgCdPick');
+    await openMatch(m.id);
+
+    var meta = data._meta || {};
+    var diag = '';
+    if(!meta.infoOk) diag += '\nMatch info missing.';
+    if(!meta.scorecardOk) diag += '\nScorecard missing.';
+    if(!meta.squadOk) diag += '\nSquad missing (placeholders used).';
+
+    if(p === 'live'){
+      var go = confirm('Match is LIVE on CricketData.\n\nStart auto-sync every 30 seconds (score + scorecard + teams) while you voiceover?\n\nYes = sync ON\nNo = import only');
+      if(go) startCdSync(matchId);
+      else setCdStatus('Imported live snapshot. Sync OFF.');
+    } else if(p === 'not_started'){
+      var go2 = confirm('Match not started yet.\n\nTeams/squads imported.\n\nTurn ON auto-sync so when play begins score updates for viewers?\n\nYes = sync ON\nNo = leave manual');
+      if(go2) startCdSync(matchId);
+    } else {
+      setCdStatus('Completed match imported from CricketData.');
+      alert('Completed match imported.' + (diag || '\nScorecard, teams and result filled where available.'));
+    }
+
+    try{ if(typeof renderLive==='function') renderLive(); }catch(e){}
+    try{ if(typeof renderScorecard==='function') renderScorecard(); }catch(e){}
+    try{ if(typeof renderMatchSquadsPane==='function') renderMatchSquadsPane('admin'); }catch(e){}
+  }catch(e){
+    alert('CricketData import failed: '+(e.message||e));
+    console.error(e);
+  }finally{
+    if(btnEl) btnEl.disabled = false;
+  }
+}
+
+function wireCdUi(){
+  if($('btnCreateFromCd')) $('btnCreateFromCd').onclick = function(){ openCdPicker(); };
+  if($('btnCdPickRefresh')) $('btnCdPickRefresh').onclick = function(){ refreshCdPickerList(); };
+  if($('btnCdPickCancel')) $('btnCdPickCancel').onclick = function(){ closeDlg('dlgCdPick'); };
+  // Resume CD sync if needed
+  try{
+    var m = M();
+    if(m && m.cdSyncing && m.cdMatchId){
+      if($('btnRoanuzStop')) $('btnRoanuzStop').classList.remove('hidden');
+      startCdSync(m.cdMatchId);
     }
   }catch(e){}
 }

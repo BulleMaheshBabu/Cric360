@@ -1783,7 +1783,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com","cricthreesixty@gmail.com"];
-const APP_VERSION = "2026.09.08.1.50";
+const APP_VERSION = "2026.09.08.1.51";
 let auth = null, db = null, user = null, profile = null, authReady = false;
 let matchWatchUnsub = null, auctionWatchUnsub = null, liveListUnsub = null;
 
@@ -6253,6 +6253,10 @@ window.openMatch = async function(id){
     }
     ['teamA','teamB'].forEach(function(k){
       if(!mm[k]) return;
+      if(typeof mm[k] === 'string'){
+        mm[k] = { id: uid(), name: mm[k], squad: [] };
+      }
+      if(typeof mm[k] !== 'object') return;
       if(mm[k].squad && !Array.isArray(mm[k].squad)){
         try{
           mm[k].squad = Object.keys(mm[k].squad).sort(function(a,b){return Number(a)-Number(b);}).map(function(key){ return mm[k].squad[key]; });
@@ -6297,8 +6301,12 @@ window.openMatch = async function(id){
       docId = snap.id;
       m = Object.assign({}, snap.data()||{}, { id: docId });
       if(!m.type) m.type = (snap.ref && snap.ref.parent && String(snap.ref.parent.id).indexOf('auction')>=0) ? 'auction' : 'match';
-      normalizeMatch(m, docId);
-      if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(m);
+      try{
+        normalizeMatch(m, docId);
+        if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(m);
+      }catch(normErr){
+        console.warn('openMatch normalize', normErr);
+      }
     }
   }catch(e){
     console.warn('openMatch cloud', e);
@@ -6313,8 +6321,18 @@ window.openMatch = async function(id){
         if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(m);
       }
     }catch(e3){
-      alert('Could not load match from cloud. Check your connection and try again.');
-      return;
+      console.warn('openMatch cache', e3);
+    }
+  }
+
+  if(!m){
+    var local = (S.matches||[]).find(function(x){ return x && String(x.id)===String(docId); });
+    if(local){
+      try{
+        m = JSON.parse(JSON.stringify(local));
+        normalizeMatch(m, docId);
+        if(typeof repairMatchLivePointers==='function') repairMatchLivePointers(m);
+      }catch(eLoc){ m = null; }
     }
   }
 
@@ -8266,121 +8284,245 @@ function stopCdSync(){
 function cdPlayerName(p){
   if(!p) return '';
   if(typeof p === 'string') return p;
-  return p.name || p.player || p.fullname || p.fullnamename || p.fullnameName || '';
+  return p.name || p.player || p.batsman || p.bowler || p.fullname || p.fullName ||
+    (p.batsman && (p.batsman.name || p.batsman)) ||
+    (p.bowler && (p.bowler.name || p.bowler)) ||
+    p.player_name || p.batsmanName || p.bowlerName || '';
+}
+
+function cdEnsureTeam(m, key, name){
+  if(!m[key] || typeof m[key] !== 'object'){
+    m[key] = { id: uid(), name: name || (key==='teamA'?'Team A':'Team B'), squad: [] };
+  }
+  if(name) m[key].name = String(name);
+  if(!Array.isArray(m[key].squad)) m[key].squad = [];
+  return m[key];
+}
+
+function cdOversToBalls(o){
+  var n = Number(o);
+  if(!isFinite(n) || n < 0) return 0;
+  var whole = Math.floor(n);
+  var frac = Math.round((n - whole) * 10);
+  if(frac > 6) frac = 6;
+  return whole * 6 + frac;
+}
+
+function cdApplyInningsScore(m, scores){
+  if(!Array.isArray(scores) || !scores.length) return;
+  var last = scores[scores.length - 1];
+  if(!last) return;
+  m.totalScore = Number(last.r != null ? last.r : last.runs) || 0;
+  m.wickets = Number(last.w != null ? last.w : last.wickets) || 0;
+  var ov = last.o != null ? last.o : last.overs;
+  if(ov != null){
+    var n = Number(ov);
+    if(isFinite(n)){
+      m.currentOver = Math.floor(n);
+      m.currentBall = Math.round((n - Math.floor(n)) * 10) || 0;
+      m.totalBalls = cdOversToBalls(n);
+    }
+  }
+  var innLabel = String(last.inning || last.inningName || '');
+  if(innLabel){
+    var low = innLabel.toLowerCase();
+    if(m.teamA && m.teamA.name && low.indexOf(String(m.teamA.name).toLowerCase()) >= 0) m.battingTeam = 'teamA';
+    else if(m.teamB && m.teamB.name && low.indexOf(String(m.teamB.name).toLowerCase()) >= 0) m.battingTeam = 'teamB';
+  }
+  if(scores.length >= 2){
+    m.currentInnings = 2;
+    var first = scores[0];
+    var firstRuns = Number(first.r != null ? first.r : first.runs) || 0;
+    m.target = firstRuns + 1;
+  }
+}
+
+function cdAddOrUpdatePlayer(squad, name, extra){
+  extra = extra || {};
+  name = String(name || '').trim();
+  if(!name) return null;
+  var hit = findPlayerByName(squad, name);
+  if(!hit){
+    hit = playerShell(name, extra.role || 'Batter', extra);
+    squad.push(hit);
+  } else {
+    if(extra.runs != null) hit.runs = Number(extra.runs)||0;
+    if(extra.balls != null) hit.balls = Number(extra.balls)||0;
+    if(extra.fours != null) hit.fours = Number(extra.fours)||0;
+    if(extra.sixes != null) hit.sixes = Number(extra.sixes)||0;
+    if(extra.isOut != null) hit.isOut = !!extra.isOut;
+    if(extra.dismissal) hit.dismissal = extra.dismissal;
+    if(extra.bowlRuns != null) hit.bowlRuns = Number(extra.bowlRuns)||0;
+    if(extra.bowlBalls != null) hit.bowlBalls = cdOversToBalls(extra.bowlBalls);
+    if(extra.wickets != null) hit.wickets = Number(extra.wickets)||0;
+    if(extra.maidens != null) hit.maidens = Number(extra.maidens)||0;
+    if(extra.photoUrl) hit.photoUrl = extra.photoUrl;
+    hit.inPlaying11 = true;
+  }
+  return hit;
 }
 
 function hydrateMatchFromCd(m, data, phase){
   if(!m || !data) return;
   m.apiSource = 'cricketdata';
   m.cdMatchId = data.matchId || m.cdMatchId;
-  var info = data.info || {};
-  var card = data.scorecard || {};
-  var squad = data.squad || {};
+  var info = (data.info && !data.info.error) ? data.info : {};
+  var card = (data.scorecard && !data.scorecard.error) ? data.scorecard : {};
+  var squad = data.squad;
+  var listSummary = data.listSummary || (window._cdListCache && (function(){
+    var id = m.cdMatchId;
+    var pools = [];
+    ['ongoing','upcoming','completed'].forEach(function(k){
+      if(window._cdListCache[k]) pools = pools.concat(window._cdListCache[k]);
+    });
+    var hit = pools.find(function(x){ return x && String(x.id)===String(id); });
+    return hit && hit.summary ? hit.summary : (hit || null);
+  })());
 
-  // Teams from info
-  var teams = Array.isArray(info.teams) ? info.teams : (Array.isArray(card.teams) ? card.teams : []);
-  if(teams.length >= 1 && teams[0]) m.teamA = String(teams[0]);
-  if(teams.length >= 2 && teams[1]) m.teamB = String(teams[1]);
-  if(info.name) m.series = String(info.name).split(',')[0].trim() || m.series;
-  if(info.matchType) m.format = String(info.matchType).toUpperCase();
-  if(info.status) m.resultText = String(info.status);
-  if(info.tossWinner){
-    m.tossWinner = String(info.tossWinner);
-    m.tossDecision = String(info.tossChoice || info.tossDecision || '');
+  var teams = Array.isArray(info.teams) ? info.teams
+    : (Array.isArray(card.teams) ? card.teams
+    : (listSummary && Array.isArray(listSummary.teams) ? listSummary.teams : []));
+  if(teams.length < 2 && card.teamInfo && Array.isArray(card.teamInfo)){
+    teams = card.teamInfo.map(function(t){ return t.name || t.shortname || ''; }).filter(Boolean);
   }
-  if(phase === 'completed' || info.matchEnded){
+  cdEnsureTeam(m, 'teamA', teams[0] || (m.teamA && m.teamA.name) || 'Team A');
+  cdEnsureTeam(m, 'teamB', teams[1] || (m.teamB && m.teamB.name) || 'Team B');
+
+  if(info.name) m.series = String(info.name).split(',')[0].trim() || m.series;
+  else if(card.name) m.series = String(card.name).split(',')[0].trim() || m.series;
+  var mt = info.matchType || card.matchType || (listSummary && listSummary.matchType);
+  if(mt) m.matchType = String(mt).toUpperCase();
+
+  var statusText = String(info.status || card.status || (listSummary && listSummary.status) || '');
+  if(statusText) m.result = statusText;
+
+  var tossName = info.tossWinner || card.tossWinner || '';
+  if(tossName){
+    var tn = String(tossName).toLowerCase();
+    if(tn.indexOf(String(m.teamA.name).toLowerCase())>=0) m.tossWinner = 'teamA';
+    else if(tn.indexOf(String(m.teamB.name).toLowerCase())>=0) m.tossWinner = 'teamB';
+    var choice = String(info.tossChoice || info.tossDecision || card.tossChoice || '').toLowerCase();
+    m.tossDecision = choice.indexOf('bowl')>=0 ? 'bowl' : (choice.indexOf('bat')>=0 ? 'bat' : choice);
+    if(m.tossWinner && m.tossDecision==='bat') m.battingTeam = m.tossWinner;
+    if(m.tossWinner && m.tossDecision==='bowl') m.battingTeam = m.tossWinner==='teamA' ? 'teamB' : 'teamA';
+  }
+
+  var scores = Array.isArray(info.score) ? info.score
+    : (Array.isArray(card.score) ? card.score
+    : (listSummary && Array.isArray(listSummary.score) ? listSummary.score : []));
+  cdApplyInningsScore(m, scores);
+
+  function fillSquadFromList(teamObj, playersArr){
+    if(!Array.isArray(playersArr)) return;
+    playersArr.forEach(function(p){
+      var nm = cdPlayerName(p);
+      if(!nm) return;
+      cdAddOrUpdatePlayer(teamObj.squad, nm, {
+        role: p.role || p.playingRole || 'Batter',
+        photoUrl: p.img || p.image || p.playerImg || '',
+        inPlaying11: true
+      });
+    });
+  }
+
+  var squadList = Array.isArray(squad) ? squad
+    : (squad && Array.isArray(squad.team) ? squad.team
+    : (squad && Array.isArray(squad.teams) ? squad.teams : null));
+  if(Array.isArray(squadList)){
+    squadList.forEach(function(side){
+      var tname = String(side.teamName || side.name || side.team || '');
+      var players = side.players || side.squad || side.player || [];
+      if(!tname) return;
+      var low = tname.toLowerCase();
+      if(low.indexOf(String(m.teamA.name).toLowerCase())>=0) fillSquadFromList(m.teamA, players);
+      else if(low.indexOf(String(m.teamB.name).toLowerCase())>=0) fillSquadFromList(m.teamB, players);
+    });
+  }
+
+  // Scorecard: typically data.scorecard = [ { inning, batting:[], bowling:[] }, ... ]
+  var innings = [];
+  if(Array.isArray(card.scorecard)) innings = card.scorecard;
+  else if(Array.isArray(card)) innings = card;
+  else if(card && Array.isArray(card.batting)) innings = [card];
+  innings.forEach(function(inn){
+    if(!inn || typeof inn!=='object') return;
+    var innName = String(inn.inning || inn.inningName || inn.name || '');
+    var batTeam = m.teamA;
+    var bowlTeam = m.teamB;
+    var low = innName.toLowerCase();
+    if(m.teamB && m.teamB.name && low.indexOf(String(m.teamB.name).toLowerCase())>=0){
+      batTeam = m.teamB; bowlTeam = m.teamA;
+    } else if(m.teamA && m.teamA.name && low.indexOf(String(m.teamA.name).toLowerCase())>=0){
+      batTeam = m.teamA; bowlTeam = m.teamB;
+    }
+    var batting = inn.batting || inn.batsmen || inn.scores || [];
+    if(!Array.isArray(batting) && batting && Array.isArray(batting.scores)) batting = batting.scores;
+    (batting||[]).forEach(function(row){
+      if(!row || row.isheader || row.isHeader) return;
+      var nm = cdPlayerName(row);
+      if(!nm) return;
+      var dismissal = row.dismissal || row['dismissal-info'] || row.dismissalText || '';
+      var notOut = /not\s*out/i.test(String(dismissal)) || row.dismissal === 'not out';
+      cdAddOrUpdatePlayer(batTeam.squad, nm, {
+        runs: row.r != null ? row.r : (row.R != null ? row.R : row.runs),
+        balls: row.b != null ? row.b : (row.B != null ? row.B : row.balls),
+        fours: row['4s'] != null ? row['4s'] : row.fours,
+        sixes: row['6s'] != null ? row['6s'] : row.sixes,
+        isOut: !notOut && !!(dismissal || row.out),
+        dismissal: dismissal
+      });
+    });
+    var bowling = inn.bowling || inn.bowlers || [];
+    if(!Array.isArray(bowling) && bowling && Array.isArray(bowling.scores)) bowling = bowling.scores;
+    (bowling||[]).forEach(function(row){
+      if(!row || row.isheader || row.isHeader) return;
+      var nm = cdPlayerName(row);
+      if(!nm) return;
+      cdAddOrUpdatePlayer(bowlTeam.squad, nm, {
+        role: 'Bowler',
+        bowlRuns: row.r != null ? row.r : (row.R != null ? row.R : row.runs),
+        bowlBalls: row.o != null ? row.o : (row.O != null ? row.O : row.overs),
+        wickets: row.w != null ? row.w : (row.W != null ? row.W : row.wickets),
+        maidens: row.m != null ? row.m : (row.M != null ? row.M : row.maidens)
+      });
+    });
+  });
+
+  var usedPlaceholder = false;
+  if(!m.teamA.squad.length){
+    usedPlaceholder = true;
+    for(var i=1;i<=11;i++) m.teamA.squad.push(playerShell(m.teamA.name+' Player '+i,'Batter',{inPlaying11:true}));
+  }
+  if(!m.teamB.squad.length){
+    usedPlaceholder = true;
+    for(var j=1;j<=11;j++) m.teamB.squad.push(playerShell(m.teamB.name+' Player '+j,'Batter',{inPlaying11:true}));
+  }
+  m.p11Published = !usedPlaceholder || m.p11Published;
+  m.teamA.squad.forEach(function(p){ if(p) p.inPlaying11 = true; });
+  m.teamB.squad.forEach(function(p){ if(p) p.inPlaying11 = true; });
+
+  var p = phase || (data.phase);
+  if(p === 'completed' || info.matchEnded || /won by|awarded|complete|finished/i.test(statusText)){
     m.status = 'completed';
     m.live = false;
-  } else if(phase === 'live' || info.matchStarted){
+    if(!m.result) m.result = statusText || (m.teamA.name+' vs '+m.teamB.name+' — completed');
+  } else if(p === 'live' || info.matchStarted){
     m.status = 'live';
     m.live = true;
+  } else {
+    m.status = 'not_started';
   }
 
-  // Score from info.score array
-  var scores = Array.isArray(info.score) ? info.score : (Array.isArray(card.score) ? card.score : []);
-  if(scores.length){
-    var last = scores[scores.length - 1];
-    if(last){
-      m.runs = Number(last.r) || 0;
-      m.wkts = Number(last.w) || 0;
-      m.overs = Number(last.o) || 0;
-      m.inningsLabel = String(last.inning || '');
-    }
-  }
-
-  // Squad / Playing XI
-  function buildSide(teamName, playersArr){
-    var list = [];
-    if(!Array.isArray(playersArr)) return list;
-    playersArr.forEach(function(p, i){
-      var nm = cdPlayerName(p);
-      if(!nm) nm = teamName + ' Player ' + (i + 1);
-      list.push({
-        id: 'cd_' + String(nm).replace(/\s+/g,'_') + '_' + i,
-        name: nm,
-        role: p.role || p.playingRole || 'Batter',
-        batting: {runs:0,balls:0,fours:0,sixes:0,sr:0,out:false},
-        bowling: {overs:0,maidens:0,runs:0,wickets:0,econ:0}
-      });
-    });
-    return list;
-  }
-
-  var squadList = Array.isArray(squad) ? squad : (squad.team || squad.teams || squad.data || null);
-  if(Array.isArray(squadList)){
-    // [{teamName, players:[]}, ...]
-    squadList.forEach(function(side){
-      var tname = side.teamName || side.name || side.team || '';
-      var players = side.players || side.squad || side.player || [];
-      if(String(tname).toLowerCase() === String(m.teamA).toLowerCase() || (!m.squadA || !m.squadA.length)){
-        if(players.length){ m.squadA = buildSide(m.teamA, players); m.xiA = m.squadA.slice(0, 11); }
-      }
-      if(String(tname).toLowerCase() === String(m.teamB).toLowerCase()){
-        if(players.length){ m.squadB = buildSide(m.teamB, players); m.xiB = m.squadB.slice(0, 11); }
-      }
-    });
-  }
-
-  // Scorecard batting/bowling if present
-  try{
-    var sc = card.scorecard || card;
-    var batting = sc.batting || sc.batsmen || [];
-    if(Array.isArray(batting) && batting.length && m.xiA && m.xiA.length){
-      batting.forEach(function(row){
-        var nm = cdPlayerName(row.batsman || row.batter || row);
-        if(!nm) return;
-        var all = (m.xiA || []).concat(m.xiB || []).concat(m.squadA || []).concat(m.squadB || []);
-        var pl = all.find(function(p){ return p && p.name && p.name.toLowerCase() === nm.toLowerCase(); });
-        if(pl && pl.batting){
-          pl.batting.runs = Number(row.r || row.runs || 0);
-          pl.batting.balls = Number(row.b || row.balls || 0);
-          pl.batting.fours = Number(row['4s'] || row.fours || 0);
-          pl.batting.sixes = Number(row['6s'] || row.sixes || 0);
-          if(pl.batting.balls) pl.batting.sr = Math.round((pl.batting.runs / pl.batting.balls) * 1000) / 10;
-          if(row.dismissal || row.out) pl.batting.out = true;
-        }
-      });
-    }
-  }catch(e){}
-
-  // Ensure at least placeholder XI so Live tab is not empty
-  if(!m.xiA || !m.xiA.length){
-    m.xiA = [];
-    for(var i=0;i<11;i++) m.xiA.push({id:'cd_a_'+i, name: m.teamA + ' Player ' + (i+1), role:'Batter', batting:{runs:0,balls:0,fours:0,sixes:0,sr:0,out:false}, bowling:{overs:0,maidens:0,runs:0,wickets:0,econ:0}});
-    m.squadA = m.xiA.slice();
-  }
-  if(!m.xiB || !m.xiB.length){
-    m.xiB = [];
-    for(var j=0;j<11;j++) m.xiB.push({id:'cd_b_'+j, name: m.teamB + ' Player ' + (j+1), role:'Batter', batting:{runs:0,balls:0,fours:0,sixes:0,sr:0,out:false}, bowling:{overs:0,maidens:0,runs:0,wickets:0,econ:0}});
-    m.squadB = m.xiB.slice();
-  }
-
-  if(!m.striker && m.xiA[0]) m.striker = m.xiA[0].id;
-  if(!m.nonStriker && m.xiA[1]) m.nonStriker = m.xiA[1].id;
-  if(!m.bowler && m.xiB[0]) m.bowler = m.xiB[0].id;
+  var batSide = m.battingTeam==='teamB' ? m.teamB : m.teamA;
+  var bowlSide = m.battingTeam==='teamB' ? m.teamA : m.teamB;
+  if(!m.strikerId && batSide.squad[0]) m.strikerId = batSide.squad[0].id;
+  if(!m.nonStrikerId && batSide.squad[1]) m.nonStrikerId = batSide.squad[1].id;
+  if(!m.currentBowlerId && bowlSide.squad[0]) m.currentBowlerId = bowlSide.squad[0].id;
 
   m._cdMeta = data._meta || null;
-  m._cdPlaceholderSquad = !(data._meta && data._meta.squadOk);
+  m._cdPlaceholderSquad = usedPlaceholder;
+  m.updatedAt = new Date().toISOString();
+  m._scoreRev = (Number(m._scoreRev)||0) + 1;
 }
 
 async function cdSyncOnce(){
@@ -8506,8 +8648,16 @@ async function confirmAndCreateCd(matchId, phase, btnEl){
       return;
     }
 
+    var listSummary = null;
+    try{
+      if(window._cdListCache){
+        var pools = [].concat(window._cdListCache.ongoing||[], window._cdListCache.upcoming||[], window._cdListCache.completed||[]);
+        var hit = pools.find(function(x){ return x && String(x.id)===String(matchId); });
+        listSummary = (hit && hit.summary) ? hit.summary : hit || null;
+      }
+    }catch(eLs){}
     var fn = firebase.app().functions('asia-south1').httpsCallable('fetchCricketDataMatch');
-    var res = await fn({ matchId: matchId });
+    var res = await fn({ matchId: matchId, listSummary: listSummary });
     var data = res && res.data ? res.data : {};
     console.log('[CD import meta]', data._meta);
     var p = data.phase || phase || 'unknown';
@@ -8537,9 +8687,9 @@ async function confirmAndCreateCd(matchId, phase, btnEl){
 
     var meta = data._meta || {};
     var diag = '';
-    if(!meta.infoOk) diag += '\nMatch info missing.';
-    if(!meta.scorecardOk) diag += '\nScorecard missing.';
-    if(!meta.squadOk) diag += '\nSquad missing (placeholders used).';
+    if(!meta.infoOk) diag += '\nMatch info missing' + (meta.infoReason ? (': '+meta.infoReason) : '.');
+    if(!meta.scorecardOk) diag += '\nScorecard endpoint missing' + (meta.scorecardReason ? (': '+meta.scorecardReason) : '.') + ' — using list/info scores if present.';
+    if(!meta.squadOk) diag += '\nSquad endpoint missing' + (meta.squadReason ? (': '+meta.squadReason) : '.') + (m._cdPlaceholderSquad ? ' Placeholders used if names were not in scorecard.' : '');
 
     if(p === 'live'){
       var go = confirm('Match is LIVE on CricketData.\n\nStart auto-sync every 30 seconds (score + scorecard + teams) while you voiceover?\n\nYes = sync ON\nNo = import only');

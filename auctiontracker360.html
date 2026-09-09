@@ -736,7 +736,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.09.5.40</p>
+    <p class="set-version">Version: 2026.09.09.6.10</p>
   </div>
 </section>
 
@@ -1134,30 +1134,32 @@ function ttsPickVoice() {
   return list.slice().sort((a, b) => score(b) - score(a))[0] || list[0];
 }
 
-/* Dedicated commentary: meSpeak (independent of Eloquent / device TTS) */
+/* Dedicated commentary: meSpeak (independent of Eloquent / device TTS)
+   Voice JSON is fetched from a CORS-enabled CDN and passed as an object
+   (masswerk.at does not send Access-Control-Allow-Origin, so URL load fails). */
 const ME_BASE = 'https://www.masswerk.at/mespeak';
 const ME_SCRIPT = ME_BASE + '/mespeak.js';
+const ME_SCRIPT_FALLBACK = 'https://cdn.jsdelivr.net/gh/btopro/mespeak@master/mespeak.js';
+/* CORS-friendly voice JSON mirrors (jsDelivr npm package has full voice set) */
+const ME_VOICE_CDN = 'https://cdn.jsdelivr.net/npm/mespeak@2.0.2/voices/';
 /* English voice packs + male/female variants (eSpeak-style) */
 const ME_VOICES = [
-  { id: 'me:en/en-us|m3', label: 'English US — Male', path: 'voices/en/en-us.json', variant: 'm3' },
-  { id: 'me:en/en-us|f2', label: 'English US — Female', path: 'voices/en/en-us.json', variant: 'f2' },
-  { id: 'me:en/en|m3', label: 'English — Male', path: 'voices/en/en.json', variant: 'm3' },
-  { id: 'me:en/en|f2', label: 'English — Female', path: 'voices/en/en.json', variant: 'f2' },
-  { id: 'me:en/en-rp|m3', label: 'English RP — Male', path: 'voices/en/en-rp.json', variant: 'm3' },
-  { id: 'me:en/en-rp|f2', label: 'English RP — Female', path: 'voices/en/en-rp.json', variant: 'f2' },
-  { id: 'me:en/en-n|m3', label: 'English Northern — Male', path: 'voices/en/en-n.json', variant: 'm3' },
-  { id: 'me:en/en-n|f2', label: 'English Northern — Female', path: 'voices/en/en-n.json', variant: 'f2' },
-  { id: 'me:en/en-sc|m3', label: 'English Scottish — Male', path: 'voices/en/en-sc.json', variant: 'm3' },
-  { id: 'me:en/en-sc|f2', label: 'English Scottish — Female', path: 'voices/en/en-sc.json', variant: 'f2' },
-  { id: 'me:en/en-wm|m3', label: 'English West Midlands — Male', path: 'voices/en/en-wm.json', variant: 'm3' },
-  { id: 'me:en/en-wm|f2', label: 'English West Midlands — Female', path: 'voices/en/en-wm.json', variant: 'f2' }
+  { id: 'me:en/en-us|m3', label: 'Commentary: English US (meSpeak)', path: 'en/en-us.json', variant: 'm3' },
+  { id: 'me:en/en|m3', label: 'Commentary: English (meSpeak)', path: 'en/en.json', variant: 'm3' },
+  { id: 'me:en/en-rp|m3', label: 'Commentary: English RP (meSpeak)', path: 'en/en-rp.json', variant: 'm3' },
+  { id: 'me:en/en-wm|m3', label: 'Commentary: English West Midlands (meSpeak)', path: 'en/en-wm.json', variant: 'm3' },
+  { id: 'me:en/en-us|f2', label: 'Commentary: English US Female (meSpeak)', path: 'en/en-us.json', variant: 'f2' },
+  { id: 'me:en/en|f2', label: 'Commentary: English Female (meSpeak)', path: 'en/en.json', variant: 'f2' },
+  { id: 'me:en/en-n|m3', label: 'Commentary: English Northern (meSpeak)', path: 'en/en-n.json', variant: 'm3' },
+  { id: 'me:en/en-sc|m3', label: 'Commentary: English Scottish (meSpeak)', path: 'en/en-sc.json', variant: 'm3' }
 ];
 let _meReady = false;
 let _meLoading = false;
-let _meVoicePath = 'voices/en/en-us.json';
+let _meVoicePath = 'en/en-us.json';
 let _meVariant = 'm3';
 let _meConfigOk = false;
 let _meLoadedPath = '';
+const _meVoiceCache = {};
 
 function isMeVoice(uri) {
   return !!(uri && String(uri).indexOf('me:') === 0);
@@ -1189,24 +1191,23 @@ function meSpeakEnsure(cb) {
     return;
   }
   if (_meLoading) {
-    setTimeout(function () { meSpeakEnsure(cb); }, 300);
+    setTimeout(function () { meSpeakEnsure(cb); }, 250);
     return;
   }
   _meLoading = true;
   ttsStatus('Loading commentary engine…');
   function loadScript(src, next) {
-    if (window.meSpeak) { next(); return; }
+    if (window.meSpeak) { next(null); return; }
     const s = document.createElement('script');
     s.src = src;
     s.async = true;
-    s.onload = function () { next(); };
+    s.onload = function () { next(null); };
     s.onerror = function () { next(new Error('script fail')); };
     document.head.appendChild(s);
   }
   loadScript(ME_SCRIPT, function (err) {
     if (err || !window.meSpeak) {
-      // fallback CDN mirror
-      loadScript('https://cdn.jsdelivr.net/gh/masswerk/mespeak@master/mespeak.js', function (err2) {
+      loadScript(ME_SCRIPT_FALLBACK, function (err2) {
         if (err2 || !window.meSpeak) {
           _meLoading = false;
           ttsStatus('Could not load meSpeak. Check internet and retry.');
@@ -1220,30 +1221,12 @@ function meSpeakEnsure(cb) {
     finishInit();
   });
   function finishInit() {
+    // meSpeak 2.x embeds config — loadConfig is a no-op / always true
     try {
-      // meSpeak 2.x embeds config; loadConfig is optional/legacy
-      if (typeof window.meSpeak.loadConfig === 'function' && !(window.meSpeak.isConfigLoaded && window.meSpeak.isConfigLoaded())) {
-        window.meSpeak.loadConfig(ME_BASE + '/mespeak_config.json', function () {
-          _meConfigOk = true;
-          _meLoading = false;
-          ttsStatus('Commentary engine ready');
-          if (typeof cb === 'function') cb(true);
-        });
-        // if callback never fires (2.x), still continue after short wait
-        setTimeout(function () {
-          if (!_meConfigOk) {
-            _meConfigOk = true;
-            _meLoading = false;
-            ttsStatus('Commentary engine ready');
-            if (typeof cb === 'function') cb(true);
-          }
-        }, 1500);
-      } else {
-        _meConfigOk = true;
-        _meLoading = false;
-        ttsStatus('Commentary engine ready');
-        if (typeof cb === 'function') cb(true);
-      }
+      _meConfigOk = true;
+      _meLoading = false;
+      ttsStatus('Commentary engine ready');
+      if (typeof cb === 'function') cb(true);
     } catch (e) {
       _meConfigOk = true;
       _meLoading = false;
@@ -1252,37 +1235,101 @@ function meSpeakEnsure(cb) {
   }
 }
 
+/** Fetch voice JSON via CORS CDN, then load into meSpeak as object (avoids masswerk CORS block). */
+function meFetchVoiceJson(path, done) {
+  const key = String(path || '').replace(/^voices\//, '');
+  if (_meVoiceCache[key]) {
+    done(null, _meVoiceCache[key]);
+    return;
+  }
+  const urls = [
+    ME_VOICE_CDN + key,
+    'https://cdn.jsdelivr.net/npm/mespeak@1.9.0/voices/' + key,
+    ME_BASE + '/voices/' + key
+  ];
+  let i = 0;
+  function tryNext() {
+    if (i >= urls.length) {
+      done(new Error('voice fetch failed'));
+      return;
+    }
+    const url = urls[i++];
+    fetch(url, { mode: 'cors', credentials: 'omit' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (json) {
+        if (!json || (typeof json !== 'object')) throw new Error('bad voice json');
+        _meVoiceCache[key] = json;
+        done(null, json);
+      })
+      .catch(function () { tryNext(); });
+  }
+  tryNext();
+}
+
 function meSpeakLoadSelected(cb) {
   const meta = meMetaFromUri(ttsPref.voiceURI);
-  _meVoicePath = meta.path;
+  _meVoicePath = (meta.path || 'en/en-us.json').replace(/^voices\//, '');
   _meVariant = meta.variant || 'm3';
   meSpeakEnsure(function (ok) {
     if (!ok || !window.meSpeak) {
       if (typeof cb === 'function') cb(false);
       return;
     }
-    if (_meLoadedPath === _meVoicePath && window.meSpeak.isVoiceLoaded && window.meSpeak.isVoiceLoaded()) {
+    // Already loaded this pack?
+    if (_meLoadedPath === _meVoicePath && _meReady) {
       if (typeof cb === 'function') cb(true);
       return;
     }
     ttsStatus('Loading voice…');
-    const url = ME_BASE + '/' + _meVoicePath;
-    window.meSpeak.loadVoice(url, function (success, idOrErr) {
-      if (success === false) {
-        // try relative id form
-        const shortId = _meVoicePath.replace(/^voices\//, '').replace(/\.json$/, '');
-        window.meSpeak.loadVoice(shortId, function (s2) {
-          _meLoadedPath = _meVoicePath;
-          _meReady = true;
-          ttsStatus(s2 === false ? 'Voice load failed' : 'Voice ready: ' + meta.label);
-          if (typeof cb === 'function') cb(s2 !== false);
-        });
+    meFetchVoiceJson(_meVoicePath, function (err, json) {
+      if (err || !json) {
+        ttsStatus('Voice load failed — try again or use device voice');
+        _meReady = false;
+        if (typeof cb === 'function') cb(false);
         return;
       }
-      _meLoadedPath = _meVoicePath;
-      _meReady = true;
-      ttsStatus('Voice ready: ' + meta.label);
-      if (typeof cb === 'function') cb(true);
+      try {
+        // loadVoice accepts a JSON object synchronously when no URL is needed
+        window.meSpeak.loadVoice(json, function (success, idOrErr) {
+          if (success === false) {
+            // Some builds ignore callback args — try without relying on it
+            try {
+              window.meSpeak.loadVoice(json);
+              _meLoadedPath = _meVoicePath;
+              _meReady = true;
+              ttsStatus('Voice ready: ' + meta.label);
+              if (typeof cb === 'function') cb(true);
+            } catch (e2) {
+              console.warn('meSpeak loadVoice', e2, idOrErr);
+              ttsStatus('Voice load failed');
+              _meReady = false;
+              if (typeof cb === 'function') cb(false);
+            }
+            return;
+          }
+          _meLoadedPath = _meVoicePath;
+          _meReady = true;
+          ttsStatus('Voice ready: ' + meta.label);
+          if (typeof cb === 'function') cb(true);
+        });
+      } catch (e) {
+        // Synchronous object load (older API)
+        try {
+          window.meSpeak.loadVoice(json);
+          _meLoadedPath = _meVoicePath;
+          _meReady = true;
+          ttsStatus('Voice ready: ' + meta.label);
+          if (typeof cb === 'function') cb(true);
+        } catch (e3) {
+          console.warn('meSpeak loadVoice', e3);
+          ttsStatus('Voice load failed');
+          _meReady = false;
+          if (typeof cb === 'function') cb(false);
+        }
+      }
     });
   });
 }
@@ -1290,8 +1337,11 @@ function meSpeakLoadSelected(cb) {
 function meSpeakSpeak(text, onEnd) {
   meSpeakLoadSelected(function (ok) {
     if (!ok || !window.meSpeak) {
-      ttsStatus('Could not load meSpeak voice. Check internet and retry.');
-      if (typeof onEnd === 'function') onEnd();
+      ttsStatus('Could not load meSpeak voice. Falling back to device voice.');
+      // Fallback so commentary still works offline / without CORS
+      try { ttsSpeakWeb(text, onEnd); } catch (e) {
+        if (typeof onEnd === 'function') onEnd();
+      }
       return;
     }
     try {
@@ -1308,7 +1358,9 @@ function meSpeakSpeak(text, onEnd) {
       });
     } catch (e) {
       console.warn('meSpeak speak', e);
-      if (typeof onEnd === 'function') onEnd();
+      try { ttsSpeakWeb(text, onEnd); } catch (e2) {
+        if (typeof onEnd === 'function') onEnd();
+      }
     }
   });
 }
@@ -1631,8 +1683,12 @@ function wireTtsSettings() {
     try { unlockSfx(); } catch (e) {}
     ttsStatus('Loading commentary voice…');
     meSpeakLoadSelected(function (ok) {
-      if (ok) ttsSpeak('Commentary ready. Mumbai leads at one hundred fifty.', null);
-      else ttsStatus('Could not load meSpeak voice. Check internet and retry.');
+      if (ok) {
+        ttsSpeak('Commentary ready. Mumbai leads at one hundred fifty.', null);
+      } else {
+        ttsStatus('meSpeak unavailable — using device voice');
+        ttsSpeakWeb('Commentary ready on device voice.', function(){});
+      }
     });
   };
   ['ttsHost','ttsBid','ttsPlayer','ttsTimer','ttsWait'].forEach(id => {

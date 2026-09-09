@@ -736,7 +736,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.09.6.30</p>
+    <p class="set-version">Version: 2026.09.09.6.50</p>
   </div>
 </section>
 
@@ -1337,23 +1337,15 @@ function ttsFillVoiceSelect() {
   const prev = ttsPref.voiceURI || sel.value;
   sel.innerHTML = '';
 
-  // 1) Built-in meSpeak packs (always listed)
-  ME_VOICES.forEach(function (v) {
-    const o = document.createElement('option');
-    o.value = v.id;
-    o.textContent = v.label;
-    sel.appendChild(o);
-  });
-
-  // 2) Device / Web Speech API voices (all languages available on this phone)
+  // Device / Web Speech first (reliable on Android)
+  let deviceCount = 0;
   if (ttsWebSpeechOk()) {
     let list = [];
     try { list = speechSynthesis.getVoices() || []; } catch (e) { list = []; }
-    // Prefer English first, then everything else alphabetically
-    const scored = list.slice().map(function (v, i) {
+    const scored = list.slice().map(function (v) {
       const lang = (v.lang || '').toLowerCase();
       const en = lang.indexOf('en') === 0 ? 0 : 1;
-      return { v: v, en: en, name: (v.name || ''), i: i };
+      return { v: v, en: en, name: (v.name || '') };
     }).sort(function (a, b) {
       if (a.en !== b.en) return a.en - b.en;
       return a.name.localeCompare(b.name);
@@ -1365,23 +1357,75 @@ function ttsFillVoiceSelect() {
       const lang = v.lang || '';
       o.textContent = 'Device: ' + (v.name || 'Voice') + (lang ? ' (' + lang + ')' : '');
       sel.appendChild(o);
+      deviceCount++;
     });
-    if (!list.length) {
-      // Voices often empty until voiceschanged fires on Android/Chrome
-      const o = document.createElement('option');
-      o.value = '';
-      o.disabled = true;
-      o.textContent = 'Device voices loading… (open list again in a moment)';
-      sel.appendChild(o);
-    }
   }
 
-  if (prev && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
+  // meSpeak packs (optional; may fail on some networks)
+  ME_VOICES.forEach(function (v) {
+    const o = document.createElement('option');
+    o.value = v.id;
+    o.textContent = v.label + ' (may need network)';
+    sel.appendChild(o);
+  });
+
+  if (!deviceCount && ttsWebSpeechOk()) {
+    const o = document.createElement('option');
+    o.value = '__wait_device__';
+    o.disabled = true;
+    o.textContent = 'Device voices loading… reopen list in 1–2s';
+    sel.insertBefore(o, sel.firstChild);
+  }
+
+  if (prev && prev !== '__wait_device__' && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
     sel.value = prev;
-  } else if (sel.options.length) {
+  } else if (deviceCount > 0) {
+    // Prefer first English device voice
+    sel.selectedIndex = 0;
+    ttsPref.voiceURI = sel.value;
+  } else {
     sel.value = ME_VOICES[0].id;
     ttsPref.voiceURI = ME_VOICES[0].id;
   }
+}
+
+/** Kick Android/Chrome into enumerating voices */
+function ttsKickDeviceVoices() {
+  if (!ttsWebSpeechOk()) return;
+  try {
+    const list = speechSynthesis.getVoices();
+    if (list && list.length) {
+      ttsFillVoiceSelect();
+      return;
+    }
+  } catch (e) {}
+  try {
+    speechSynthesis.onvoiceschanged = function () {
+      ttsFillVoiceSelect();
+    };
+  } catch (e) {}
+  // Dummy near-silent utterance forces voice list on many Android builds
+  try {
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    u.rate = 2;
+    speechSynthesis.speak(u);
+    speechSynthesis.cancel();
+  } catch (e) {}
+  // Poll a few times
+  var n = 0;
+  var iv = setInterval(function () {
+    n++;
+    try {
+      const list = speechSynthesis.getVoices() || [];
+      if (list.length || n >= 15) {
+        clearInterval(iv);
+        ttsFillVoiceSelect();
+      }
+    } catch (e) {
+      clearInterval(iv);
+    }
+  }, 400);
 }
 
 function ttsSpeakWeb(text, onEnd) {
@@ -1622,6 +1666,7 @@ function wireTtsSettings() {
     if ($('ttsVolLabel')) $('ttsVolLabel').textContent = 'Commentary volume: '+v+'%';
   }
   ttsFillVoiceSelect();
+  ttsKickDeviceVoices();
 
   chk.onchange = () => {
     ttsPref.on = chk.checked;
@@ -1646,13 +1691,22 @@ function wireTtsSettings() {
   };
   if ($('ttsVoice')) $('ttsVoice').onchange = () => {
     const val = $('ttsVoice').value;
-    if (!val) return;
+    if (!val || val === '__wait_device__') return;
     ttsPref.voiceURI = val;
     saveTtsPref();
     if (isMeVoice(ttsPref.voiceURI)) {
+      ttsStatus('Loading meSpeak voice…');
+      var done = false;
+      setTimeout(function () {
+        if (done) return;
+        done = true;
+        ttsStatus('meSpeak slow — pick a Device voice for instant speech');
+      }, 5000);
       meSpeakLoadSelected(function (ok) {
-        ttsStatus(ok ? 'Voice selected' : 'Voice load failed');
-        if (ok && ttsPref.on) ttsSpeak('Voice selected', null);
+        if (done) return;
+        done = true;
+        ttsStatus(ok ? 'meSpeak voice ready' : 'meSpeak failed — pick a Device voice');
+        if (ok && ttsPref.on) meSpeakSpeak('Voice selected', function () {});
       });
     } else {
       ttsStatus('Device voice selected');
@@ -1676,28 +1730,47 @@ function wireTtsSettings() {
   $('btnTtsTest').onclick = () => {
     ttsPref.on = true;
     chk.checked = true;
-    if (!ttsPref.voiceURI) {
-      ttsPref.voiceURI = ME_VOICES[0].id;
+    ttsKickDeviceVoices();
+    if (!ttsPref.voiceURI || ttsPref.voiceURI === '__wait_device__') {
+      // Prefer device if available
+      try {
+        const vs = speechSynthesis.getVoices() || [];
+        if (vs.length) {
+          ttsPref.voiceURI = vs[0].voiceURI;
+          ttsFillVoiceSelect();
+        }
+      } catch (e) {}
     }
-    // Keep the user's current selection (meSpeak OR device) — do not force meSpeak
+    if (!ttsPref.voiceURI) ttsPref.voiceURI = ME_VOICES[0].id;
     saveTtsPref();
-    ttsFillVoiceSelect();
     try { unlockSfx(); } catch (e) {}
+
+    const phrase = 'Commentary ready. Mumbai leads at one hundred fifty.';
     if (isMeVoice(ttsPref.voiceURI)) {
-      ttsStatus('Loading commentary voice…');
+      ttsStatus('Trying meSpeak…');
+      var finished = false;
+      // Hard timeout: always speak via device if meSpeak stalls
+      setTimeout(function () {
+        if (finished) return;
+        finished = true;
+        ttsStatus('meSpeak slow — using device voice');
+        ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
+      }, 4000);
       meSpeakLoadSelected(function (ok) {
+        if (finished) return;
         if (ok) {
-          ttsSpeak('Commentary ready. Mumbai leads at one hundred fifty.', null);
+          finished = true;
+          ttsStatus('Speaking (meSpeak)…');
+          meSpeakSpeak(phrase, function () { ttsStatus('meSpeak OK'); });
         } else {
-          ttsStatus('meSpeak unavailable — using device voice');
-          ttsSpeakWeb('Commentary ready on device voice.', function () {});
+          finished = true;
+          ttsStatus('meSpeak failed — using device voice');
+          ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
         }
       });
     } else {
-      ttsStatus('Testing device voice…');
-      ttsSpeakWeb('Commentary ready. Mumbai leads at one hundred fifty.', function () {
-        ttsStatus('Device voice OK');
-      });
+      ttsStatus('Speaking (device)…');
+      ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
     }
   };
   ['ttsHost','ttsBid','ttsPlayer','ttsTimer','ttsWait'].forEach(id => {

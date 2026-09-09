@@ -736,7 +736,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.09.5.30</p>
+    <p class="set-version">Version: 2026.09.09.5.40</p>
   </div>
 </section>
 
@@ -1134,33 +1134,183 @@ function ttsPickVoice() {
   return list.slice().sort((a, b) => score(b) - score(a))[0] || list[0];
 }
 
-const ME_BASE = 'https://cdn.jsdelivr.net/npm/mespeak@2.0.2';
+/* Dedicated commentary: meSpeak (independent of Eloquent / device TTS) */
+const ME_BASE = 'https://www.masswerk.at/mespeak';
+const ME_SCRIPT = ME_BASE + '/mespeak.js';
+/* English voice packs + male/female variants (eSpeak-style) */
 const ME_VOICES = [
-  { id: 'me:en/en-us', label: 'Commentary: English US (meSpeak)', path: 'voices/en/en-us.json' },
-  { id: 'me:en/en', label: 'Commentary: English (meSpeak)', path: 'voices/en/en.json' },
-  { id: 'me:en/en-n', label: 'Commentary: English RP (meSpeak)', path: 'voices/en/en-n.json' },
-  { id: 'me:en/en-wm', label: 'Commentary: English West Midlands (meSpeak)', path: 'voices/en/en-wm.json' }
+  { id: 'me:en/en-us|m3', label: 'English US — Male', path: 'voices/en/en-us.json', variant: 'm3' },
+  { id: 'me:en/en-us|f2', label: 'English US — Female', path: 'voices/en/en-us.json', variant: 'f2' },
+  { id: 'me:en/en|m3', label: 'English — Male', path: 'voices/en/en.json', variant: 'm3' },
+  { id: 'me:en/en|f2', label: 'English — Female', path: 'voices/en/en.json', variant: 'f2' },
+  { id: 'me:en/en-rp|m3', label: 'English RP — Male', path: 'voices/en/en-rp.json', variant: 'm3' },
+  { id: 'me:en/en-rp|f2', label: 'English RP — Female', path: 'voices/en/en-rp.json', variant: 'f2' },
+  { id: 'me:en/en-n|m3', label: 'English Northern — Male', path: 'voices/en/en-n.json', variant: 'm3' },
+  { id: 'me:en/en-n|f2', label: 'English Northern — Female', path: 'voices/en/en-n.json', variant: 'f2' },
+  { id: 'me:en/en-sc|m3', label: 'English Scottish — Male', path: 'voices/en/en-sc.json', variant: 'm3' },
+  { id: 'me:en/en-sc|f2', label: 'English Scottish — Female', path: 'voices/en/en-sc.json', variant: 'f2' },
+  { id: 'me:en/en-wm|m3', label: 'English West Midlands — Male', path: 'voices/en/en-wm.json', variant: 'm3' },
+  { id: 'me:en/en-wm|f2', label: 'English West Midlands — Female', path: 'voices/en/en-wm.json', variant: 'f2' }
 ];
 let _meReady = false;
 let _meLoading = false;
 let _meVoicePath = 'voices/en/en-us.json';
+let _meVariant = 'm3';
 let _meConfigOk = false;
+let _meLoadedPath = '';
 
 function isMeVoice(uri) {
   return !!(uri && String(uri).indexOf('me:') === 0);
 }
-function mePathFromUri(uri) {
-  const id = String(uri || '');
+function meMetaFromUri(uri) {
+  const id = String(uri || ME_VOICES[0].id);
   for (let i = 0; i < ME_VOICES.length; i++) {
-    if (ME_VOICES[i].id === id) return ME_VOICES[i].path;
+    if (ME_VOICES[i].id === id) return ME_VOICES[i];
   }
-  return 'voices/en/en-us.json';
+  // legacy ids without variant
+  for (let i = 0; i < ME_VOICES.length; i++) {
+    if (id.indexOf(ME_VOICES[i].path.replace('voices/', 'me:').replace('.json', '')) === 0) return ME_VOICES[i];
+  }
+  return ME_VOICES[0];
+}
+function mePathFromUri(uri) {
+  return meMetaFromUri(uri).path;
 }
 function ttsStatus(msg) {
   try {
     const el = $('piperStatus');
     if (el) el.textContent = msg || '';
   } catch (e) {}
+}
+
+function meSpeakEnsure(cb) {
+  if (window.meSpeak && _meConfigOk) {
+    if (typeof cb === 'function') cb(true);
+    return;
+  }
+  if (_meLoading) {
+    setTimeout(function () { meSpeakEnsure(cb); }, 300);
+    return;
+  }
+  _meLoading = true;
+  ttsStatus('Loading commentary engine…');
+  function loadScript(src, next) {
+    if (window.meSpeak) { next(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = function () { next(); };
+    s.onerror = function () { next(new Error('script fail')); };
+    document.head.appendChild(s);
+  }
+  loadScript(ME_SCRIPT, function (err) {
+    if (err || !window.meSpeak) {
+      // fallback CDN mirror
+      loadScript('https://cdn.jsdelivr.net/gh/masswerk/mespeak@master/mespeak.js', function (err2) {
+        if (err2 || !window.meSpeak) {
+          _meLoading = false;
+          ttsStatus('Could not load meSpeak. Check internet and retry.');
+          if (typeof cb === 'function') cb(false);
+          return;
+        }
+        finishInit();
+      });
+      return;
+    }
+    finishInit();
+  });
+  function finishInit() {
+    try {
+      // meSpeak 2.x embeds config; loadConfig is optional/legacy
+      if (typeof window.meSpeak.loadConfig === 'function' && !(window.meSpeak.isConfigLoaded && window.meSpeak.isConfigLoaded())) {
+        window.meSpeak.loadConfig(ME_BASE + '/mespeak_config.json', function () {
+          _meConfigOk = true;
+          _meLoading = false;
+          ttsStatus('Commentary engine ready');
+          if (typeof cb === 'function') cb(true);
+        });
+        // if callback never fires (2.x), still continue after short wait
+        setTimeout(function () {
+          if (!_meConfigOk) {
+            _meConfigOk = true;
+            _meLoading = false;
+            ttsStatus('Commentary engine ready');
+            if (typeof cb === 'function') cb(true);
+          }
+        }, 1500);
+      } else {
+        _meConfigOk = true;
+        _meLoading = false;
+        ttsStatus('Commentary engine ready');
+        if (typeof cb === 'function') cb(true);
+      }
+    } catch (e) {
+      _meConfigOk = true;
+      _meLoading = false;
+      if (typeof cb === 'function') cb(true);
+    }
+  }
+}
+
+function meSpeakLoadSelected(cb) {
+  const meta = meMetaFromUri(ttsPref.voiceURI);
+  _meVoicePath = meta.path;
+  _meVariant = meta.variant || 'm3';
+  meSpeakEnsure(function (ok) {
+    if (!ok || !window.meSpeak) {
+      if (typeof cb === 'function') cb(false);
+      return;
+    }
+    if (_meLoadedPath === _meVoicePath && window.meSpeak.isVoiceLoaded && window.meSpeak.isVoiceLoaded()) {
+      if (typeof cb === 'function') cb(true);
+      return;
+    }
+    ttsStatus('Loading voice…');
+    const url = ME_BASE + '/' + _meVoicePath;
+    window.meSpeak.loadVoice(url, function (success, idOrErr) {
+      if (success === false) {
+        // try relative id form
+        const shortId = _meVoicePath.replace(/^voices\//, '').replace(/\.json$/, '');
+        window.meSpeak.loadVoice(shortId, function (s2) {
+          _meLoadedPath = _meVoicePath;
+          _meReady = true;
+          ttsStatus(s2 === false ? 'Voice load failed' : 'Voice ready: ' + meta.label);
+          if (typeof cb === 'function') cb(s2 !== false);
+        });
+        return;
+      }
+      _meLoadedPath = _meVoicePath;
+      _meReady = true;
+      ttsStatus('Voice ready: ' + meta.label);
+      if (typeof cb === 'function') cb(true);
+    });
+  });
+}
+
+function meSpeakSpeak(text, onEnd) {
+  meSpeakLoadSelected(function (ok) {
+    if (!ok || !window.meSpeak) {
+      ttsStatus('Could not load meSpeak voice. Check internet and retry.');
+      if (typeof onEnd === 'function') onEnd();
+      return;
+    }
+    try {
+      try { if (window.meSpeak.stop) window.meSpeak.stop(); } catch (e0) {}
+      const meta = meMetaFromUri(ttsPref.voiceURI);
+      window.meSpeak.speak(String(text), {
+        amplitude: Math.round(100 * (Number(ttsPref.volume) != null ? ttsPref.volume : 1)),
+        speed: Math.round(140 * (Number(ttsPref.rate) || 1)),
+        wordgap: 2,
+        variant: meta.variant || _meVariant || 'm3',
+        callback: function () {
+          if (typeof onEnd === 'function') onEnd();
+        }
+      });
+    } catch (e) {
+      console.warn('meSpeak speak', e);
+      if (typeof onEnd === 'function') onEnd();
+    }
+  });
 }
 
 function ttsFillVoiceSelect() {
@@ -1190,89 +1340,6 @@ function ttsFillVoiceSelect() {
     sel.value = ME_VOICES[0].id;
     ttsPref.voiceURI = ME_VOICES[0].id;
   }
-}
-
-function meSpeakEnsure(cb) {
-  if (_meReady && window.meSpeak && _meConfigOk) {
-    if (typeof cb === 'function') cb(true);
-    return;
-  }
-  if (_meLoading) {
-    setTimeout(function () { meSpeakEnsure(cb); }, 300);
-    return;
-  }
-  _meLoading = true;
-  ttsStatus('Loading commentary voice…');
-  function loadScript(src, next) {
-    if (window.meSpeak) { next(); return; }
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = function () { next(); };
-    s.onerror = function () { next(new Error('fail')); };
-    document.head.appendChild(s);
-  }
-  loadScript(ME_BASE + '/mespeak.js', function (err) {
-    if (err || !window.meSpeak) {
-      _meLoading = false;
-      ttsStatus('Could not load meSpeak. Check internet.');
-      if (typeof cb === 'function') cb(false);
-      return;
-    }
-    function afterConfig() {
-      _meConfigOk = true;
-      const path = _meVoicePath || mePathFromUri(ttsPref.voiceURI);
-      window.meSpeak.loadVoice(ME_BASE + '/' + path, function () {
-        _meReady = true;
-        _meLoading = false;
-        ttsStatus('Commentary voice ready (meSpeak)');
-        if (typeof cb === 'function') cb(true);
-      });
-    }
-    try {
-      if (window.meSpeak.isConfigLoaded && window.meSpeak.isConfigLoaded()) afterConfig();
-      else window.meSpeak.loadConfig(ME_BASE + '/src/mespeak_config.json', afterConfig);
-    } catch (e) {
-      _meLoading = false;
-      ttsStatus('meSpeak config error');
-      if (typeof cb === 'function') cb(false);
-    }
-  });
-}
-
-function meSpeakLoadSelected(cb) {
-  _meVoicePath = mePathFromUri(ttsPref.voiceURI);
-  meSpeakEnsure(function (ok) {
-    if (!ok || !window.meSpeak) {
-      if (typeof cb === 'function') cb(false);
-      return;
-    }
-    window.meSpeak.loadVoice(ME_BASE + '/' + _meVoicePath, function () {
-      if (typeof cb === 'function') cb(true);
-    });
-  });
-}
-
-function meSpeakSpeak(text, onEnd) {
-  meSpeakLoadSelected(function (ok) {
-    if (!ok || !window.meSpeak) {
-      ttsStatus('Commentary voice failed to load');
-      if (typeof onEnd === 'function') onEnd();
-      return;
-    }
-    try {
-      try { if (window.meSpeak.stop) window.meSpeak.stop(); } catch (e0) {}
-      window.meSpeak.speak(String(text), {
-        amplitude: Math.round(100 * (Number(ttsPref.volume) != null ? ttsPref.volume : 1)),
-        speed: Math.round(140 * (Number(ttsPref.rate) || 1)),
-        wordgap: 2,
-        callback: function () {
-          if (typeof onEnd === 'function') onEnd();
-        }
-      });
-    } catch (e) {
-      if (typeof onEnd === 'function') onEnd();
-    }
-  });
 }
 
 function ttsSpeakWeb(text, onEnd) {

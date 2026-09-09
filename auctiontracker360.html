@@ -736,7 +736,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.09.6.50</p>
+    <p class="set-version">Version: 2026.09.09.7.20</p>
   </div>
 </section>
 
@@ -1306,20 +1306,72 @@ function meSpeakSpeak(text, onEnd) {
     }
     try {
       try { if (window.meSpeak.stop) window.meSpeak.stop(); } catch (e0) {}
-      const meta = meMetaFromUri(ttsPref.voiceURI);
-      // Unlock audio on mobile (user gesture path)
+      // Stop any previous HTML5 audio from prior meSpeak utterance
       try {
-        if (window.meSpeak.speak && typeof window.AudioContext !== 'undefined') {
-          // no-op unlock; meSpeak handles after first play
+        if (window._meAudio) {
+          window._meAudio.onended = null;
+          window._meAudio.onerror = null;
+          window._meAudio.pause();
+          window._meAudio.src = '';
+          window._meAudio = null;
         }
-      } catch (e1) {}
-      window.meSpeak.speak(String(text), {
-        amplitude: Math.round(100 * (Number(ttsPref.volume) != null ? ttsPref.volume : 1)),
-        speed: Math.round(140 * (Number(ttsPref.rate) || 1)),
-        wordgap: 2,
+      } catch (eStop) {}
+      const meta = meMetaFromUri(ttsPref.voiceURI);
+      const vol = Math.min(1, Math.max(0, Number(ttsPref.volume) != null ? ttsPref.volume : 1));
+      const speed = Math.round(175 * (Number(ttsPref.rate) || 1));
+      var finished = false;
+      function finish() {
+        if (finished) return;
+        finished = true;
+        if (typeof onEnd === 'function') onEnd();
+      }
+      // Generate WAV as data-URL and play via HTML5 Audio.
+      // Internal meSpeak WebAudio player is often silent under Eloquence/TalkBack.
+      // rawdata path is independent of the system TTS engine — works for Eloquence users.
+      const opts = {
+        amplitude: Math.round(100 * vol),
+        speed: Math.max(80, Math.min(300, speed)),
+        wordgap: 1,
         variant: meta.variant || _meVariant || 'm3',
-        callback: function () {
-          if (typeof onEnd === 'function') onEnd();
+        rawdata: 'data-url'
+      };
+      window.meSpeak.speak(String(text), opts, function (success, id, data) {
+        if (!success || !data) {
+          // Fallback: try internal player once
+          try {
+            window.meSpeak.speak(String(text), {
+              amplitude: opts.amplitude,
+              speed: opts.speed,
+              wordgap: 1,
+              variant: opts.variant
+            }, function () { finish(); });
+            setTimeout(finish, 12000);
+          } catch (e2) {
+            finish();
+          }
+          return;
+        }
+        try {
+          const a = new Audio(data);
+          window._meAudio = a;
+          a.volume = vol;
+          a.onended = finish;
+          a.onerror = finish;
+          const p = a.play();
+          if (p && typeof p.catch === 'function') {
+            p.catch(function () {
+              // Autoplay blocked — try unlock then play again
+              try {
+                const ctx = window._sfxCtx || (window.AudioContext && new (window.AudioContext || window.webkitAudioContext)());
+                if (ctx && ctx.state === 'suspended') ctx.resume();
+              } catch (e3) {}
+              a.play().catch(finish);
+            });
+          }
+          setTimeout(finish, 20000);
+        } catch (ePlay) {
+          console.warn('meSpeak audio play', ePlay);
+          finish();
         }
       });
     } catch (e) {
@@ -1334,10 +1386,15 @@ function meSpeakSpeak(text, onEnd) {
 function ttsFillVoiceSelect() {
   const sel = $('ttsVoice');
   if (!sel) return;
-  const prev = ttsPref.voiceURI || sel.value;
+  const prev = ttsPref.voiceURI || sel.value || '';
   sel.innerHTML = '';
 
-  // Device / Web Speech first (reliable on Android)
+  // Always offer system default — works even when getVoices() is empty (common on Android + TalkBack)
+  const optDef = document.createElement('option');
+  optDef.value = 'device:default';
+  optDef.textContent = 'Device: System default (recommended)';
+  sel.appendChild(optDef);
+
   let deviceCount = 0;
   if (ttsWebSpeechOk()) {
     let list = [];
@@ -1361,71 +1418,66 @@ function ttsFillVoiceSelect() {
     });
   }
 
-  // meSpeak packs (optional; may fail on some networks)
+  // Optional meSpeak packs (network; may be silent on some phones)
   ME_VOICES.forEach(function (v) {
     const o = document.createElement('option');
     o.value = v.id;
-    o.textContent = v.label + ' (may need network)';
+    o.textContent = v.label + ' — for Eloquence';
     sel.appendChild(o);
   });
 
-  if (!deviceCount && ttsWebSpeechOk()) {
-    const o = document.createElement('option');
-    o.value = '__wait_device__';
-    o.disabled = true;
-    o.textContent = 'Device voices loading… reopen list in 1–2s';
-    sel.insertBefore(o, sel.firstChild);
-  }
-
-  if (prev && prev !== '__wait_device__' && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
+  if (prev && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
     sel.value = prev;
   } else if (deviceCount > 0) {
-    // Prefer first English device voice
-    sel.selectedIndex = 0;
-    ttsPref.voiceURI = sel.value;
+    sel.value = 'device:default';
+    ttsPref.voiceURI = 'device:default';
   } else {
+    // No Web Speech voices (Eloquence / empty engine) — default to meSpeak
     sel.value = ME_VOICES[0].id;
     ttsPref.voiceURI = ME_VOICES[0].id;
+    ttsStatus('No device voices — using meSpeak (works with Eloquence)');
   }
 }
 
-/** Kick Android/Chrome into enumerating voices */
+/** Kick Android/Chrome into enumerating voices (TalkBack / 3rd-party engines often delay this). */
 function ttsKickDeviceVoices() {
   if (!ttsWebSpeechOk()) return;
-  try {
-    const list = speechSynthesis.getVoices();
-    if (list && list.length) {
-      ttsFillVoiceSelect();
-      return;
-    }
-  } catch (e) {}
   try {
     speechSynthesis.onvoiceschanged = function () {
       ttsFillVoiceSelect();
     };
   } catch (e) {}
-  // Dummy near-silent utterance forces voice list on many Android builds
+  try {
+    const list = speechSynthesis.getVoices();
+    if (list && list.length) {
+      ttsFillVoiceSelect();
+    }
+  } catch (e) {}
+  // Silent utterance often forces voice list population on Android Chrome
   try {
     const u = new SpeechSynthesisUtterance(' ');
     u.volume = 0;
     u.rate = 2;
+    u.onend = function () { try { ttsFillVoiceSelect(); } catch (e2) {} };
     speechSynthesis.speak(u);
-    speechSynthesis.cancel();
+    setTimeout(function () {
+      try { speechSynthesis.cancel(); } catch (e3) {}
+      ttsFillVoiceSelect();
+    }, 300);
   } catch (e) {}
-  // Poll a few times
   var n = 0;
   var iv = setInterval(function () {
     n++;
     try {
       const list = speechSynthesis.getVoices() || [];
-      if (list.length || n >= 15) {
+      if (list.length || n >= 20) {
         clearInterval(iv);
         ttsFillVoiceSelect();
       }
     } catch (e) {
       clearInterval(iv);
     }
-  }, 400);
+  }, 500);
 }
 
 function ttsSpeakWeb(text, onEnd) {
@@ -1435,21 +1487,46 @@ function ttsSpeakWeb(text, onEnd) {
   }
   try {
     try { speechSynthesis.resume(); } catch (e1) {}
+    // Do not cancel — TalkBack / Eloquence users lose speech if we cancel
     const u = new SpeechSynthesisUtterance(String(text));
-    u.rate = Math.min(1.4, Math.max(0.7, Number(ttsPref.rate) || 1));
+    u.rate = Math.min(1.5, Math.max(0.6, Number(ttsPref.rate) || 1));
     u.pitch = 1;
     u.volume = Math.min(1, Math.max(0, Number(ttsPref.volume) != null ? ttsPref.volume : 1));
-    const list = speechSynthesis.getVoices() || [];
-    const want = ttsPref.voiceURI;
-    const found = list.find(function (v) { return v.voiceURI === want; });
-    if (found) u.voice = found;
-    u.onend = function () { if (typeof onEnd === 'function') onEnd(); };
-    u.onerror = function () { if (typeof onEnd === 'function') onEnd(); };
+    const want = ttsPref.voiceURI || 'device:default';
+    if (want && want !== 'device:default' && !isMeVoice(want)) {
+      try {
+        const list = speechSynthesis.getVoices() || [];
+        const found = list.find(function (v) { return v.voiceURI === want; });
+        if (found) u.voice = found;
+      } catch (e2) {}
+    }
+    // Prefer English if no specific voice
+    if (!u.voice) {
+      try {
+        const list = speechSynthesis.getVoices() || [];
+        const en = list.find(function (v) {
+          const l = (v.lang || '').toLowerCase();
+          return l.indexOf('en') === 0;
+        });
+        if (en) u.voice = en;
+      } catch (e3) {}
+    }
+    var ended = false;
+    function finish() {
+      if (ended) return;
+      ended = true;
+      if (typeof onEnd === 'function') onEnd();
+    }
+    u.onend = finish;
+    u.onerror = finish;
+    setTimeout(finish, 15000); // safety
     speechSynthesis.speak(u);
   } catch (e) {
+    console.warn('ttsSpeakWeb', e);
     if (typeof onEnd === 'function') onEnd();
   }
 }
+
 
 function ttsSpeak(text, category, onEnd) {
   if (!text || !ttsPref.on) {
@@ -1460,8 +1537,9 @@ function ttsSpeak(text, category, onEnd) {
     if (typeof onEnd === 'function') onEnd();
     return;
   }
-  const uri = ttsPref.voiceURI || ME_VOICES[0].id;
+  const uri = ttsPref.voiceURI || 'device:default';
   if (isMeVoice(uri)) {
+    // Eloquence / no Google TTS: use meSpeak only (HTML5 Audio path)
     meSpeakSpeak(text, onEnd);
     return;
   }
@@ -1691,22 +1769,13 @@ function wireTtsSettings() {
   };
   if ($('ttsVoice')) $('ttsVoice').onchange = () => {
     const val = $('ttsVoice').value;
-    if (!val || val === '__wait_device__') return;
+    if (!val) return;
     ttsPref.voiceURI = val;
     saveTtsPref();
-    if (isMeVoice(ttsPref.voiceURI)) {
-      ttsStatus('Loading meSpeak voice…');
-      var done = false;
-      setTimeout(function () {
-        if (done) return;
-        done = true;
-        ttsStatus('meSpeak slow — pick a Device voice for instant speech');
-      }, 5000);
-      meSpeakLoadSelected(function (ok) {
-        if (done) return;
-        done = true;
-        ttsStatus(ok ? 'meSpeak voice ready' : 'meSpeak failed — pick a Device voice');
-        if (ok && ttsPref.on) meSpeakSpeak('Voice selected', function () {});
+    if (isMeVoice(val)) {
+      ttsStatus('Loading meSpeak for Eloquence…');
+      meSpeakSpeak('meSpeak voice selected', function () {
+        ttsStatus('meSpeak ready');
       });
     } else {
       ttsStatus('Device voice selected');
@@ -1732,45 +1801,29 @@ function wireTtsSettings() {
     chk.checked = true;
     ttsKickDeviceVoices();
     if (!ttsPref.voiceURI || ttsPref.voiceURI === '__wait_device__') {
-      // Prefer device if available
+      // Prefer device default if voices exist; else meSpeak for Eloquence
       try {
-        const vs = speechSynthesis.getVoices() || [];
-        if (vs.length) {
-          ttsPref.voiceURI = vs[0].voiceURI;
-          ttsFillVoiceSelect();
-        }
-      } catch (e) {}
+        const vs = (speechSynthesis.getVoices && speechSynthesis.getVoices()) || [];
+        ttsPref.voiceURI = vs.length ? 'device:default' : ME_VOICES[0].id;
+      } catch (e) {
+        ttsPref.voiceURI = ME_VOICES[0].id;
+      }
     }
-    if (!ttsPref.voiceURI) ttsPref.voiceURI = ME_VOICES[0].id;
     saveTtsPref();
+    ttsFillVoiceSelect();
     try { unlockSfx(); } catch (e) {}
 
     const phrase = 'Commentary ready. Mumbai leads at one hundred fifty.';
     if (isMeVoice(ttsPref.voiceURI)) {
-      ttsStatus('Trying meSpeak…');
-      var finished = false;
-      // Hard timeout: always speak via device if meSpeak stalls
-      setTimeout(function () {
-        if (finished) return;
-        finished = true;
-        ttsStatus('meSpeak slow — using device voice');
-        ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
-      }, 4000);
-      meSpeakLoadSelected(function (ok) {
-        if (finished) return;
-        if (ok) {
-          finished = true;
-          ttsStatus('Speaking (meSpeak)…');
-          meSpeakSpeak(phrase, function () { ttsStatus('meSpeak OK'); });
-        } else {
-          finished = true;
-          ttsStatus('meSpeak failed — using device voice');
-          ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
-        }
+      ttsStatus('Speaking with meSpeak (Eloquence-safe)…');
+      meSpeakSpeak(phrase, function () {
+        ttsStatus('meSpeak OK — works without Google TTS');
       });
     } else {
-      ttsStatus('Speaking (device)…');
-      ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
+      ttsStatus('Speaking with device voice…');
+      ttsSpeakWeb(phrase, function () {
+        ttsStatus('Device voice OK');
+      });
     }
   };
   ['ttsHost','ttsBid','ttsPlayer','ttsTimer','ttsWait'].forEach(id => {

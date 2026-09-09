@@ -159,7 +159,24 @@ body.light .top-nav{background:rgba(255,255,255,0.92)}
 }
 .user-badge strong{color:var(--text)}
 
-.wrap{max-width:1050px;margin:20px auto;padding:0 16px}
+.wrap{max-width:1050px;margin:8px auto;padding:0 12px}
+@media(min-width:600px){.wrap{margin:16px auto;padding:0 16px}}
+/* Squads: start near top on mobile — less empty space */
+#tabSquads.panel{margin-top:4px;padding:10px 12px}
+#tabSquads h1{margin:4px 0 8px;font-size:1.2rem}
+#sqBody{margin:0;min-height:0}
+#tabAuction.panel{margin-top:4px;padding:10px 12px}
+#tabTools.panel{margin-top:4px;padding:10px 12px}
+/* Inactive auction tab must not be reachable by screen reader / touch explore */
+#tabAuction[aria-hidden="true"],#tabSquads[aria-hidden="true"],#tabTools[aria-hidden="true"]{
+  display:none!important;pointer-events:none!important;visibility:hidden!important;
+}
+#aucHostFooter[aria-hidden="true"],#aucHostFooter.hidden{
+  display:none!important;pointer-events:none!important;
+}
+/* Keep dialogs above everything */
+#priceEditOverlay,#squadAddOverlay,#confirmModal{z-index:400!important}
+#priceEditOverlay .modal-box,#squadAddOverlay .modal-box{pointer-events:auto;z-index:401}
 
 .panel{
   background:var(--bg-surface);
@@ -639,7 +656,7 @@ a{color:var(--primary)}
       <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.08.8.00</p>
+    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.09.1.00</p>
   </div>
 </section>
 
@@ -1242,29 +1259,40 @@ function dismissKeyboard(){
   try{ const u=$('ultimateBid'); if(u) u.blur(); }catch(e){}
 }
 
-/** Move screen reader / focus to bidding controls once per player — never the ultimate text field */
+/** Move screen reader / focus to first raise button when bidding is available */
 function focusBidArea(){
   if(window._modalOpen || isConfirmOpen()) return;
+  if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()) return;
   dismissKeyboard();
   const region = $('bidRegion');
-  if(!region){
+  // Prefer first enabled raise button (easiest path to bid for SR users)
+  let first = document.querySelector('button.bidRaise:not([disabled])');
+  if(!first && region){
+    first = region.querySelector(
+      'button.bidRaise:not([disabled]), button#btnQuitLot, button.btn-ok:not([disabled]), button.btn-sec:not([disabled]), button.btn-danger:not([disabled])'
+    );
+  }
+  if(!first && region){
+    first = region.querySelector('[role="status"]');
+  }
+  if(!first){
     const pc = $('playerCard') || $('pName');
     if(pc) focusEl(pc);
     return;
   }
-  // Prefer action buttons; skip text inputs (keeps mobile keyboard closed)
-  const first = region.querySelector(
-    'button.bidRaise:not([disabled]), button#btnQuitLot, button.btn-ok:not([disabled]), button.btn-sec:not([disabled]), button.btn-danger:not([disabled]), [role="status"]'
-  );
-  if(first){ focusEl(first); return; }
-  if(!region.hasAttribute('tabindex')) region.setAttribute('tabindex','-1');
-  focusEl(region);
+  // Ensure button is focusable for TalkBack / VoiceOver
+  if(!first.hasAttribute('tabindex')) first.setAttribute('tabindex','0');
+  focusEl(first);
+  try{ first.scrollIntoView({ block:'nearest', behavior:'smooth' }); }catch(e){}
 }
 
 function focusEl(el){
   if(!el) return;
-  // While confirm dialog is open, only allow focus inside the dialog
-  if((window._modalOpen || isConfirmOpen()) && !el.closest('#confirmModal')) return;
+  // While a modal is open, only allow focus inside that modal
+  if(window._modalOpen || isConfirmOpen() || window._priceEditOpen || window._squadDialogOpen){
+    const inDialog = el.closest && el.closest('#confirmModal, #priceEditOverlay, #squadAddOverlay, #msgOverlay, #msgPanel, #soldForm');
+    if(!inDialog) return;
+  }
   try{
     if(!el.hasAttribute('tabindex') && el.tagName!=='BUTTON' && el.tagName!=='INPUT' && el.tagName!=='SELECT' && el.tagName!=='A'){
       el.setAttribute('tabindex','-1');
@@ -1428,13 +1456,22 @@ function setHtml(idOrEl, html){
   if(!el) return false;
   try{ el.innerHTML = html; return true; }catch(e){ console.warn('setHtml', e); return false; }
 }
+function isSquadDialogOpen(){
+  if(window._priceEditOpen || window._squadDialogOpen) return true;
+  const pe=$('priceEditOverlay');
+  if(pe && !pe.classList.contains('hidden') && pe.innerHTML) return true;
+  const sa=$('squadAddOverlay');
+  if(sa && !sa.classList.contains('hidden') && sa.innerHTML) return true;
+  return false;
+}
 function isUiLocked(){
   if(window._modalOpen || (typeof isConfirmOpen==='function' && isConfirmOpen())) return true;
   if(typeof isMsgPanelOpen==='function' && isMsgPanelOpen()) return true;
   if(typeof isSoldFormOpen==='function' && isSoldFormOpen()) return true;
   if(window._chatComposerOpen) return true;
   if(window._squadBusy) return true;
-  if(window._priceEditOpen) return true;
+  if(window._priceEditOpen || window._squadDialogOpen) return true;
+  if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()) return true;
   const ae=document.activeElement;
   // Only lock rebuild for known auction/squad form fields (not every input on the page)
   if(ae && (ae.id==='msgText'||ae.id==='sTeam'||ae.id==='sPrice'||ae.id==='ultimateBid'||ae.id==='addQ'||ae.id==='addPrice'||ae.id==='addSel'||ae.id==='newPrice')) return true;
@@ -1729,7 +1766,7 @@ function enterHome(){
   try{ queueClearSpeech(); }catch(e){}
   try{ ttsStop(); }catch(e){}
   try{ showIntermissionBar(0); }catch(e){}
-  try{ forceClearBlockingOverlays(); }catch(e){}
+  try{ forceClearBlockingOverlays({ force:true, clearSquadDialogs:true }); }catch(e){}
   try{
     const f=$('btnMsgFab'); if(f) f.classList.add('hidden');
     const o=$('msgOverlay'); if(o) o.classList.add('hidden');
@@ -1739,6 +1776,9 @@ function enterHome(){
     try{ closeChatComposer(); }catch(e2){}
     document.body.classList.remove('msg-open','chat-open');
     window._modalOpen=false;
+    window._priceEditOpen=false;
+    window._squadDialogOpen=false;
+    window._squadBusy=false;
     // Clear live regions so empty home space does not read old bids
     const lv=$('live'); if(lv) lv.textContent='';
     const ls=$('liveSoft'); if(ls) ls.textContent='';
@@ -2425,7 +2465,8 @@ function applyAuctionData(data){
       ae.id==='msgText'||ae.id==='sTeam'||ae.id==='sPrice'||
       ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'
     );
-    // Dialogs / typing → do not rebuild (keeps message + sold form stable)
+    // Dialogs / typing → do not rebuild (keeps message + sold form + price/add dialogs stable)
+    if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()) return;
     if(typeof isUiLocked==='function' && isUiLocked()) return;
 
     const bid=data.bid||{};
@@ -2480,10 +2521,12 @@ function applyAuctionData(data){
     const onSq=$('tabSquads')&&!$('tabSquads').classList.contains('hidden');
     // Do not rebuild squads while user is editing (change price / remove / add / sold form)
     if(onSq && data.status!=='ended' && !pauseFlipped){
-      if(typeof isUiLocked==='function' && isUiLocked()){ /* keep squad DOM */ }
+      if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()){ /* keep dialog + squad DOM */ }
+      else if(typeof isUiLocked==='function' && isUiLocked()){ /* keep squad DOM */ }
       else if(window._squadBusy){ /* keep squad DOM */ }
       else renderSquads();
     } else if(!onSq){
+      if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()) return;
       renderAuction({ skipFocus: !pauseFlipped, focusBid: !!pauseFlipped && !data.paused });
     }
   }
@@ -3814,19 +3857,29 @@ function teamCanRaiseNow(teamId, bid, rules){
 
 
 /* ========== RENDER AUCTION ========== */
-function forceClearBlockingOverlays(){
+function forceClearBlockingOverlays(opts){
+  opts=opts||{};
   try{
     const o=$('msgOverlay'); if(o){ o.classList.add('hidden'); }
     const mp=$('msgPanel'); if(mp){ mp.setAttribute('aria-hidden','true'); }
     const qp=$('aucQuickSetPanel'); if(qp) qp.classList.add('hidden');
-    const pe=$('priceEditOverlay'); if(pe){ pe.classList.add('hidden'); pe.innerHTML=''; }
-    const sa=$('squadAddOverlay'); if(sa){ sa.classList.add('hidden'); sa.innerHTML=''; }
     try{ closeChatComposer(); }catch(e){}
     document.body.classList.remove('msg-open','chat-open');
-    window._modalOpen=false;
-    window._priceEditOpen=false;
-    window._squadBusy=false;
     window._chatComposerOpen=false;
+    // Never kill price/add dialogs unless forced (leave auction / home)
+    if(opts.force || opts.clearSquadDialogs){
+      const pe=$('priceEditOverlay'); if(pe){ pe.classList.add('hidden'); pe.innerHTML=''; }
+      const sa=$('squadAddOverlay'); if(sa){ sa.classList.add('hidden'); sa.innerHTML=''; }
+      window._priceEditOpen=false;
+      window._squadDialogOpen=false;
+      window._squadBusy=false;
+      window._modalOpen=false;
+    } else {
+      // Keep message closed but do not touch squad dialogs
+      if(!window._priceEditOpen && !window._squadDialogOpen){
+        window._modalOpen=false;
+      }
+    }
   }catch(e){}
 }
 
@@ -3839,16 +3892,23 @@ function switchTab(which){
     const ls=$('liveSoft'); if(ls) ls.textContent='';
     const tb=$('timerBanner'); if(tb){ tb.classList.add('hidden'); tb.textContent=''; }
   }catch(e){}
-  // ALWAYS clear full-screen overlays — they block Squads taps if left open
-  forceClearBlockingOverlays();
+  // Close message/chat only — close squad dialogs only when leaving Squads
+  forceClearBlockingOverlays({ clearSquadDialogs: which!=='squads' });
   ['Auction','Squads','Tools'].forEach(n=>{
     const on=which.toLowerCase()===n.toLowerCase();
     const tab=$('tab'+n);
     if(tab){
       tab.classList.toggle('hidden',!on);
       tab.setAttribute('aria-hidden', on ? 'false' : 'true');
-      // Never use inert here — it blocks all taps on mobile WebViews
       tab.removeAttribute('inert');
+      // Extra: fully hide inactive tabs so SR cannot find Leave auction / Message
+      if(!on){
+        tab.setAttribute('inert','');
+        tab.style.display='none';
+      } else {
+        tab.removeAttribute('inert');
+        tab.style.display='';
+      }
     }
     if($('tabBtn'+n)){
       $('tabBtn'+n).classList.toggle('active',on);
@@ -3858,20 +3918,35 @@ function switchTab(which){
   if($('tabBtnTools')) $('tabBtnTools').classList.remove('hidden');
   try{
     const top=$('tabAuction') && $('tabAuction').querySelector('.auc-topbar');
-    if(top) top.setAttribute('aria-hidden', which==='auction' ? 'false' : 'true');
+    if(top){
+      top.setAttribute('aria-hidden', which==='auction' ? 'false' : 'true');
+    }
     const foot=$('aucHostFooter');
-    if(foot) foot.setAttribute('aria-hidden', which==='auction' ? 'false' : 'true');
+    if(foot){
+      const show = which==='auction';
+      foot.setAttribute('aria-hidden', show ? 'false' : 'true');
+      foot.classList.toggle('hidden', !show);
+      // Leave auction must not be focusable off the auction tab
+      foot.querySelectorAll('button').forEach(function(b){
+        if(show){ b.removeAttribute('tabindex'); b.removeAttribute('aria-hidden'); }
+        else { b.setAttribute('tabindex','-1'); b.setAttribute('aria-hidden','true'); }
+      });
+    }
   }catch(e){}
   if(which==='auction') renderAuction();
   if(which==='squads'){
-    squadView=null; window._squadFocusList=false;
-    // Ensure Squads panel can receive taps
+    // Keep squad dialog if still open; only reset list when no dialog
+    if(!isSquadDialogOpen()){
+      squadView=null; window._squadFocusList=false;
+    }
     try{
       const ts=$('tabSquads');
-      if(ts){ ts.removeAttribute('inert'); ts.classList.remove('hidden'); }
+      if(ts){ ts.removeAttribute('inert'); ts.classList.remove('hidden'); ts.style.display=''; }
     }catch(e){}
-    renderSquads();
-    setTimeout(function(){ focusEl($('sqTitle')); }, 80);
+    if(!isSquadDialogOpen()){
+      renderSquads();
+      setTimeout(function(){ focusEl($('sqTitle')); }, 80);
+    }
   }
   if(which==='tools'){
     toolsKind=null;
@@ -5281,6 +5356,7 @@ function openChangePriceDialog(teamIndex, playerIndex, pname, pprice){
   if(!t0 || !t0.players || !t0.players[playerIndex]) return;
   window._squadBusy=true;
   window._priceEditOpen=true;
+  window._squadDialogOpen=true;
   window._modalOpen=true;
   let overlay=$('priceEditOverlay');
   if(!overlay){
@@ -5292,9 +5368,13 @@ function openChangePriceDialog(teamIndex, playerIndex, pname, pprice){
     overlay.setAttribute('aria-labelledby','priceEditTitle');
     document.body.appendChild(overlay);
   }
+  // Always last child so it sits above tab bar / other UI
+  try{ document.body.appendChild(overlay); }catch(e){}
   overlay.classList.remove('hidden');
+  overlay.style.display='flex';
+  overlay.style.zIndex='400';
   overlay.innerHTML=
-    '<div class="modal-box">'+
+    '<div class="modal-box" role="document">'+
     '<h2 id="priceEditTitle" tabindex="-1">Change price</h2>'+
     '<p style="color:var(--muted);margin:0 0 8px">'+(pname||'Player')+' · current '+pprice+'</p>'+
     '<label for="newPrice">New price</label>'+
@@ -5305,13 +5385,23 @@ function openChangePriceDialog(teamIndex, playerIndex, pname, pprice){
     '</div></div>';
   function closePrice(){
     overlay.classList.add('hidden');
+    overlay.style.display='none';
     overlay.innerHTML='';
     window._priceEditOpen=false;
+    window._squadDialogOpen=false;
     window._squadBusy=false;
     window._modalOpen=false;
   }
-  $('btnPriceCancel').onclick=function(){ closePrice(); renderSquads(); };
-  $('btnPriceSave').onclick=function(){
+  // Clicks inside dialog must not bubble to document squad handler
+  overlay.onclick=function(ev){
+    if(ev.target===overlay){ /* backdrop tap = cancel */ closePrice(); renderSquads(); return; }
+    try{ ev.stopPropagation(); }catch(e){}
+  };
+  const box=overlay.querySelector('.modal-box');
+  if(box) box.onclick=function(ev){ try{ ev.stopPropagation(); }catch(e){} };
+  $('btnPriceCancel').onclick=function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){} closePrice(); renderSquads(); };
+  $('btnPriceSave').onclick=function(ev){
+    try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
     const np=parseInt(String(($('newPrice')&&$('newPrice').value)||'').replace(/\D/g,''),10);
     if(!np||np<0){ alert('Enter a valid price'); focusEl($('newPrice')); return; }
     // Always resolve from current T by index (not a stale object from an old render)
@@ -5354,6 +5444,7 @@ function openAddPlayerDialog(teamIndex){
   const t=T && T.teams && T.teams[teamIndex];
   if(!t) return;
   window._squadBusy=true;
+  window._squadDialogOpen=true;
   window._modalOpen=true;
   // Modal panel inside confirm-style overlay
   let overlay=$('squadAddOverlay');
@@ -5366,9 +5457,12 @@ function openAddPlayerDialog(teamIndex){
     overlay.setAttribute('aria-labelledby','squadAddTitle');
     document.body.appendChild(overlay);
   }
+  try{ document.body.appendChild(overlay); }catch(e){}
   overlay.classList.remove('hidden');
+  overlay.style.display='flex';
+  overlay.style.zIndex='400';
   overlay.innerHTML=
-    '<div class="modal-box">'+
+    '<div class="modal-box" role="document">'+
     '<h2 id="squadAddTitle" tabindex="-1">Add player to '+t.name+'</h2>'+
     '<label for="addQ">Search player</label>'+
     '<input id="addQ" type="search" autocomplete="off" placeholder="Type name" aria-label="Search player" />'+
@@ -5414,17 +5508,32 @@ function openAddPlayerDialog(teamIndex){
   fillMatches();
   if($('addQ')) $('addQ').oninput=fillMatches;
   if($('addSel')) $('addSel').onchange=updateStatus;
+  overlay.onclick=function(ev){
+    if(ev.target===overlay){
+      overlay.classList.add('hidden'); overlay.style.display='none'; overlay.innerHTML='';
+      window._squadBusy=false; window._squadDialogOpen=false; window._modalOpen=false;
+      renderSquads();
+      return;
+    }
+    try{ ev.stopPropagation(); }catch(e){}
+  };
+  const addBox=overlay.querySelector('.modal-box');
+  if(addBox) addBox.onclick=function(ev){ try{ ev.stopPropagation(); }catch(e){} };
   focusEl($('squadAddTitle'));
   setTimeout(function(){ if($('addQ')) focusEl($('addQ')); }, 80);
 
-  $('btnAddPlayerCancel').onclick=function(){
+  $('btnAddPlayerCancel').onclick=function(ev){
+    try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
     overlay.classList.add('hidden');
+    overlay.style.display='none';
     overlay.innerHTML='';
     window._squadBusy=false;
+    window._squadDialogOpen=false;
     window._modalOpen=false;
     focusEl($('btnOpenAddPlayer')||$('sqDet'));
   };
-  $('btnAddPlayerSave').onclick=async function(){
+  $('btnAddPlayerSave').onclick=async function(ev){
+    try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
     try{
       const team=T.teams[teamIndex];
       if(!team){ alert('Team not found'); return; }
@@ -5456,13 +5565,16 @@ function openAddPlayerDialog(teamIndex){
       mp.price=price;
       await saveSquadEdits();
       overlay.classList.add('hidden');
+      overlay.style.display='none';
       overlay.innerHTML='';
       window._squadBusy=false;
+      window._squadDialogOpen=false;
       window._modalOpen=false;
       renderSquads();
       announce((mp.name||'Player')+' added to '+team.name+' for '+price);
     }catch(e){
       window._squadBusy=false;
+      window._squadDialogOpen=false;
       window._modalOpen=false;
       safeAlert(e);
     }
@@ -5472,10 +5584,12 @@ function openAddPlayerDialog(teamIndex){
 function renderSquads(){
   const box=$('sqBody');
   if(!box||!T) return;
+  // Never wipe the list under an open dialog
+  if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()) return;
   // Always allow taps on this panel
   try{
     const ts=$('tabSquads');
-    if(ts){ ts.removeAttribute('inert'); }
+    if(ts){ ts.removeAttribute('inert'); ts.style.display=''; }
   }catch(e){}
   box.innerHTML='';
   if(squadView===null){
@@ -5587,7 +5701,11 @@ function renderSquads(){
     box.appendChild(addBtn);
   }
 
-  focusEl(h);
+  // Focus team heading only when newly opened (not on every live refresh)
+  if(window._squadFocusTeam===teamIndex){
+    window._squadFocusTeam=null;
+    focusEl(h);
+  }
 }
 
 /* Document-level squad clicks — works even if panel re-renders or overlay glitches */
@@ -5602,7 +5720,7 @@ function handleSquadAction(btn){
   }catch(e){}
   if(action==='open-team'){
     const ti=parseInt(btn.getAttribute('data-team-index'),10);
-    if(!isNaN(ti)){ squadView=ti; renderSquads(); }
+    if(!isNaN(ti)){ squadView=ti; window._squadFocusTeam=ti; renderSquads(); }
     return;
   }
   if(action==='back-teams'){
@@ -5665,22 +5783,15 @@ function handleSquadAction(btn){
 function wireSquadDelegation(){
   if(window._squadDocWired) return;
   window._squadDocWired=true;
+  // Click only (no touchend) — avoids double-open that made dialogs flash and vanish
   document.addEventListener('click', function(ev){
+    // Ignore clicks inside open dialogs
+    if(ev.target && ev.target.closest && ev.target.closest('#priceEditOverlay, #squadAddOverlay, #confirmModal, #msgOverlay')) return;
     const btn=ev.target && ev.target.closest && ev.target.closest('[data-squad-action]');
     if(!btn) return;
     try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
     handleSquadAction(btn);
   }, true);
-  document.addEventListener('touchend', function(ev){
-    const btn=ev.target && ev.target.closest && ev.target.closest('[data-squad-action]');
-    if(!btn) return;
-    // Avoid double-fire with click on some phones: only handle if click may not fire
-    if(window._squadTouchHandled) return;
-    window._squadTouchHandled=true;
-    setTimeout(function(){ window._squadTouchHandled=false; }, 400);
-    try{ ev.preventDefault(); }catch(e){}
-    handleSquadAction(btn);
-  }, { capture:true, passive:false });
 }
 try{ wireSquadDelegation(); }catch(e){}
 document.addEventListener('DOMContentLoaded', function(){ try{ wireSquadDelegation(); }catch(e){} });

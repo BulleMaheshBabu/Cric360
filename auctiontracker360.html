@@ -736,7 +736,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.09.5.00</p>
+    <p class="set-version">Version: 2026.09.09.5.10</p>
   </div>
 </section>
 
@@ -994,16 +994,16 @@ function saveTtsPref() {
 }
 
 /* ===== Piper WASM commentary (P0 — works when system voices are empty) ===== */
-const PIPER_VOICE_ID = 'en_US-lessac-medium';
+const PIPER_VOICE_ID = 'en_US-hfc_female-medium';
 const PIPER_CDN = 'https://esm.sh/@mintplex-labs/piper-tts-web';
 let _piperMod = null;
 let _piperReady = false;
 let _piperLoading = false;
 let _piperAudio = null;
-let _piperStatus = 'off'; // off | loading | ready | error
+let _piperStatus = 'off'; // off | loading | ready | error | device
 
 function ttsSupported() {
-  return true; // Piper and/or Web Speech
+  return true;
 }
 function ttsWebSpeechOk() {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -1013,38 +1013,55 @@ function piperSetStatus(s, detail) {
   try {
     const el = $('piperStatus');
     if (!el) return;
-    if (s === 'loading') el.textContent = detail || 'Downloading voice… stay on Wi‑Fi';
-    else if (s === 'ready') el.textContent = 'Piper ready — commentary on';
-    else if (s === 'error') el.textContent = detail || 'Piper failed — try Test again on Wi‑Fi';
-    else el.textContent = 'Tap Test or turn Commentary on to load voice';
+    if (s === 'loading') el.textContent = detail || 'Downloading Piper voice…';
+    else if (s === 'ready') el.textContent = 'Piper voice ready';
+    else if (s === 'device') el.textContent = detail || 'Using device voice (Piper not loaded)';
+    else if (s === 'error') el.textContent = detail || 'Piper failed — using device voice';
+    else el.textContent = 'Tap Test to load commentary voice';
   } catch (e) {}
 }
 async function piperEnsure() {
   if (_piperReady && _piperMod) return true;
-  if (_piperLoading) return false;
+  if (_piperLoading) {
+    for (let i = 0; i < 90 && _piperLoading; i++) {
+      await new Promise(function (r) { setTimeout(r, 1000); });
+      if (_piperReady) return true;
+    }
+    return !!_piperReady;
+  }
   _piperLoading = true;
-  piperSetStatus('loading');
+  piperSetStatus('loading', 'Loading Piper…');
+  let timedOut = false;
+  const timer = setTimeout(function () { timedOut = true; }, 90000);
   try {
-    _piperMod = await import(/* webpackIgnore: true */ PIPER_CDN);
+    const mod = await import(/* webpackIgnore: true */ PIPER_CDN);
+    _piperMod = mod && (mod.default || mod);
+    if (!_piperMod || typeof _piperMod.predict !== 'function') {
+      throw new Error('Piper module missing predict()');
+    }
     if (typeof _piperMod.download === 'function') {
       await _piperMod.download(PIPER_VOICE_ID, function (p) {
         try {
+          if (timedOut) return;
           if (p && p.total) {
-            const pct = Math.round((p.loaded * 100) / p.total);
-            piperSetStatus('loading', 'Downloading voice… ' + pct + '%');
+            const pct = Math.min(100, Math.round((p.loaded * 100) / p.total));
+            piperSetStatus('loading', 'Downloading voice ' + pct + '%');
           }
         } catch (e) {}
       });
     }
+    if (timedOut) throw new Error('Piper load timeout');
     _piperReady = true;
     piperSetStatus('ready');
     _piperLoading = false;
+    clearTimeout(timer);
     return true;
   } catch (e) {
     console.warn('Piper init', e);
     _piperReady = false;
     _piperLoading = false;
-    piperSetStatus('error', 'Could not load Piper. Check network, then Test again.');
+    clearTimeout(timer);
+    piperSetStatus('error', 'Piper could not load — using device voice');
     return false;
   }
 }
@@ -1091,7 +1108,8 @@ function piperSpeak(text, onEnd) {
     })
     .catch(function (e) {
       console.warn('Piper predict', e);
-      done();
+      piperSetStatus('device', 'Piper error — device voice this time');
+      ttsSpeakWeb(text, onEnd);
     });
 }
 
@@ -1122,7 +1140,7 @@ function ttsFillVoiceSelect() {
   sel.innerHTML = '';
   const o = document.createElement('option');
   o.value = 'piper:' + PIPER_VOICE_ID;
-  o.textContent = 'Piper — Lessac (US) — works on mobile';
+  o.textContent = 'Piper neural (downloads once)';
   sel.appendChild(o);
   sel.value = o.value;
   ttsPref.voiceURI = o.value;
@@ -1170,26 +1188,32 @@ function ttsSpeak(text, category, onEnd) {
     if (typeof onEnd === 'function') onEnd();
     return;
   }
-  // Always mirror to screen-reader live region
-  try { announce(String(text), false); } catch (e) {}
+  // Do NOT also push to aria-live when TTS is speaking — Eloquent would read twice
 
   // P0: Piper when ready
   if (_piperReady && _piperMod) {
     piperSpeak(text, onEnd);
     return;
   }
-  // If loading, queue after short wait once
+  // If loading, wait briefly then device voice
   if (_piperLoading) {
     setTimeout(function () {
       if (_piperReady) piperSpeak(text, onEnd);
-      else ttsSpeakWeb(text, onEnd);
-    }, 800);
+      else {
+        piperSetStatus('device', 'Still loading Piper — device voice for now');
+        ttsSpeakWeb(text, onEnd);
+      }
+    }, 500);
     return;
   }
-  // Kick off Piper load, fall back to device voice for this line
+  // Kick off Piper; speak with device until ready (status must not stay "Loading")
   piperEnsure().then(function (ok) {
-    if (ok) piperSpeak(text, onEnd);
-    else ttsSpeakWeb(text, onEnd);
+    if (ok) {
+      piperSpeak(text, onEnd);
+    } else {
+      piperSetStatus('device', 'Using device voice (Piper not available)');
+      ttsSpeakWeb(text, onEnd);
+    }
   });
 }
 

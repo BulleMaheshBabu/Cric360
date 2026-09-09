@@ -736,7 +736,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.09.5.10</p>
+    <p class="set-version">Version: 2026.09.09.5.30</p>
   </div>
 </section>
 
@@ -1134,27 +1134,145 @@ function ttsPickVoice() {
   return list.slice().sort((a, b) => score(b) - score(a))[0] || list[0];
 }
 
+const ME_BASE = 'https://cdn.jsdelivr.net/npm/mespeak@2.0.2';
+const ME_VOICES = [
+  { id: 'me:en/en-us', label: 'Commentary: English US (meSpeak)', path: 'voices/en/en-us.json' },
+  { id: 'me:en/en', label: 'Commentary: English (meSpeak)', path: 'voices/en/en.json' },
+  { id: 'me:en/en-n', label: 'Commentary: English RP (meSpeak)', path: 'voices/en/en-n.json' },
+  { id: 'me:en/en-wm', label: 'Commentary: English West Midlands (meSpeak)', path: 'voices/en/en-wm.json' }
+];
+let _meReady = false;
+let _meLoading = false;
+let _meVoicePath = 'voices/en/en-us.json';
+let _meConfigOk = false;
+
+function isMeVoice(uri) {
+  return !!(uri && String(uri).indexOf('me:') === 0);
+}
+function mePathFromUri(uri) {
+  const id = String(uri || '');
+  for (let i = 0; i < ME_VOICES.length; i++) {
+    if (ME_VOICES[i].id === id) return ME_VOICES[i].path;
+  }
+  return 'voices/en/en-us.json';
+}
+function ttsStatus(msg) {
+  try {
+    const el = $('piperStatus');
+    if (el) el.textContent = msg || '';
+  } catch (e) {}
+}
+
 function ttsFillVoiceSelect() {
   const sel = $('ttsVoice');
   if (!sel) return;
+  const prev = ttsPref.voiceURI || sel.value;
   sel.innerHTML = '';
-  const o = document.createElement('option');
-  o.value = 'piper:' + PIPER_VOICE_ID;
-  o.textContent = 'Piper neural (downloads once)';
-  sel.appendChild(o);
-  sel.value = o.value;
-  ttsPref.voiceURI = o.value;
-  // Optional: list system voices as fallback labels
+  ME_VOICES.forEach(function (v) {
+    const o = document.createElement('option');
+    o.value = v.id;
+    o.textContent = v.label;
+    sel.appendChild(o);
+  });
   if (ttsWebSpeechOk()) {
     const list = speechSynthesis.getVoices() || [];
     list.forEach(function (v) {
       if (!/^en/i.test(v.lang || '')) return;
-      const opt = document.createElement('option');
-      opt.value = v.voiceURI;
-      opt.textContent = 'Device: ' + (v.name || 'Voice') + ' (' + (v.lang || '') + ')';
-      sel.appendChild(opt);
+      const o = document.createElement('option');
+      o.value = v.voiceURI;
+      o.textContent = 'Device (conflicts with Eloquent): ' + (v.name || 'Voice');
+      sel.appendChild(o);
     });
   }
+  if (prev && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
+    sel.value = prev;
+  } else {
+    sel.value = ME_VOICES[0].id;
+    ttsPref.voiceURI = ME_VOICES[0].id;
+  }
+}
+
+function meSpeakEnsure(cb) {
+  if (_meReady && window.meSpeak && _meConfigOk) {
+    if (typeof cb === 'function') cb(true);
+    return;
+  }
+  if (_meLoading) {
+    setTimeout(function () { meSpeakEnsure(cb); }, 300);
+    return;
+  }
+  _meLoading = true;
+  ttsStatus('Loading commentary voice…');
+  function loadScript(src, next) {
+    if (window.meSpeak) { next(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = function () { next(); };
+    s.onerror = function () { next(new Error('fail')); };
+    document.head.appendChild(s);
+  }
+  loadScript(ME_BASE + '/mespeak.js', function (err) {
+    if (err || !window.meSpeak) {
+      _meLoading = false;
+      ttsStatus('Could not load meSpeak. Check internet.');
+      if (typeof cb === 'function') cb(false);
+      return;
+    }
+    function afterConfig() {
+      _meConfigOk = true;
+      const path = _meVoicePath || mePathFromUri(ttsPref.voiceURI);
+      window.meSpeak.loadVoice(ME_BASE + '/' + path, function () {
+        _meReady = true;
+        _meLoading = false;
+        ttsStatus('Commentary voice ready (meSpeak)');
+        if (typeof cb === 'function') cb(true);
+      });
+    }
+    try {
+      if (window.meSpeak.isConfigLoaded && window.meSpeak.isConfigLoaded()) afterConfig();
+      else window.meSpeak.loadConfig(ME_BASE + '/src/mespeak_config.json', afterConfig);
+    } catch (e) {
+      _meLoading = false;
+      ttsStatus('meSpeak config error');
+      if (typeof cb === 'function') cb(false);
+    }
+  });
+}
+
+function meSpeakLoadSelected(cb) {
+  _meVoicePath = mePathFromUri(ttsPref.voiceURI);
+  meSpeakEnsure(function (ok) {
+    if (!ok || !window.meSpeak) {
+      if (typeof cb === 'function') cb(false);
+      return;
+    }
+    window.meSpeak.loadVoice(ME_BASE + '/' + _meVoicePath, function () {
+      if (typeof cb === 'function') cb(true);
+    });
+  });
+}
+
+function meSpeakSpeak(text, onEnd) {
+  meSpeakLoadSelected(function (ok) {
+    if (!ok || !window.meSpeak) {
+      ttsStatus('Commentary voice failed to load');
+      if (typeof onEnd === 'function') onEnd();
+      return;
+    }
+    try {
+      try { if (window.meSpeak.stop) window.meSpeak.stop(); } catch (e0) {}
+      window.meSpeak.speak(String(text), {
+        amplitude: Math.round(100 * (Number(ttsPref.volume) != null ? ttsPref.volume : 1)),
+        speed: Math.round(140 * (Number(ttsPref.rate) || 1)),
+        wordgap: 2,
+        callback: function () {
+          if (typeof onEnd === 'function') onEnd();
+        }
+      });
+    } catch (e) {
+      if (typeof onEnd === 'function') onEnd();
+    }
+  });
 }
 
 function ttsSpeakWeb(text, onEnd) {
@@ -1164,13 +1282,14 @@ function ttsSpeakWeb(text, onEnd) {
   }
   try {
     try { speechSynthesis.resume(); } catch (e1) {}
-    speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(String(text));
     u.rate = Math.min(1.4, Math.max(0.7, Number(ttsPref.rate) || 1));
     u.pitch = 1;
     u.volume = Math.min(1, Math.max(0, Number(ttsPref.volume) != null ? ttsPref.volume : 1));
-    const voice = ttsPickVoice();
-    if (voice) u.voice = voice;
+    const list = speechSynthesis.getVoices() || [];
+    const want = ttsPref.voiceURI;
+    const found = list.find(function (v) { return v.voiceURI === want; });
+    if (found) u.voice = found;
     u.onend = function () { if (typeof onEnd === 'function') onEnd(); };
     u.onerror = function () { if (typeof onEnd === 'function') onEnd(); };
     speechSynthesis.speak(u);
@@ -1188,44 +1307,27 @@ function ttsSpeak(text, category, onEnd) {
     if (typeof onEnd === 'function') onEnd();
     return;
   }
-  // Do NOT also push to aria-live when TTS is speaking — Eloquent would read twice
-
-  // P0: Piper when ready
-  if (_piperReady && _piperMod) {
-    piperSpeak(text, onEnd);
+  const uri = ttsPref.voiceURI || ME_VOICES[0].id;
+  if (isMeVoice(uri)) {
+    meSpeakSpeak(text, onEnd);
     return;
   }
-  // If loading, wait briefly then device voice
-  if (_piperLoading) {
-    setTimeout(function () {
-      if (_piperReady) piperSpeak(text, onEnd);
-      else {
-        piperSetStatus('device', 'Still loading Piper — device voice for now');
-        ttsSpeakWeb(text, onEnd);
-      }
-    }, 500);
-    return;
-  }
-  // Kick off Piper; speak with device until ready (status must not stay "Loading")
-  piperEnsure().then(function (ok) {
-    if (ok) {
-      piperSpeak(text, onEnd);
-    } else {
-      piperSetStatus('device', 'Using device voice (Piper not available)');
-      ttsSpeakWeb(text, onEnd);
-    }
-  });
+  ttsSpeakWeb(text, onEnd);
 }
 
 function ttsStop() {
-  try { if (ttsWebSpeechOk()) speechSynthesis.cancel(); } catch (e) {}
+  try { if (window.meSpeak && window.meSpeak.stop) window.meSpeak.stop(); } catch (e) {}
   try {
     if (_piperAudio) {
       _piperAudio.pause();
       _piperAudio.removeAttribute('src');
     }
   } catch (e) {}
+  // Do not call speechSynthesis.cancel — that stops Eloquent
 }
+
+
+
 
 
 /* ===== Sound effects (optional, volume control) ===== */
@@ -1416,15 +1518,26 @@ function wireTtsSettings() {
     ttsPref.on = chk.checked;
     saveTtsPref();
     if (ttsPref.on) {
+      if (!ttsPref.voiceURI || !isMeVoice(ttsPref.voiceURI)) {
+        ttsPref.voiceURI = ME_VOICES[0].id;
+        saveTtsPref();
+      }
       ttsFillVoiceSelect();
-      piperEnsure().then(function () {
-        sayEvent('Commentary on', null);
+      meSpeakLoadSelected(function (ok) {
+        ttsStatus(ok ? 'Commentary voice ready (meSpeak)' : 'Voice load failed');
+        if (ok) sayEvent('Commentary on', null);
       });
     } else ttsStop();
   };
   if ($('ttsVoice')) $('ttsVoice').onchange = () => {
     ttsPref.voiceURI = $('ttsVoice').value;
     saveTtsPref();
+    if (isMeVoice(ttsPref.voiceURI)) {
+      meSpeakLoadSelected(function (ok) {
+        ttsStatus(ok ? 'Voice selected' : 'Voice load failed');
+        if (ok && ttsPref.on) ttsSpeak('Voice selected', null);
+      });
+    }
   };
   function bumpRate(d) {
     let r = Math.round(((Number(ttsPref.rate) || 1) + d) * 10) / 10;
@@ -1443,12 +1556,16 @@ function wireTtsSettings() {
   $('btnTtsTest').onclick = () => {
     ttsPref.on = true;
     chk.checked = true;
+    if (!ttsPref.voiceURI || !isMeVoice(ttsPref.voiceURI)) {
+      ttsPref.voiceURI = ME_VOICES[0].id;
+    }
     saveTtsPref();
+    ttsFillVoiceSelect();
     try { unlockSfx(); } catch (e) {}
-    piperSetStatus('loading', 'Loading Piper…');
-    piperEnsure().then(function (ok) {
+    ttsStatus('Loading commentary voice…');
+    meSpeakLoadSelected(function (ok) {
       if (ok) ttsSpeak('Commentary ready. Mumbai leads at one hundred fifty.', null);
-      else ttsSpeak('Device voice test. Mumbai leads at one hundred fifty.', null);
+      else ttsStatus('Could not load meSpeak voice. Check internet and retry.');
     });
   };
   ['ttsHost','ttsBid','ttsPlayer','ttsTimer','ttsWait'].forEach(id => {

@@ -124,6 +124,76 @@ body.light{
     radial-gradient(at 80% 100%, rgba(5,150,105,0.06) 0px, transparent 40%);
 }
 body.has-tabbar{padding-bottom:88px}
+body.has-hub-tabbar{padding-bottom:96px}
+/* Main hub (home) — Cric360 Live style */
+.hub-hello{color:var(--muted);font-size:13px;font-weight:600;margin:0 0 10px;padding:0 2px}
+.hub-admin{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.hub-admin .btn-ok,.hub-admin .btn-sec{width:100%}
+.hub-list{display:flex;flex-direction:column;gap:8px;min-height:40px}
+.hub-list .list-btn{text-align:left;width:100%}
+.hub-list .hub-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px;margin:0;
+}
+.hub-list .hub-card .row{margin-top:8px;gap:8px}
+.hub-empty{color:var(--muted);font-weight:600;padding:12px 4px;margin:0}
+.hub-tabbar{
+  position:fixed;bottom:0;left:0;right:0;display:flex;gap:4px;
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));
+  background:rgba(7,13,24,.92);border-top:1px solid var(--border-subtle);
+  backdrop-filter:blur(12px);z-index:50;
+}
+body.light .hub-tabbar{background:rgba(255,255,255,.96)}
+.hub-tabbar.hidden{display:none!important}
+.hub-tabbar button{
+  flex:1;min-height:44px;border-radius:20px;font-weight:500;font-size:.85rem;
+  border:none;background:transparent;color:var(--text-muted);box-shadow:none;padding:6px 8px;
+}
+.hub-tabbar button.active{
+  background:var(--accent-cyan);color:#fff;font-weight:700;
+  box-shadow:0 2px 8px var(--accent-cyan-glow);
+}
+#screenHome.panel{margin-top:4px;padding:10px 12px 12px;max-width:720px}
+#screenHome .sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+.hub-more-grid{display:flex;flex-direction:column;gap:10px}
+.hub-more-grid .list-btn,.hub-more-grid button{width:100%;text-align:left}
+/* Settings — native mobile: one back, tight rows, no extra headings */
+#screenSettings.set-screen{max-width:720px;margin:4px auto;padding:8px 12px 24px}
+#screenSettings .set-back{
+  display:inline-flex;align-items:center;min-height:40px;margin:0 0 8px;padding:8px 14px;
+  font-weight:700;width:auto;
+}
+#screenSettings .set-account{
+  color:var(--muted);font-size:13px;font-weight:600;margin:0 0 10px;line-height:1.3;
+}
+#screenSettings .settings-menu{display:flex;flex-direction:column;gap:6px;margin:0}
+#screenSettings .settings-menu .menu-item{
+  width:100%;text-align:left;min-height:48px;padding:12px 14px;font-weight:700;
+  border-radius:var(--radius);border:1px solid var(--border);background:var(--card);color:var(--text);
+}
+#screenSettings .set-panel{margin:0;padding:0}
+#screenSettings .set-row{
+  display:flex;align-items:center;gap:12px;min-height:48px;margin:0;font-weight:600;
+  padding:4px 0;border-bottom:1px solid var(--border-subtle);
+}
+#screenSettings .set-row:last-of-type{border-bottom:none}
+#screenSettings .set-label{font-weight:700;font-size:13px;margin:10px 0 4px;color:var(--text)}
+#screenSettings .set-status{font-weight:600;font-size:14px;margin:0 0 8px;color:var(--muted)}
+#screenSettings .set-rate-row{align-items:center;gap:8px;margin:8px 0}
+#screenSettings .set-about{line-height:1.7;padding-left:1.1rem;margin:0;font-size:14px}
+#screenSettings .set-version{
+  margin:16px 0 0;padding-top:12px;border-top:1px solid var(--border);
+  color:var(--muted);font-weight:700;font-size:13px;
+}
+#screenSettings select,#screenSettings input[type="text"],#screenSettings input[type="range"]{
+  width:100%;margin:0 0 8px;
+}
+#screenSettings select{min-height:44px}
+#screenSettings .btn-block{margin-top:8px}
+#screenSettings h2:not(.sr-only),#screenSettings h3{display:none!important}
 
 /* Top nav — decorative; not a live region */
 .top-nav{
@@ -511,19 +581,41 @@ a{color:var(--primary)}
 </section>
 
 <section id="screenHome" class="wrap panel hidden" role="region" aria-labelledby="homeTitle">
-  <div class="home-hero">
-    <div class="brand" id="homeTitle">Auction Tracker 360</div>
-    <p class="tag" id="homeHello"></p>
+  <h1 id="homeTitle" class="sr-only" tabindex="-1">Auction Tracker 360</h1>
+  <p class="hub-hello" id="homeHello"></p>
+
+  <!-- LIVE tab: organisers get Create + Manage; everyone sees live list (no extra heading) -->
+  <div id="hubPaneLive" role="tabpanel" aria-labelledby="hubTabLive">
+    <div id="hubAdminActions" class="hub-admin hidden">
+      <button type="button" id="btnCreate" class="btn-ok">Create auction</button>
+      <button type="button" id="btnMyAuctions" class="btn-sec">Manage my auctions</button>
+    </div>
+    <div id="hubMyList" class="hub-list hidden" aria-label="My auctions"></div>
+    <div id="hubLiveList" class="hub-list" aria-label="Live auctions"></div>
   </div>
-  <div class="home-grid">
-    <button type="button" id="btnLive" class="btn-ok">Live auctions</button>
-    <button type="button" id="btnPast" class="btn-sec">Past auctions</button>
-    <button type="button" id="btnCreate" class="btn-ok hidden">Create a tournament</button>
-    <button type="button" id="btnMyAuctions" class="btn-sec hidden">Manage my auctions</button>
-    <button type="button" id="btnSettings" class="btn-sec">Settings</button>
+
+  <!-- PAST tab: ended auctions only -->
+  <div id="hubPanePast" class="hidden" role="tabpanel" aria-labelledby="hubTabPast">
+    <div id="hubPastList" class="hub-list" aria-label="Past auctions"></div>
+  </div>
+
+  <!-- MORE tab: settings & account -->
+  <div id="hubPaneMore" class="hidden" role="tabpanel" aria-labelledby="hubTabMore">
+    <div class="hub-more-grid">
+      <button type="button" id="btnSettings" class="list-btn" aria-label="Open settings">Settings</button>
+      <button type="button" id="btnHubSignOut" class="list-btn" aria-label="Sign out">Sign out</button>
+      <p id="hubMoreHint" style="color:var(--muted);font-size:13px;font-weight:600;margin:8px 0 0"></p>
+    </div>
   </div>
 </section>
 
+<nav class="hub-tabbar hidden" id="hubTabbar" role="tablist" aria-label="Main tabs">
+  <button type="button" role="tab" id="hubTabLive" class="active" aria-selected="true">Live</button>
+  <button type="button" role="tab" id="hubTabPast" aria-selected="false">Past</button>
+  <button type="button" role="tab" id="hubTabMore" aria-selected="false">More</button>
+</nav>
+
+<!-- Legacy list screen kept for deep links / fallback (normally unused) -->
 <section id="screenList" class="wrap panel hidden" role="region" aria-labelledby="listTitle">
   <button type="button" id="btnListBack" class="btn-sec" aria-label="Back to home">Back</button>
   <h1 id="listTitle" tabindex="-1">Auctions</h1>
@@ -562,101 +654,88 @@ a{color:var(--primary)}
   <p id="welcomeText" style="font-size:1.2rem;font-weight:700"></p>
 </section>
 
-<section id="screenSettings" class="wrap panel hidden" role="region" aria-labelledby="setTitle">
-  <h1 id="setTitle">Settings</h1>
-  <button type="button" id="btnSetBack" class="btn-sec" style="margin-bottom:12px">Back to home</button>
+<section id="screenSettings" class="wrap panel set-screen hidden" role="region" aria-labelledby="setTitle">
+  <!-- One back only: panel → menu, menu → home -->
+  <button type="button" id="btnSetBack" class="btn-sec set-back" aria-label="Back">Back</button>
+  <h1 id="setTitle" class="sr-only" tabindex="-1">Settings</h1>
+  <p id="setAccount" class="set-account"></p>
 
-  <div id="settingsMenu" class="settings-menu" role="navigation" aria-label="Settings categories">
-    <button type="button" class="menu-item" id="btnSetProfile">Manage account</button>
+  <div id="settingsMenu" class="settings-menu" role="navigation" aria-label="Settings">
+    <button type="button" class="menu-item" id="btnSetProfile">Account</button>
     <button type="button" class="menu-item" id="btnSetCommentary">Commentary</button>
     <button type="button" class="menu-item" id="btnSetSounds">Sounds</button>
-    <button type="button" class="menu-item hidden" id="btnSetAdmin">Manage permissions</button>
+    <button type="button" class="menu-item hidden" id="btnSetAdmin">Permissions</button>
     <button type="button" class="menu-item" id="btnSetAbout">About</button>
   </div>
 
-  <div id="panelProfile" class="hidden">
-    <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
-    <h2>Manage account</h2>
-    <label style="display:flex;align-items:center;gap:10px;min-height:48px"><input type="checkbox" id="chkDark" /> Light mode</label>
-    <p id="setAccount" style="color:var(--muted)"></p>
-    <button type="button" id="btnSwitchAccount" class="btn-sec btn-block">Switch Google account</button>
-    <p style="font-size:13px;color:var(--muted);margin:6px 0 12px">Opens Google sign-in so you can pick another account.</p>
-    <div id="viewerOrgBlock">
-      <h3 style="font-size:1rem">Request to organise tournaments</h3>
-      <p id="orgStatus" role="status" style="font-weight:600"></p>
-      <button type="button" id="btnRequestOrg" class="btn-ok btn-block">Send request</button>
-      <div id="enterCodeBox" class="hidden" style="margin-top:12px">
-        <label for="orgCodeInput">Enter 4-digit code from the administrator</label>
+  <div id="panelProfile" class="set-panel hidden" aria-label="Account">
+    <label class="set-row"><input type="checkbox" id="chkDark" /> Light mode</label>
+    <button type="button" id="btnSwitchAccount" class="btn-sec btn-block">Switch account</button>
+    <div id="viewerOrgBlock" style="margin-top:10px">
+      <p id="orgStatus" role="status" class="set-status"></p>
+      <button type="button" id="btnRequestOrg" class="btn-ok btn-block">Request organiser</button>
+      <div id="enterCodeBox" class="hidden" style="margin-top:10px">
+        <label for="orgCodeInput">Code</label>
         <input id="orgCodeInput" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" />
         <button type="button" id="btnVerifyCode" class="btn-ok btn-block">Verify</button>
       </div>
     </div>
-    <button type="button" id="btnLogout" class="btn-danger btn-block" style="margin-top:14px">Log out</button>
+    <button type="button" id="btnLogout" class="btn-danger btn-block" style="margin-top:12px">Log out</button>
   </div>
 
-  <div id="panelCommentary" class="hidden">
-    <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
-    <h2 id="ttsHeading">Commentary</h2>
-    <p style="color:var(--muted);font-size:14px">Spoken auction updates. Prefer Google text-to-speech on auction day.</p>
-    <label style="display:flex;align-items:center;gap:10px;min-height:48px"><input type="checkbox" id="chkTts" /> Commentary on</label>
+  <div id="panelCommentary" class="set-panel hidden" aria-label="Commentary">
+    <h2 id="ttsHeading" class="sr-only">Commentary</h2>
+    <label class="set-row"><input type="checkbox" id="chkTts" /> Commentary on</label>
     <label for="ttsVoice">Voice</label>
     <select id="ttsVoice" aria-label="Commentary voice"></select>
-    <div class="row" style="align-items:center">
-      <span id="ttsRateLabel" style="font-weight:700">Speed: 1.0</span>
-      <button type="button" id="ttsRateDown" class="btn-sec" aria-label="Slower speech">−</button>
-      <button type="button" id="ttsRateUp" class="btn-sec" aria-label="Faster speech">+</button>
+    <div class="row set-rate-row">
+      <span id="ttsRateLabel" class="set-label">Speed: 1.0</span>
+      <button type="button" id="ttsRateDown" class="btn-sec" aria-label="Slower">−</button>
+      <button type="button" id="ttsRateUp" class="btn-sec" aria-label="Faster">+</button>
     </div>
-    <p id="ttsVolLabel" style="font-weight:700;margin:10px 0 4px">Commentary volume: 100%</p>
+    <p id="ttsVolLabel" class="set-label">Volume: 100%</p>
     <label for="ttsVol" class="sr-only">Commentary volume</label>
     <input id="ttsVol" type="range" min="0" max="100" value="100" />
-    <button type="button" id="btnTtsTest" class="btn-sec btn-block">Test commentary</button>
-    <h3 style="margin-top:14px;font-size:1rem">What to announce</h3>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="ttsHost" checked /> Host alerts</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="ttsBid" checked /> Bidding updates</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="ttsPlayer" checked /> Player updates</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="ttsTimer" checked /> Timer</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="ttsWait" checked /> Waiting room</label>
+    <button type="button" id="btnTtsTest" class="btn-sec btn-block">Test</button>
+    <label class="set-row"><input type="checkbox" id="ttsHost" checked /> Host</label>
+    <label class="set-row"><input type="checkbox" id="ttsBid" checked /> Bids</label>
+    <label class="set-row"><input type="checkbox" id="ttsPlayer" checked /> Players</label>
+    <label class="set-row"><input type="checkbox" id="ttsTimer" checked /> Timer</label>
+    <label class="set-row"><input type="checkbox" id="ttsWait" checked /> Waiting room</label>
   </div>
 
-  <div id="panelSounds" class="hidden">
-    <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
-    <h2>Sounds</h2>
-    <label style="display:flex;align-items:center;gap:10px;min-height:48px"><input type="checkbox" id="chkSfx" checked /> All sound effects on</label>
-    <p id="sfxVolLabel" style="font-weight:700;margin:10px 0 4px">Sound volume: 75%</p>
+  <div id="panelSounds" class="set-panel hidden" aria-label="Sounds">
+    <label class="set-row"><input type="checkbox" id="chkSfx" checked /> Sound effects on</label>
+    <p id="sfxVolLabel" class="set-label">Volume: 75%</p>
     <label for="sfxVol" class="sr-only">Sound effects volume</label>
     <input id="sfxVol" type="range" min="0" max="100" value="75" />
-    <h3 style="font-size:1rem;margin-top:12px">Each sound</h3>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="sfxWelcome" checked /> Welcome</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="sfxBid" checked /> Bid</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="sfxUltimate" checked /> Ultimate bid</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="sfxSold" checked /> Sold</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="sfxUnsold" checked /> Unsold</label>
-    <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="sfxTimer" checked /> Timer</label>
-    <button type="button" id="btnSfxTest" class="btn-sec btn-block">Test bid sound</button>
+    <label class="set-row"><input type="checkbox" id="sfxWelcome" checked /> Welcome</label>
+    <label class="set-row"><input type="checkbox" id="sfxBid" checked /> Bid</label>
+    <label class="set-row"><input type="checkbox" id="sfxUltimate" checked /> Ultimate</label>
+    <label class="set-row"><input type="checkbox" id="sfxSold" checked /> Sold</label>
+    <label class="set-row"><input type="checkbox" id="sfxUnsold" checked /> Unsold</label>
+    <label class="set-row"><input type="checkbox" id="sfxTimer" checked /> Timer</label>
+    <button type="button" id="btnSfxTest" class="btn-sec btn-block">Test sound</button>
   </div>
 
-  <div id="panelAdmin" class="hidden">
-    <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
+  <div id="panelAdmin" class="set-panel hidden" aria-label="Permissions">
     <div id="orgAdminBlock">
-      <h2>Manage permissions</h2>
-      <h3 style="font-size:1rem">Pending requests</h3>
+      <p class="set-label">Pending</p>
       <div id="pendingCodes"></div>
-      <h3 style="font-size:1rem;margin-top:16px">Organisers</h3>
+      <p class="set-label" style="margin-top:12px">Organisers</p>
       <div id="organisersList"></div>
     </div>
   </div>
 
-  <div id="panelAbout" class="hidden">
-    <button type="button" class="btn-sec btnSetBackMenu" style="margin-bottom:10px">Back to settings</button>
-    <h2>About</h2>
-    <ul style="line-height:1.8;padding-left:1.2rem;margin:0">
+  <div id="panelAbout" class="set-panel hidden" aria-label="About">
+    <ul class="set-about">
       <li><strong>Developer:</strong> <a href="https://grok.x.ai" target="_blank" rel="noopener noreferrer">Grok</a></li>
-      <li><strong>Owner and designer:</strong> Bulle Mahesh Babu</li>
+      <li><strong>Owner:</strong> Bulle Mahesh Babu</li>
       <li><strong>Lead tester:</strong> Meenugula Gowri Shankar</li>
-      <li><strong>Collaboration:</strong> Telugu Vision Team, chaired by G. B. Nagaraju</li>
+      <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-weight:700">Version: 2026.09.09.1.00</p>
+    <p class="set-version">Version: 2026.09.09.4.00</p>
   </div>
 </section>
 
@@ -682,7 +761,7 @@ a{color:var(--primary)}
       <div id="msgOverlay" class="msg-overlay hidden" role="presentation">
       <div id="msgPanel" class="msg-panel" role="dialog" aria-modal="true" aria-labelledby="msgPanelTitle" aria-hidden="true">
         <button type="button" id="btnMsgCloseTop" class="btn-sec" style="width:100%;margin:0 0 10px;min-height:44px" aria-label="Close message box">Close</button>
-        <h2 id="msgPanelTitle" style="margin:0 0 8px;font-size:1.1rem" tabindex="-1">Send message</h2>
+        <h2 id="msgPanelTitle" style="margin:0 0 8px;font-size:1.1rem" tabindex="-1">Message</h2>
         <label for="msgText">Message</label>
         <textarea id="msgText" maxlength="120" autocomplete="off" enterkeyhint="send" rows="3" placeholder="Type your message"></textarea>
         <button type="button" id="btnMsgAll" class="btn-ok btn-block" aria-label="Send message to everyone in the room">Send to all</button>
@@ -1524,6 +1603,14 @@ function showScreen(id){
       if(on) el.removeAttribute('inert'); else el.setAttribute('inert','');
     });
   document.body.classList.toggle('has-tabbar', id==='screenAuction' || id==='screenWatch');
+  document.body.classList.toggle('has-hub-tabbar', id==='screenHome');
+  try{
+    const hb=$('hubTabbar');
+    if(hb){
+      hb.classList.toggle('hidden', id!=='screenHome');
+      hb.setAttribute('aria-hidden', id==='screenHome' ? 'false' : 'true');
+    }
+  }catch(e){}
   if(id!=='screenAuction' && id!=='screenWatch') stopTimer();
 }
 function isSuperAdmin(){
@@ -1812,11 +1899,16 @@ function enterHome(){
   try{ if(typeof stopTimerSfx==='function') stopTimerSfx(); }catch(e){}
   const ban=$('timerBanner'); if(ban){ ban.classList.add('hidden'); ban.textContent=''; }
   showScreen('screenHome');
-  $('homeHello').textContent='Signed in as '+(user.displayName||user.email||'');
+  if($('homeHello')) $('homeHello').textContent=(user.displayName||user.email||'Signed in');
   const allow=canCreate();
-  $('btnCreate').classList.toggle('hidden',!allow);
-  $('btnMyAuctions').classList.toggle('hidden',!allow);
-  focusEl($('homeTitle'));
+  try{
+    const admin=$('hubAdminActions');
+    if(admin) admin.classList.toggle('hidden', !allow);
+    // Create / Manage only when admin actions visible
+    if($('btnCreate')) $('btnCreate').classList.toggle('hidden', !allow);
+    if($('btnMyAuctions')) $('btnMyAuctions').classList.toggle('hidden', !allow);
+  }catch(e){}
+  try{ switchHubTab('live'); }catch(e){}
 }
 
 let authReady=false;
@@ -1857,8 +1949,13 @@ auth.onAuthStateChanged(async u=>{
         alert('You are no longer an organiser.\n\nRequest permission again to host an auction, or continue as a viewer.');
         T=null; auctionId=null; enterHome();
       } else if($('screenHome') && !$('screenHome').classList.contains('hidden')){
-        $('btnCreate').classList.toggle('hidden', !canCreate());
-        $('btnMyAuctions').classList.toggle('hidden', !canCreate());
+        const allow=canCreate();
+        try{
+          const admin=$('hubAdminActions');
+          if(admin) admin.classList.toggle('hidden', !allow);
+          if($('btnCreate')) $('btnCreate').classList.toggle('hidden', !allow);
+          if($('btnMyAuctions')) $('btnMyAuctions').classList.toggle('hidden', !allow);
+        }catch(e){}
       }
     }, err=>{ console.warn('profile listener', err); });
   }catch(e){}
@@ -2012,39 +2109,54 @@ function showWelcomeThenAuction(id, data, meOwner){
 $('btnWaitHome').onclick=()=>{ stopWait(); enterHome(); };
 
 $('btnLogout').onclick=()=>{ if(!confirm('Are you sure you want to sign out from this account?')) return; try{ if(typeof announce==='function') announce('Signing out.'); }catch(x){} auth.signOut(); };
-$('btnSetBack').onclick=()=>enterHome();
+window._settingsPanel='menu';
 function showSettingsPanel(which){
   const menu=$('settingsMenu');
   const panels=['panelProfile','panelCommentary','panelSounds','panelAbout','panelAdmin'];
+  which=which||'menu';
+  window._settingsPanel=which;
   panels.forEach(id=>{ const el=$(id); if(el) el.classList.add('hidden'); });
   if(which==='menu'){
     if(menu) menu.classList.remove('hidden');
-    focusEl($('setTitle'));
+    if($('btnSetBack')) $('btnSetBack').setAttribute('aria-label','Back to home');
+    focusEl($('btnSetProfile')||$('btnSetBack')||$('setTitle'));
     return;
   }
   if(menu) menu.classList.add('hidden');
   const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', about:'panelAbout', admin:'panelAdmin' };
   const id=map[which];
-  if($(id)){ $(id).classList.remove('hidden'); focusEl($(id).querySelector('h2')||$('setTitle')); }
+  if($(id)){
+    $(id).classList.remove('hidden');
+    if($('btnSetBack')) $('btnSetBack').setAttribute('aria-label','Back to settings');
+    const focusTarget=$(id).querySelector('input,select,button')||$('btnSetBack');
+    focusEl(focusTarget);
+  }
 }
+if($('btnSetBack')) $('btnSetBack').onclick=function(){
+  if(window._settingsPanel && window._settingsPanel!=='menu'){
+    showSettingsPanel('menu');
+  } else {
+    enterHome();
+    try{ switchHubTab('more'); }catch(e){}
+  }
+};
 
 $('btnSettings').onclick=async()=>{
   showScreen('screenSettings');
   try{ wireTtsSettings(); wireSfxSettings(); }catch(e){}
-  $('setAccount').textContent=(user.displayName||'Signed in')+' · '+(user.email||'');
-  // Keep top bar clear — account only in Settings text above
+  if($('setAccount')) $('setAccount').textContent=(user.displayName||'Signed in')+' · '+(user.email||'');
   try{
     const nb=$('navUserBadge');
     if(nb){ nb.classList.add('hidden'); nb.setAttribute('aria-hidden','true'); nb.innerHTML=''; }
   }catch(e){}
   if(canCreate()){
-    $('orgStatus').textContent='You can create and run tournaments.';
-    $('btnRequestOrg').classList.add('hidden');
-    $('enterCodeBox').classList.add('hidden');
+    if($('orgStatus')) $('orgStatus').textContent='Organiser access on';
+    if($('btnRequestOrg')) $('btnRequestOrg').classList.add('hidden');
+    if($('enterCodeBox')) $('enterCodeBox').classList.add('hidden');
   } else {
-    $('orgStatus').textContent='You can watch live and past auctions. Send a request, then enter the code from the administrator.';
-    $('btnRequestOrg').classList.remove('hidden');
-    $('enterCodeBox').classList.remove('hidden');
+    if($('orgStatus')) $('orgStatus').textContent='Viewer — request organiser access if needed';
+    if($('btnRequestOrg')) $('btnRequestOrg').classList.remove('hidden');
+    if($('enterCodeBox')) $('enterCodeBox').classList.remove('hidden');
   }
   const adminBtn=$('btnSetAdmin');
   if(adminBtn) adminBtn.classList.toggle('hidden', !isSuperAdmin());
@@ -2146,37 +2258,102 @@ async function refreshAdminOrgLists(){
   }catch(e){ oBox.innerHTML=e.message||'Error'; }
 }
 
-/* Lists */
-$('btnLive').onclick=()=>openAuctionList('live');
-$('btnPast').onclick=()=>openAuctionList('ended');
-$('btnListBack').onclick=()=>enterHome();
+/* ===== Main hub tabs (Live / Past / More) — Cric360 Live layout ===== */
+function switchHubTab(which){
+  which = (which||'live').toLowerCase();
+  if(which!=='live' && which!=='past' && which!=='more') which='live';
+  const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), more:$('hubPaneMore') };
+  const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), more:$('hubTabMore') };
+  Object.keys(panes).forEach(function(k){
+    const on = k===which;
+    if(panes[k]){
+      panes[k].classList.toggle('hidden', !on);
+      panes[k].setAttribute('aria-hidden', on?'false':'true');
+    }
+    if(tabs[k]){
+      tabs[k].classList.toggle('active', on);
+      tabs[k].setAttribute('aria-selected', on?'true':'false');
+    }
+  });
+  // Hide "my auctions" sub-list when leaving manage view on Live
+  if(which!=='live'){
+    try{
+      const ml=$('hubMyList'); if(ml){ ml.classList.add('hidden'); ml.innerHTML=''; }
+      const ll=$('hubLiveList'); if(ll) ll.classList.remove('hidden');
+    }catch(e){}
+  }
+  if(which==='live'){
+    openAuctionList('live');
+  } else if(which==='past'){
+    openAuctionList('ended');
+  } else if(which==='more'){
+    try{
+      if($('hubMoreHint')){
+        $('hubMoreHint').textContent='Signed in as '+(user && (user.displayName||user.email)||'')+(canCreate()?' · Organiser':'');
+      }
+      focusEl($('btnSettings')||$('hubTabMore'));
+    }catch(e){}
+  }
+}
+if($('hubTabLive')) $('hubTabLive').onclick=function(){ switchHubTab('live'); };
+if($('hubTabPast')) $('hubTabPast').onclick=function(){ switchHubTab('past'); };
+if($('hubTabMore')) $('hubTabMore').onclick=function(){ switchHubTab('more'); };
+if($('btnListBack')) $('btnListBack').onclick=function(){ enterHome(); };
+if($('btnHubSignOut')){
+  $('btnHubSignOut').onclick=function(){
+    try{ if(typeof firebase!=='undefined' && firebase.auth) firebase.auth().signOut(); }catch(e){}
+  };
+}
 
 async function openAuctionList(kind){
-  showScreen('screenList');
-  $('listTitle').textContent=kind==='live'?'Live auctions':'Past auctions';
-  focusEl($('listTitle'));
-  const body=$('listBody'); body.innerHTML='<p>Loading…</p>';
+  // Prefer hub panes on home; fall back to legacy screenList if home not visible
+  const onHome = $('screenHome') && !$('screenHome').classList.contains('hidden');
+  let body;
+  if(onHome){
+    if(kind==='live' || kind==='setup'){
+      body=$('hubLiveList');
+      try{ const ml=$('hubMyList'); if(ml){ ml.classList.add('hidden'); ml.innerHTML=''; } }catch(e){}
+    } else {
+      body=$('hubPastList');
+    }
+  } else {
+    showScreen('screenList');
+    if($('listTitle')) $('listTitle').textContent=kind==='live'?'Live auctions':'Past auctions';
+    body=$('listBody');
+    focusEl($('listTitle'));
+  }
+  if(!body) return;
+  body.innerHTML='<p class="hub-empty">Loading…</p>';
   try{
     let items=[];
     try{
-      const snap=await db.collection('auctions').where('status','==',kind).limit(40).get();
-      snap.forEach(doc=>items.push({id:doc.id,...doc.data()}));
+      if(kind==='live'){
+        // live + setup
+        const snap=await db.collection('auctions').where('status','in',['live','setup']).limit(40).get();
+        snap.forEach(doc=>items.push({id:doc.id,...doc.data()}));
+      } else {
+        const snap=await db.collection('auctions').where('status','==',kind).limit(40).get();
+        snap.forEach(doc=>items.push({id:doc.id,...doc.data()}));
+      }
     }catch(qe){
       // Fallback if index/rules block query
       const snap2=await db.collection('auctions').limit(60).get();
       snap2.forEach(doc=>{
         const d=doc.data();
         if(kind==='ended' && d.status==='ended') items.push({id:doc.id,...d});
-        if(kind==='live' && (d.status==='live'||d.status==='setup')) items.push({id:doc.id,...d});
+        if((kind==='live'||kind==='setup') && (d.status==='live'||d.status==='setup')) items.push({id:doc.id,...d});
       });
     }
     items.sort((a,b)=>{
       const ta=(a.updatedAt&&a.updatedAt.toMillis)?a.updatedAt.toMillis():(a.updatedAt||0);
       const tb=(b.updatedAt&&b.updatedAt.toMillis)?b.updatedAt.toMillis():(b.updatedAt||0);
-      if(tb!==ta) return tb-ta; // latest first
+      if(tb!==ta) return tb-ta;
       return String(b.title||'').localeCompare(String(a.title||''));
     });
-    if(!items.length){ body.innerHTML='<p>No '+(kind==='live'?'live':'past')+' auctions right now.</p>'; return; }
+    if(!items.length){
+      body.innerHTML='<p class="hub-empty">No '+(kind==='ended'?'past':'live')+' auctions right now.</p>';
+      return;
+    }
     body.innerHTML='';
     items.forEach(it=>{
       const btn=document.createElement('button'); btn.type='button'; btn.className='list-btn';
@@ -2184,15 +2361,16 @@ async function openAuctionList(kind){
       const unsold=(it.players||[]).filter(p=>p.unsold).length;
       const left=(it.players||[]).filter(p=>!p.sold&&!p.unsold).length;
       const mode=it.mode==='virtual'?'Virtual · ':((it.mode||'physical')==='physical'?'Physical · ':'');
+      const st=it.status==='setup'?'Setup · ':'';
       const sub=kind==='ended'
         ? ('Sold '+sold+' · Unsold '+unsold+' · '+(it.ownerName||it.ownerEmail||''))
-        : ('Remaining '+left+' · '+(it.ownerName||it.ownerEmail||''));
+        : (st+'Remaining '+left+' · '+(it.ownerName||it.ownerEmail||''));
       btn.innerHTML='<strong>'+mode+(it.title||'Auction')+'</strong><br><span style="font-size:13px;color:var(--muted)">'+sub+'</span>';
       btn.setAttribute('aria-label', (it.title||'Auction')+', '+(kind==='ended'?'past':'live')+', '+sub);
       btn.onclick=()=>openAuction(it.id);
       body.appendChild(btn);
     });
-  }catch(e){ body.innerHTML='<p>'+(e.message||e)+'</p>'; }
+  }catch(e){ body.innerHTML='<p class="hub-empty">'+(e.message||e)+'</p>'; }
 }
 
 function stopAuctionLive(){ if(auctionLiveUnsub){ try{auctionLiveUnsub();}catch(e){} auctionLiveUnsub=null; } stopPresence(); }
@@ -3997,7 +4175,11 @@ function switchTab(which){
         focusEl($('btnToolsDownload')||$('toolsTitle'));
       };
     }
-    setTimeout(function(){ focusEl($('toolsTitle')); }, 50);
+    // Focus first list control — not the page "More" heading (avoids SR reading it after lists)
+    if($('toolsTitle')){
+      $('toolsTitle').removeAttribute('aria-hidden');
+    }
+    setTimeout(function(){ focusEl($('btnListSold')||$('toolsTitle')); }, 50);
   }
 }
 $('tabBtnAuction').onclick=()=>switchTab('auction');
@@ -5313,19 +5495,50 @@ function canEditSquads(){
   return false;
 }
 
+/** Match master player to a squad row (serial may be number or string) */
+function samePlayer(a, b){
+  if(!a || !b) return false;
+  if(a.serial!=null && b.serial!=null && String(a.serial)===String(b.serial)) return true;
+  const na=(a.name||'').trim().toLowerCase();
+  const nb=(b.name||'').trim().toLowerCase();
+  return !!(na && nb && na===nb);
+}
+function findMasterPlayer(row){
+  if(!row || !T) return null;
+  return (T.players||[]).find(function(x){ return samePlayer(x, row); }) || null;
+}
+/** Which team currently holds this player, and at what price */
+function findPlayerTeamInfo(player){
+  if(!player || !T) return null;
+  let found=null;
+  (T.teams||[]).forEach(function(tm){
+    (tm.players||[]).forEach(function(sp, i){
+      if(samePlayer(sp, player)){
+        found={ team:tm, index:i, price:Number(sp.price)||0, row:sp };
+      }
+    });
+  });
+  return found;
+}
 function playerStatusLabel(p){
   if(!p) return 'Unknown';
+  const info=findPlayerTeamInfo(p);
+  if(info){
+    return 'In '+info.team.name+' for '+info.price;
+  }
   if(p.sold){
-    let teamName='';
-    (T.teams||[]).forEach(function(tm){
-      (tm.players||[]).forEach(function(sp){
-        if((p.serial && sp.serial===p.serial) || (sp.name===p.name)) teamName=tm.name;
-      });
-    });
-    return teamName ? ('Already in team '+teamName) : 'Already sold';
+    // Flag sold but not in any squad (stale) — treat as available after cleanup
+    return 'Marked sold (not in a squad)';
   }
   if(p.unsold) return 'Unsold';
   return 'Not auctioned yet';
+}
+/** After remove: clear sold and put back in remaining pool */
+function markPlayerAvailable(mp){
+  if(!mp) return;
+  mp.sold=false;
+  mp.unsold=false;
+  // keep name/serial; price on master list is optional history
 }
 
 /** Persist squad edits (teams + players) — throws on failure */
@@ -5419,9 +5632,7 @@ function openChangePriceDialog(teamIndex, playerIndex, pname, pprice){
     team.remaining=Number(team.remaining||0)-d;
     pl.price=np;
     // Master player list
-    const mp=(T.players||[]).find(function(x){
-      return (pl.serial!=null && x.serial===pl.serial) || (x.name && pl.name && x.name===pl.name);
-    });
+    const mp=findMasterPlayer(pl);
     if(mp) mp.price=np;
     saveSquadEdits().then(function(){
       closePrice();
@@ -5532,6 +5743,46 @@ function openAddPlayerDialog(teamIndex){
     window._modalOpen=false;
     focusEl($('btnOpenAddPlayer')||$('sqDet'));
   };
+  async function doAddOrMove(mp, price, team){
+    const existing=findPlayerTeamInfo(mp);
+    // Same team — just update if needed
+    if(existing && existing.team.id===team.id){
+      alert((mp.name||'Player')+' is already in '+team.name+'.');
+      return;
+    }
+    if(existing){
+      // Refund previous team and remove from their squad
+      existing.team.remaining=Number(existing.team.remaining||0)+Number(existing.price||0);
+      existing.team.players.splice(existing.index,1);
+      if(existing.team.maxReached && typeof getTeamMax==='function' && getTeamMax(existing.team)>0 && existing.team.players.length<getTeamMax(existing.team)){
+        existing.team.maxReached=false;
+      }
+    }
+    team.players=team.players||[];
+    team.players.push({
+      name:mp.name, serial:mp.serial, gamerId:mp.gamerId, state:mp.state,
+      price:price
+    });
+    team.remaining=Number(team.remaining||0)-price;
+    if(typeof getTeamMax==='function' && getTeamMax(team)>0 && team.players.length>=getTeamMax(team)) team.maxReached=true;
+    mp.sold=true;
+    mp.unsold=false;
+    mp.price=price;
+    await saveSquadEdits();
+    overlay.classList.add('hidden');
+    overlay.style.display='none';
+    overlay.innerHTML='';
+    window._squadBusy=false;
+    window._squadDialogOpen=false;
+    window._modalOpen=false;
+    renderSquads();
+    if(existing){
+      announce((mp.name||'Player')+' moved from '+existing.team.name+' to '+team.name+' for '+price);
+    } else {
+      announce((mp.name||'Player')+' added to '+team.name+' for '+price);
+    }
+  }
+
   $('btnAddPlayerSave').onclick=async function(ev){
     try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
     try{
@@ -5541,10 +5792,6 @@ function openAddPlayerDialog(teamIndex){
       if(isNaN(ix)||ix<0){ alert('Choose a player'); return; }
       const mp=T.players[ix];
       if(!mp){ alert('Player not found'); return; }
-      if(mp.sold){
-        alert((mp.name||'Player')+' is already in a team. Remove them from that squad first, or pick another player.');
-        return;
-      }
       const price=parseInt(String($('addPrice')&&$('addPrice').value||'').replace(/\D/g,''),10);
       if(!price||price<0){ alert('Enter price'); return; }
       if(price>Number(team.remaining||0)){ alert('Not enough purse. Remaining: '+team.remaining); return; }
@@ -5552,26 +5799,30 @@ function openAddPlayerDialog(teamIndex){
         alert('Maximum players filled for '+team.name+'. Unable to proceed.');
         return;
       }
-      team.players=team.players||[];
-      team.players.push({
-        name:mp.name, serial:mp.serial, gamerId:mp.gamerId, state:mp.state,
-        price:price
-      });
-      team.remaining=Number(team.remaining||0)-price;
-      if(typeof getTeamMax==='function' && getTeamMax(team)>0 && team.players.length>=getTeamMax(team)) team.maxReached=true;
-      // Mark master list as sold so status + remaining lists update
-      mp.sold=true;
-      mp.unsold=false;
-      mp.price=price;
-      await saveSquadEdits();
-      overlay.classList.add('hidden');
-      overlay.style.display='none';
-      overlay.innerHTML='';
-      window._squadBusy=false;
-      window._squadDialogOpen=false;
-      window._modalOpen=false;
-      renderSquads();
-      announce((mp.name||'Player')+' added to '+team.name+' for '+price);
+      const existing=findPlayerTeamInfo(mp);
+      if(existing && existing.team.id!==team.id){
+        // Confirm move from other team
+        ask(
+          'Move player?',
+          (mp.name||'Player')+' is already in '+existing.team.name+' for '+existing.price+'. Move to '+team.name+' for '+price+'? Previous team will get the purse back.',
+          function(){
+            doAddOrMove(mp, price, team).catch(function(e){
+              window._squadBusy=false;
+              window._squadDialogOpen=false;
+              window._modalOpen=false;
+              safeAlert(e);
+            });
+          },
+          { yesLabel:'Yes, move', noLabel:'Cancel' }
+        );
+        return;
+      }
+      if(existing && existing.team.id===team.id){
+        alert((mp.name||'Player')+' is already in '+team.name+'.');
+        return;
+      }
+      // Not sold / not in a squad — add normally (also handles stale sold flag)
+      await doAddOrMove(mp, price, team);
     }catch(e){
       window._squadBusy=false;
       window._squadDialogOpen=false;
@@ -5754,19 +6005,17 @@ function handleSquadAction(btn){
       const row=tm.players[pi];
       const priceBack=Number(row.price)||0;
       tm.remaining=Number(tm.remaining||0)+priceBack;
-      const serial=row.serial, name=row.name;
       tm.players.splice(pi,1);
       if(tm.maxReached && typeof getTeamMax==='function' && getTeamMax(tm)>0 && tm.players.length<getTeamMax(tm)){
         tm.maxReached=false;
       }
-      const mp=(T.players||[]).find(function(x){
-        return (serial!=null && x.serial===serial) || (x.name && name && x.name===name);
-      });
-      if(mp){ mp.sold=false; mp.unsold=true; }
+      // Master list: no longer sold — appears in Remaining, not Sold
+      const mp=findMasterPlayer(row);
+      markPlayerAvailable(mp);
       saveSquadEdits().then(function(){
         window._squadBusy=false;
         renderSquads();
-        announce(pname+' removed');
+        announce(pname+' removed. Status updated.');
       }).catch(function(e){
         window._squadBusy=false;
         safeAlert(e);
@@ -5902,10 +6151,16 @@ function wireDownloadPanel(){
 
 function renderToolsBook(){
   const pl=T.players||[];
+  // Sold = in a squad OR flag sold; Remaining = not sold and not unsold
   let list=pl, title='Players';
-  if(toolsKind==='sold'){ list=pl.filter(p=>p.sold); title='Sold players'; }
-  if(toolsKind==='unsold'){ list=pl.filter(p=>p.unsold); title='Unsold players'; }
-  if(toolsKind==='remaining'){ list=pl.filter(p=>!p.sold&&!p.unsold); title='Remaining players'; }
+  if(toolsKind==='sold'){
+    list=pl.filter(function(p){
+      return !!findPlayerTeamInfo(p) || !!p.sold;
+    });
+    title='Sold players';
+  }
+  if(toolsKind==='unsold'){ list=pl.filter(p=>p.unsold && !findPlayerTeamInfo(p)); title='Unsold players'; }
+  if(toolsKind==='remaining'){ list=pl.filter(p=>!p.sold&&!p.unsold && !findPlayerTeamInfo(p)); title='Remaining players'; }
   if(toolsKind==='total'){ list=pl; title='Total players'; }
   const pageSize=10;
   const totalPages=Math.max(1, Math.ceil(list.length/pageSize)||1);
@@ -5913,9 +6168,13 @@ function renderToolsBook(){
   if(toolsPage<0) toolsPage=0;
   const start=toolsPage*pageSize;
   const slice=list.slice(start, start+pageSize);
-  // Squads-style drill: hide menu, show only list view
+  // Squads-style drill: hide menu + page heading, show only list view
   if($('toolsMenuWrap')) $('toolsMenuWrap').classList.add('hidden');
   if($('downloadPanel')) $('downloadPanel').classList.add('hidden');
+  if($('toolsTitle')){
+    $('toolsTitle').setAttribute('aria-hidden','true');
+    $('toolsTitle').setAttribute('tabindex','-1');
+  }
   const box=$('toolsList');
   if(box) box.classList.remove('hidden');
   let h='<button type="button" id="btnCloseList" class="btn-sec btn-block" style="margin-bottom:10px">Back to lists</button>'+
@@ -5925,7 +6184,11 @@ function renderToolsBook(){
     h+='<p>No players in this list.</p>';
   } else {
     h+='<ul class="plain">';
-    slice.forEach((p,i)=>{ h+='<li><strong>'+(start+i+1)+'.</strong> '+(p.serial?p.serial+' · ':'')+(p.name||'Unnamed')+'</li>'; });
+    slice.forEach((p,i)=>{
+      const info=findPlayerTeamInfo(p);
+      const extra=info ? (' · '+info.team.name+' · '+info.price) : (p.unsold ? ' · Unsold' : '');
+      h+='<li><strong>'+(start+i+1)+'.</strong> '+(p.serial?p.serial+' · ':'')+(p.name||'Unnamed')+extra+'</li>';
+    });
     h+='</ul>';
   }
   h+='<div class="row" style="margin-top:12px">';
@@ -5933,13 +6196,18 @@ function renderToolsBook(){
   h+='<button type="button" id="btnNextPage" class="btn-sec"'+(toolsPage>=totalPages-1?' disabled':'')+'>Next page</button>';
   h+='</div>';
   if(box) box.innerHTML=h;
-  focusEl($('tlH'));
+  // Focus list heading only (not the outer "More" title)
+  setTimeout(function(){ focusEl($('tlH')||$('btnCloseList')); }, 40);
   announce(title+', page '+(toolsPage+1)+' of '+totalPages);
   $('btnCloseList').onclick=()=>{
     toolsKind=null;
     if(box){ box.innerHTML=''; box.classList.add('hidden'); }
     if($('toolsMenuWrap')) $('toolsMenuWrap').classList.remove('hidden');
-    focusEl($('toolsTitle'));
+    if($('toolsTitle')){
+      $('toolsTitle').removeAttribute('aria-hidden');
+      $('toolsTitle').setAttribute('tabindex','-1');
+    }
+    setTimeout(function(){ focusEl($('btnListSold')||$('toolsTitle')); }, 40);
   };
   $('btnPrevPage').onclick=()=>{ if(toolsPage>0){ toolsPage--; renderToolsBook(); } };
   $('btnNextPage').onclick=()=>{ if(toolsPage<totalPages-1){ toolsPage++; renderToolsBook(); } };
@@ -6169,9 +6437,15 @@ $('btnHomeAuc').onclick=async()=>{
   stopAuctionLive(); stopTimer(); helperMode=false; ownerMode=false; enterHome();
 };
 
-$('btnMyAuctions').onclick=async()=>{
-  showScreen('screenList'); $('listTitle').textContent='My auctions'; focusEl($('listTitle'));
-  const body=$('listBody'); body.innerHTML='Loading…';
+if($('btnMyAuctions')) $('btnMyAuctions').onclick=async function(){
+  // Stay on Live tab — show manage list above live list
+  try{ switchHubTab('live'); }catch(e){}
+  const body=$('hubMyList')||$('listBody');
+  const live=$('hubLiveList');
+  if(live) live.classList.add('hidden');
+  if(!body) return;
+  body.classList.remove('hidden');
+  body.innerHTML='<p class="hub-empty">Loading your auctions…</p>';
   try{
     const snap=await db.collection('auctions').where('ownerId','==',user.uid).limit(40).get();
     const items=[]; snap.forEach(doc=>items.push({id:doc.id,...doc.data()}));
@@ -6181,10 +6455,24 @@ $('btnMyAuctions').onclick=async()=>{
       return tb-ta;
     });
     body.innerHTML='';
-    if(!items.length){ body.innerHTML='<p>No auctions yet.</p>'; return; }
+    // Back to all live
+    const back=document.createElement('button');
+    back.type='button'; back.className='btn-sec btn-block';
+    back.textContent='Back to live list';
+    back.onclick=function(){
+      body.classList.add('hidden'); body.innerHTML='';
+      if(live) live.classList.remove('hidden');
+      openAuctionList('live');
+    };
+    body.appendChild(back);
+    if(!items.length){
+      const p=document.createElement('p'); p.className='hub-empty'; p.textContent='No auctions yet. Create one above.';
+      body.appendChild(p);
+      return;
+    }
     items.forEach(it=>{
-      const card=document.createElement('div'); card.className='panel';
-      card.innerHTML='<strong>'+(it.title||'')+'</strong> · '+(it.mode||'physical')+' · '+(it.status||'');
+      const card=document.createElement('div'); card.className='hub-card';
+      card.innerHTML='<strong>'+(it.title||'Auction')+'</strong><br><span style="font-size:13px;color:var(--muted)">'+(it.mode||'physical')+' · '+(it.status||'')+'</span>';
       const row=document.createElement('div'); row.className='row';
       const open=document.createElement('button'); open.type='button'; open.className='btn-ok';
       open.textContent=(it.status==='ended')?'View results':'Open';
@@ -6193,10 +6481,14 @@ $('btnMyAuctions').onclick=async()=>{
         else resumeAuction(it.id, it);
       };
       const del=document.createElement('button'); del.type='button'; del.className='btn-danger'; del.textContent='Delete';
-      del.onclick=()=>ask('Delete?','Delete '+(it.title||'')+'?', async()=>{ await db.collection('auctions').doc(it.id).delete(); $('btnMyAuctions').click(); });
+      del.onclick=()=>ask('Delete?','Delete '+(it.title||'')+'?', async()=>{
+        await db.collection('auctions').doc(it.id).delete();
+        if($('btnMyAuctions')) $('btnMyAuctions').click();
+      });
       row.appendChild(open); row.appendChild(del); card.appendChild(row); body.appendChild(card);
     });
-  }catch(e){ body.innerHTML=e.message||e; }
+    try{ focusEl(back); }catch(e){}
+  }catch(e){ body.innerHTML='<p class="hub-empty">'+(e.message||e)+'</p>'; }
 };
 
 // Stay on Loading until Firebase reports auth state (avoids 3–5s Sign-in flash)

@@ -229,8 +229,8 @@ body.light .top-nav{background:rgba(255,255,255,0.92)}
 }
 .user-badge strong{color:var(--text)}
 
-.wrap{max-width:1050px;margin:8px auto;padding:0 12px}
-@media(min-width:600px){.wrap{margin:16px auto;padding:0 16px}}
+.wrap{max-width:1050px;margin:4px auto;padding:0 10px}
+@media(min-width:600px){.wrap{margin:12px auto;padding:0 16px}}
 /* Squads: start near top on mobile — less empty space */
 #tabSquads.panel{margin-top:4px;padding:10px 12px}
 #tabSquads h1{margin:4px 0 8px;font-size:1.2rem}
@@ -252,21 +252,21 @@ body.light .top-nav{background:rgba(255,255,255,0.92)}
   background:var(--bg-surface);
   border:1px solid var(--border-subtle);
   border-radius:var(--radius-lg);
-  padding:16px;
-  margin:14px 0;
+  padding:12px;
+  margin:6px 0;
   box-shadow:none;
 }
 /* Solid heading color for screen readers / high contrast — no transparent fill */
 h1,h2,h3{
-  margin:8px 0;
+  margin:4px 0;
   font-weight:800;
   letter-spacing:-0.02em;
   color:var(--text);
   background:none;
   -webkit-text-fill-color:unset;
 }
-h1{font-size:1.45rem}
-h2{font-size:1.15rem;color:var(--primary)}
+h1{font-size:1.3rem}
+h2{font-size:1.1rem;color:var(--primary)}
 h3{font-size:1rem;color:var(--accent2)}
 
 .hidden{display:none!important}
@@ -340,31 +340,59 @@ button.btn-sec[aria-label*="Back"]::before,button.btn-sec[aria-label*="back"]::b
 #soldForm input{width:100%;min-height:48px;font-size:18px}
 #confirmModal .row{flex-direction:column;align-items:stretch}
 #confirmModal .row button{width:100%}
-/* Viewer full-width layout */
-.watch-wrap{max-width:720px;margin:0 auto;padding-bottom:88px}
-.watch-panel{min-height:0;padding:12px!important;margin:8px 0!important}
-.watch-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
-.watch-heading{font-size:1.1rem;margin:0;flex:1}
-.watch-pane{margin-top:4px}
-#screenWatch #watchStats{margin:4px 0 8px}
-#screenWatch .player-stage{padding:14px 12px;margin:8px 0}
-#screenWatch .player-name{font-size:clamp(1.25rem,4.5vw,1.85rem);margin:4px 0}
-#screenWatch .stat{padding:8px 6px;border-radius:10px;font-size:11px}
-#screenWatch .stat strong{font-size:1.15rem;margin-top:2px}
-#screenWatch .stats,#screenWatch .stats-4{gap:6px;margin:6px 0;padding:0}
-#screenWatch .recent-card,#screenWatch .recent-line{margin-top:8px;padding:10px;font-size:13px}
-#screenWatch .timer-box{margin:8px 0;padding:10px;font-size:1.25rem}
+/* Viewer full-width layout — Cric360 Live density: flush top, no dead space */
+.watch-wrap{max-width:720px;margin:0 auto;padding:0 10px 80px!important}
+.watch-panel{
+  min-height:0!important;padding:8px 10px 10px!important;margin:0!important;
+  border-radius:12px;
+}
+.watch-top{display:flex;align-items:center;gap:6px;margin:0 0 2px;flex-wrap:nowrap}
+.watch-heading{font-size:1.05rem;margin:0;flex:1;line-height:1.2}
+.watch-pane{margin-top:2px}
+#screenWatch #watchStats{margin:2px 0 6px}
+#screenWatch .player-stage{
+  padding:10px 12px!important;margin:4px 0 6px!important;
+  border-radius:12px;text-align:center;
+}
+#screenWatch .player-name{
+  font-size:clamp(1.2rem,4.2vw,1.7rem)!important;
+  margin:2px 0 2px!important;line-height:1.15;
+}
+#screenWatch .stat{padding:6px 4px;border-radius:8px;font-size:10px;line-height:1.2}
+#screenWatch .stat strong{font-size:1.05rem;margin-top:1px}
+#screenWatch .stats,#screenWatch .stats-4{gap:5px;margin:2px 0 4px;padding:0}
+#screenWatch .recent-card,#screenWatch .recent-line{
+  margin-top:6px;padding:8px 10px;font-size:12px;border-radius:10px;
+}
+#screenWatch .timer-box{margin:6px 0;padding:8px;font-size:1.15rem}
+#screenWatch .lead-line{margin:6px 0 0;padding:6px;font-size:.9rem}
+#screenWatch button.btn-sec[aria-label*="Back"],
+#screenWatch button.btn-sec[aria-label*="back"]{
+  min-height:32px!important;padding:2px 0 4px!important;margin:0!important;font-size:.85rem;
+}
 #watchAudioUnlock{
-  width:100%;margin:4px 0 8px!important;min-height:40px!important;padding:8px 12px!important;
-  font-size:13px!important;border:1px solid var(--border-subtle)!important;
-  border-radius:10px!important;background:rgba(14,165,233,.12)!important;
-  color:var(--accent-cyan)!important;
+  width:100%;margin:2px 0 6px!important;min-height:36px!important;padding:6px 10px!important;
+  font-size:12px!important;border:1px solid var(--border-subtle)!important;
+  border-radius:8px!important;background:rgba(14,165,233,.1)!important;
+  color:var(--accent-cyan)!important;font-weight:600;
 }
-@media(max-width:520px){
-  #screenWatch .wrap.watch-wrap{padding-left:8px;padding-right:8px}
-  #screenWatch .panel.watch-panel{padding:10px!important;margin:4px 0!important}
-  #screenWatch .player-stage{padding:12px 10px;margin:6px 0}
+/* Global mobile density (match Cric360 Live panes) */
+@media(max-width:600px){
+  body{padding-bottom:16px}
+  body.has-tabbar{padding-bottom:84px}
+  .wrap{margin:4px auto!important;padding:0 8px!important}
+  .panel{padding:10px 12px!important;margin:4px 0!important}
+  #screenWatch .wrap.watch-wrap{margin:0 auto!important;padding:0 8px 80px!important}
+  #screenWatch .panel.watch-panel{padding:6px 8px 8px!important;margin:0!important;border:none;background:transparent}
+  #screenWatch .player-stage{padding:10px 10px!important;margin:4px 0!important}
+  .player-stage{padding:12px 12px;margin:6px 0}
+  .stats,.stats-4{gap:6px;margin:6px 0;padding:0}
+  .stat{padding:8px 6px;font-size:11px}
+  .stat strong{font-size:1.15rem}
+  h1{font-size:1.25rem;margin:4px 0}
+  h2{font-size:1.05rem;margin:4px 0}
 }
+
 #screenAuction .auc-only{display:block}
 #tabSquads .host-extra,#tabTools .host-extra{display:none}
 
@@ -383,17 +411,17 @@ button.btn-sec[aria-label*="Back"]::before,button.btn-sec[aria-label*="back"]::b
 .stats,.stats-4{
   display:grid!important;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:10px;padding:6px 0;margin:14px 0;visibility:visible!important;
+  gap:6px;padding:0;margin:6px 0;visibility:visible!important;
 }
 @media(max-width:520px){
   .stats,.stats-4{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 .stat{
   background:var(--card);border:1px solid var(--border);
-  padding:14px 10px;border-radius:14px;font-weight:700;font-size:12px;
+  padding:8px 6px;border-radius:10px;font-weight:700;font-size:11px;
   text-align:center;color:var(--muted);
 }
-.stat strong{display:block;font-size:1.35rem;font-weight:900;color:var(--text);margin-top:4px}
+.stat strong{display:block;font-size:1.15rem;font-weight:900;color:var(--text);margin-top:2px}
 
 .list-btn{
   width:100%;text-align:left;background:var(--bg-surface-elevated);color:var(--text);
@@ -433,10 +461,10 @@ body.light .tabbar{background:rgba(255,255,255,0.96)}
 .progress{font-size:13px;color:var(--primary);font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
 
 .player-stage{
-  text-align:center;padding:22px 16px;border-radius:var(--radius-lg);
+  text-align:center;padding:12px 12px;border-radius:var(--radius-lg);
   border:1px solid var(--border-focus);
   background:linear-gradient(145deg,var(--bg-surface-elevated),#111d30);
-  box-shadow:none;margin:14px 0;
+  box-shadow:none;margin:6px 0;
 }
 body.light .player-stage{background:linear-gradient(180deg,#fff 0%,#f0f9ff 100%);border-color:var(--border)}
 .live-pill{
@@ -449,9 +477,9 @@ body.light .player-stage{background:linear-gradient(180deg,#fff 0%,#f0f9ff 100%)
   color:var(--primary-bright);letter-spacing:-0.02em;
 }
 .recent-card,.recent-line{
-  margin-top:12px;padding:14px;border-radius:14px;border:1px solid var(--border);
-  background:var(--card);font-weight:700;font-size:14px;
-  display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;
+  margin-top:6px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);font-weight:700;font-size:12px;
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;
 }
 .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700}
 .badge.sold{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)}
@@ -459,7 +487,7 @@ body.light .player-stage{background:linear-gradient(180deg,#fff 0%,#f0f9ff 100%)
 
 .timer-box{
   font-family:var(--font-score);
-  font-size:1.45rem;font-weight:800;text-align:center;margin:12px 0;padding:14px;
+  font-size:1.25rem;font-weight:800;text-align:center;margin:6px 0;padding:10px;
   border-radius:var(--radius);background:rgba(0,180,216,0.12);color:var(--primary-bright);
   border:1px solid var(--border-focus);
 }
@@ -979,9 +1007,8 @@ function announceNowPlayer(idx, name, total, liveData){
   }
   const n = (total!=null ? total : ((D.players||[]).length||0));
   const line = 'Now auctioning '+(name||'player')+', number '+(idx+1)+' of '+n;
+  // sayEvent already routes to TTS or aria-live — no second announce (avoids dead double text)
   sayEvent(line, 'player');
-  // Also push to aria-live so screen readers hear it even if TTS is off
-  try{ announce(line, true); }catch(e){}
 }
 
 
@@ -4113,14 +4140,13 @@ function renderWatch(data){
     const pk='pause';
     if(window._watchUIKey!==pk){
       window._watchUIKey=pk;
-      if($('watchPlayer')) $('watchPlayer').innerHTML='<div class="player-stage"><h2 id="wPN">Host on break</h2><p>Bidding is paused.</p></div>';
+      if($('watchPlayer')) $('watchPlayer').innerHTML='<div class="player-stage"><h2 id="wPN" style="margin:0">Host on break</h2></div>';
     }
   } else if(data.status==='ended'){
     const ek='ended|'+(data.title||'');
     if(window._watchUIKey!==ek){
       window._watchUIKey=ek;
-      if($('watchPlayer')) $('watchPlayer').innerHTML='<div class="player-stage"><h2 id="wPN">Auction ended</h2>'+
-        '<p style="color:var(--muted)">Use Squads and More tabs to review results.</p></div>';
+      if($('watchPlayer')) $('watchPlayer').innerHTML='<div class="player-stage"><h2 id="wPN" style="margin:0">Auction ended</h2></div>';
     }
   }
 
@@ -4147,9 +4173,8 @@ function renderWatch(data){
     if(window._watchUIKey!==gk){
       window._watchUIKey=gk;
       if(box) box.innerHTML='<div class="player-stage">'+
-        '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
-        '<h2 class="player-name" id="wPN">Waiting for next player</h2>'+
-        '<p style="color:var(--muted)">The host will start the next player shortly.</p></div>'+
+        '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase">Please wait</p>'+
+        '<h2 class="player-name" id="wPN" style="margin:4px 0 0">Waiting for next player</h2></div>'+
         recentLineHtml(recent);
     }
   } else if(inGap){
@@ -4161,9 +4186,8 @@ function renderWatch(data){
     if(window._watchUIKey!==gk){
       window._watchUIKey=gk;
       if(box) box.innerHTML='<div class="player-stage">'+
-        '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
-        '<h2 class="player-name" id="wPN">Waiting for player details</h2>'+
-        '<p style="color:var(--muted)">Next player will appear after the short break.</p></div>'+
+        '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase">Please wait</p>'+
+        '<h2 class="player-name" id="wPN" style="margin:4px 0 0">Waiting for player details</h2></div>'+
         recentLineHtml(recent);
     }
     // Do NOT return — still fill Squads + More below

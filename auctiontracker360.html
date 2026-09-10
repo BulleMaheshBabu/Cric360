@@ -737,7 +737,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.10.2.00</p>
+    <p class="set-version">Version: 2026.09.10.3.00</p>
   </div>
 </section>
 
@@ -1114,22 +1114,167 @@ function getFunctionsRegion() {
   }
 }
 
+let _gcloudVoicesCache = null; // [{id, label, name, languageCode}]
+let _gcloudVoicesLoading = false;
+
+function isGcloudVoice(uri) {
+  return !!(uri && String(uri).indexOf('gcloud:') === 0);
+}
+function gcloudNameFromUri(uri) {
+  // gcloud:en-IN-Wavenet-A  OR  gcloud:en-IN|en-IN-Wavenet-A
+  const s = String(uri || '').replace(/^gcloud:/, '');
+  if (s.indexOf('|') >= 0) return s.split('|')[1] || s;
+  return s;
+}
+function gcloudLangFromUri(uri) {
+  const s = String(uri || '').replace(/^gcloud:/, '');
+  if (s.indexOf('|') >= 0) return s.split('|')[0];
+  const m = s.match(/^([a-z]{2}-[A-Z]{2})/);
+  return m ? m[1] : 'en-IN';
+}
+function friendlyFnError(e) {
+  try {
+    if (!e) return 'unknown error';
+    const code = e.code || (e.details && e.details.code) || '';
+    const msg = e.message || String(e);
+    if (/unauthenticated|permission-denied/i.test(msg + code)) return 'sign in required';
+    if (/not-found|NOT_FOUND/i.test(msg + code)) return 'function not found — redeploy';
+    if (/resource-exhausted|quota/i.test(msg + code)) return 'quota exceeded';
+    if (/invalid-argument/i.test(msg + code)) return 'bad request to TTS';
+    if (/internal|INTERNAL/i.test(msg + code)) return 'server error (check API key)';
+    if (/failed-precondition/i.test(msg + code)) return 'API key or billing issue';
+    // strip long firebase noise
+    return String(msg).replace(/FirebaseError:\s*/i, '').slice(0, 80);
+  } catch (x) {
+    return 'error';
+  }
+}
+
+/** List Google Cloud voices (cached). */
+async function gcloudListVoices() {
+  if (_gcloudVoicesCache && _gcloudVoicesCache.length) return _gcloudVoicesCache;
+  if (_gcloudVoicesLoading) {
+    // wait briefly for in-flight
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 200));
+      if (_gcloudVoicesCache && _gcloudVoicesCache.length) return _gcloudVoicesCache;
+    }
+    return _gcloudVoicesCache || [];
+  }
+  _gcloudVoicesLoading = true;
+  try {
+    const fns = getFunctionsRegion();
+    if (!fns) {
+      ttsStatus('Firebase Functions not loaded');
+      return [];
+    }
+    const call = fns.httpsCallable('listGoogleTtsVoices');
+    const res = await call({});
+    const d = (res && res.data) || {};
+    // Accept many shapes
+    let raw = d.voices || d.items || d.list || (Array.isArray(d) ? d : []);
+    if (!Array.isArray(raw)) raw = [];
+    const out = [];
+    raw.forEach(function (v) {
+      try {
+        const name = v.name || v.voiceName || v.id || '';
+        if (!name) return;
+        // Prefer English / Indian voices for auction
+        const langs = v.languageCodes || v.languageCode || [];
+        const langArr = Array.isArray(langs) ? langs : [langs];
+        const lang = String(langArr[0] || 'en-IN');
+        if (lang.indexOf('en') !== 0 && lang.indexOf('hi') !== 0 && lang.indexOf('te') !== 0) return;
+        const gender = (v.ssmlGender || v.gender || '').toString().toLowerCase();
+        const label = 'Google: ' + name.replace(/^.*\//, '') + (gender ? ' (' + gender + ')' : '');
+        out.push({
+          id: 'gcloud:' + lang + '|' + name,
+          label: label,
+          name: name,
+          languageCode: lang
+        });
+      } catch (e1) {}
+    });
+    // Sort: en-IN first, then en-GB, en-US
+    out.sort(function (a, b) {
+      function rank(x) {
+        if (x.languageCode === 'en-IN') return 0;
+        if (x.languageCode === 'en-GB') return 1;
+        if (x.languageCode === 'en-US') return 2;
+        return 3;
+      }
+      return rank(a) - rank(b) || a.label.localeCompare(b.label);
+    });
+    // Cap list size for mobile dropdown
+    _gcloudVoicesCache = out.slice(0, 40);
+    if (!_gcloudVoicesCache.length) {
+      // Static fallback popular voices so UI always shows Google options
+      _gcloudVoicesCache = [
+        { id: 'gcloud:en-IN|en-IN-Wavenet-A', label: 'Google: en-IN-Wavenet-A (female)', name: 'en-IN-Wavenet-A', languageCode: 'en-IN' },
+        { id: 'gcloud:en-IN|en-IN-Wavenet-B', label: 'Google: en-IN-Wavenet-B (male)', name: 'en-IN-Wavenet-B', languageCode: 'en-IN' },
+        { id: 'gcloud:en-IN|en-IN-Wavenet-C', label: 'Google: en-IN-Wavenet-C (male)', name: 'en-IN-Wavenet-C', languageCode: 'en-IN' },
+        { id: 'gcloud:en-IN|en-IN-Wavenet-D', label: 'Google: en-IN-Wavenet-D (female)', name: 'en-IN-Wavenet-D', languageCode: 'en-IN' },
+        { id: 'gcloud:en-GB|en-GB-Wavenet-A', label: 'Google: en-GB-Wavenet-A (female)', name: 'en-GB-Wavenet-A', languageCode: 'en-GB' },
+        { id: 'gcloud:en-GB|en-GB-Wavenet-B', label: 'Google: en-GB-Wavenet-B (male)', name: 'en-GB-Wavenet-B', languageCode: 'en-GB' },
+        { id: 'gcloud:en-US|en-US-Wavenet-F', label: 'Google: en-US-Wavenet-F (female)', name: 'en-US-Wavenet-F', languageCode: 'en-US' },
+        { id: 'gcloud:en-US|en-US-Wavenet-D', label: 'Google: en-US-Wavenet-D (male)', name: 'en-US-Wavenet-D', languageCode: 'en-US' }
+      ];
+      ttsStatus('Google voices (fallback list) ready');
+    } else {
+      ttsStatus('Google voices loaded (' + _gcloudVoicesCache.length + ')');
+    }
+    return _gcloudVoicesCache;
+  } catch (e) {
+    console.warn('gcloudListVoices', e);
+    ttsStatus('Google list failed: ' + friendlyFnError(e) + ' — using defaults');
+    _gcloudVoicesCache = [
+      { id: 'gcloud:en-IN|en-IN-Wavenet-A', label: 'Google: en-IN-Wavenet-A (female)', name: 'en-IN-Wavenet-A', languageCode: 'en-IN' },
+      { id: 'gcloud:en-IN|en-IN-Wavenet-B', label: 'Google: en-IN-Wavenet-B (male)', name: 'en-IN-Wavenet-B', languageCode: 'en-IN' },
+      { id: 'gcloud:en-IN|en-IN-Wavenet-D', label: 'Google: en-IN-Wavenet-D (female)', name: 'en-IN-Wavenet-D', languageCode: 'en-IN' },
+      { id: 'gcloud:en-GB|en-GB-Wavenet-B', label: 'Google: en-GB-Wavenet-B (male)', name: 'en-GB-Wavenet-B', languageCode: 'en-GB' },
+      { id: 'gcloud:en-US|en-US-Wavenet-F', label: 'Google: en-US-Wavenet-F (female)', name: 'en-US-Wavenet-F', languageCode: 'en-US' }
+    ];
+    return _gcloudVoicesCache;
+  } finally {
+    _gcloudVoicesLoading = false;
+  }
+}
+
 /** Call Cloud Function synthesizeSpeech. Returns base64 audio or null. */
-async function gcloudSynthesize(text) {
+async function gcloudSynthesize(text, voiceUri) {
   const fns = getFunctionsRegion();
-  if (!fns || !text) return null;
+  if (!fns || !text) {
+    ttsStatus('Google TTS: functions not ready');
+    return null;
+  }
+  const uri = voiceUri || ttsPref.voiceURI || ttsPref.gVoice || '';
+  const voiceName = isGcloudVoice(uri) ? gcloudNameFromUri(uri) : (ttsPref.gVoiceName || 'en-IN-Wavenet-A');
+  const languageCode = isGcloudVoice(uri) ? gcloudLangFromUri(uri) : (ttsPref.gLang || 'en-IN');
   try {
     const call = fns.httpsCallable('synthesizeSpeech');
-    const res = await call({
-      text: String(text).slice(0, 300),
-      languageCode: 'en-IN',
-      voiceName: ttsPref.gVoice || ''
-    });
+    const payload = {
+      text: String(text).slice(0, 400),
+      languageCode: languageCode,
+      voiceName: voiceName,
+      voice: voiceName,
+      name: voiceName
+    };
+    const res = await call(payload);
     const d = (res && res.data) || {};
-    return d.audioContent || d.audio || d.base64 || d.mp3 || null;
+    // Deep search for base64 audio
+    let audio = d.audioContent || d.audio || d.base64 || d.mp3 || d.data || null;
+    if (!audio && d.result) {
+      audio = d.result.audioContent || d.result.audio || d.result.base64;
+    }
+    if (!audio && typeof d === 'string' && d.length > 100) audio = d;
+    if (!audio) {
+      console.warn('synthesizeSpeech response keys', d && Object.keys(d));
+      ttsStatus('Google TTS: no audio in response');
+      return null;
+    }
+    return audio;
   } catch (e) {
     console.warn('gcloudSynthesize', e);
-    ttsStatus('Google TTS error — using device voice');
+    ttsStatus('Google TTS error: ' + friendlyFnError(e));
     return null;
   }
 }
@@ -1642,14 +1787,31 @@ function ttsFillVoiceSelect() {
   const prev = ttsPref.voiceURI || sel.value || '';
   sel.innerHTML = '';
 
-  // meSpeak first — separate from Eloquent / device TTS
-  ME_VOICES.forEach(function (v) {
+  // 1) Google Cloud voices first (P0 quality, no Eloquent conflict)
+  const gList = _gcloudVoicesCache || [];
+  gList.forEach(function (v) {
     const o = document.createElement('option');
     o.value = v.id;
     o.textContent = v.label;
     sel.appendChild(o);
   });
+  if (!gList.length) {
+    // Placeholder until async list returns
+    const o = document.createElement('option');
+    o.value = 'gcloud:en-IN|en-IN-Wavenet-A';
+    o.textContent = 'Google: en-IN-Wavenet-A (loading more…)';
+    sel.appendChild(o);
+  }
 
+  // 2) meSpeak — offline / Eloquent-safe fallback
+  ME_VOICES.forEach(function (v) {
+    const o = document.createElement('option');
+    o.value = v.id;
+    o.textContent = 'meSpeak: ' + v.label;
+    sel.appendChild(o);
+  });
+
+  // 3) Device voices (warn Eloquent conflict)
   const optDef = document.createElement('option');
   optDef.value = 'device:default';
   optDef.textContent = 'Device: System default (conflicts with Eloquent)';
@@ -1669,9 +1831,21 @@ function ttsFillVoiceSelect() {
 
   if (prev && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
     sel.value = prev;
+  } else if (gList.length) {
+    sel.value = gList[0].id;
+    ttsPref.voiceURI = gList[0].id;
   } else {
-    sel.value = ME_VOICES[0].id;
-    ttsPref.voiceURI = ME_VOICES[0].id;
+    sel.value = 'gcloud:en-IN|en-IN-Wavenet-A';
+    ttsPref.voiceURI = sel.value;
+  }
+}
+
+async function ttsRefreshGoogleVoices() {
+  try {
+    await gcloudListVoices();
+    ttsFillVoiceSelect();
+  } catch (e) {
+    console.warn('ttsRefreshGoogleVoices', e);
   }
 }
 
@@ -1774,8 +1948,20 @@ function ttsSpeak(text, category, onEnd) {
     return;
   }
   const uri = ttsPref.voiceURI || 'device:default';
+  if (isGcloudVoice(uri)) {
+    gcloudSynthesize(text, uri).then(function (audio) {
+      if (audio) {
+        playB64Audio(audio, onEnd);
+      } else if (isMeVoice(ttsPref.voiceURI)) {
+        meSpeakSpeak(text, onEnd);
+      } else {
+        // fallback device
+        ttsSpeakWeb(text, onEnd);
+      }
+    });
+    return;
+  }
   if (isMeVoice(uri)) {
-    // Eloquence / no Google TTS: use meSpeak only (HTML5 Audio path)
     meSpeakSpeak(text, onEnd);
     return;
   }
@@ -2015,14 +2201,21 @@ function wireTtsSettings() {
     const val = $('ttsVoice').value;
     if (!val) return;
     ttsPref.voiceURI = val;
+    if (isGcloudVoice(val)) {
+      ttsPref.gVoice = val;
+      ttsPref.gVoiceName = gcloudNameFromUri(val);
+      ttsPref.gLang = gcloudLangFromUri(val);
+    }
     saveTtsPref();
-    if (isMeVoice(val)) {
+    if (isGcloudVoice(val)) {
+      ttsStatus('Google voice selected — tap Test');
+    } else if (isMeVoice(val)) {
       ttsStatus('Loading meSpeak for Eloquence…');
       meSpeakSpeak('meSpeak voice selected', function () {
         ttsStatus('meSpeak ready');
       });
     } else {
-      ttsStatus('Device voice selected');
+      ttsStatus('Device voice selected (may conflict with Eloquent)');
       if (ttsPref.on) ttsSpeakWeb('Device voice selected', function () {});
     }
   };
@@ -2040,33 +2233,37 @@ function wireTtsSettings() {
     if ($('ttsVolLabel')) $('ttsVolLabel').textContent = 'Commentary volume: '+Math.round(ttsPref.volume*100)+'%';
     saveTtsPref();
   };
+  try { ttsRefreshGoogleVoices(); } catch (e) {}
   $('btnTtsTest').onclick = async () => {
     ttsPref.on = true;
     chk.checked = true;
     saveTtsPref();
     try { unlockSfx(); } catch (e) {}
     const phrase = 'Commentary ready. Mumbai leads at one hundred fifty.';
-    if (ttsPref.hostVoices !== false) {
-      ttsStatus('Testing Google Cloud voice…');
-      const audio = await gcloudSynthesize(phrase);
+    const uri = ttsPref.voiceURI || '';
+    // Always try Google if Host Voices ON or selected voice is Google
+    if (ttsPref.hostVoices !== false || isGcloudVoice(uri)) {
+      ttsStatus('Testing Google Cloud…');
+      const audio = await gcloudSynthesize(phrase, isGcloudVoice(uri) ? uri : 'gcloud:en-IN|en-IN-Wavenet-A');
       if (audio) {
         playB64Audio(audio, function () {
-          ttsStatus('Google Cloud voice OK');
+          ttsStatus('Google Cloud voice OK — hear this during P0');
         });
         return;
       }
-      ttsStatus('Google TTS unavailable — trying local…');
+      // status already set by gcloudSynthesize with real error
     }
-    if (!ttsPref.voiceURI) ttsPref.voiceURI = ME_VOICES[0].id;
-    saveTtsPref();
-    ttsFillVoiceSelect();
-    if (isMeVoice(ttsPref.voiceURI)) {
-      ttsStatus('Loading meSpeak…');
-      meSpeakSpeak(phrase, function () {});
-    } else {
-      ttsStatus('Speaking with device voice…');
-      ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
+    if (isMeVoice(uri) || !uri) {
+      if (!uri) ttsPref.voiceURI = ME_VOICES[0].id;
+      saveTtsPref();
+      ttsStatus('Trying meSpeak…');
+      meSpeakSpeak(phrase, function () {
+        ttsStatus('meSpeak played (fallback)');
+      });
+      return;
     }
+    ttsStatus('Speaking with device voice…');
+    ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
   };
   ['ttsHost','ttsBid','ttsPlayer','ttsTimer','ttsWait'].forEach(id => {
     $(id).onchange = () => {

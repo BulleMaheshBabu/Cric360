@@ -340,6 +340,14 @@ button.btn-sec[aria-label*="Back"]::before,button.btn-sec[aria-label*="back"]::b
 #soldForm input{width:100%;min-height:48px;font-size:18px}
 #confirmModal .row{flex-direction:column;align-items:stretch}
 #confirmModal .row button{width:100%}
+
+/* Insights album */
+#tabInsights .ins-card, #watchPaneInsights .ins-card{touch-action:pan-y}
+#tabInsights .ins-album-nav button, #watchPaneInsights .ins-album-nav button{flex-shrink:0}
+@media(max-width:600px){
+  #tabInsights.panel{padding:8px 10px!important}
+}
+
 /* Viewer full-width layout — Cric360 Live density: flush top, no dead space */
 .watch-wrap{max-width:720px;margin:0 auto;padding:0 10px 80px!important}
 .watch-panel{
@@ -677,11 +685,13 @@ a{color:var(--primary)}
     <div id="watchStats" class="stats" aria-hidden="true"></div>
     <div id="watchPaneLive" class="watch-pane"><div id="watchPlayer"></div></div>
     <div id="watchPaneSquads" class="watch-pane hidden"></div>
+    <div id="watchPaneInsights" class="watch-pane hidden"></div>
     <div id="watchPaneLists" class="watch-pane hidden"></div>
   </div></div>
   <nav class="tabbar" role="tablist" aria-label="Viewer tabs">
     <button type="button" role="tab" id="wTabLive" class="active" aria-selected="true">Live</button>
     <button type="button" role="tab" id="wTabSquads" aria-selected="false">Squads</button>
+    <button type="button" role="tab" id="wTabInsights" aria-selected="false">Insights</button>
     <button type="button" role="tab" id="wTabLists" aria-selected="false">More</button>
   </nav>
 </section>
@@ -845,6 +855,41 @@ a{color:var(--primary)}
       <h1 id="sqTitle">Squads</h1>
       <div id="sqBody"></div>
     </div>
+    <div id="tabInsights" class="panel hidden" role="region" aria-labelledby="insTitle">
+      <h1 id="insTitle" class="sr-only" tabindex="-1">Insights</h1>
+      <div id="insAlbum" class="ins-album" role="region" aria-label="Published AI360 responses">
+        <div class="ins-album-nav" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <button type="button" id="insPrev" class="btn-sec" aria-label="Previous response" style="min-width:48px;min-height:44px">←</button>
+          <p id="insPageLabel" style="margin:0;font-size:13px;font-weight:700;color:var(--muted);text-align:center;flex:1" aria-live="polite">No published responses yet</p>
+          <button type="button" id="insNext" class="btn-sec" aria-label="Next response" style="min-width:48px;min-height:44px">→</button>
+        </div>
+        <div id="insCard" class="ins-card" tabindex="0" role="article" aria-labelledby="insCardHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-height:120px">
+          <h2 id="insCardHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>
+          <p id="insCardBody" style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.45;color:var(--muted)">Published answers will appear here. Latest first.</p>
+        </div>
+        <div id="insCardActions" class="btn-stack" style="margin-top:10px">
+          <button type="button" id="insListen" class="btn-ok btn-block">Listen</button>
+          <button type="button" id="insDelete" class="btn-danger btn-block hidden">Delete response</button>
+        </div>
+      </div>
+      <div id="insDraftBox" class="hidden" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)" role="region" aria-labelledby="insDraftTitle">
+        <h2 id="insDraftTitle" style="font-size:1rem;margin:0 0 6px" tabindex="-1">New answer</h2>
+        <p id="insDraftQ" style="margin:0 0 6px;font-size:13px;color:var(--muted)"></p>
+        <div id="insDraftText" tabindex="0" style="padding:10px 12px;border:1px solid var(--border-focus);border-radius:10px;background:rgba(14,165,233,.08);white-space:pre-wrap;font-size:15px;line-height:1.45"></div>
+        <div class="btn-stack" style="margin-top:10px">
+          <button type="button" id="insCopy" class="btn-sec btn-block">Copy</button>
+          <button type="button" id="insPublish" class="btn-ok btn-block">Publish</button>
+          <button type="button" id="insShare" class="btn-sec btn-block">Share</button>
+          <button type="button" id="insDraftClear" class="btn-sec btn-block">Discard</button>
+        </div>
+      </div>
+      <div id="insAskBar" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <label for="insAsk">Ask 360AI</label>
+        <textarea id="insAsk" rows="2" maxlength="400" placeholder="e.g. Which team has most purse left?" aria-label="Ask 360AI"></textarea>
+        <button type="button" id="insSend" class="btn-ok btn-block" style="margin-top:8px">Send</button>
+        <p id="insStatus" role="status" aria-live="polite" style="min-height:1.2em;font-size:13px;color:var(--muted);margin:6px 0 0"></p>
+      </div>
+    </div>
     <div id="tabTools" class="panel hidden" role="region" aria-labelledby="toolsTitle">
       <h1 id="toolsTitle" tabindex="-1">More</h1>
       <div id="moreStats" class="stats" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
@@ -875,6 +920,7 @@ a{color:var(--primary)}
   <nav class="tabbar" role="tablist" aria-label="Auction tabs">
     <button type="button" role="tab" id="tabBtnAuction" class="active" aria-selected="true">Auction</button>
     <button type="button" role="tab" id="tabBtnSquads" aria-selected="false">Squads</button>
+    <button type="button" role="tab" id="tabBtnInsights" aria-selected="false">Insights</button>
     <button type="button" role="tab" id="tabBtnTools" aria-selected="false">More</button>
   </nav>
 </section>
@@ -3456,7 +3502,17 @@ function applyAuctionData(data){
           const lr=data.lastResult;
           window._lastResultKey='lr|'+(lr.name||'')+'|'+(lr.sold?'s':'u')+'|'+(lr.price||'')+'|'+(lr.team||'')+'|'+(lr.at||'');
         }
-        if(data.lastAlert && data.lastAlert.at){
+        
+    try{
+      if(data){
+        if(T){
+          if(data.aiInsights) T.aiInsights = data.aiInsights;
+          if(data.aiInsight) T.aiInsight = data.aiInsight;
+        }
+        if(typeof renderInsAlbum==='function') renderInsAlbum();
+      }
+    }catch(e){}
+if(data.lastAlert && data.lastAlert.at){
           window._lastAlertKey='al|'+data.lastAlert.at;
         }
         if(data.mode==='virtual' && data.bid && data.bid.leaderTeamName!=null && data.bid.price!=null){
@@ -3913,6 +3969,7 @@ function resumeAuction(id, data){
 $('btnWatchBack').onclick=()=>{ if(watchUnsub){watchUnsub();watchUnsub=null;} enterHome(); };
 $('wTabLive').onclick=()=>switchWatchTab('live');
 $('wTabSquads').onclick=()=>switchWatchTab('squads');
+$('wTabInsights').onclick=()=>switchWatchTab('insights');
 $('wTabLists').onclick=()=>switchWatchTab('lists');
 function switchWatchTab(which){
   if(which==='squads'){ /* keep drill state */ }
@@ -3922,7 +3979,7 @@ function switchWatchTab(which){
     window._watchListSig=null;
     window._watchListDetailSig=null;
   }
-  ['Live','Squads','Lists'].forEach(n=>{
+  ['Live','Squads','Insights','Lists'].forEach(n=>{
     const on=which.toLowerCase()===n.toLowerCase();
     const pane=$('watchPane'+n); const btn=$('wTab'+n);
     if(pane) pane.classList.toggle('hidden',!on);
@@ -3932,6 +3989,7 @@ function switchWatchTab(which){
   if($('watchTitle')){
     if(which==='live') $('watchTitle').textContent = (window._lastWatchData && window._lastWatchData.title) || 'Live';
     else if(which==='squads') $('watchTitle').textContent = 'Squads';
+    else if(which==='insights') $('watchTitle').textContent = 'Insights';
     else $('watchTitle').textContent = 'Lists';
   }
   if(which==='squads'||which==='lists'){
@@ -3940,10 +3998,13 @@ function switchWatchTab(which){
       $('watchPaneLists').innerHTML='<h2 tabindex="-1" id="wMoreH">Lists</h2>';
     }
   }
-  // Focus main content for the tab (avoid empty stats / middle of screen)
+  if(which==='insights'){
+    try{ renderWatchInsights(window._lastWatchData); }catch(e){}
+  }
   setTimeout(function(){
     if(which==='live') focusEl($('wPN')||$('watchTitle'));
     else if(which==='squads') focusEl($('wSqListH')||$('wSqH')||$('watchTitle'));
+    else if(which==='insights') focusEl($('wInsHead')||$('watchTitle'));
     else focusEl($('wMoreH')||$('wListH')||$('watchTitle'));
   }, 80);
 }
@@ -4175,7 +4236,7 @@ function renderWatch(data){
       if(box) box.innerHTML='<div class="player-stage">'+
         '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase">Please wait</p>'+
         '<h2 class="player-name" id="wPN" style="margin:4px 0 0">Waiting for next player</h2></div>'+
-        recentLineHtml(recent);
+        recentLineHtml(recent)+aiInsightHtml(data);
     }
   } else if(inGap){
     try{
@@ -4188,7 +4249,7 @@ function renderWatch(data){
       if(box) box.innerHTML='<div class="player-stage">'+
         '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase">Please wait</p>'+
         '<h2 class="player-name" id="wPN" style="margin:4px 0 0">Waiting for player details</h2></div>'+
-        recentLineHtml(recent);
+        recentLineHtml(recent)+aiInsightHtml(data);
     }
     // Do NOT return — still fill Squads + More below
   } else {
@@ -4234,7 +4295,8 @@ function renderWatch(data){
         '<span class="sr-only">'+spoken+'</span>'+
         '</div>'+
         (data.mode==='virtual'?'<p class="timer-box" id="wTimer" aria-hidden="true">'+timer+'</p>':'')+
-        recentLineHtml(recent);
+        recentLineHtml(recent)+
+        aiInsightHtml(data);
     } else {
       // Timer only — update text, do not rebuild DOM (stops SR spam)
       const wt=$('wTimer');
@@ -4630,6 +4692,7 @@ async function cloudSave(silent){
     owners:T.owners||[], pendingOwners:T.pendingOwners||[],
     pendingCoOrganisers:T.pendingCoOrganisers||[], coOrganiserIds:T.coOrganiserIds||[], coOrganiserEmails:T.coOrganiserEmails||[],
     meetLink:T.meetLink||'', paused:!!T.paused, alertRules:T.alertRules||null, lastResult:T.lastResult||null, lastAlert:T.lastAlert||null,
+    aiInsight:T.aiInsight||null, aiInsights:Array.isArray(T.aiInsights)?T.aiInsights:[],
     intermissionSec:T.intermissionSec||5, intermissionUntil:T.intermissionUntil||null,
     playerAdvance: T.playerAdvance==='manual'?'manual':'auto',
     awaitNextPlayer: !!T.awaitNextPlayer,
@@ -5107,7 +5170,7 @@ function switchTab(which){
   }catch(e){}
   // Close message/chat only — close squad dialogs only when leaving Squads
   forceClearBlockingOverlays({ clearSquadDialogs: which!=='squads' });
-  ['Auction','Squads','Tools'].forEach(n=>{
+  ['Auction','Squads','Insights','Tools'].forEach(n=>{
     const on=which.toLowerCase()===n.toLowerCase();
     const tab=$('tab'+n);
     if(tab){
@@ -5216,9 +5279,16 @@ function switchTab(which){
     }
     setTimeout(function(){ focusEl($('btnListSold')||$('toolsTitle')); }, 50);
   }
+  if(which==='insights'){
+    try{ renderInsAlbum(); }catch(e){}
+    setTimeout(function(){
+      focusEl($('insCardHead')||$('insAsk')||$('insTitle')||$('tabBtnInsights'));
+    }, 50);
+  }
 }
 $('tabBtnAuction').onclick=()=>switchTab('auction');
 $('tabBtnSquads').onclick=()=>switchTab('squads');
+$('tabBtnInsights').onclick=()=>switchTab('insights');
 $('tabBtnTools').onclick=()=>switchTab('tools');
 
 function isMsgPanelOpen(){
@@ -5593,6 +5663,16 @@ function myStatusOut(b){
   if(!myTeamId||!b.teamStatus) return false;
   const s=b.teamStatus[myTeamId];
   return s==='out_quit'||s==='out_timeout';
+}
+
+
+function aiInsightHtml(data){
+  const ins = data && data.aiInsight;
+  if(!ins || !ins.text) return '';
+  const t = String(ins.text).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return '<aside class="ai360-pub" role="region" aria-label="AI360 published answer" style="margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--border-focus);background:rgba(14,165,233,.1)">'+
+    '<p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">AI360</p>'+
+    '<p style="margin:0;font-size:14px;line-height:1.45;white-space:pre-wrap">'+t+'</p></aside>';
 }
 
 function recentLineHtml(recent){
@@ -7525,6 +7605,417 @@ if($('btnMyAuctions')) $('btnMyAuctions').onclick=async function(){
     try{ focusEl(back); }catch(e){}
   }catch(e){ body.innerHTML='<p class="hub-empty">'+(e.message||e)+'</p>'; }
 };
+
+
+
+/* ===== AI360 / Insights (text only, album, publish) ===== */
+window._insIndex = 0;
+window._insDraft = '';
+window._insDraftQ = '';
+window._aiInsightKey = null;
+
+function getAiInsightsList(src){
+  const s = src || T || {};
+  let list = Array.isArray(s.aiInsights) ? s.aiInsights.slice() : [];
+  if(!list.length && s.aiInsight && s.aiInsight.text){
+    list = [s.aiInsight];
+  }
+  list.sort(function(a,b){ return (b.at||0) - (a.at||0); });
+  return list;
+}
+
+function isAuctionHost(){
+  try{
+    if(!user || !T) return false;
+    if(T.ownerId && user.uid === T.ownerId) return true;
+    if(Array.isArray(T.coOrganiserIds) && T.coOrganiserIds.indexOf(user.uid) >= 0) return true;
+    if(typeof SUPER_ADMIN_EMAILS !== 'undefined' && user.email && SUPER_ADMIN_EMAILS.indexOf(user.email) >= 0) return true;
+  }catch(e){}
+  return false;
+}
+
+function buildAuctionAiContext(){
+  if(!T) return '(no auction loaded)';
+  const players = T.players || [];
+  const teams = T.teams || [];
+  const sold = players.filter(function(p){ return p.sold; });
+  const unsold = players.filter(function(p){ return p.unsold; });
+  const left = players.filter(function(p){ return !p.sold && !p.unsold; });
+  let idx = (T.meta && T.meta.currentIndex) || 0;
+  while(idx < players.length && (players[idx].sold || players[idx].unsold)) idx++;
+  const cur = players[idx];
+  const lines = [];
+  lines.push('Auction: ' + (T.title || 'Untitled'));
+  lines.push('Status: ' + (T.status || '') + (T.paused ? ' (paused)' : ''));
+  lines.push('Mode: ' + (T.mode || 'physical'));
+  lines.push('Counts: sold ' + sold.length + ', unsold ' + unsold.length + ', remaining ' + left.length + ', total ' + players.length);
+  if(cur) lines.push('Now auctioning: ' + (cur.name || 'Player') + ' (index ' + (idx+1) + ' of ' + players.length + ')');
+  if(T.bid){
+    lines.push('Bid phase: ' + (T.bid.phase || '—') + ', price: ' + (T.bid.price != null ? T.bid.price : '—') +
+      (T.bid.leaderTeamName ? (', leader: ' + T.bid.leaderTeamName) : ''));
+  }
+  lines.push('Teams:');
+  teams.forEach(function(t){
+    const n = (t.players || []).length;
+    const purse = (t.remaining != null ? t.remaining : (t.purseLeft != null ? t.purseLeft : t.purse));
+    lines.push('- ' + (t.name || t.id) + ': ' + n + ' players, purse left ' + (purse != null ? purse : '—'));
+  });
+  if(sold.length){
+    lines.push('Recent sold (up to 12):');
+    sold.slice(-12).forEach(function(p){
+      lines.push('- ' + (p.name || '') + ' to ' + (p.team || p.teamName || '—') + ' for ' + (p.price != null ? p.price : '—'));
+    });
+  }
+  if(T.lastResult && T.lastResult.name){
+    lines.push('Last result: ' + T.lastResult.name + ' ' + (T.lastResult.sold ? 'sold' : 'unsold') +
+      (T.lastResult.team ? (' ' + T.lastResult.team) : '') +
+      (T.lastResult.price != null ? (' ' + T.lastResult.price) : ''));
+  }
+  return lines.join('\n');
+}
+
+function cleanAi360Text(raw){
+  let t = String(raw || '').replace(/\r/g, '');
+  t = t.replace(/```[\s\S]*?```/g, ' ');
+  t = t.replace(/^\s*\|.*$/gm, function(line){
+    return line.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+  });
+  t = t.replace(/^#{1,6}\s*/gm, '');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '$1');
+  t = t.replace(/\*([^*]+)\*/g, '$1');
+  t = t.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return t;
+}
+
+async function callAuctionAskMatchAi(question){
+  const fns = (typeof getFunctionsRegion === 'function') ? getFunctionsRegion() : null;
+  if(!fns) throw new Error('Firebase Functions not ready');
+  const call = fns.httpsCallable('askMatchAi');
+  const res = await call({
+    question: question,
+    context: buildAuctionAiContext(),
+    mode: 'ai360_editor'
+  });
+  const data = (res && res.data) ? res.data : res;
+  const textOut = cleanAi360Text((data && data.text) || '');
+  if(!textOut) throw new Error('Empty answer from AI360');
+  return textOut;
+}
+
+function setInsStatus(msg){
+  const el = $('insStatus');
+  if(el) el.textContent = msg || '';
+}
+
+function currentInsItem(){
+  const list = getAiInsightsList(T);
+  if(!list.length) return null;
+  if(window._insIndex < 0) window._insIndex = 0;
+  if(window._insIndex >= list.length) window._insIndex = list.length - 1;
+  return list[window._insIndex];
+}
+
+function renderInsAlbum(){
+  const list = getAiInsightsList(T);
+  const label = $('insPageLabel');
+  const head = $('insCardHead');
+  const body = $('insCardBody');
+  const del = $('insDelete');
+  const host = isAuctionHost();
+  if($('insAskBar')) $('insAskBar').classList.toggle('hidden', !host);
+  if(!list.length){
+    if(label) label.textContent = 'No published responses yet';
+    if(head) head.textContent = 'Insights';
+    if(body) body.textContent = host
+      ? 'Ask 360AI below. Review the answer, then Publish so everyone can open Insights.'
+      : 'When the host publishes an AI360 answer, it appears here. Latest first.';
+    if(del) del.classList.add('hidden');
+    return;
+  }
+  if(window._insIndex >= list.length) window._insIndex = 0;
+  const item = list[window._insIndex];
+  if(label) label.textContent = (window._insIndex + 1) + ' of ' + list.length + ' (latest first)';
+  if(head) head.textContent = item.question ? ('Q: ' + item.question) : 'AI360 response';
+  if(body) body.textContent = item.text || '';
+  if(del) del.classList.toggle('hidden', !host);
+  // Sync watch mirror if open
+  try{ if(window._lastWatchData) renderWatchInsights(window._lastWatchData); }catch(e){}
+}
+
+function insListenCurrent(){
+  const item = currentInsItem();
+  if(!item || !item.text){
+    try{ if(typeof announce==='function') announce('No response to listen to.'); }catch(e){}
+    return;
+  }
+  const line = (item.question ? ('Question: ' + item.question + '. Answer: ') : '') + item.text;
+  try{
+    if(typeof sayEvent === 'function') sayEvent(line, 'host');
+    else if(typeof ttsSpeak === 'function') ttsSpeak(line, 'host');
+    else if(typeof announce === 'function') announce(line);
+  }catch(e){}
+}
+
+async function insDeleteCurrent(){
+  if(!isAuctionHost() || !T) return;
+  const list = getAiInsightsList(T);
+  const item = list[window._insIndex];
+  if(!item) return;
+  if(!confirm('Delete this published response?')) return;
+  T.aiInsights = list.filter(function(x){ return x !== item && (!item.id || x.id !== item.id); });
+  if(T.aiInsight && item.at && T.aiInsight.at === item.at) T.aiInsight = T.aiInsights[0] || null;
+  window._insIndex = 0;
+  try{
+    await cloudSave(false);
+    renderInsAlbum();
+    try{ if(typeof announce==='function') announce('Response deleted.'); }catch(e){}
+  }catch(e){
+    setInsStatus('Delete failed: ' + (e && e.message ? e.message : e));
+  }
+}
+
+function showInsDraft(q, text){
+  window._insDraft = text || '';
+  window._insDraftQ = q || '';
+  const box = $('insDraftBox');
+  if($('insDraftQ')) $('insDraftQ').textContent = q ? ('Question: ' + q) : '';
+  if($('insDraftText')) $('insDraftText').textContent = text || '';
+  if(box) box.classList.toggle('hidden', !text);
+  if(text){
+    try{ focusEl($('insDraftTitle') || $('insDraftText')); }catch(e){}
+  }
+}
+
+async function insSendAsk(){
+  if(!isAuctionHost()){
+    setInsStatus('Only the host can ask 360AI.');
+    return;
+  }
+  const q = (($('insAsk') && $('insAsk').value) || '').trim();
+  if(!q){
+    setInsStatus('Type a question first.');
+    try{ focusEl($('insAsk')); }catch(e){}
+    return;
+  }
+  if(!T){
+    setInsStatus('Open a live auction first.');
+    return;
+  }
+  const btn = $('insSend');
+  if(btn) btn.disabled = true;
+  setInsStatus('360AI thinking…');
+  showInsDraft('', '');
+  try{
+    const answer = await callAuctionAskMatchAi(q);
+    showInsDraft(q, answer);
+    setInsStatus('Answer ready. Copy, Publish, or Share.');
+    try{ if(typeof announce==='function') announce('360AI answer ready.'); }catch(e){}
+  }catch(e){
+    console.warn('AI360', e);
+    const msg = (e && (e.message || e.details)) ? String(e.message || e.details) : String(e);
+    setInsStatus('360AI failed: ' + msg.replace(/^FirebaseError:\s*/i, ''));
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function insPublishDraft(){
+  if(!isAuctionHost() || !T) return;
+  const textOut = (window._insDraft || '').trim();
+  if(!textOut){
+    setInsStatus('No answer to publish.');
+    return;
+  }
+  if(!confirm('Are you sure you want to publish this response? Everyone will get a commentary alert to check Insights.')) return;
+  const item = {
+    id: 'ins_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    text: textOut,
+    question: window._insDraftQ || '',
+    at: Date.now(),
+    by: (user && (user.email || user.uid)) || 'host'
+  };
+  const list = getAiInsightsList(T);
+  list.unshift(item);
+  T.aiInsights = list;
+  T.aiInsight = item;
+  T.lastAlert = {
+    text: 'Host has posted a new response. Check Insights.',
+    at: Date.now()
+  };
+  try{
+    await cloudSave(false);
+    window._insIndex = 0;
+    showInsDraft('', '');
+    if($('insAsk')) $('insAsk').value = '';
+    renderInsAlbum();
+    setInsStatus('Published. Everyone was alerted to check Insights.');
+    try{
+      if(typeof sayEvent === 'function') sayEvent('Host has posted a new response. Check Insights.', 'host');
+      else if(typeof announce === 'function') announce('Host has posted a new response. Check Insights.');
+    }catch(e){}
+  }catch(e){
+    setInsStatus('Publish failed: ' + (e && e.message ? e.message : e));
+  }
+}
+
+function insCopyDraft(){
+  const t = (window._insDraft || '').trim();
+  if(!t) return;
+  function ok(){
+    setInsStatus('Copied.');
+    try{ if(typeof announce==='function') announce('Copied.'); }catch(e){}
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(ok).catch(function(){
+      try{
+        const ta = document.createElement('textarea');
+        ta.value = t; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta); ok();
+      }catch(e){ setInsStatus('Copy failed'); }
+    });
+  } else {
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = t; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta); ok();
+    }catch(e){ setInsStatus('Copy failed'); }
+  }
+}
+
+function insShareDraft(){
+  const t = (window._insDraft || '').trim();
+  const q = window._insDraftQ || '';
+  const payload = (q ? ('Q: ' + q + '\n\n') : '') + t;
+  if(!payload) return;
+  if(navigator.share){
+    navigator.share({ title: 'AI360', text: payload }).catch(function(){ insCopyDraft(); });
+  } else {
+    window._insDraft = payload;
+    insCopyDraft();
+    setInsStatus('Share not available — copied instead.');
+  }
+}
+
+function renderWatchInsights(data){
+  const pane = $('watchPaneInsights');
+  if(!pane) return;
+  const list = getAiInsightsList(data || window._lastWatchData || T);
+  if(!list.length){
+    pane.innerHTML = '<h2 id="wInsHead" tabindex="-1" style="font-size:1.1rem;margin:0 0 8px">Insights</h2>'+
+      '<p style="color:var(--muted);font-size:14px">No published responses yet.</p>';
+    return;
+  }
+  if(window._wInsIndex == null || window._wInsIndex >= list.length) window._wInsIndex = 0;
+  if(window._wInsIndex < 0) window._wInsIndex = 0;
+  const item = list[window._wInsIndex];
+  const q = item.question ? ('<p style="margin:0 0 6px;font-size:13px;color:var(--muted)"><strong>Q:</strong> '+String(item.question).replace(/</g,'&lt;')+'</p>') : '';
+  const body = String(item.text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  pane.innerHTML =
+    '<div class="ins-album-nav" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">'+
+    '<button type="button" id="wInsPrev" class="btn-sec" aria-label="Previous response" style="min-width:48px;min-height:44px">←</button>'+
+    '<p id="wInsPage" style="margin:0;font-size:13px;font-weight:700;color:var(--muted);text-align:center;flex:1" aria-live="polite">'+(window._wInsIndex+1)+' of '+list.length+' (latest first)</p>'+
+    '<button type="button" id="wInsNext" class="btn-sec" aria-label="Next response" style="min-width:48px;min-height:44px">→</button></div>'+
+    '<div class="ins-card" tabindex="0" role="article" aria-labelledby="wInsHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card)">'+
+    '<h2 id="wInsHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>'+q+
+    '<p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.45">'+body+'</p></div>'+
+    '<button type="button" id="wInsListen" class="btn-ok btn-block" style="margin-top:10px">Listen</button>';
+  if($('wInsPrev')) $('wInsPrev').onclick = function(){
+    window._wInsIndex = (window._wInsIndex - 1 + list.length) % list.length;
+    renderWatchInsights(data);
+    try{ focusEl($('wInsHead')); }catch(e){}
+  };
+  if($('wInsNext')) $('wInsNext').onclick = function(){
+    window._wInsIndex = (window._wInsIndex + 1) % list.length;
+    renderWatchInsights(data);
+    try{ focusEl($('wInsHead')); }catch(e){}
+  };
+  if($('wInsListen')) $('wInsListen').onclick = function(){
+    const line = (item.question ? ('Question: ' + item.question + '. Answer: ') : '') + (item.text || '');
+    try{
+      if(typeof sayEvent === 'function') sayEvent(line, 'host');
+      else if(typeof ttsSpeak === 'function') ttsSpeak(line, 'host');
+      else if(typeof announce === 'function') announce(line);
+    }catch(e){}
+  };
+  // Swipe on card
+  try{
+    const card = pane.querySelector('.ins-card');
+    if(card && !card._swipeBound){
+      card._swipeBound = true;
+      let x0 = null;
+      card.addEventListener('touchstart', function(ev){
+        if(ev.touches && ev.touches[0]) x0 = ev.touches[0].clientX;
+      }, {passive:true});
+      card.addEventListener('touchend', function(ev){
+        if(x0 == null || !ev.changedTouches || !ev.changedTouches[0]) return;
+        const dx = ev.changedTouches[0].clientX - x0;
+        x0 = null;
+        if(Math.abs(dx) < 40) return;
+        if(dx < 0) window._wInsIndex = (window._wInsIndex + 1) % list.length;
+        else window._wInsIndex = (window._wInsIndex - 1 + list.length) % list.length;
+        renderWatchInsights(data);
+      }, {passive:true});
+    }
+  }catch(e){}
+}
+
+function aiInsightHtml(data){
+  // Live tab: no long card clutter — Insights tab holds album
+  return '';
+}
+
+function wireAi360(){
+  if($('insSend')) $('insSend').onclick = function(){ insSendAsk(); };
+  if($('insPublish')) $('insPublish').onclick = function(){ insPublishDraft(); };
+  if($('insCopy')) $('insCopy').onclick = function(){ insCopyDraft(); };
+  if($('insShare')) $('insShare').onclick = function(){ insShareDraft(); };
+  if($('insDraftClear')) $('insDraftClear').onclick = function(){
+    showInsDraft('', '');
+    setInsStatus('');
+    try{ focusEl($('insAsk')); }catch(e){}
+  };
+  if($('insListen')) $('insListen').onclick = function(){ insListenCurrent(); };
+  if($('insDelete')) $('insDelete').onclick = function(){ insDeleteCurrent(); };
+  if($('insPrev')) $('insPrev').onclick = function(){
+    const list = getAiInsightsList(T);
+    if(!list.length) return;
+    window._insIndex = (window._insIndex - 1 + list.length) % list.length;
+    renderInsAlbum();
+    try{ focusEl($('insCardHead')); }catch(e){}
+  };
+  if($('insNext')) $('insNext').onclick = function(){
+    const list = getAiInsightsList(T);
+    if(!list.length) return;
+    window._insIndex = (window._insIndex + 1) % list.length;
+    renderInsAlbum();
+    try{ focusEl($('insCardHead')); }catch(e){}
+  };
+  // Swipe host album card
+  try{
+    const card = $('insCard');
+    if(card && !card._swipeBound){
+      card._swipeBound = true;
+      let x0 = null;
+      card.addEventListener('touchstart', function(ev){
+        if(ev.touches && ev.touches[0]) x0 = ev.touches[0].clientX;
+      }, {passive:true});
+      card.addEventListener('touchend', function(ev){
+        if(x0 == null || !ev.changedTouches || !ev.changedTouches[0]) return;
+        const dx = ev.changedTouches[0].clientX - x0;
+        x0 = null;
+        if(Math.abs(dx) < 40) return;
+        const list = getAiInsightsList(T);
+        if(!list.length) return;
+        if(dx < 0) window._insIndex = (window._insIndex + 1) % list.length;
+        else window._insIndex = (window._insIndex - 1 + list.length) % list.length;
+        renderInsAlbum();
+      }, {passive:true});
+    }
+  }catch(e){}
+}
+try{ wireAi360(); }catch(e){ console.warn('wireAi360', e); }
+
+
 
 // Stay on Loading until Firebase reports auth state (avoids 3–5s Sign-in flash)
 showScreen('screenBoot');

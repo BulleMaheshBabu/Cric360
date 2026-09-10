@@ -737,7 +737,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.10.3.00</p>
+    <p class="set-version">Version: 2026.09.10.4.00</p>
   </div>
 </section>
 
@@ -1062,38 +1062,61 @@ function isAuctionHost() {
   }
 }
 
-function playB64Audio(b64, onEnd) {
+/** Play Google TTS result: either {url} or {base64} or raw base64 string. */
+function playB64Audio(audioOrResult, onEnd) {
   try {
-    if (_hostAudioEl) {
-      try {
-        _hostAudioEl.onended = null;
-        _hostAudioEl.pause();
-        _hostAudioEl.src = '';
-      } catch (e0) {}
-      _hostAudioEl = null;
+    let src = null;
+    if (!audioOrResult) {
+      if (typeof onEnd === 'function') onEnd();
+      return;
     }
-    const mime = (b64 && b64.indexOf('data:') === 0) ? '' : 'data:audio/mp3;base64,';
-    const src = (b64 && b64.indexOf('data:') === 0) ? b64 : mime + b64;
-    const a = new Audio(src);
-    _hostAudioEl = a;
+    if (typeof audioOrResult === 'object') {
+      if (audioOrResult.url) {
+        src = audioOrResult.url;
+      } else if (audioOrResult.base64) {
+        const b64 = String(audioOrResult.base64).replace(/^data:audio\/[^;]+;base64,/, '');
+        src = 'data:audio/mpeg;base64,' + b64;
+      }
+    } else if (typeof audioOrResult === 'string') {
+      if (audioOrResult.indexOf('http') === 0 || audioOrResult.indexOf('blob:') === 0) {
+        src = audioOrResult;
+      } else {
+        const b64 = String(audioOrResult).replace(/^data:audio\/[^;]+;base64,/, '');
+        src = 'data:audio/mpeg;base64,' + b64;
+      }
+    }
+    if (!src) {
+      if (typeof onEnd === 'function') onEnd();
+      return;
+    }
+    try {
+      if (_piperAudio) {
+        _piperAudio.pause();
+        _piperAudio.removeAttribute('src');
+      }
+    } catch (e0) {}
+    const a = new Audio();
+    _piperAudio = a;
+    a.preload = 'auto';
     a.volume = Math.min(1, Math.max(0, Number(ttsPref.volume) != null ? ttsPref.volume : 1));
-    var done = false;
+    var ended = false;
     function finish() {
-      if (done) return;
-      done = true;
+      if (ended) return;
+      ended = true;
       if (typeof onEnd === 'function') onEnd();
     }
     a.onended = finish;
-    a.onerror = finish;
+    a.onerror = function () {
+      console.warn('playB64Audio error', src && String(src).slice(0, 80));
+      finish();
+    };
     setTimeout(finish, 20000);
+    a.src = src;
     const p = a.play();
     if (p && typeof p.catch === 'function') {
-      p.catch(function () {
-        try {
-          const ctx = window._sfxCtx || (window.AudioContext && new (window.AudioContext || window.webkitAudioContext)());
-          if (ctx && ctx.state === 'suspended') ctx.resume();
-        } catch (e3) {}
-        a.play().catch(finish);
+      p.catch(function (err) {
+        console.warn('play blocked', err);
+        finish();
       });
     }
   } catch (e) {
@@ -1101,6 +1124,7 @@ function playB64Audio(b64, onEnd) {
     if (typeof onEnd === 'function') onEnd();
   }
 }
+
 
 function getFunctionsRegion() {
   try {
@@ -1171,21 +1195,29 @@ async function gcloudListVoices() {
     const call = fns.httpsCallable('listGoogleTtsVoices');
     const res = await call({});
     const d = (res && res.data) || {};
-    // Accept many shapes
+    // Function returns { ok, count, voices: [{ name, languageCodes, ssmlGender }] }
     let raw = d.voices || d.items || d.list || (Array.isArray(d) ? d : []);
     if (!Array.isArray(raw)) raw = [];
     const out = [];
     raw.forEach(function (v) {
       try {
-        const name = v.name || v.voiceName || v.id || '';
+        const name = String(v.name || v.voiceName || v.id || '').trim();
         if (!name) return;
-        // Prefer English / Indian voices for auction
         const langs = v.languageCodes || v.languageCode || [];
         const langArr = Array.isArray(langs) ? langs : [langs];
-        const lang = String(langArr[0] || 'en-IN');
-        if (lang.indexOf('en') !== 0 && lang.indexOf('hi') !== 0 && lang.indexOf('te') !== 0) return;
+        let lang = String(langArr[0] || '');
+        if (!lang) {
+          if (name.indexOf('en-IN') === 0) lang = 'en-IN';
+          else if (name.indexOf('en-GB') === 0) lang = 'en-GB';
+          else if (name.indexOf('en-US') === 0) lang = 'en-US';
+          else if (name.indexOf('en-AU') === 0) lang = 'en-AU';
+          else lang = 'en-US';
+        }
+        if (lang.indexOf('en') !== 0) return;
+        // Prefer Wavenet / Neural2 for quality
         const gender = (v.ssmlGender || v.gender || '').toString().toLowerCase();
-        const label = 'Google: ' + name.replace(/^.*\//, '') + (gender ? ' (' + gender + ')' : '');
+        const short = name.replace(/^.*\//, '');
+        const label = 'Google: ' + short + (gender ? ' (' + gender + ')' : '');
         out.push({
           id: 'gcloud:' + lang + '|' + name,
           label: label,
@@ -1239,7 +1271,10 @@ async function gcloudListVoices() {
   }
 }
 
-/** Call Cloud Function synthesizeSpeech. Returns base64 audio or null. */
+/** Call Cloud Function synthesizeSpeech.
+ *  Server returns { ok, audioUrl, fileName, characters } — NOT base64.
+ *  Returns { url } or null.
+ */
 async function gcloudSynthesize(text, voiceUri) {
   const fns = getFunctionsRegion();
   if (!fns || !text) {
@@ -1247,31 +1282,41 @@ async function gcloudSynthesize(text, voiceUri) {
     return null;
   }
   const uri = voiceUri || ttsPref.voiceURI || ttsPref.gVoice || '';
-  const voiceName = isGcloudVoice(uri) ? gcloudNameFromUri(uri) : (ttsPref.gVoiceName || 'en-IN-Wavenet-A');
-  const languageCode = isGcloudVoice(uri) ? gcloudLangFromUri(uri) : (ttsPref.gLang || 'en-IN');
+  // voiceName is REQUIRED by the Cloud Function
+  let voiceName = 'en-IN-Wavenet-A';
+  let languageCode = 'en-IN';
+  if (isGcloudVoice(uri)) {
+    voiceName = gcloudNameFromUri(uri) || voiceName;
+    languageCode = gcloudLangFromUri(uri) || languageCode;
+  } else if (ttsPref.gVoiceName) {
+    voiceName = ttsPref.gVoiceName;
+    languageCode = ttsPref.gLang || languageCode;
+  }
+  // Normalize voice name (strip accidental path)
+  voiceName = String(voiceName).replace(/^.*\//, '').trim();
+  if (!voiceName) voiceName = 'en-IN-Wavenet-A';
   try {
     const call = fns.httpsCallable('synthesizeSpeech');
     const payload = {
       text: String(text).slice(0, 400),
-      languageCode: languageCode,
       voiceName: voiceName,
-      voice: voiceName,
-      name: voiceName
+      languageCode: languageCode,
+      auctionId: (typeof auctionId !== 'undefined' && auctionId) ? String(auctionId) : 'settings-test'
     };
+    ttsStatus('Google TTS calling… (' + voiceName + ')');
     const res = await call(payload);
     const d = (res && res.data) || {};
-    // Deep search for base64 audio
-    let audio = d.audioContent || d.audio || d.base64 || d.mp3 || d.data || null;
-    if (!audio && d.result) {
-      audio = d.result.audioContent || d.result.audio || d.result.base64;
+    // Actual function returns audioUrl (public Storage MP3)
+    const url = d.audioUrl || d.url || d.publicUrl || null;
+    if (url) {
+      return { url: url, kind: 'url', characters: d.characters || 0 };
     }
-    if (!audio && typeof d === 'string' && d.length > 100) audio = d;
-    if (!audio) {
-      console.warn('synthesizeSpeech response keys', d && Object.keys(d));
-      ttsStatus('Google TTS: no audio in response');
-      return null;
-    }
-    return audio;
+    // Legacy base64 fallbacks
+    let audio = d.audioContent || d.audio || d.base64 || d.mp3 || null;
+    if (audio) return { url: null, base64: audio, kind: 'base64' };
+    console.warn('synthesizeSpeech response', d);
+    ttsStatus('Google TTS: no audioUrl in response');
+    return null;
   } catch (e) {
     console.warn('gcloudSynthesize', e);
     ttsStatus('Google TTS error: ' + friendlyFnError(e));
@@ -1285,11 +1330,14 @@ async function hostBroadcastP0(text, category) {
   if (!ttsPref.hostVoices) return false;
   try {
     ttsStatus('Host Google voice…');
-    const audio = await gcloudSynthesize(text);
-    if (!audio) return false;
+    const result = await gcloudSynthesize(text);
+    if (!result) return false;
+    const audioField = result.url || result.base64 || null;
+    if (!audioField) return false;
     const payload = {
       text: String(text).slice(0, 200),
-      audio: audio,
+      audio: audioField,
+      audioUrl: result.url || null,
       at: Date.now(),
       category: category || 'host',
       fromUid: user.uid
@@ -1741,8 +1789,8 @@ function meSpeakSpeak(text, onEnd) {
             const a = new Audio(data);
             window._meAudio = a;
             a.volume = vol;
-            a.onended = finish;
-            a.onerror = finish;
+            a.onended = function () { ttsStatus('meSpeak OK'); finish(); };
+            a.onerror = function () { ttsStatus('meSpeak play error'); finish(); };
             const p = a.play();
             if (p && typeof p.catch === 'function') {
               p.catch(function () {
@@ -1750,7 +1798,7 @@ function meSpeakSpeak(text, onEnd) {
                   const ctx = window._sfxCtx || (window.AudioContext && new (window.AudioContext || window.webkitAudioContext)());
                   if (ctx && ctx.state === 'suspended') ctx.resume();
                 } catch (e3) {}
-                a.play().catch(finish);
+                a.play().catch(function () { ttsStatus('meSpeak blocked'); finish(); });
               });
             }
             setTimeout(finish, 20000);
@@ -2244,10 +2292,10 @@ function wireTtsSettings() {
     // Always try Google if Host Voices ON or selected voice is Google
     if (ttsPref.hostVoices !== false || isGcloudVoice(uri)) {
       ttsStatus('Testing Google Cloud…');
-      const audio = await gcloudSynthesize(phrase, isGcloudVoice(uri) ? uri : 'gcloud:en-IN|en-IN-Wavenet-A');
-      if (audio) {
-        playB64Audio(audio, function () {
-          ttsStatus('Google Cloud voice OK — hear this during P0');
+      const result = await gcloudSynthesize(phrase, isGcloudVoice(uri) ? uri : 'gcloud:en-IN|en-IN-Wavenet-A');
+      if (result) {
+        playB64Audio(result, function () {
+          ttsStatus('Google Cloud voice OK');
         });
         return;
       }

@@ -9907,9 +9907,10 @@ async function callAskMatchAi(question){
     style: 'tables, short bullets, charts only — no long summaries'
   };
   ctx.guidance = [
-    'Respond as AI360. Host speaks; you only show facts.',
-    'Output: short title + Markdown table and/or 2-4 fact bullets + CHART_JSON when numbers exist.',
-    'No paragraphs. No filler. Missing data → one line: Missing: <field>.'
+    'Respond as AI360 on-screen editor. Host speaks; you only show facts.',
+    'Default: short title + Markdown table + 2-6 bullets. No summary unless asked.',
+    'Powerplay=overs 1-6, middle=7-16, death=17-20. Use phases and recentBalls for over-range questions.',
+    'Missing data → one line: Missing: <field>. Optional CHART_JSON last line when series exists.'
   ].join(' ');
   const res = await fn({ question: question, context: ctx, mode: 'ai360_editor' });
   return res && res.data ? res.data : {};

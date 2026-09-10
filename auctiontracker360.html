@@ -857,37 +857,39 @@ a{color:var(--primary)}
     </div>
     <div id="tabInsights" class="panel hidden" role="region" aria-labelledby="insTitle">
       <h1 id="insTitle" class="sr-only" tabindex="-1">Insights</h1>
-      <div id="insAlbum" class="ins-album" role="region" aria-label="Published AI360 responses">
-        <div class="ins-album-nav" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
-          <button type="button" id="insPrev" class="btn-sec" aria-label="Previous response" style="min-width:48px;min-height:44px">←</button>
-          <p id="insPageLabel" style="margin:0;font-size:13px;font-weight:700;color:var(--muted);text-align:center;flex:1" aria-live="polite">No published responses yet</p>
-          <button type="button" id="insNext" class="btn-sec" aria-label="Next response" style="min-width:48px;min-height:44px">→</button>
-        </div>
-        <div id="insCard" class="ins-card" tabindex="0" role="article" aria-labelledby="insCardHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-height:120px">
-          <h2 id="insCardHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>
-          <p id="insCardBody" style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.45;color:var(--muted)">Published answers will appear here. Latest first.</p>
-        </div>
-        <div id="insCardActions" class="btn-stack" style="margin-top:10px">
-          <button type="button" id="insListen" class="btn-ok btn-block">Listen</button>
-          <button type="button" id="insDelete" class="btn-danger btn-block hidden">Delete response</button>
-        </div>
+      <div class="ins-subtabs" role="tablist" aria-label="Insights sections" style="display:flex;gap:6px;margin:0 0 10px">
+        <button type="button" role="tab" id="insSubAsk" class="btn-ok" aria-selected="true" style="flex:1;min-height:44px;border-radius:10px">Ask</button>
+        <button type="button" role="tab" id="insSubResp" class="btn-sec" aria-selected="false" style="flex:1;min-height:44px;border-radius:10px">Responses</button>
       </div>
-      <div id="insDraftBox" class="hidden" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)" role="region" aria-labelledby="insDraftTitle">
-        <h2 id="insDraftTitle" style="font-size:1rem;margin:0 0 6px" tabindex="-1">New answer</h2>
-        <p id="insDraftQ" style="margin:0 0 6px;font-size:13px;color:var(--muted)"></p>
-        <div id="insDraftText" tabindex="0" style="padding:10px 12px;border:1px solid var(--border-focus);border-radius:10px;background:rgba(14,165,233,.08);white-space:pre-wrap;font-size:15px;line-height:1.45"></div>
-        <div class="btn-stack" style="margin-top:10px">
-          <button type="button" id="insCopy" class="btn-sec btn-block">Copy</button>
-          <button type="button" id="insPublish" class="btn-ok btn-block">Publish</button>
-          <button type="button" id="insShare" class="btn-sec btn-block">Share</button>
-          <button type="button" id="insDraftClear" class="btn-sec btn-block">Discard</button>
-        </div>
-      </div>
-      <div id="insAskBar" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div id="insPaneAsk" role="tabpanel" aria-labelledby="insSubAsk">
         <label for="insAsk">Ask 360AI</label>
-        <textarea id="insAsk" rows="2" maxlength="400" placeholder="e.g. Which team has most purse left?" aria-label="Ask 360AI"></textarea>
+        <textarea id="insAsk" rows="3" maxlength="400" aria-label="Ask 360AI"></textarea>
         <button type="button" id="insSend" class="btn-ok btn-block" style="margin-top:8px">Send</button>
         <p id="insStatus" role="status" aria-live="polite" style="min-height:1.2em;font-size:13px;color:var(--muted);margin:6px 0 0"></p>
+        <div id="insDraftBox" class="hidden" style="margin-top:12px" role="region" aria-labelledby="insDraftTitle">
+          <h2 id="insDraftTitle" style="font-size:1rem;margin:0 0 6px" tabindex="-1">Answer</h2>
+          <div id="insDraftText" tabindex="0" style="padding:10px 12px;border:1px solid var(--border-focus);border-radius:10px;background:rgba(14,165,233,.08);white-space:pre-wrap;font-size:15px;line-height:1.45"></div>
+          <div id="insDraftActions" class="btn-stack" style="margin-top:10px">
+            <button type="button" id="insListenDraft" class="btn-ok btn-block hidden">Listen</button>
+            <button type="button" id="insCopy" class="btn-sec btn-block">Copy</button>
+            <button type="button" id="insPublish" class="btn-ok btn-block">Publish</button>
+            <button type="button" id="insShare" class="btn-sec btn-block">Share</button>
+            <button type="button" id="insDraftClear" class="btn-sec btn-block">Discard</button>
+          </div>
+        </div>
+      </div>
+      <div id="insPaneResp" class="hidden" role="tabpanel" aria-labelledby="insSubResp">
+        <div id="insCard" class="ins-card" tabindex="0" role="article" aria-labelledby="insCardHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-height:100px">
+          <p id="insPageLabel" style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted)" aria-live="polite">No published responses yet</p>
+          <h2 id="insCardHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>
+          <p id="insCardBody" style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.45;color:var(--muted)">Published answers appear here. Latest first. Swipe left or right to change.</p>
+        </div>
+        <div id="insCardActions" class="btn-stack" style="margin-top:10px">
+          <button type="button" id="insListen" class="btn-ok btn-block hidden">Listen</button>
+          <button type="button" id="insPrev" class="btn-sec btn-block hidden">Previous</button>
+          <button type="button" id="insNext" class="btn-sec btn-block hidden">Next</button>
+          <button type="button" id="insDelete" class="btn-danger btn-block hidden">Delete response</button>
+        </div>
       </div>
     </div>
     <div id="tabTools" class="panel hidden" role="region" aria-labelledby="toolsTitle">
@@ -5280,9 +5282,13 @@ function switchTab(which){
     setTimeout(function(){ focusEl($('btnListSold')||$('toolsTitle')); }, 50);
   }
   if(which==='insights'){
-    try{ renderInsAlbum(); }catch(e){}
+    try{
+      if(typeof isAuctionHost==='function' && isAuctionHost()) switchInsSub('ask');
+      else switchInsSub('responses');
+      renderInsAlbum();
+    }catch(e){}
     setTimeout(function(){
-      focusEl($('insCardHead')||$('insAsk')||$('insTitle')||$('tabBtnInsights'));
+      focusEl($('insAsk')||$('insCardHead')||$('insTitle')||$('tabBtnInsights'));
     }, 50);
   }
 }
@@ -7640,36 +7646,65 @@ function buildAuctionAiContext(){
   const teams = T.teams || [];
   const sold = players.filter(function(p){ return p.sold; });
   const unsold = players.filter(function(p){ return p.unsold; });
-  const left = players.filter(function(p){ return !p.sold && !p.unsold; });
+  const remaining = players.filter(function(p){ return !p.sold && !p.unsold; });
   let idx = (T.meta && T.meta.currentIndex) || 0;
   while(idx < players.length && (players[idx].sold || players[idx].unsold)) idx++;
   const cur = players[idx];
   const lines = [];
-  lines.push('Auction: ' + (T.title || 'Untitled'));
+  lines.push('Auction title: ' + (T.title || 'Untitled'));
   lines.push('Status: ' + (T.status || '') + (T.paused ? ' (paused)' : ''));
   lines.push('Mode: ' + (T.mode || 'physical'));
-  lines.push('Counts: sold ' + sold.length + ', unsold ' + unsold.length + ', remaining ' + left.length + ', total ' + players.length);
-  if(cur) lines.push('Now auctioning: ' + (cur.name || 'Player') + ' (index ' + (idx+1) + ' of ' + players.length + ')');
+  lines.push('Counts: total ' + players.length + ', sold ' + sold.length + ', unsold ' + unsold.length + ', remaining ' + remaining.length);
+  if(cur){
+    lines.push('Now auctioning: ' + (cur.name || 'Player') + ' | index ' + (idx+1) + ' of ' + players.length +
+      (cur.role ? (' | role ' + cur.role) : '') +
+      (cur.basePrice != null ? (' | base ' + cur.basePrice) : ''));
+  }
   if(T.bid){
-    lines.push('Bid phase: ' + (T.bid.phase || '—') + ', price: ' + (T.bid.price != null ? T.bid.price : '—') +
-      (T.bid.leaderTeamName ? (', leader: ' + T.bid.leaderTeamName) : ''));
+    lines.push('Current bid: phase=' + (T.bid.phase || '—') +
+      ', price=' + (T.bid.price != null ? T.bid.price : '—') +
+      (T.bid.leaderTeamName ? (', leader=' + T.bid.leaderTeamName) : '') +
+      (T.bid.leaderTeamId ? (', leaderId=' + T.bid.leaderTeamId) : ''));
   }
-  lines.push('Teams:');
+  if(T.rules){
+    lines.push('Rules: basePrice=' + (T.rules.basePrice != null ? T.rules.basePrice : '—') +
+      ', purseStart=' + (T.rules.purse != null ? T.rules.purse : (T.rules.startingPurse != null ? T.rules.startingPurse : '—')));
+  }
+  lines.push('TEAMS (name | players bought | purse left | total spent | roster):');
   teams.forEach(function(t){
-    const n = (t.players || []).length;
+    const roster = t.players || [];
+    const n = roster.length;
     const purse = (t.remaining != null ? t.remaining : (t.purseLeft != null ? t.purseLeft : t.purse));
-    lines.push('- ' + (t.name || t.id) + ': ' + n + ' players, purse left ' + (purse != null ? purse : '—'));
-  });
-  if(sold.length){
-    lines.push('Recent sold (up to 12):');
-    sold.slice(-12).forEach(function(p){
-      lines.push('- ' + (p.name || '') + ' to ' + (p.team || p.teamName || '—') + ' for ' + (p.price != null ? p.price : '—'));
+    let spent = 0;
+    const names = [];
+    roster.forEach(function(p){
+      const price = (p && p.price != null) ? Number(p.price) : 0;
+      if(!isNaN(price)) spent += price;
+      names.push((p && p.name ? p.name : 'Player') + (p && p.price != null ? ('@' + p.price) : ''));
     });
-  }
+    lines.push('- ' + (t.name || t.id) + ' | bought ' + n + ' | purseLeft ' + (purse != null ? purse : '—') +
+      ' | spent ' + spent + ' | players: ' + (names.length ? names.join(', ') : '(none)'));
+  });
+  lines.push('SOLD PLAYERS (name | team | price):');
+  if(!sold.length) lines.push('- (none)');
+  else sold.forEach(function(p){
+    lines.push('- ' + (p.name || '') + ' | ' + (p.team || p.teamName || '—') + ' | ' + (p.price != null ? p.price : '—'));
+  });
+  lines.push('UNSOLD PLAYERS:');
+  if(!unsold.length) lines.push('- (none)');
+  else unsold.forEach(function(p){
+    lines.push('- ' + (p.name || '') + (p.role ? (' | ' + p.role) : ''));
+  });
+  lines.push('REMAINING PLAYERS (still to auction, up to 40 listed):');
+  if(!remaining.length) lines.push('- (none)');
+  else remaining.slice(0, 40).forEach(function(p){
+    lines.push('- ' + (p.name || '') + (p.role ? (' | ' + p.role) : '') + (p.basePrice != null ? (' | base ' + p.basePrice) : ''));
+  });
+  if(remaining.length > 40) lines.push('- …and ' + (remaining.length - 40) + ' more remaining');
   if(T.lastResult && T.lastResult.name){
-    lines.push('Last result: ' + T.lastResult.name + ' ' + (T.lastResult.sold ? 'sold' : 'unsold') +
-      (T.lastResult.team ? (' ' + T.lastResult.team) : '') +
-      (T.lastResult.price != null ? (' ' + T.lastResult.price) : ''));
+    lines.push('Last result: ' + T.lastResult.name + ' | ' + (T.lastResult.sold ? 'SOLD' : 'UNSOLD') +
+      (T.lastResult.team ? (' | ' + T.lastResult.team) : '') +
+      (T.lastResult.price != null ? (' | ' + T.lastResult.price) : ''));
   }
   return lines.join('\n');
 }
@@ -7691,14 +7726,29 @@ async function callAuctionAskMatchAi(question){
   const fns = (typeof getFunctionsRegion === 'function') ? getFunctionsRegion() : null;
   if(!fns) throw new Error('Firebase Functions not ready');
   const call = fns.httpsCallable('askMatchAi');
-  const res = await call({
-    question: question,
-    context: buildAuctionAiContext(),
-    mode: 'ai360_editor'
-  });
+  let res;
+  try {
+    res = await call({
+      question: question,
+      context: buildAuctionAiContext(),
+      mode: 'auction'
+    });
+  } catch (e) {
+    // Surface server message instead of bare "internal"
+    const code = (e && e.code) ? String(e.code) : '';
+    const details = (e && e.details) ? String(e.details) : '';
+    const msg = (e && e.message) ? String(e.message) : String(e);
+    let out = details || msg;
+    out = out.replace(/^FirebaseError:\s*/i, '').replace(/^functions\/[\w-]+\s*/i, '');
+    if (/\binternal\b/i.test(out) && details) out = details;
+    if (!out || out === 'internal') out = 'Server error. Redeploy askMatchAi with GEMINI_API_KEY secret and check Functions logs.';
+    const err = new Error(out);
+    err.code = code;
+    throw err;
+  }
   const data = (res && res.data) ? res.data : res;
   const textOut = cleanAi360Text((data && data.text) || '');
-  if(!textOut) throw new Error('Empty answer from AI360');
+  if(!textOut) throw new Error((data && data.error) || 'Empty answer from AI360');
   return textOut;
 }
 
@@ -7721,25 +7771,57 @@ function renderInsAlbum(){
   const head = $('insCardHead');
   const body = $('insCardBody');
   const del = $('insDelete');
+  const listen = $('insListen');
+  const prev = $('insPrev');
+  const next = $('insNext');
   const host = isAuctionHost();
-  if($('insAskBar')) $('insAskBar').classList.toggle('hidden', !host);
+  // Host sees Ask sub-tab; pure viewers on host screen still hide ask if needed
+  if($('insSubAsk')) $('insSubAsk').classList.toggle('hidden', !host);
   if(!list.length){
     if(label) label.textContent = 'No published responses yet';
     if(head) head.textContent = 'Insights';
-    if(body) body.textContent = host
-      ? 'Ask 360AI below. Review the answer, then Publish so everyone can open Insights.'
-      : 'When the host publishes an AI360 answer, it appears here. Latest first.';
+    if(body) body.textContent = 'Published answers appear here. Latest first.';
     if(del) del.classList.add('hidden');
+    if(listen) listen.classList.add('hidden');
+    if(prev) prev.classList.add('hidden');
+    if(next) next.classList.add('hidden');
     return;
   }
   if(window._insIndex >= list.length) window._insIndex = 0;
   const item = list[window._insIndex];
-  if(label) label.textContent = (window._insIndex + 1) + ' of ' + list.length + ' (latest first)';
+  if(label) label.textContent = (window._insIndex + 1) + ' of ' + list.length;
   if(head) head.textContent = item.question ? ('Q: ' + item.question) : 'AI360 response';
-  if(body) body.textContent = item.text || '';
+  if(body){
+    body.style.color = 'var(--text)';
+    body.textContent = item.text || '';
+  }
+  if(listen) listen.classList.remove('hidden');
+  if(prev) prev.classList.toggle('hidden', list.length < 2);
+  if(next) next.classList.toggle('hidden', list.length < 2);
   if(del) del.classList.toggle('hidden', !host);
-  // Sync watch mirror if open
   try{ if(window._lastWatchData) renderWatchInsights(window._lastWatchData); }catch(e){}
+}
+
+function switchInsSub(which){
+  const ask = which === 'ask';
+  if($('insPaneAsk')) $('insPaneAsk').classList.toggle('hidden', !ask);
+  if($('insPaneResp')) $('insPaneResp').classList.toggle('hidden', ask);
+  if($('insSubAsk')){
+    $('insSubAsk').classList.toggle('btn-ok', ask);
+    $('insSubAsk').classList.toggle('btn-sec', !ask);
+    $('insSubAsk').setAttribute('aria-selected', ask ? 'true' : 'false');
+  }
+  if($('insSubResp')){
+    $('insSubResp').classList.toggle('btn-ok', !ask);
+    $('insSubResp').classList.toggle('btn-sec', ask);
+    $('insSubResp').setAttribute('aria-selected', ask ? 'false' : 'true');
+  }
+  if(!ask){
+    try{ renderInsAlbum(); }catch(e){}
+    try{ focusEl($('insCardHead') || $('insPageLabel')); }catch(e){}
+  } else {
+    try{ focusEl($('insAsk')); }catch(e){}
+  }
 }
 
 function insListenCurrent(){
@@ -7778,9 +7860,9 @@ function showInsDraft(q, text){
   window._insDraft = text || '';
   window._insDraftQ = q || '';
   const box = $('insDraftBox');
-  if($('insDraftQ')) $('insDraftQ').textContent = q ? ('Question: ' + q) : '';
   if($('insDraftText')) $('insDraftText').textContent = text || '';
   if(box) box.classList.toggle('hidden', !text);
+  if($('insListenDraft')) $('insListenDraft').classList.toggle('hidden', !text);
   if(text){
     try{ focusEl($('insDraftTitle') || $('insDraftText')); }catch(e){}
   }
@@ -7847,6 +7929,7 @@ async function insPublishDraft(){
     window._insIndex = 0;
     showInsDraft('', '');
     if($('insAsk')) $('insAsk').value = '';
+    try{ switchInsSub('responses'); }catch(e){}
     renderInsAlbum();
     setInsStatus('Published. Everyone was alerted to check Insights.');
     try{
@@ -7910,15 +7993,20 @@ function renderWatchInsights(data){
   const item = list[window._wInsIndex];
   const q = item.question ? ('<p style="margin:0 0 6px;font-size:13px;color:var(--muted)"><strong>Q:</strong> '+String(item.question).replace(/</g,'&lt;')+'</p>') : '';
   const body = String(item.text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const navBtns = list.length > 1 ? (
+    '<div class="btn-stack" style="margin-top:10px">'+
+    '<button type="button" id="wInsListen" class="btn-ok btn-block">Listen</button>'+
+    '<button type="button" id="wInsPrev" class="btn-sec btn-block">Previous</button>'+
+    '<button type="button" id="wInsNext" class="btn-sec btn-block">Next</button></div>'
+  ) : (
+    '<button type="button" id="wInsListen" class="btn-ok btn-block" style="margin-top:10px">Listen</button>'
+  );
   pane.innerHTML =
-    '<div class="ins-album-nav" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">'+
-    '<button type="button" id="wInsPrev" class="btn-sec" aria-label="Previous response" style="min-width:48px;min-height:44px">←</button>'+
-    '<p id="wInsPage" style="margin:0;font-size:13px;font-weight:700;color:var(--muted);text-align:center;flex:1" aria-live="polite">'+(window._wInsIndex+1)+' of '+list.length+' (latest first)</p>'+
-    '<button type="button" id="wInsNext" class="btn-sec" aria-label="Next response" style="min-width:48px;min-height:44px">→</button></div>'+
+    '<p id="wInsPage" style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted)" aria-live="polite">'+(window._wInsIndex+1)+' of '+list.length+'</p>'+
     '<div class="ins-card" tabindex="0" role="article" aria-labelledby="wInsHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card)">'+
     '<h2 id="wInsHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>'+q+
     '<p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.45">'+body+'</p></div>'+
-    '<button type="button" id="wInsListen" class="btn-ok btn-block" style="margin-top:10px">Listen</button>';
+    navBtns;
   if($('wInsPrev')) $('wInsPrev').onclick = function(){
     window._wInsIndex = (window._wInsIndex - 1 + list.length) % list.length;
     renderWatchInsights(data);
@@ -7965,6 +8053,8 @@ function aiInsightHtml(data){
 }
 
 function wireAi360(){
+  if($('insSubAsk')) $('insSubAsk').onclick = function(){ switchInsSub('ask'); };
+  if($('insSubResp')) $('insSubResp').onclick = function(){ switchInsSub('responses'); };
   if($('insSend')) $('insSend').onclick = function(){ insSendAsk(); };
   if($('insPublish')) $('insPublish').onclick = function(){ insPublishDraft(); };
   if($('insCopy')) $('insCopy').onclick = function(){ insCopyDraft(); };
@@ -7973,6 +8063,15 @@ function wireAi360(){
     showInsDraft('', '');
     setInsStatus('');
     try{ focusEl($('insAsk')); }catch(e){}
+  };
+  if($('insListenDraft')) $('insListenDraft').onclick = function(){
+    const t = (window._insDraft || '').trim();
+    if(!t) return;
+    try{
+      if(typeof sayEvent === 'function') sayEvent(t, 'host');
+      else if(typeof ttsSpeak === 'function') ttsSpeak(t, 'host');
+      else if(typeof announce === 'function') announce(t);
+    }catch(e){}
   };
   if($('insListen')) $('insListen').onclick = function(){ insListenCurrent(); };
   if($('insDelete')) $('insDelete').onclick = function(){ insDeleteCurrent(); };
@@ -7990,7 +8089,6 @@ function wireAi360(){
     renderInsAlbum();
     try{ focusEl($('insCardHead')); }catch(e){}
   };
-  // Swipe host album card
   try{
     const card = $('insCard');
     if(card && !card._swipeBound){
@@ -8005,7 +8103,7 @@ function wireAi360(){
         x0 = null;
         if(Math.abs(dx) < 40) return;
         const list = getAiInsightsList(T);
-        if(!list.length) return;
+        if(list.length < 2) return;
         if(dx < 0) window._insIndex = (window._insIndex + 1) % list.length;
         else window._insIndex = (window._insIndex - 1 + list.length) % list.length;
         renderInsAlbum();

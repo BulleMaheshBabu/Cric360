@@ -737,7 +737,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.10.4.00</p>
+    <p class="set-version">Version: 2026.09.10.5.00</p>
   </div>
 </section>
 
@@ -1160,15 +1160,23 @@ function friendlyFnError(e) {
   try {
     if (!e) return 'unknown error';
     const code = e.code || (e.details && e.details.code) || '';
-    const msg = e.message || String(e);
-    if (/unauthenticated|permission-denied/i.test(msg + code)) return 'sign in required';
-    if (/not-found|NOT_FOUND/i.test(msg + code)) return 'function not found — redeploy';
+    let msg = e.message || String(e);
+    // Firebase callable often puts real reason in message after "internal"
+    if (e.details) {
+      try {
+        if (typeof e.details === 'string') msg = msg + ' | ' + e.details;
+        else if (e.details.message) msg = msg + ' | ' + e.details.message;
+        else msg = msg + ' | ' + JSON.stringify(e.details).slice(0, 120);
+      } catch (x1) {}
+    }
+    if (/unauthenticated/i.test(msg + code)) return 'sign in required';
+    if (/permission-denied/i.test(msg + code)) return 'permission denied';
+    if (/not-found|NOT_FOUND/i.test(msg + code)) return 'function not found — redeploy synthesizeSpeech';
     if (/resource-exhausted|quota/i.test(msg + code)) return 'quota exceeded';
-    if (/invalid-argument/i.test(msg + code)) return 'bad request to TTS';
-    if (/internal|INTERNAL/i.test(msg + code)) return 'server error (check API key)';
+    if (/invalid-argument/i.test(msg + code)) return msg.replace(/FirebaseError:\s*/i, '').slice(0, 100);
     if (/failed-precondition/i.test(msg + code)) return 'API key or billing issue';
-    // strip long firebase noise
-    return String(msg).replace(/FirebaseError:\s*/i, '').slice(0, 80);
+    // Keep internal message — often "TTS failed: ..." or Storage error
+    return String(msg).replace(/FirebaseError:\s*/i, '').slice(0, 140);
   } catch (x) {
     return 'error';
   }
@@ -1306,20 +1314,31 @@ async function gcloudSynthesize(text, voiceUri) {
     ttsStatus('Google TTS calling… (' + voiceName + ')');
     const res = await call(payload);
     const d = (res && res.data) || {};
-    // Actual function returns audioUrl (public Storage MP3)
+    console.log('synthesizeSpeech data keys', d && Object.keys(d), d);
+    // Prefer base64 if present (new simpler function)
+    let audio = d.audioContent || d.audio || d.base64 || d.mp3 || null;
+    if (audio) {
+      ttsStatus('Google audio received (base64)');
+      return { url: null, base64: audio, kind: 'base64', characters: d.characters || 0 };
+    }
+    // Storage URL path (current function)
     const url = d.audioUrl || d.url || d.publicUrl || null;
     if (url) {
+      ttsStatus('Google audio URL received');
       return { url: url, kind: 'url', characters: d.characters || 0 };
     }
-    // Legacy base64 fallbacks
-    let audio = d.audioContent || d.audio || d.base64 || d.mp3 || null;
-    if (audio) return { url: null, base64: audio, kind: 'base64' };
-    console.warn('synthesizeSpeech response', d);
-    ttsStatus('Google TTS: no audioUrl in response');
+    const keys = d && typeof d === 'object' ? Object.keys(d).join(',') : typeof d;
+    ttsStatus('Google TTS: empty response keys=' + keys);
     return null;
   } catch (e) {
-    console.warn('gcloudSynthesize', e);
-    ttsStatus('Google TTS error: ' + friendlyFnError(e));
+    console.warn('gcloudSynthesize FULL', e);
+    const errTxt = friendlyFnError(e);
+    ttsStatus('Google TTS FAIL: ' + errTxt);
+    try {
+      // Keep error on screen — also log details
+      if (e && e.code) console.warn('code', e.code);
+      if (e && e.details) console.warn('details', e.details);
+    } catch (x) {}
     return null;
   }
 }
@@ -2289,29 +2308,40 @@ function wireTtsSettings() {
     try { unlockSfx(); } catch (e) {}
     const phrase = 'Commentary ready. Mumbai leads at one hundred fifty.';
     const uri = ttsPref.voiceURI || '';
-    // Always try Google if Host Voices ON or selected voice is Google
-    if (ttsPref.hostVoices !== false || isGcloudVoice(uri)) {
+    // If Google voice selected OR Host Voices on → try Google and STOP on failure (do not hide error with device TTS)
+    if (isGcloudVoice(uri) || ttsPref.hostVoices !== false) {
       ttsStatus('Testing Google Cloud…');
-      const result = await gcloudSynthesize(phrase, isGcloudVoice(uri) ? uri : 'gcloud:en-IN|en-IN-Wavenet-A');
+      const gUri = isGcloudVoice(uri) ? uri : 'gcloud:en-IN|en-IN-Wavenet-A';
+      const result = await gcloudSynthesize(phrase, gUri);
       if (result) {
         playB64Audio(result, function () {
           ttsStatus('Google Cloud voice OK');
         });
         return;
       }
-      // status already set by gcloudSynthesize with real error
+      // Keep FAIL status visible. Do NOT fall through to device — that hid the real error.
+      if (isGcloudVoice(uri)) {
+        return;
+      }
+      // Host voices on but device/meSpeak selected as fallback for Test only
+      ttsStatus((document.getElementById('piperStatus') && document.getElementById('piperStatus').textContent) || 'Google failed — trying fallback');
     }
-    if (isMeVoice(uri) || !uri) {
-      if (!uri) ttsPref.voiceURI = ME_VOICES[0].id;
-      saveTtsPref();
-      ttsStatus('Trying meSpeak…');
-      meSpeakSpeak(phrase, function () {
-        ttsStatus('meSpeak played (fallback)');
-      });
-      return;
+    if (isMeVoice(uri) || !uri || isGcloudVoice(uri)) {
+      if (!uri || isGcloudVoice(uri)) {
+        // keep google selection but test meSpeak path separately only if user had meSpeak
+      }
+      if (isMeVoice(uri)) {
+        ttsStatus('Trying meSpeak…');
+        meSpeakSpeak(phrase, function () {
+          ttsStatus('meSpeak played');
+        });
+        return;
+      }
     }
-    ttsStatus('Speaking with device voice…');
-    ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
+    if (!isGcloudVoice(uri) && !isMeVoice(uri)) {
+      ttsStatus('Speaking with device voice…');
+      ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
+    }
   };
   ['ttsHost','ttsBid','ttsPlayer','ttsTimer','ttsWait'].forEach(id => {
     $(id).onchange = () => {

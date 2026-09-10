@@ -8906,67 +8906,173 @@ function buildMatchAiContext(m){
   var wickets = m.wickets || 0;
   var oversStr = (typeof fmtOvers==='function') ? fmtOvers(totalBalls) : String(totalBalls);
 
-  // Team scoreboard: use live match totals for batting side
-  function teamSnap(t, isBatting){
-    if(!t) return null;
-    return {
-      name: t.name || '',
-      runs: isBatting ? totalScore : (t.runs||0),
-      wickets: isBatting ? wickets : (t.wickets||0),
-      balls: isBatting ? totalBalls : (t.balls||0),
-      overs: isBatting ? oversStr : ((typeof fmtOvers==='function') ? fmtOvers(t.balls||0) : String(t.balls||0))
-    };
-  }
-
-  // Innings 1 snapshot if present
+  // Innings 1 — full snapshot when present
   var innings1 = null;
   if(m.innings1){
     innings1 = {
       battingTeam: m.innings1.battingTeam || null,
-      totalScore: m.innings1.totalScore||0,
-      wickets: m.innings1.wickets||0,
-      totalBalls: m.innings1.totalBalls||0,
-      overs: (typeof fmtOvers==='function') ? fmtOvers(m.innings1.totalBalls||0) : String(m.innings1.totalBalls||0)
+      battingTeamName: (m.innings1.battingTeam === 'teamB'
+        ? ((m.teamB && m.teamB.name) || 'Team B')
+        : ((m.teamA && m.teamA.name) || 'Team A')),
+      totalScore: m.innings1.totalScore != null ? m.innings1.totalScore : (m.firstInningsScore || 0),
+      wickets: m.innings1.wickets != null ? m.innings1.wickets : (m.firstInningsWickets || 0),
+      totalBalls: m.innings1.totalBalls || 0,
+      overs: (typeof fmtOvers==='function') ? fmtOvers(m.innings1.totalBalls||0) : String(m.innings1.totalBalls||0),
+      extras: m.innings1.extras || null
+    };
+  } else if(m.firstInningsScore != null){
+    innings1 = {
+      totalScore: m.firstInningsScore,
+      wickets: m.firstInningsWickets || 0,
+      overs: m.firstInningsOvers || '',
+      note: 'from firstInningsScore fields'
+    };
+  }
+
+  // Correct team totals: non-batting side uses innings1 when available
+  function teamSnap(t, key){
+    if(!t) return null;
+    var isBat = (batKey === key);
+    var runs, wk, balls, ov;
+    if(isBat){
+      runs = totalScore; wk = wickets; balls = totalBalls; ov = oversStr;
+    } else if(innings1 && (m.currentInnings === 2 || (m.currentInnings||1) > 1 || (m.status||'').toLowerCase()==='completed')){
+      // Other team batted in innings 1
+      if(innings1.battingTeam && innings1.battingTeam === key){
+        runs = innings1.totalScore; wk = innings1.wickets; balls = innings1.totalBalls || 0;
+        ov = innings1.overs;
+      } else if(!innings1.battingTeam){
+        // fallback: innings1 is the first batting side overall
+        runs = (t.runs != null ? t.runs : innings1.totalScore);
+        wk = (t.wickets != null ? t.wickets : innings1.wickets);
+        balls = t.balls || 0;
+        ov = (typeof fmtOvers==='function') ? fmtOvers(balls) : String(balls);
+      } else {
+        runs = t.runs || 0; wk = t.wickets || 0; balls = t.balls || 0;
+        ov = (typeof fmtOvers==='function') ? fmtOvers(balls) : String(balls);
+      }
+    } else {
+      runs = t.runs || 0; wk = t.wickets || 0; balls = t.balls || 0;
+      ov = (typeof fmtOvers==='function') ? fmtOvers(balls) : String(balls);
+    }
+    return { name: t.name || '', runs: runs, wickets: wk, balls: balls, overs: ov };
+  }
+
+  // Over-by-over summary (compact) for both innings
+  function overSummaries(completedOvers, label){
+    var list = completedOvers || [];
+    return list.map(function(o, i){
+      var balls = o.balls || [];
+      var runs = 0, wk = 0, fours = 0, sixes = 0;
+      balls.forEach(function(b){
+        var r = b.runs; if(r === 'W') r = 0;
+        var n = (typeof r === 'number') ? r : (parseInt(r,10)||0);
+        runs += n;
+        if(b.wicket || b.isWicket || b.runs === 'W' || b.type === 'out') wk++;
+        if(b.isFour || n === 4) fours++;
+        if(b.isSix || n === 6) sixes++;
+      });
+      return {
+        innings: label,
+        over: (o.overIndex != null ? o.overIndex + 1 : (i + 1)),
+        runs: runs,
+        wickets: wk,
+        fours: fours,
+        sixes: sixes,
+        balls: balls.length
+      };
+    });
+  }
+  var overSum = [];
+  if(m.innings1 && m.innings1.completedOvers){
+    overSum = overSum.concat(overSummaries(m.innings1.completedOvers, 1));
+  }
+  overSum = overSum.concat(overSummaries(m.completedOvers, (m.currentInnings || 2)));
+
+  // Phase stats from ball log (counts, not only raw balls — denser for the model)
+  function phaseStats(fromOver, toOver){
+    var balls = ballsInOvers(fromOver, toOver);
+    var runs = 0, wk = 0, fours = 0, sixes = 0, dots = 0, legal = 0;
+    balls.forEach(function(b){
+      var n = (typeof b.runs === 'number') ? b.runs : (parseInt(b.runs,10)||0);
+      if(b.runs === 'W') n = 0;
+      runs += n;
+      if(b.wicket) wk++;
+      if(b.isFour) fours++;
+      if(b.isSix) sixes++;
+      if(b.legal) legal++;
+      if(b.legal && n === 0 && !b.wicket) dots++;
+    });
+    return {
+      overs: fromOver + '-' + toOver,
+      balls: balls.length,
+      runs: runs,
+      wickets: wk,
+      fours: fours,
+      sixes: sixes,
+      dots: dots,
+      legalBalls: legal
     };
   }
 
   var xiA = xiList(m.teamA);
   var xiB = xiList(m.teamB);
 
+  // Send more balls (slim). Prefer full chrono when small; else head+tail so early overs kept
+  var slimAll = allBallsChrono.map(slimBall);
+  var recentBalls;
+  if(slimAll.length <= 200){
+    recentBalls = slimAll;
+  } else {
+    recentBalls = slimAll.slice(0, 80).concat([{note:'…middle balls omitted…'}], slimAll.slice(-120));
+  }
+
   return {
     series: m.series || m.name || '',
     matchType: m.matchType || 'T20',
     status: m.status || '',
+    venue: m.venue || m.ground || '',
+    matchDate: m.matchDate || m.date || m.startedAt || '',
+    tossWinner: m.tossWinner || '',
+    tossDecision: m.tossDecision || '',
+    result: m.result || m.resultText || m.winnerText || '',
+    target: m.target != null ? m.target : null,
     currentInnings: m.currentInnings || m.innings || 1,
     battingTeamKey: batKey,
     battingTeamName: (batTeam && batTeam.name) || '',
     bowlingTeamName: (bowlTeam && bowlTeam.name) || '',
 
-    // Live scoreboard (this is the source of truth — not team.runs)
     scoreboard: {
       batting: (batTeam && batTeam.name) || '',
       runs: totalScore,
       wickets: wickets,
       overs: oversStr,
       totalBalls: totalBalls,
-      crr: totalBalls > 0 ? ((totalScore / (totalBalls/6)).toFixed(2)) : '0.00'
+      crr: totalBalls > 0 ? ((totalScore / (totalBalls/6)).toFixed(2)) : '0.00',
+      target: m.target != null ? m.target : null
     },
+    // Explicit both-innings scores — prefer these for "match score"
     innings1: innings1,
+    innings2: (m.currentInnings === 2 || (m.status||'').toLowerCase()==='completed') ? {
+      battingTeam: batKey,
+      battingTeamName: (batTeam && batTeam.name) || '',
+      totalScore: totalScore,
+      wickets: wickets,
+      totalBalls: totalBalls,
+      overs: oversStr
+    } : null,
 
-    teamA: teamSnap(m.teamA, batKey==='teamA'),
-    teamB: teamSnap(m.teamB, batKey==='teamB'),
+    teamA: teamSnap(m.teamA, 'teamA'),
+    teamB: teamSnap(m.teamB, 'teamB'),
 
-    // Playing XI — with bat + bowl stats
     playing11: {
       teamA: { name: (m.teamA && m.teamA.name) || 'Team A', players: xiA },
       teamB: { name: (m.teamB && m.teamB.name) || 'Team B', players: xiB }
     },
-    // Full squads with bat + bowl stats
     squads: {
       teamA: squadList(m.teamA),
       teamB: squadList(m.teamB)
     },
-    // Scorecard cards — USE THESE for batting / bowling comparisons
     battingCard: {
       teamA: { name: (m.teamA && m.teamA.name) || 'Team A', players: battingCard(m.teamA) },
       teamB: { name: (m.teamB && m.teamB.name) || 'Team B', players: battingCard(m.teamB) }
@@ -8975,39 +9081,38 @@ function buildMatchAiContext(m){
       teamA: { name: (m.teamA && m.teamA.name) || 'Team A', players: bowlingCard(m.teamA) },
       teamB: { name: (m.teamB && m.teamB.name) || 'Team B', players: bowlingCard(m.teamB) }
     },
-    // Convenience: current bowling side's used bowlers
     usedBowlers: bowlingCard(bowlTeam),
     usedBatters: battingCard(batTeam),
 
-    // Who is at the crease right now
     onStrike: {
       striker: playerSnap(striker),
       nonStriker: playerSnap(nonStriker),
       bowler: playerSnap(bowler)
     },
 
-    // Phase blocks for powerplay / middle / death questions
+    // Dense phase stats + raw balls for detail questions
+    phaseStats: {
+      powerplay_1_to_6: phaseStats(1, 6),
+      middle_7_to_16: phaseStats(7, 16),
+      death_17_to_20: phaseStats(17, 20)
+    },
     phases: {
       powerplay_overs_1_to_6: ballsInOvers(1, 6),
       middle_overs_7_to_16: ballsInOvers(7, 16),
       death_overs_17_to_20: ballsInOvers(17, 20)
     },
-
-    // Full ball log (slim) — up to ~120 so first overs are not lost
-    recentBalls: allBallsChrono.slice(-120).map(slimBall),
+    overSummaries: overSum,
+    recentBalls: recentBalls,
     allBallsCount: allBallsChrono.length,
 
     note: [
-      'You are AI360. Host speaks; you only show tables, short fact bullets, and charts.',
-      'Use ONLY this CONTEXT. Do not invent players or scores.',
-      'For bowling comparison: use bowlingCard.teamA / bowlingCard.teamB or usedBowlers (players who have bowled).',
-      'For batting comparison: use battingCard.teamA / battingCard.teamB or usedBatters.',
-      'Each bowling row has: name, overs, bowlBalls, maidens, runs, wickets, economy.',
-      'playing11 and squads also include bowlOvers, bowlRuns, wickets, economy.',
-      'Always fill table ROWS from these arrays — never output header-only tables. No ** stars or star emoji — plain text for study.'
+      'All scores for both teams are in teamA, teamB, innings1, innings2, scoreboard — use them; do not say score is missing if those fields have numbers.',
+      'phaseStats has runs/wickets/fours/sixes per phase; phases has ball-level detail; overSummaries is per over.',
+      'Answer the question with these numbers. Only say Missing if the field is empty string/null and required.'
     ].join(' ')
   };
 }
+
 
 function escapeIns(s){
   return String(s==null?'':s)
@@ -9907,10 +10012,9 @@ async function callAskMatchAi(question){
     style: 'tables, short bullets, charts only — no long summaries'
   };
   ctx.guidance = [
-    'Respond as AI360 on-screen editor. Host speaks; you only show facts.',
-    'Default: short title + Markdown table + 2-6 bullets. No summary unless asked.',
-    'Powerplay=overs 1-6, middle=7-16, death=17-20. Use phases and recentBalls for over-range questions.',
-    'Missing data → one line: Missing: <field>. Optional CHART_JSON last line when series exists.'
+    'Respond as AI360. Host speaks; you only show facts.',
+    'Output: short title + Markdown table and/or 2-4 fact bullets + CHART_JSON when numbers exist.',
+    'No paragraphs. No filler. Missing data → one line: Missing: <field>.'
   ].join(' ');
   const res = await fn({ question: question, context: ctx, mode: 'ai360_editor' });
   return res && res.data ? res.data : {};

@@ -6495,7 +6495,7 @@ async function finalizeSold(teamId, price){
   team.players.push({...p, price});
   team.remaining-=price;
   if(maxP > 0 && team.players.length >= maxP) team.maxReached = true;
-  p.sold=true; p.unsold=false;
+  p.sold=true; p.unsold=false; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
   T.players[idx]=p;
   T.meta.currentIndex=idx+1;
   T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
@@ -6593,7 +6593,7 @@ function openSoldForm(idx){
     team.remaining-=price;
     const maxP=getTeamMax(team);
     if(maxP>0 && team.players.length>=maxP) team.maxReached=true;
-    p.sold=true; p.unsold=false; T.players[idx]=p;
+    p.sold=true; p.unsold=false; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price; T.players[idx]=p;
     T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
     T.meta.currentIndex=idx+1;
     let alertLine='';
@@ -7644,77 +7644,110 @@ function buildAuctionAiContext(){
   if(!T) return '(no auction loaded)';
   const players = T.players || [];
   const teams = T.teams || [];
-  const sold = players.filter(function(p){ return p.sold; });
-  const unsold = players.filter(function(p){ return p.unsold; });
-  const remaining = players.filter(function(p){ return !p.sold && !p.unsold; });
+
+  // Authoritative sold rows from each team roster
+  const soldFromRosters = [];
+  teams.forEach(function(t){
+    (t.players || []).forEach(function(p){
+      soldFromRosters.push({
+        name: (p && p.name) || '',
+        team: t.name || t.id || '',
+        teamId: t.id || '',
+        price: (p && p.price != null) ? p.price : null,
+        role: (p && (p.role || p.type)) || ''
+      });
+    });
+  });
+
+  const soldFlags = players.filter(function(p){ return p && p.sold; });
+  const unsold = players.filter(function(p){ return p && p.unsold; });
+  const remaining = players.filter(function(p){ return p && !p.sold && !p.unsold; });
+
   let idx = (T.meta && T.meta.currentIndex) || 0;
-  while(idx < players.length && (players[idx].sold || players[idx].unsold)) idx++;
+  while(idx < players.length && players[idx] && (players[idx].sold || players[idx].unsold)) idx++;
   const cur = players[idx];
+
   const lines = [];
   lines.push('Auction title: ' + (T.title || 'Untitled'));
   lines.push('Status: ' + (T.status || '') + (T.paused ? ' (paused)' : ''));
   lines.push('Mode: ' + (T.mode || 'physical'));
-  lines.push('Counts: total ' + players.length + ', sold ' + sold.length + ', unsold ' + unsold.length + ', remaining ' + remaining.length);
+  lines.push('Counts: totalPlayers=' + players.length +
+    ', soldCount=' + Math.max(soldFlags.length, soldFromRosters.length) +
+    ', unsoldCount=' + unsold.length +
+    ', remainingCount=' + remaining.length);
+
   if(cur){
-    lines.push('Now auctioning: ' + (cur.name || 'Player') + ' | index ' + (idx+1) + ' of ' + players.length +
-      (cur.role ? (' | role ' + cur.role) : '') +
-      (cur.basePrice != null ? (' | base ' + cur.basePrice) : ''));
+    lines.push('NowAuctioning: name=' + (cur.name || 'Player') +
+      ', index=' + (idx+1) + '/' + players.length +
+      (cur.role ? (', role=' + cur.role) : '') +
+      (cur.basePrice != null ? (', basePrice=' + cur.basePrice) : ''));
   }
   if(T.bid){
-    lines.push('Current bid: phase=' + (T.bid.phase || '—') +
-      ', price=' + (T.bid.price != null ? T.bid.price : '—') +
-      (T.bid.leaderTeamName ? (', leader=' + T.bid.leaderTeamName) : '') +
-      (T.bid.leaderTeamId ? (', leaderId=' + T.bid.leaderTeamId) : ''));
+    lines.push('CurrentBid: phase=' + (T.bid.phase || 'none') +
+      ', price=' + (T.bid.price != null ? T.bid.price : 'none') +
+      (T.bid.leaderTeamName ? (', leader=' + T.bid.leaderTeamName) : ''));
   }
-  if(T.rules){
-    lines.push('Rules: basePrice=' + (T.rules.basePrice != null ? T.rules.basePrice : '—') +
-      ', purseStart=' + (T.rules.purse != null ? T.rules.purse : (T.rules.startingPurse != null ? T.rules.startingPurse : '—')));
-  }
-  lines.push('TEAMS (name | players bought | purse left | total spent | roster):');
+
+  lines.push('TEAMS_TABLE:');
+  lines.push('team | playersBought | purseLeft | totalSpent | roster');
   teams.forEach(function(t){
     const roster = t.players || [];
-    const n = roster.length;
-    const purse = (t.remaining != null ? t.remaining : (t.purseLeft != null ? t.purseLeft : t.purse));
     let spent = 0;
     const names = [];
     roster.forEach(function(p){
       const price = (p && p.price != null) ? Number(p.price) : 0;
       if(!isNaN(price)) spent += price;
-      names.push((p && p.name ? p.name : 'Player') + (p && p.price != null ? ('@' + p.price) : ''));
+      names.push((p && p.name ? p.name : '?') + (p && p.price != null ? ('@' + p.price) : ''));
     });
-    lines.push('- ' + (t.name || t.id) + ' | bought ' + n + ' | purseLeft ' + (purse != null ? purse : '—') +
-      ' | spent ' + spent + ' | players: ' + (names.length ? names.join(', ') : '(none)'));
+    const purse = (t.remaining != null ? t.remaining : (t.purseLeft != null ? t.purseLeft : t.purse));
+    lines.push((t.name || t.id) + ' | ' + roster.length + ' | ' + (purse != null ? purse : '?') +
+      ' | ' + spent + ' | ' + (names.length ? names.join(', ') : 'empty'));
   });
-  lines.push('SOLD PLAYERS (name | team | price):');
-  if(!sold.length) lines.push('- (none)');
-  else sold.forEach(function(p){
-    lines.push('- ' + (p.name || '') + ' | ' + (p.team || p.teamName || '—') + ' | ' + (p.price != null ? p.price : '—'));
+
+  lines.push('SOLD_PLAYERS (from team rosters — complete):');
+  if(!soldFromRosters.length) lines.push('none');
+  else soldFromRosters.forEach(function(s){
+    lines.push(s.name + ' | team=' + s.team + ' | price=' + (s.price != null ? s.price : '?'));
   });
-  lines.push('UNSOLD PLAYERS:');
-  if(!unsold.length) lines.push('- (none)');
-  else unsold.forEach(function(p){
-    lines.push('- ' + (p.name || '') + (p.role ? (' | ' + p.role) : ''));
-  });
-  lines.push('REMAINING PLAYERS (still to auction, up to 40 listed):');
-  if(!remaining.length) lines.push('- (none)');
-  else remaining.slice(0, 40).forEach(function(p){
-    lines.push('- ' + (p.name || '') + (p.role ? (' | ' + p.role) : '') + (p.basePrice != null ? (' | base ' + p.basePrice) : ''));
-  });
-  if(remaining.length > 40) lines.push('- …and ' + (remaining.length - 40) + ' more remaining');
+
+  // Also list master sold flags with stamped fields if any
+  if(soldFlags.length){
+    lines.push('SOLD_FLAGS_ON_POOL:');
+    soldFlags.forEach(function(p){
+      lines.push((p.name||'') + ' | team=' + (p.soldTeam || p.team || '?') +
+        ' | price=' + (p.soldPrice != null ? p.soldPrice : (p.price != null ? p.price : '?')));
+    });
+  }
+
+  lines.push('UNSOLD_PLAYERS:');
+  if(!unsold.length) lines.push('none');
+  else unsold.forEach(function(p){ lines.push((p.name||'') + (p.role ? (' | ' + p.role) : '')); });
+
+  // Remaining names — compact CSV to fit more players
+  lines.push('REMAINING_PLAYERS_COUNT=' + remaining.length);
+  if(remaining.length){
+    const names = remaining.map(function(p){ return p.name || ''; }).filter(Boolean);
+    // Chunk to keep lines readable but include everyone when possible
+    const chunk = 50;
+    for(let i=0;i<names.length;i+=chunk){
+      lines.push('REMAINING_NAMES ' + (i+1) + '-' + Math.min(i+chunk, names.length) + ': ' + names.slice(i,i+chunk).join(', '));
+    }
+  }
+
   if(T.lastResult && T.lastResult.name){
-    lines.push('Last result: ' + T.lastResult.name + ' | ' + (T.lastResult.sold ? 'SOLD' : 'UNSOLD') +
+    lines.push('LastResult: ' + T.lastResult.name + ' | ' + (T.lastResult.sold ? 'SOLD' : 'UNSOLD') +
       (T.lastResult.team ? (' | ' + T.lastResult.team) : '') +
       (T.lastResult.price != null ? (' | ' + T.lastResult.price) : ''));
   }
+
+  lines.push('INSTRUCTION: Use TEAMS_TABLE and SOLD_PLAYERS above as complete for sold/purse questions. Do not say team or price is missing when listed here.');
   return lines.join('\n');
 }
 
 function cleanAi360Text(raw){
   let t = String(raw || '').replace(/\r/g, '');
   t = t.replace(/```[\s\S]*?```/g, ' ');
-  t = t.replace(/^\s*\|.*$/gm, function(line){
-    return line.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
-  });
+  // Keep Markdown tables (pipe rows). Only strip emphasis markers.
   t = t.replace(/^#{1,6}\s*/gm, '');
   t = t.replace(/\*\*([^*]+)\*\*/g, '$1');
   t = t.replace(/\*([^*]+)\*/g, '$1');

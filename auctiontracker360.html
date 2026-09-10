@@ -737,7 +737,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.10.5.00</p>
+    <p class="set-version">Version: 2026.09.10.5.10</p>
   </div>
 </section>
 
@@ -1159,24 +1159,30 @@ function gcloudLangFromUri(uri) {
 function friendlyFnError(e) {
   try {
     if (!e) return 'unknown error';
-    const code = e.code || (e.details && e.details.code) || '';
-    let msg = e.message || String(e);
-    // Firebase callable often puts real reason in message after "internal"
-    if (e.details) {
-      try {
-        if (typeof e.details === 'string') msg = msg + ' | ' + e.details;
-        else if (e.details.message) msg = msg + ' | ' + e.details.message;
-        else msg = msg + ' | ' + JSON.stringify(e.details).slice(0, 120);
-      } catch (x1) {}
+    const code = String(e.code || '');
+    let msg = String(e.message || e);
+    // Firebase often puts the real reason in details (especially for failed-precondition)
+    try {
+      if (e.details != null) {
+        if (typeof e.details === 'string') msg = e.details;
+        else if (e.details.message) msg = e.details.message;
+        else if (typeof e.details === 'object') {
+          const s = JSON.stringify(e.details);
+          if (s && s !== '{}') msg = (msg + ' ' + s).trim();
+        }
+      }
+    } catch (x1) {}
+    // Prefer human text over bare code names
+    msg = msg.replace(/^FirebaseError:\s*/i, '').replace(/^functions\//i, '');
+    if (/unauthenticated/i.test(code + msg)) return 'sign in required';
+    if (/permission-denied/i.test(code + msg)) return 'permission denied';
+    if (/not-found/i.test(code + msg)) return 'function not found — redeploy';
+    if (/resource-exhausted|quota/i.test(code + msg)) return 'quota exceeded';
+    // Strip useless wrappers like "INTERNAL" when we have details
+    if (/^(internal|INTERNAL)$/i.test(msg.trim()) && e.details) {
+      msg = typeof e.details === 'string' ? e.details : JSON.stringify(e.details);
     }
-    if (/unauthenticated/i.test(msg + code)) return 'sign in required';
-    if (/permission-denied/i.test(msg + code)) return 'permission denied';
-    if (/not-found|NOT_FOUND/i.test(msg + code)) return 'function not found — redeploy synthesizeSpeech';
-    if (/resource-exhausted|quota/i.test(msg + code)) return 'quota exceeded';
-    if (/invalid-argument/i.test(msg + code)) return msg.replace(/FirebaseError:\s*/i, '').slice(0, 100);
-    if (/failed-precondition/i.test(msg + code)) return 'API key or billing issue';
-    // Keep internal message — often "TTS failed: ..." or Storage error
-    return String(msg).replace(/FirebaseError:\s*/i, '').slice(0, 140);
+    return String(msg).slice(0, 160);
   } catch (x) {
     return 'error';
   }

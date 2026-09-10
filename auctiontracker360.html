@@ -737,7 +737,7 @@ a{color:var(--primary)}
       <li><strong>Team:</strong> Telugu Vision · G. B. Nagaraju</li>
       <li><strong>Contact:</strong> <a href="mailto:maheshdhoni7633@gmail.com">maheshdhoni7633@gmail.com</a></li>
     </ul>
-    <p class="set-version">Version: 2026.09.10.5.10</p>
+    <p class="set-version">Version: 2026.09.10.5.20</p>
   </div>
 </section>
 
@@ -1296,7 +1296,6 @@ async function gcloudSynthesize(text, voiceUri) {
     return null;
   }
   const uri = voiceUri || ttsPref.voiceURI || ttsPref.gVoice || '';
-  // voiceName is REQUIRED by the Cloud Function
   let voiceName = 'en-IN-Wavenet-A';
   let languageCode = 'en-IN';
   if (isGcloudVoice(uri)) {
@@ -1306,9 +1305,7 @@ async function gcloudSynthesize(text, voiceUri) {
     voiceName = ttsPref.gVoiceName;
     languageCode = ttsPref.gLang || languageCode;
   }
-  // Normalize voice name (strip accidental path)
-  voiceName = String(voiceName).replace(/^.*\//, '').trim();
-  if (!voiceName) voiceName = 'en-IN-Wavenet-A';
+  voiceName = String(voiceName).replace(/^.*\//, '').trim() || 'en-IN-Wavenet-A';
   try {
     const call = fns.httpsCallable('synthesizeSpeech');
     const payload = {
@@ -1320,36 +1317,44 @@ async function gcloudSynthesize(text, voiceUri) {
     ttsStatus('Google TTS calling… (' + voiceName + ')');
     const res = await call(payload);
     const d = (res && res.data) || {};
-    console.log('synthesizeSpeech data keys', d && Object.keys(d), d);
-    // Prefer base64 if present (new simpler function)
+    console.log('synthesizeSpeech result', d);
+
+    // New contract: function returns {ok:false, error:"..."} instead of throwing
+    if (d && d.ok === false) {
+      const why = d.error || 'unknown server error';
+      ttsStatus('Google TTS FAIL: ' + why);
+      return null;
+    }
+
     let audio = d.audioContent || d.audio || d.base64 || d.mp3 || null;
     if (audio) {
-      ttsStatus('Google audio received (base64)');
+      ttsStatus('Google Cloud voice OK');
       return { url: null, base64: audio, kind: 'base64', characters: d.characters || 0 };
     }
-    // Storage URL path (current function)
     const url = d.audioUrl || d.url || d.publicUrl || null;
     if (url) {
-      ttsStatus('Google audio URL received');
+      ttsStatus('Google Cloud voice OK (URL)');
       return { url: url, kind: 'url', characters: d.characters || 0 };
     }
-    const keys = d && typeof d === 'object' ? Object.keys(d).join(',') : typeof d;
-    ttsStatus('Google TTS: empty response keys=' + keys);
+    ttsStatus('Google TTS FAIL: no audio in response keys=' + Object.keys(d).join(','));
     return null;
   } catch (e) {
-    console.warn('gcloudSynthesize FULL', e);
-    const errTxt = friendlyFnError(e);
-    ttsStatus('Google TTS FAIL: ' + errTxt);
+    console.warn('gcloudSynthesize exception', e);
+    // Dump everything Firebase gives us
+    let bits = [];
     try {
-      // Keep error on screen — also log details
-      if (e && e.code) console.warn('code', e.code);
-      if (e && e.details) console.warn('details', e.details);
+      if (e && e.code) bits.push('code=' + e.code);
+      if (e && e.message) bits.push(String(e.message));
+      if (e && e.details != null) {
+        bits.push('details=' + (typeof e.details === 'string' ? e.details : JSON.stringify(e.details)));
+      }
     } catch (x) {}
+    const errTxt = bits.length ? bits.join(' | ') : friendlyFnError(e);
+    ttsStatus('Google TTS FAIL: ' + String(errTxt).slice(0, 180));
     return null;
   }
 }
 
-/** Host: synthesize P0 once and write to Firestore so everyone hears the same bite. */
 async function hostBroadcastP0(text, category) {
   if (!isAuctionHost() || !auctionId || !db) return false;
   if (!ttsPref.hostVoices) return false;

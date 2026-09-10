@@ -1209,7 +1209,10 @@ async function gcloudListVoices() {
     const call = fns.httpsCallable('listGoogleTtsVoices');
     const res = await call({});
     const d = (res && res.data) || {};
-    // Function returns { ok, count, voices: [{ name, languageCodes, ssmlGender }] }
+    // Function returns { ok, count, voices } or { ok:false, error }
+    if (d && d.ok === false) {
+      throw new Error(d.error || 'listGoogleTtsVoices returned ok:false');
+    }
     let raw = d.voices || d.items || d.list || (Array.isArray(d) ? d : []);
     if (!Array.isArray(raw)) raw = [];
     const out = [];

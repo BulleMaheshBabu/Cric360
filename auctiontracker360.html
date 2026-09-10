@@ -685,11 +685,12 @@ a{color:var(--primary)}
 
   <div id="panelCommentary" class="set-panel hidden" aria-label="Commentary">
     <h2 id="ttsHeading" class="sr-only">Commentary</h2>
-    <p id="piperStatus" class="set-status" role="status">Tap Test or turn Commentary on to load voice</p>
+    <p id="piperStatus" class="set-status" role="status">Turn Commentary on and pick a voice — every auction action will be spoken</p>
     <label class="set-row"><input type="checkbox" id="chkTts" /> Commentary on</label>
-    <label class="set-row"><input type="checkbox" id="chkHostVoices" checked /> Host voices (Google — P0 only)</label>
-    <label for="ttsVoice">Device voice (bids & fallback)</label>
+    <label for="ttsVoice">Voice</label>
     <select id="ttsVoice" aria-label="Commentary voice"></select>
+    <!-- host voices removed: device voices only -->
+    <input type="checkbox" id="chkHostVoices" class="hidden" aria-hidden="true" tabindex="-1" />
     <div class="row set-rate-row">
       <span id="ttsRateLabel" class="set-label">Speed: 1.0</span>
       <button type="button" id="ttsRateDown" class="btn-sec" aria-label="Slower">−</button>
@@ -902,59 +903,22 @@ function _speakNow(msg, category, soft){
   if(!ttsOn){
     announce(msg, !!soft);
     _speechBusy = false;
-    setTimeout(_pumpSpeech, 600);
+    setTimeout(_pumpSpeech, 400);
     return;
   }
-  // Split model:
-  // P0 (host/player) + Host Voices ON + we are host → Google Cloud once, broadcast
-  // P0 + Host Voices ON + we are NOT host → wait for host audio (skip local)
-  // Bids / everything else → local Device or meSpeak
-  // Host Voices OFF → all local
-  const p0 = typeof isP0Category === 'function' && isP0Category(category);
-  const wantHost = ttsPref.hostVoices !== false;
-
-  if (p0 && wantHost && typeof isAuctionHost === 'function' && isAuctionHost()) {
-    hostBroadcastP0(msg, category).then(function (ok) {
-      if (!ok) {
-        // Google failed → local fallback
-        try {
-          if (typeof ttsSpeak === 'function') {
-            ttsSpeak(msg, category, function () { _speechBusy = false; _pumpSpeech(); });
-            return;
-          }
-        } catch (e) {}
-      }
-      _speechBusy = false;
-      _pumpSpeech();
-    });
-    return;
-  }
-  if (p0 && wantHost && typeof isAuctionHost === 'function' && !isAuctionHost()) {
-    // Non-host: host will broadcast; skip local to avoid double speech
-    // Soft fallback after 4s if no host audio arrives
-    const waitAt = _hostTtsLastAt;
-    setTimeout(function () {
-      if (_hostTtsLastAt === waitAt) {
-        try {
-          if (typeof ttsSpeak === 'function') ttsSpeak(msg, category, function () {});
-        } catch (e) {}
-      }
-    }, 4000);
-    _speechBusy = false;
-    setTimeout(_pumpSpeech, 200);
-    return;
-  }
-  // Bids / Host Voices off / non-P0 → local device or meSpeak
+  // Device voices only — speak everything locally
   try {
     if (typeof ttsSpeak === 'function') {
       ttsSpeak(msg, category, function () { _speechBusy = false; _pumpSpeech(); });
     } else {
+      announce(msg, !!soft);
       _speechBusy = false;
-      _pumpSpeech();
+      setTimeout(_pumpSpeech, 400);
     }
   } catch (e) {
+    console.warn('_speakNow', e);
     _speechBusy = false;
-    _pumpSpeech();
+    setTimeout(_pumpSpeech, 400);
   }
 }
 
@@ -972,15 +936,19 @@ function queueClearSpeech(){
   try{ if(typeof ttsStop==='function') ttsStop(); }catch(e){}
 }
 
-/** Announce current player at most once per index+name; never while paused or in gap */
-function announceNowPlayer(idx, name, total){
-  if(!T || T.paused) return;
+/** Announce current player at most once per index+name; works for host, owners, and viewers */
+function announceNowPlayer(idx, name, total, liveData){
+  // Prefer explicit live snapshot (viewers); fall back to host state T
+  const D = liveData || window._lastWatchData || T || null;
+  if(!D) return;
+  if(D.paused) return;
   // Manual Next player: no speech/SFX until host presses Next
-  if(T.awaitNextPlayer) return;
-  if(T.bid && (T.bid.phase==='await_next' || T.bid.phase==='intermission')) return;
-  if(T.intermissionUntil && T.intermissionUntil > Date.now()) return;
+  if(D.awaitNextPlayer) return;
+  if(D.bid && (D.bid.phase==='await_next' || D.bid.phase==='intermission')) return;
+  if(D.intermissionUntil && D.intermissionUntil > Date.now()) return;
   if(window._sayPlayerKey === '__in_gap__' || window._gapPendingPlayer) return;
-  if(typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
+  // isAwaitingNextPlayer uses T — only apply when we have host state
+  if(T && typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
   const pkey = 'pl|'+idx+'|'+(name||'');
   if(window._sayPlayerKey === pkey) return;
   window._sayPlayerKey = pkey;
@@ -991,8 +959,11 @@ function announceNowPlayer(idx, name, total){
     window._playerSfxForGap = true;
     try{ playSfx('player'); }catch(e){}
   }
-  const n = (total!=null ? total : ((T.players||[]).length||0));
-  sayEvent('Now auctioning '+(name||'player')+', number '+(idx+1)+' of '+n, 'player');
+  const n = (total!=null ? total : ((D.players||[]).length||0));
+  const line = 'Now auctioning '+(name||'player')+', number '+(idx+1)+' of '+n;
+  sayEvent(line, 'player');
+  // Also push to aria-live so screen readers hear it even if TTS is off
+  try{ announce(line, true); }catch(e){}
 }
 
 
@@ -1029,7 +1000,7 @@ const TTS_DEFAULTS = {
   rate: 1,
   volume: 1,
   voiceURI: '',
-  hostVoices: true,  /* Google Cloud host broadcasts for P0 */
+  hostVoices: false,  /* Google Cloud host broadcasts for P0 */
   host: true,
   bid: true,
   player: true,
@@ -1040,6 +1011,14 @@ let ttsPref = Object.assign({}, TTS_DEFAULTS);
 try {
   const raw = safeStorageGet('at_tts');
   if (raw) ttsPref = Object.assign({}, TTS_DEFAULTS, JSON.parse(raw));
+} catch (e) {}
+/* Device-only mode: drop old Google / meSpeak selections */
+try {
+  ttsPref.hostVoices = false;
+  const vu = String(ttsPref.voiceURI || '');
+  if (!vu || vu.indexOf('gcloud:') === 0 || vu.indexOf('me:') === 0 || vu.indexOf('mespeak') >= 0) {
+    ttsPref.voiceURI = 'device:default';
+  }
 } catch (e) {}
 
 function saveTtsPref() {
@@ -1868,66 +1847,75 @@ function ttsFillVoiceSelect() {
   const prev = ttsPref.voiceURI || sel.value || '';
   sel.innerHTML = '';
 
-  // 1) Google Cloud voices first (P0 quality, no Eloquent conflict)
-  const gList = _gcloudVoicesCache || [];
-  gList.forEach(function (v) {
-    const o = document.createElement('option');
-    o.value = v.id;
-    o.textContent = v.label;
-    sel.appendChild(o);
-  });
-  if (!gList.length) {
-    // Placeholder until async list returns
-    const o = document.createElement('option');
-    o.value = 'gcloud:en-IN|en-IN-Wavenet-A';
-    o.textContent = 'Google: en-IN-Wavenet-A (loading more…)';
-    sel.appendChild(o);
-  }
-
-  // 2) meSpeak — offline / Eloquent-safe fallback
-  ME_VOICES.forEach(function (v) {
-    const o = document.createElement('option');
-    o.value = v.id;
-    o.textContent = 'meSpeak: ' + v.label;
-    sel.appendChild(o);
-  });
-
-  // 3) Device voices (warn Eloquent conflict)
+  // Device voices only
   const optDef = document.createElement('option');
   optDef.value = 'device:default';
-  optDef.textContent = 'Device: System default (conflicts with Eloquent)';
+  optDef.textContent = 'System default';
   sel.appendChild(optDef);
 
+  let count = 0;
   if (ttsWebSpeechOk()) {
     let list = [];
     try { list = speechSynthesis.getVoices() || []; } catch (e) { list = []; }
+    // Prefer English first, then show others
+    const en = [];
+    const other = [];
     list.forEach(function (v) {
-      if (!/^en/i.test(v.lang || '')) return;
+      const lang = String(v.lang || '').toLowerCase();
+      if (lang.indexOf('en') === 0) en.push(v);
+      else other.push(v);
+    });
+    en.concat(other).forEach(function (v) {
       const o = document.createElement('option');
       o.value = v.voiceURI;
-      o.textContent = 'Device (conflicts with Eloquent): ' + (v.name || 'Voice');
+      const tag = (v.lang || '').toUpperCase();
+      o.textContent = (v.name || 'Voice') + (tag ? ' (' + tag + ')' : '');
       sel.appendChild(o);
+      count++;
     });
   }
 
   if (prev && Array.prototype.some.call(sel.options, function (o) { return o.value === prev; })) {
     sel.value = prev;
-  } else if (gList.length) {
-    sel.value = gList[0].id;
-    ttsPref.voiceURI = gList[0].id;
   } else {
-    sel.value = 'gcloud:en-IN|en-IN-Wavenet-A';
-    ttsPref.voiceURI = sel.value;
+    // Prefer an English India / US voice when available
+    let pick = 'device:default';
+    try {
+      const list = speechSynthesis.getVoices() || [];
+      const prefer = list.find(function (v) {
+        return /en-IN/i.test(v.lang) || /India/i.test(v.name || '');
+      }) || list.find(function (v) {
+        return /^en/i.test(v.lang || '');
+      });
+      if (prefer) pick = prefer.voiceURI;
+    } catch (e) {}
+    // If previous was google/mespeak, switch to device
+    if (!prev || String(prev).indexOf('gcloud:') === 0 || String(prev).indexOf('me:') === 0) {
+      sel.value = pick;
+      ttsPref.voiceURI = pick;
+      try { ttsSave(); } catch (e) {}
+    } else {
+      sel.value = pick;
+      ttsPref.voiceURI = pick;
+    }
+  }
+
+  const status = $('piperStatus');
+  if (status && !ttsPref.on) {
+    /* leave status alone if off */
+  } else if (count > 0) {
+    ttsStatus(count + ' device voices ready');
+  } else if (ttsWebSpeechOk()) {
+    ttsStatus('Loading device voices… (tap Test once)');
+  } else {
+    ttsStatus('This browser has no speech voices');
   }
 }
 
 async function ttsRefreshGoogleVoices() {
-  try {
-    await gcloudListVoices();
-    ttsFillVoiceSelect();
-  } catch (e) {
-    console.warn('ttsRefreshGoogleVoices', e);
-  }
+  /* Google removed — refresh device list only */
+  try { ttsKickDeviceVoices(); } catch (e) {}
+  try { ttsFillVoiceSelect(); } catch (e) {}
 }
 
 /** Kick Android/Chrome into enumerating voices (TalkBack / 3rd-party engines often delay this). */
@@ -1973,34 +1961,29 @@ function ttsKickDeviceVoices() {
 
 function ttsSpeakWeb(text, onEnd) {
   if (!ttsWebSpeechOk()) {
+    ttsStatus('No speech engine in this browser');
     if (typeof onEnd === 'function') onEnd();
     return;
   }
   try {
+    try { speechSynthesis.cancel(); } catch (e0) {}
     try { speechSynthesis.resume(); } catch (e1) {}
-    // Do not cancel — TalkBack / Eloquence users lose speech if we cancel
     const u = new SpeechSynthesisUtterance(String(text));
-    u.rate = Math.min(1.5, Math.max(0.6, Number(ttsPref.rate) || 1));
+    u.rate = Math.min(1.8, Math.max(0.5, Number(ttsPref.rate) || 1));
     u.pitch = 1;
     u.volume = Math.min(1, Math.max(0, Number(ttsPref.volume) != null ? ttsPref.volume : 1));
     const want = ttsPref.voiceURI || 'device:default';
-    if (want && want !== 'device:default' && !isMeVoice(want)) {
-      try {
-        const list = speechSynthesis.getVoices() || [];
-        const found = list.find(function (v) { return v.voiceURI === want; });
-        if (found) u.voice = found;
-      } catch (e2) {}
+    let list = [];
+    try { list = speechSynthesis.getVoices() || []; } catch (e) { list = []; }
+    if (want && want !== 'device:default') {
+      const found = list.find(function (v) { return v.voiceURI === want; });
+      if (found) u.voice = found;
     }
-    // Prefer English if no specific voice
-    if (!u.voice) {
-      try {
-        const list = speechSynthesis.getVoices() || [];
-        const en = list.find(function (v) {
-          const l = (v.lang || '').toLowerCase();
-          return l.indexOf('en') === 0;
-        });
-        if (en) u.voice = en;
-      } catch (e3) {}
+    if (!u.voice && list.length) {
+      const en = list.find(function (v) {
+        return String(v.lang || '').toLowerCase().indexOf('en') === 0;
+      });
+      if (en) u.voice = en;
     }
     var ended = false;
     function finish() {
@@ -2009,11 +1992,15 @@ function ttsSpeakWeb(text, onEnd) {
       if (typeof onEnd === 'function') onEnd();
     }
     u.onend = finish;
-    u.onerror = finish;
-    setTimeout(finish, 15000); // safety
+    u.onerror = function () {
+      ttsStatus('Voice error — pick another voice');
+      finish();
+    };
+    setTimeout(finish, Math.max(8000, String(text).length * 80));
     speechSynthesis.speak(u);
   } catch (e) {
     console.warn('ttsSpeakWeb', e);
+    ttsStatus('Speak failed: ' + (e && e.message ? e.message : 'error'));
     if (typeof onEnd === 'function') onEnd();
   }
 }
@@ -2028,24 +2015,7 @@ function ttsSpeak(text, category, onEnd) {
     if (typeof onEnd === 'function') onEnd();
     return;
   }
-  const uri = ttsPref.voiceURI || 'device:default';
-  if (isGcloudVoice(uri)) {
-    gcloudSynthesize(text, uri).then(function (audio) {
-      if (audio) {
-        playB64Audio(audio, onEnd);
-      } else if (isMeVoice(ttsPref.voiceURI)) {
-        meSpeakSpeak(text, onEnd);
-      } else {
-        // fallback device
-        ttsSpeakWeb(text, onEnd);
-      }
-    });
-    return;
-  }
-  if (isMeVoice(uri)) {
-    meSpeakSpeak(text, onEnd);
-    return;
-  }
+  // Device voices only — no Google, no meSpeak, no server audio
   ttsSpeakWeb(text, onEnd);
 }
 
@@ -2057,7 +2027,7 @@ function ttsStop() {
       _piperAudio.removeAttribute('src');
     }
   } catch (e) {}
-  // Do not call speechSynthesis.cancel — that stops Eloquent
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
 }
 
 
@@ -2233,142 +2203,101 @@ function wireTtsSettings() {
   const chk = $('chkTts');
   if (!chk) return;
   chk.checked = !!ttsPref.on;
-  if ($('chkHostVoices')) $('chkHostVoices').checked = ttsPref.hostVoices !== false;
-  $('ttsHost').checked = ttsPref.host !== false;
-  $('ttsBid').checked = ttsPref.bid !== false;
-  $('ttsPlayer').checked = ttsPref.player !== false;
-  $('ttsTimer').checked = ttsPref.timer !== false;
-  $('ttsWait').checked = ttsPref.wait !== false;
+  if ($('chkHostVoices')) {
+    $('chkHostVoices').checked = false;
+    ttsPref.hostVoices = false;
+  }
+  if ($('ttsHost')) $('ttsHost').checked = ttsPref.host !== false;
+  if ($('ttsBid')) $('ttsBid').checked = ttsPref.bid !== false;
+  if ($('ttsPlayer')) $('ttsPlayer').checked = ttsPref.player !== false;
+  if ($('ttsTimer')) $('ttsTimer').checked = ttsPref.timer !== false;
+  if ($('ttsWait')) $('ttsWait').checked = ttsPref.wait !== false;
   const rate = Number(ttsPref.rate) || 1;
   ttsPref.rate = rate;
   if ($('ttsRateLabel')) $('ttsRateLabel').textContent = 'Speed: ' + rate.toFixed(1);
   if ($('ttsVol')) {
-    const v = Math.round((ttsPref.volume!=null?ttsPref.volume:1)*100);
+    const v = Math.round((ttsPref.volume != null ? ttsPref.volume : 1) * 100);
     $('ttsVol').value = String(v);
-    if ($('ttsVolLabel')) $('ttsVolLabel').textContent = 'Commentary volume: '+v+'%';
+    if ($('ttsVolLabel')) $('ttsVolLabel').textContent = 'Commentary volume: ' + v + '%';
   }
   ttsFillVoiceSelect();
   ttsKickDeviceVoices();
 
-  if ($('chkHostVoices')) $('chkHostVoices').onchange = () => {
-    ttsPref.hostVoices = !!$('chkHostVoices').checked;
-    saveTtsPref();
-    ttsStatus(ttsPref.hostVoices
-      ? 'Host Google voices ON — P0 from host, bids on device'
-      : 'Host voices OFF — all commentary on device');
-  };
-  chk.onchange = () => {
+  chk.onchange = function () {
     ttsPref.on = chk.checked;
     saveTtsPref();
     if (ttsPref.on) {
-      if (!ttsPref.voiceURI) {
-        ttsPref.voiceURI = ME_VOICES[0].id;
-        saveTtsPref();
-      }
+      ttsKickDeviceVoices();
       ttsFillVoiceSelect();
-      if (isMeVoice(ttsPref.voiceURI)) {
-        meSpeakLoadSelected(function (ok) {
-          ttsStatus(ok ? 'Commentary voice ready (meSpeak)' : 'meSpeak failed — pick a Device voice');
-          if (ok) sayEvent('Commentary on', null);
-          else sayEvent('Commentary on (device voice)', null);
-        });
-      } else {
-        ttsStatus('Commentary on (device voice)');
-        sayEvent('Commentary on', null);
-      }
-    } else ttsStop();
+      ttsStatus('Commentary on');
+      // Unlock + introduce commentator
+      try { unlockSfx(); } catch (e) {}
+      ttsSpeakWeb('Hello, I am your commentator for the auction.', function () {});
+    } else {
+      ttsStop();
+      ttsStatus('Commentary off');
+    }
   };
-  if ($('ttsVoice')) $('ttsVoice').onchange = () => {
+
+  if ($('ttsVoice')) $('ttsVoice').onchange = function () {
     const val = $('ttsVoice').value;
     if (!val) return;
     ttsPref.voiceURI = val;
-    if (isGcloudVoice(val)) {
-      ttsPref.gVoice = val;
-      ttsPref.gVoiceName = gcloudNameFromUri(val);
-      ttsPref.gLang = gcloudLangFromUri(val);
-    }
     saveTtsPref();
-    if (isGcloudVoice(val)) {
-      ttsStatus('Google voice selected — tap Test');
-    } else if (isMeVoice(val)) {
-      ttsStatus('Loading meSpeak for Eloquence…');
-      meSpeakSpeak('meSpeak voice selected', function () {
-        ttsStatus('meSpeak ready');
-      });
-    } else {
-      ttsStatus('Device voice selected (may conflict with Eloquent)');
-      if (ttsPref.on) ttsSpeakWeb('Device voice selected', function () {});
-    }
+    ttsStatus('Voice selected');
+    try { unlockSfx(); } catch (e) {}
+    // Turn commentary on when user picks a voice so it actually speaks
+    ttsPref.on = true;
+    if ($('chkTts')) $('chkTts').checked = true;
+    saveTtsPref();
+    ttsSpeakWeb('Hello, I am your commentator for the auction.', function () {});
   };
+
   function bumpRate(d) {
     let r = Math.round(((Number(ttsPref.rate) || 1) + d) * 10) / 10;
-    r = Math.min(1.4, Math.max(0.7, r));
+    r = Math.min(1.8, Math.max(0.5, r));
     ttsPref.rate = r;
-    $('ttsRateLabel').textContent = 'Speech rate: ' + r.toFixed(1);
+    if ($('ttsRateLabel')) $('ttsRateLabel').textContent = 'Speed: ' + r.toFixed(1);
     saveTtsPref();
   }
-  $('ttsRateDown').onclick = () => bumpRate(-0.1);
-  $('ttsRateUp').onclick = () => bumpRate(0.1);
-  if ($('ttsVol')) $('ttsVol').oninput = ()=>{
-    ttsPref.volume = Math.min(1, Math.max(0, (parseInt($('ttsVol').value,10)||100)/100));
-    if ($('ttsVolLabel')) $('ttsVolLabel').textContent = 'Commentary volume: '+Math.round(ttsPref.volume*100)+'%';
+  if ($('ttsRateDown')) $('ttsRateDown').onclick = function () { bumpRate(-0.1); };
+  if ($('ttsRateUp')) $('ttsRateUp').onclick = function () { bumpRate(0.1); };
+  if ($('ttsVol')) $('ttsVol').oninput = function () {
+    ttsPref.volume = Math.min(1, Math.max(0, (parseInt($('ttsVol').value, 10) || 100) / 100));
+    if ($('ttsVolLabel')) $('ttsVolLabel').textContent = 'Commentary volume: ' + Math.round(ttsPref.volume * 100) + '%';
     saveTtsPref();
   };
-  try { ttsRefreshGoogleVoices(); } catch (e) {}
-  $('btnTtsTest').onclick = async () => {
+
+  if ($('btnTtsTest')) $('btnTtsTest').onclick = function () {
     ttsPref.on = true;
     chk.checked = true;
     saveTtsPref();
     try { unlockSfx(); } catch (e) {}
-    const phrase = 'Commentary ready. Mumbai leads at one hundred fifty.';
-    const uri = ttsPref.voiceURI || '';
-    // If Google voice selected OR Host Voices on → try Google and STOP on failure (do not hide error with device TTS)
-    if (isGcloudVoice(uri) || ttsPref.hostVoices !== false) {
-      ttsStatus('Testing Google Cloud…');
-      const gUri = isGcloudVoice(uri) ? uri : 'gcloud:en-IN|en-IN-Wavenet-A';
-      const result = await gcloudSynthesize(phrase, gUri);
-      if (result) {
-        playB64Audio(result, function () {
-          ttsStatus('Google Cloud voice OK');
-        });
-        return;
-      }
-      // Keep FAIL status visible. Do NOT fall through to device — that hid the real error.
-      if (isGcloudVoice(uri)) {
-        return;
-      }
-      // Host voices on but device/meSpeak selected as fallback for Test only
-      ttsStatus((document.getElementById('piperStatus') && document.getElementById('piperStatus').textContent) || 'Google failed — trying fallback');
-    }
-    if (isMeVoice(uri) || !uri || isGcloudVoice(uri)) {
-      if (!uri || isGcloudVoice(uri)) {
-        // keep google selection but test meSpeak path separately only if user had meSpeak
-      }
-      if (isMeVoice(uri)) {
-        ttsStatus('Trying meSpeak…');
-        meSpeakSpeak(phrase, function () {
-          ttsStatus('meSpeak played');
-        });
-        return;
-      }
-    }
-    if (!isGcloudVoice(uri) && !isMeVoice(uri)) {
-      ttsStatus('Speaking with device voice…');
-      ttsSpeakWeb(phrase, function () { ttsStatus('Device voice OK'); });
-    }
+    ttsKickDeviceVoices();
+    ttsFillVoiceSelect();
+    const phrase = 'Hello, I am your commentator for the auction.';
+    ttsStatus('Speaking…');
+    ttsSpeakWeb(phrase, function () {
+      ttsStatus('Voice OK — commentary will announce every action');
+    });
   };
-  ['ttsHost','ttsBid','ttsPlayer','ttsTimer','ttsWait'].forEach(id => {
-    $(id).onchange = () => {
-      const key = id.replace('tts', '').toLowerCase();
-      // map ttsHost -> host
-      const map = { host: 'host', bid: 'bid', player: 'player', timer: 'timer', wait: 'wait' };
+
+  ['ttsHost', 'ttsBid', 'ttsPlayer', 'ttsTimer', 'ttsWait'].forEach(function (id) {
+    if (!$(id)) return;
+    $(id).onchange = function () {
       const k = id === 'ttsHost' ? 'host' : id === 'ttsBid' ? 'bid' : id === 'ttsPlayer' ? 'player' : id === 'ttsTimer' ? 'timer' : 'wait';
       ttsPref[k] = $(id).checked;
       saveTtsPref();
+      const labels = { host: 'Host announcements', bid: 'Bid announcements', player: 'Player announcements', timer: 'Timer announcements', wait: 'Waiting room announcements' };
+      const label = labels[k] || k;
+      if (ttsPref.on) {
+        ttsSpeakWeb(label + ($(id).checked ? ' on' : ' off'), function () {});
+      }
     };
   });
-  if (ttsSupported()) {
-    speechSynthesis.onvoiceschanged = ttsFillVoiceSelect;
+
+  if (ttsWebSpeechOk()) {
+    try { speechSynthesis.onvoiceschanged = ttsFillVoiceSelect; } catch (e) {}
   }
 }
 
@@ -3512,7 +3441,7 @@ function applyAuctionData(data){
         while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
         if(idx<pl.length){
           // Speech only here — focus is handled once inside renderAuction
-          announceNowPlayer(idx, pl[idx].name, pl.length);
+          announceNowPlayer(idx, pl[idx].name, pl.length, data);
         }
       }
     }
@@ -4130,7 +4059,7 @@ function processLiveSpeech(data, opts){
       if(idx<pl.length){
         window._gapPendingPlayer=false;
         if(window._sayPlayerKey==='__in_gap__') window._sayPlayerKey=null;
-        announceNowPlayer(idx, pl[idx].name, pl.length);
+        announceNowPlayer(idx, pl[idx].name, pl.length, data);
       }
     }
   }
@@ -6216,7 +6145,7 @@ async function hostAdvanceNextPlayer(){
     }
     try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
     // Single announce + sound only when host opens next player
-    announceNowPlayer(idx, pl[idx].name, pl.length);
+    announceNowPlayer(idx, pl[idx].name, pl.length, data);
     renderAuction({ focusBid:true, force:true });
   }finally{
     window._advancingNext=false;
@@ -6315,7 +6244,7 @@ function endIntermissionIfDue(){
         window._playerSfxForGap = true;
         try{ unlockSfx(); playSfx('player'); }catch(e){}
       }
-      announceNowPlayer(idx, pl[idx].name, pl.length);
+      announceNowPlayer(idx, pl[idx].name, pl.length, data);
     }
     // Focus once via next renderAuction (do not also focus here — causes double focus)
   }

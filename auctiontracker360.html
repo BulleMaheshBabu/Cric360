@@ -342,11 +342,29 @@ button.btn-sec[aria-label*="Back"]::before,button.btn-sec[aria-label*="back"]::b
 #confirmModal .row button{width:100%}
 /* Viewer full-width layout */
 .watch-wrap{max-width:720px;margin:0 auto;padding-bottom:88px}
-.watch-panel{min-height:70vh}
-.watch-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.watch-heading{font-size:1.25rem;margin:0;flex:1}
-.watch-pane{margin-top:8px}
-#screenWatch #watchStats{margin:8px 0}
+.watch-panel{min-height:0;padding:12px!important;margin:8px 0!important}
+.watch-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.watch-heading{font-size:1.1rem;margin:0;flex:1}
+.watch-pane{margin-top:4px}
+#screenWatch #watchStats{margin:4px 0 8px}
+#screenWatch .player-stage{padding:14px 12px;margin:8px 0}
+#screenWatch .player-name{font-size:clamp(1.25rem,4.5vw,1.85rem);margin:4px 0}
+#screenWatch .stat{padding:8px 6px;border-radius:10px;font-size:11px}
+#screenWatch .stat strong{font-size:1.15rem;margin-top:2px}
+#screenWatch .stats,#screenWatch .stats-4{gap:6px;margin:6px 0;padding:0}
+#screenWatch .recent-card,#screenWatch .recent-line{margin-top:8px;padding:10px;font-size:13px}
+#screenWatch .timer-box{margin:8px 0;padding:10px;font-size:1.25rem}
+#watchAudioUnlock{
+  width:100%;margin:4px 0 8px!important;min-height:40px!important;padding:8px 12px!important;
+  font-size:13px!important;border:1px solid var(--border-subtle)!important;
+  border-radius:10px!important;background:rgba(14,165,233,.12)!important;
+  color:var(--accent-cyan)!important;
+}
+@media(max-width:520px){
+  #screenWatch .wrap.watch-wrap{padding-left:8px;padding-right:8px}
+  #screenWatch .panel.watch-panel{padding:10px!important;margin:4px 0!important}
+  #screenWatch .player-stage{padding:12px 10px;margin:6px 0}
+}
 #screenAuction .auc-only{display:block}
 #tabSquads .host-extra,#tabTools .host-extra{display:none}
 
@@ -3775,22 +3793,30 @@ async function openAuction(id){
   ensureIntermissionTicker();
   switchWatchTab('live');
   focusEl($('watchTitle'));
-  // One-tap unlock reminder for mobile autoplay
+  // One-tap unlock reminder for mobile autoplay (compact)
   try{
     if(!$('watchAudioUnlock')){
       const b=document.createElement('button');
       b.id='watchAudioUnlock';
       b.type='button';
-      b.className='btn-sec btn-block';
-      b.style.margin='8px 0';
+      b.className='btn-sec';
       b.textContent='Tap to enable commentary and sounds';
       b.onclick=function(){
         try{ unlockSfx(); }catch(e){}
-        try{ if(window.speechSynthesis){ const u=new SpeechSynthesisUtterance('Commentary ready'); u.volume=0.01; speechSynthesis.speak(u); } }catch(e){}
+        try{
+          if(window.speechSynthesis){
+            const u=new SpeechSynthesisUtterance('Hello, I am your commentator for the auction.');
+            u.volume=1;
+            speechSynthesis.speak(u);
+          }
+        }catch(e){}
+        try{ ttsPref.on=true; saveTtsPref(); }catch(e){}
         b.remove();
       };
-      const wt=$('watchTitle');
-      if(wt && wt.parentNode) wt.parentNode.insertBefore(b, wt.nextSibling);
+      const panel=document.querySelector('#screenWatch .watch-panel');
+      const stats=$('watchStats');
+      if(panel && stats) panel.insertBefore(b, stats);
+      else if(stats && stats.parentNode) stats.parentNode.insertBefore(b, stats);
     }
   }catch(e){}
   watchUnsub=db.collection('auctions').doc(id).onSnapshot(doc=>{
@@ -4176,9 +4202,12 @@ function renderWatch(data){
       window._watchUIKey=uiKey;
       const spoken='Now auctioning '+(p.name||'Unnamed')+', '+(idx+1)+' of '+players.length+(lead?'. '+lead:'');
       box.innerHTML=
-        '<div class="player-stage" style="padding:14px">'+
-        '<h2 class="player-name" id="wPN" tabindex="-1">'+spoken+'</h2>'+
+        '<div class="player-stage">'+
+        '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase">Now auctioning</p>'+
+        '<h2 class="player-name" id="wPN" tabindex="-1">'+(p.name||'Unnamed')+'</h2>'+
+        '<p style="margin:0;font-weight:700;color:var(--primary-bright)">'+(idx+1)+' of '+players.length+'</p>'+
         (data.mode==='virtual'&&lead?'<p class="lead-line" id="wLead" style="margin:8px 0 0;padding:8px;font-size:0.95rem" aria-hidden="true">'+lead+'</p>':'')+
+        '<span class="sr-only">'+spoken+'</span>'+
         '</div>'+
         (data.mode==='virtual'?'<p class="timer-box" id="wTimer" aria-hidden="true">'+timer+'</p>':'')+
         recentLineHtml(recent);

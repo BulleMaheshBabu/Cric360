@@ -886,11 +886,7 @@ a{color:var(--primary)}
         <button type="button" role="tab" id="insSubResp" class="btn-sec" aria-selected="false" style="flex:1;min-height:44px;border-radius:10px">Responses</button>
       </div>
       <div id="insPaneAsk" role="tabpanel" aria-labelledby="insSubAsk">
-        <label for="insAsk">Ask 360AI</label>
-        <textarea id="insAsk" rows="3" maxlength="400" aria-label="Ask 360AI"></textarea>
-        <button type="button" id="insSend" class="btn-ok btn-block" style="margin-top:8px">Send</button>
-        <p id="insStatus" role="status" aria-live="polite" style="min-height:1.2em;font-size:13px;color:var(--muted);margin:6px 0 0"></p>
-        <div id="insDraftBox" class="hidden" style="margin-top:12px" role="region" aria-labelledby="insDraftTitle">
+        <div id="insDraftBox" class="hidden" style="margin-bottom:12px" role="region" aria-labelledby="insDraftTitle">
           <h2 id="insDraftTitle" style="font-size:1rem;margin:0 0 6px" tabindex="-1">Answer</h2>
           <div id="insDraftText" class="ins-md-body" tabindex="0" style="padding:10px 12px;border:1px solid var(--border-focus);border-radius:10px;background:rgba(14,165,233,.08)"></div>
           <div id="insDraftActions" class="btn-stack" style="margin-top:10px">
@@ -901,12 +897,16 @@ a{color:var(--primary)}
             <button type="button" id="insDraftClear" class="btn-sec btn-block">Discard</button>
           </div>
         </div>
+        <p id="insStatus" role="status" aria-live="polite" style="font-size:13px;color:var(--muted);margin:0 0 8px;min-height:0"></p>
+        <label for="insAsk">Ask 360AI</label>
+        <textarea id="insAsk" rows="3" maxlength="400" aria-label="Ask 360AI"></textarea>
+        <button type="button" id="insSend" class="btn-ok btn-block" style="margin-top:8px">Send</button>
       </div>
       <div id="insPaneResp" class="hidden" role="tabpanel" aria-labelledby="insSubResp">
         <div id="insCard" class="ins-card" tabindex="0" role="article" aria-labelledby="insCardHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-height:100px">
-          <p id="insPageLabel" style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted)" aria-live="polite">No published responses yet</p>
-          <h2 id="insCardHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>
-          <div id="insCardBody" class="ins-md-body" style="margin:0;color:var(--muted)">Published answers appear here. Latest first. Swipe left or right to change.</div>
+          <p id="insPageLabel" style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted)" aria-live="polite"></p>
+          <h2 id="insCardHead" style="font-size:1rem;margin:0 0 8px">Responses</h2>
+          <div id="insCardBody" class="ins-md-body" style="margin:0;color:var(--muted)"></div>
         </div>
         <div id="insCardActions" class="btn-stack" style="margin-top:10px">
           <button type="button" id="insListen" class="btn-ok btn-block hidden">Listen</button>
@@ -3584,7 +3584,12 @@ function applyAuctionData(data){
     activeColumns:data.activeColumns||activeCols, rules:data.rules||null,
     bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
     pendingCoOrganisers:data.pendingCoOrganisers||[], coOrganiserIds:data.coOrganiserIds||[],
-    ownerId:data.ownerId, meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused, alertRules:data.alertRules||null, lastResult:data.lastResult||null, intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
+    ownerId:data.ownerId, ownerEmail:data.ownerEmail||'', ownerName:data.ownerName||'',
+    meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused, alertRules:data.alertRules||null,
+    lastResult:data.lastResult||null, lastAlert:data.lastAlert||null,
+    aiInsights: Array.isArray(data.aiInsights) ? data.aiInsights : [],
+    aiInsight: data.aiInsight || null,
+    intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
     playerAdvance: data.playerAdvance==='manual'?'manual':'auto',
     awaitNextPlayer: !!data.awaitNextPlayer
   };
@@ -3592,6 +3597,14 @@ function applyAuctionData(data){
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
   ownerMode=!!(user && data.mode==='virtual' && ow && ow.teamId);
   myTeamId=ow?ow.teamId:null;
+  // Refresh Insights album when published list changes
+  try{
+    const sig = JSON.stringify((T.aiInsights||[]).map(function(x){ return x && (x.id||x.at); }));
+    if(window._insListSig !== sig){
+      window._insListSig = sig;
+      if(typeof renderInsAlbum==='function') renderInsAlbum();
+    }
+  }catch(e){}
   // Manual wait for Next player — never auto-open
   if(T.awaitNextPlayer || (T.bid && T.bid.phase==='await_next')){
     T.awaitNextPlayer=true;
@@ -8227,7 +8240,16 @@ async function callAuctionAskMatchAi(question){
 
 function setInsStatus(msg){
   const el = $('insStatus');
-  if(el) el.textContent = msg || '';
+  if(!el) return;
+  el.textContent = msg || '';
+  if(window._insStatusTimer) clearTimeout(window._insStatusTimer);
+  window._insStatusTimer = null;
+  // Clear transient status so it does not stick forever
+  if(msg && !/failed|error|thinking/i.test(msg)){
+    window._insStatusTimer = setTimeout(function(){
+      if($('insStatus') && $('insStatus').textContent === msg) $('insStatus').textContent = '';
+    }, 4000);
+  }
 }
 
 function currentInsItem(){
@@ -8251,9 +8273,12 @@ function renderInsAlbum(){
   // Host sees Ask sub-tab; pure viewers on host screen still hide ask if needed
   if($('insSubAsk')) $('insSubAsk').classList.toggle('hidden', !host);
   if(!list.length){
-    if(label) label.textContent = 'No published responses yet';
-    if(head) head.textContent = 'Insights';
-    if(body) body.textContent = 'Published answers appear here. Latest first.';
+    if(label) label.textContent = '';
+    if(head) head.textContent = 'Responses';
+    if(body){
+      body.style.color = 'var(--muted)';
+      body.innerHTML = '<p style="margin:0">No published responses.</p>';
+    }
     if(del) del.classList.add('hidden');
     if(listen) listen.classList.add('hidden');
     if(prev) prev.classList.add('hidden');
@@ -8290,11 +8315,13 @@ function switchInsSub(which){
     $('insSubResp').classList.toggle('btn-sec', ask);
     $('insSubResp').setAttribute('aria-selected', ask ? 'false' : 'true');
   }
+  // Do not leave sticky "Answer ready" text on the Responses tab
   if(!ask){
+    try{ setInsStatus(''); }catch(e){}
     try{ renderInsAlbum(); }catch(e){}
     try{ focusEl($('insCardHead') || $('insPageLabel')); }catch(e){}
   } else {
-    try{ focusEl($('insAsk')); }catch(e){}
+    try{ focusEl($('insAsk') || $('insDraftTitle')); }catch(e){}
   }
 }
 
@@ -8372,7 +8399,7 @@ async function insSendAsk(){
     const answer = await callAuctionAskMatchAi(q);
     showInsDraft(q, answer);
     if($('insAsk')) $('insAsk').value = '';
-    setInsStatus('Answer ready. Copy, Publish, or Share.');
+    setInsStatus('Answer ready.');
     try{ if(typeof announce==='function') announce('360AI answer ready.'); }catch(e){}
   }catch(e){
     console.warn('AI360', e);
@@ -8413,7 +8440,7 @@ async function insPublishDraft(){
     if($('insAsk')) $('insAsk').value = '';
     try{ switchInsSub('responses'); }catch(e){}
     renderInsAlbum();
-    setInsStatus('Published. Everyone was alerted to check Insights.');
+    setInsStatus('Published.');
     try{
       if(typeof sayEvent === 'function') sayEvent('Host has posted a new response. Check Insights.', 'host');
       else if(typeof announce === 'function') announce('Host has posted a new response. Check Insights.');

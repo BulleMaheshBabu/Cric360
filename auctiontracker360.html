@@ -8,7 +8,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Auction Tracker 360" />
-<meta name="description" content="Run live club cricket auctions and track every bid, player, and purse in real time." />
+<meta name="description" content="Organise your auctions with 360 degree dimensions — Auction Tracker 360." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Auction Tracker 360" />
+<meta property="og:title" content="Auction Tracker 360" />
+<meta property="og:description" content="Organise your auctions with 360 degree dimensions." />
+<meta property="og:url" content="https://auctiontracker360.web.app/" />
+<meta property="og:image" content="https://auctiontracker360.web.app/icons/icon-512.png" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Auction Tracker 360" />
+<meta name="twitter:description" content="Organise your auctions with 360 degree dimensions." />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icons/icon-192.png" type="image/png" />
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -341,7 +350,22 @@ button.btn-sec[aria-label*="Back"]::before,button.btn-sec[aria-label*="back"]::b
 #confirmModal .row{flex-direction:column;align-items:stretch}
 #confirmModal .row button{width:100%}
 
+#playerSearchModal .modal-box{max-height:90vh;overflow:auto}
+#psInput{font-size:16px!important} /* prevent iOS zoom */
 /* Insights album */
+.ins-md-body{font-size:15px;line-height:1.45;color:var(--text)}
+.ins-md-body table{width:100%;border-collapse:collapse;margin:8px 0 12px;font-size:13px}
+.ins-md-body th,.ins-md-body td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+.ins-md-body th{background:rgba(14,165,233,.12);font-weight:800}
+.ins-md-body tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+.ins-md-body ul{margin:6px 0 10px;padding-left:1.2em}
+.ins-md-body li{margin:4px 0}
+.ins-md-body p{margin:6px 0}
+.ins-md-body h3,.ins-md-body h4{margin:10px 0 6px;font-size:1rem}
+#tabInsights{display:flex;flex-direction:column;min-height:0}
+#tabInsights .ins-scroll{flex:1;overflow:auto;min-height:0;padding-bottom:8px}
+#insAskBarFixed{flex-shrink:0;padding-top:10px;border-top:1px solid var(--border);background:var(--bg)}
+
 #tabInsights .ins-card, #watchPaneInsights .ins-card{touch-action:pan-y}
 #tabInsights .ins-album-nav button, #watchPaneInsights .ins-album-nav button{flex-shrink:0}
 @media(max-width:600px){
@@ -868,7 +892,7 @@ a{color:var(--primary)}
         <p id="insStatus" role="status" aria-live="polite" style="min-height:1.2em;font-size:13px;color:var(--muted);margin:6px 0 0"></p>
         <div id="insDraftBox" class="hidden" style="margin-top:12px" role="region" aria-labelledby="insDraftTitle">
           <h2 id="insDraftTitle" style="font-size:1rem;margin:0 0 6px" tabindex="-1">Answer</h2>
-          <div id="insDraftText" tabindex="0" style="padding:10px 12px;border:1px solid var(--border-focus);border-radius:10px;background:rgba(14,165,233,.08);white-space:pre-wrap;font-size:15px;line-height:1.45"></div>
+          <div id="insDraftText" class="ins-md-body" tabindex="0" style="padding:10px 12px;border:1px solid var(--border-focus);border-radius:10px;background:rgba(14,165,233,.08)"></div>
           <div id="insDraftActions" class="btn-stack" style="margin-top:10px">
             <button type="button" id="insListenDraft" class="btn-ok btn-block hidden">Listen</button>
             <button type="button" id="insCopy" class="btn-sec btn-block">Copy</button>
@@ -882,7 +906,7 @@ a{color:var(--primary)}
         <div id="insCard" class="ins-card" tabindex="0" role="article" aria-labelledby="insCardHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-height:100px">
           <p id="insPageLabel" style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted)" aria-live="polite">No published responses yet</p>
           <h2 id="insCardHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>
-          <p id="insCardBody" style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.45;color:var(--muted)">Published answers appear here. Latest first. Swipe left or right to change.</p>
+          <div id="insCardBody" class="ins-md-body" style="margin:0;color:var(--muted)">Published answers appear here. Latest first. Swipe left or right to change.</div>
         </div>
         <div id="insCardActions" class="btn-stack" style="margin-top:10px">
           <button type="button" id="insListen" class="btn-ok btn-block hidden">Listen</button>
@@ -893,7 +917,10 @@ a{color:var(--primary)}
       </div>
     </div>
     <div id="tabTools" class="panel hidden" role="region" aria-labelledby="toolsTitle">
-      <h1 id="toolsTitle" tabindex="-1">More</h1>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
+        <h1 id="toolsTitle" tabindex="-1" style="margin:0">More</h1>
+        <button type="button" id="btnSearchPlayer" class="btn-sec" style="flex-shrink:0;min-height:40px;padding:8px 12px;font-size:13px;font-weight:700" aria-label="Search player">Search player</button>
+      </div>
       <div id="moreStats" class="stats" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
       <div id="toolsMenuWrap">
         <div id="toolsMenu" class="squad-grid" role="navigation" aria-label="Player lists">
@@ -926,6 +953,20 @@ a{color:var(--primary)}
     <button type="button" role="tab" id="tabBtnTools" aria-selected="false">More</button>
   </nav>
 </section>
+
+
+<div id="playerSearchModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="psTitle">
+  <div class="modal-box" style="max-width:520px;width:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <h2 id="psTitle" tabindex="-1" style="margin:0;font-size:1.15rem">Search player</h2>
+      <button type="button" id="btnPsClose" class="btn-sec" style="min-height:40px" aria-label="Close search">Close</button>
+    </div>
+    <label for="psInput">Player name</label>
+    <input id="psInput" type="search" autocomplete="off" enterkeyhint="search" placeholder="" aria-label="Type a player name" style="width:100%;min-height:48px;font-size:16px" />
+    <p id="psHint" style="color:var(--muted);font-size:13px;margin:8px 0 0">Type to find players. Sold shows team and price.</p>
+    <div id="psResults" role="list" aria-label="Search results" style="margin-top:12px;max-height:50vh;overflow:auto"></div>
+  </div>
+</div>
 
 <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cTitle">
   <div class="modal-box">
@@ -2867,6 +2908,76 @@ document.addEventListener('keydown', function(ev){
   if(ev.key==='Escape' && isConfirmOpen()){ closeConfirm(); }
 });
 
+/* ===== Silent auction hotkeys (no UI hints) ===== */
+document.addEventListener('keydown', function(ev){
+  try{
+    if(!ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    const tag = (ev.target && ev.target.tagName) ? ev.target.tagName.toLowerCase() : '';
+    if(tag === 'input' || tag === 'textarea' || tag === 'select' || (ev.target && ev.target.isContentEditable)) return;
+    // Modals / dialogs: ignore
+    if(document.querySelector('.modal:not(.hidden), [role="dialog"]:not([aria-hidden="true"])')){
+      const open = document.querySelector('.modal:not(.hidden)');
+      if(open) return;
+    }
+
+    const onAuction = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
+    const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
+    const k = (ev.key || '').toLowerCase();
+    const code = ev.code || '';
+
+    // Tab switching — host auction screen
+    if(onAuction){
+      if(k === 'l'){ ev.preventDefault(); try{ switchTab('auction'); }catch(e){} return; }
+      if(k === 's'){ ev.preventDefault(); try{ switchTab('squads'); }catch(e){} return; }
+      if(k === 'i'){ ev.preventDefault(); try{ switchTab('insights'); }catch(e){} return; }
+      if(k === 'm'){ ev.preventDefault(); try{ switchTab('tools'); }catch(e){} return; }
+    }
+    // Viewer tabs
+    if(onWatch){
+      if(k === 'l'){ ev.preventDefault(); try{ switchWatchTab('live'); }catch(e){} return; }
+      if(k === 's'){ ev.preventDefault(); try{ switchWatchTab('squads'); }catch(e){} return; }
+      if(k === 'i'){ ev.preventDefault(); try{ switchWatchTab('insights'); }catch(e){} return; }
+      if(k === 'm'){ ev.preventDefault(); try{ switchWatchTab('lists'); }catch(e){} return; }
+    }
+
+    // Virtual bidding shortcuts only when owner can act
+    if(!onAuction || !ownerMode) return;
+    if(typeof isVirtual === 'function' && !isVirtual()) return;
+
+    // Alt+O — open / base bid (first bidRaise with data-inc 0, or only open button)
+    if(k === 'o'){
+      const openBtn = document.querySelector('#bidRegion .bidRaise[data-inc="0"], #bidRegion .bidRaise');
+      if(openBtn && !openBtn.disabled){
+        ev.preventDefault();
+        openBtn.click();
+      }
+      return;
+    }
+
+    // Alt+1..9 — increment buttons in order shown (skip open/base data-inc=0)
+    let digit = -1;
+    if(code >= 'Digit1' && code <= 'Digit9') digit = parseInt(code.replace('Digit',''), 10);
+    else if(code >= 'Numpad1' && code <= 'Numpad9') digit = parseInt(code.replace('Numpad',''), 10);
+    else if(k >= '1' && k <= '9') digit = parseInt(k, 10);
+    if(digit >= 1 && digit <= 9){
+      const raises = Array.prototype.slice.call(document.querySelectorAll('#bidRegion .bidRaise'));
+      // Prefer increment buttons (data-inc > 0); if none, use all
+      let list = raises.filter(function(b){
+        const inc = parseInt(b.getAttribute('data-inc')||'0', 10);
+        return inc > 0;
+      });
+      if(!list.length) list = raises;
+      const btn = list[digit - 1];
+      if(btn && !btn.disabled){
+        ev.preventDefault();
+        btn.click();
+      }
+    }
+  }catch(e){}
+}, true);
+
+
+
 /* Auth */
 $('btnGoogle').onclick=async()=>{
   $('authError').textContent='';
@@ -2917,6 +3028,8 @@ async function loadProfile(u){
 async function refreshProfile(){ if(user) profile=await loadProfile(user); return profile; }
 
 function enterHome(){
+  try{ applyShareMeta('home'); }catch(e){}
+
   // Account name only in Settings — hide from top bar on all other screens
   try{
     const nb=$('navUserBadge');
@@ -3011,6 +3124,12 @@ auth.onAuthStateChanged(async u=>{
   enterHome();
   if(joinAuctionId){
     try{ await handleJoinInvite(); }catch(e){ safeAlert(e); }
+  } else if(window._watchDeepLink){
+    try{
+      const wid=window._watchDeepLink; window._watchDeepLink=null;
+      try{ history.replaceState({},'',location.pathname);}catch(e){}
+      if(typeof openAuction==='function') await openAuction(wid);
+    }catch(e){ safeAlert(e); }
   }
   try{
     profileUnsub=db.collection('users').doc(u.uid).onSnapshot(snap=>{
@@ -3037,7 +3156,8 @@ auth.onAuthStateChanged(async u=>{
 try{
   const q=new URLSearchParams(location.search);
   joinAuctionId=q.get('join')||null;
-}catch(e){ joinAuctionId=null; }
+  window._watchDeepLink=q.get('watch')||null;
+}catch(e){ joinAuctionId=null; window._watchDeepLink=null; }
 
 async function handleJoinInvite(){
   if(!joinAuctionId||!user||!db) return;
@@ -3863,9 +3983,12 @@ async function openAuction(id){
   const isHelper=user&&(data.coOrganiserIds||[]).includes(user.uid);
   const isTeamOwner=user&&(data.owners||[]).some(o=>o.uid===user.uid&&o.teamId);
   if((isOwner||isHelper||isTeamOwner) && (data.status==='live'||data.status==='setup')){
-    resumeAuction(id,data); return;
+    resumeAuction(id,data);
+    try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
+    return;
   }
   showScreen('screenWatch');
+  try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: false }); }catch(e){}
   window._liveJoinQuiet=true;
   try{ queueClearSpeech(); }catch(e){}
   try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
@@ -3913,6 +4036,7 @@ async function openAuction(id){
       }
       const data=doc.data();
       window._lastWatchData=data;
+      try{ applyShareMeta('watch', data, { includeHostEmail: false }); }catch(e){}
       if(data.status!=='ended'){
         try{ processLiveSpeech(data, { isViewer:true }); }catch(e){ console.warn('processLiveSpeech', e); }
       }
@@ -4723,7 +4847,237 @@ async function cloudSave(silent){
   throw lastErr;
 }
 
-function inviteUrl(){ return location.origin+location.pathname+'?join='+(auctionId||''); }
+
+/* ===== Link previews + share text ===== */
+function setMetaTag(attr, key, value){
+  if(!value) return;
+  let el = document.head.querySelector('meta['+attr+'="'+key+'"]');
+  if(!el){
+    el = document.createElement('meta');
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', value);
+}
+function hostDisplayName(data){
+  data = data || T || {};
+  const n = (data.ownerName || data.hostName || '').trim();
+  if(n) return n;
+  const e = (data.ownerEmail || '').trim();
+  if(e){
+    const local = e.split('@')[0];
+    return local || e;
+  }
+  return 'the host';
+}
+function appOriginPath(){
+  try{
+    return location.origin + (location.pathname || '/');
+  }catch(e){
+    return 'https://auctiontracker360.web.app/';
+  }
+}
+function watchShareUrl(id){
+  const aid = id || auctionId || '';
+  return appOriginPath() + (aid ? ('?watch=' + encodeURIComponent(aid)) : '');
+}
+function joinShareUrl(id){
+  const aid = id || auctionId || '';
+  return appOriginPath() + (aid ? ('?join=' + encodeURIComponent(aid)) : '');
+}
+/** Share copy + OG text by role */
+function buildSharePreview(kind, data, opts){
+  opts = opts || {};
+  data = data || T || {};
+  const titleA = (data.title || 'Auction').trim();
+  const host = hostDisplayName(data);
+  const hostEmail = (data.ownerEmail || '').trim();
+  const showEmail = !!opts.includeHostEmail && !!hostEmail;
+  const site = 'Auction Tracker 360';
+  if(kind === 'home'){
+    return {
+      title: site,
+      description: 'Organise your auctions with 360 degree dimensions.',
+      text: 'Organise your auctions with 360 degree dimensions — only on Auction Tracker 360.\n' + appOriginPath()
+    };
+  }
+  if(kind === 'owner' || kind === 'virtual'){
+    return {
+      title: 'Join the bid — ' + titleA,
+      description: host + ' invites you to join and bid for your dream team in ' + titleA + '.',
+      text: 'Join and bid for your dream team.\n' + host + ' is inviting you to ' + titleA + ' on Auction Tracker 360.' +
+        (showEmail ? ('\nHost: ' + hostEmail) : '') + '\n' + joinShareUrl(data.id || auctionId)
+    };
+  }
+  if(kind === 'helper'){
+    return {
+      title: 'Co-organise — ' + titleA,
+      description: host + ' would like you as co-organiser for ' + titleA + '.',
+      text: host + ' wants you as co-organiser for ' + titleA + '.\nJoin hands and help run the room on Auction Tracker 360.' +
+        (showEmail ? ('\nHost: ' + hostEmail) : '') + '\n' + joinShareUrl(data.id || auctionId)
+    };
+  }
+  // watch / live / past (viewer)
+  const live = (data.status || '') !== 'ended';
+  const verb = live ? 'live' : 'past';
+  let desc = 'Watch ' + titleA + ' ' + verb + ' on Auction Tracker 360. Hosted by ' + host + '.';
+  if(showEmail) desc += ' Host: ' + hostEmail + '.';
+  return {
+    title: titleA + ' · ' + site,
+    description: desc,
+    text: 'Watch ' + titleA + ' ' + verb + ' on Auction Tracker 360.\nHosted by ' + host +
+      (showEmail ? (' (' + hostEmail + ')') : '') + '.\n' + watchShareUrl(data.id || auctionId)
+  };
+}
+function applyShareMeta(kind, data, opts){
+  const p = buildSharePreview(kind, data, opts);
+  try{ document.title = p.title; }catch(e){}
+  setMetaTag('name', 'description', p.description);
+  setMetaTag('property', 'og:title', p.title);
+  setMetaTag('property', 'og:description', p.description);
+  setMetaTag('property', 'og:url', (kind==='home') ? appOriginPath() : (kind==='owner'||kind==='helper'||kind==='virtual' ? joinShareUrl((data&&data.id)||auctionId) : watchShareUrl((data&&data.id)||auctionId)));
+  setMetaTag('name', 'twitter:title', p.title);
+  setMetaTag('name', 'twitter:description', p.description);
+  return p;
+}
+async function shareWithPreview(kind, data, opts){
+  const p = applyShareMeta(kind, data, opts);
+  const url = (kind==='home') ? appOriginPath()
+    : (kind==='owner'||kind==='helper'||kind==='virtual') ? joinShareUrl((data&&data.id)||auctionId)
+    : watchShareUrl((data&&data.id)||auctionId);
+  try{
+    if(navigator.share){
+      await navigator.share({ title: p.title, text: p.text, url: url });
+      return;
+    }
+  }catch(e){
+    if(e && e.name === 'AbortError') return;
+  }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(p.text);
+      alert('Share text copied.');
+      return;
+    }
+  }catch(e){}
+  alert(p.text);
+}
+
+function inviteUrl(){ return joinShareUrl(auctionId); }
+
+/* ===== Search player (More tab) ===== */
+function resolvePlayerSaleForSearch(p, teams){
+  teams = teams || (T && T.teams) || [];
+  if(p && (p.soldTeam || p.team) && (p.soldPrice != null || p.price != null)){
+    return { team: p.soldTeam || p.team, price: p.soldPrice != null ? p.soldPrice : p.price };
+  }
+  if(!p || !p.sold) return { team: '', price: null };
+  for(let ti=0; ti<teams.length; ti++){
+    const t = teams[ti];
+    const list = t.players || [];
+    for(let i=list.length-1; i>=0; i--){
+      const x = list[i];
+      if(!x) continue;
+      const same =
+        (p.serial != null && x.serial != null && String(p.serial)===String(x.serial)) ||
+        (p.id != null && x.id != null && String(p.id)===String(x.id)) ||
+        (x.name && p.name && String(x.name)===String(p.name));
+      if(same) return { team: t.name || t.id || '', price: x.price != null ? x.price : null };
+    }
+  }
+  return { team: '', price: null };
+}
+function openPlayerSearch(){
+  const modal = $('playerSearchModal');
+  if(!modal) return;
+  modal.classList.remove('hidden');
+  if($('psResults')) $('psResults').innerHTML = '';
+  if($('psInput')){
+    $('psInput').value = '';
+    setTimeout(function(){
+      try{ $('psInput').focus(); }catch(e){}
+      // Mobile: focus should open keyboard
+    }, 50);
+  }
+  try{ if(typeof announce==='function') announce('Search player. Type a name.'); }catch(e){}
+}
+function closePlayerSearch(){
+  const modal = $('playerSearchModal');
+  if(modal) modal.classList.add('hidden');
+  try{ focusEl($('btnSearchPlayer') || $('toolsTitle')); }catch(e){}
+}
+function runPlayerSearch(){
+  const q = (($('psInput') && $('psInput').value) || '').trim().toLowerCase();
+  const box = $('psResults');
+  if(!box) return;
+  if(!T || !Array.isArray(T.players)){
+    box.innerHTML = '<p style="color:var(--muted)">No auction loaded.</p>';
+    return;
+  }
+  if(!q){
+    box.innerHTML = '<p style="color:var(--muted)">Start typing a player name.</p>';
+    return;
+  }
+  const matches = [];
+  (T.players || []).forEach(function(p, i){
+    if(!p || !p.name) return;
+    if(String(p.name).toLowerCase().indexOf(q) < 0) return;
+    matches.push({ p: p, i: i });
+  });
+  if(!matches.length){
+    box.innerHTML = '<p style="color:var(--muted)">No players match “'+String(q).replace(/</g,'')+'”.</p>';
+    return;
+  }
+  // Prefer exact-ish and starts-with
+  matches.sort(function(a,b){
+    const an = String(a.p.name).toLowerCase(), bn = String(b.p.name).toLowerCase();
+    const as = an.indexOf(q) === 0 ? 0 : 1;
+    const bs = bn.indexOf(q) === 0 ? 0 : 1;
+    if(as !== bs) return as - bs;
+    return an.localeCompare(bn);
+  });
+  let h = '';
+  matches.slice(0, 40).forEach(function(m){
+    const p = m.p;
+    let status = 'Remaining';
+    let detail = '';
+    let badge = 'badge';
+    if(p.sold){
+      status = 'Sold';
+      badge = 'badge sold';
+      const sale = resolvePlayerSaleForSearch(p, T.teams);
+      detail = (sale.team ? (' · ' + sale.team) : '') + (sale.price != null ? (' · ' + sale.price) : '');
+    } else if(p.unsold){
+      status = 'Unsold';
+      badge = 'badge unsold';
+    }
+    const role = p.role || p.type || '';
+    h += '<div role="listitem" class="panel" style="margin:0 0 8px;padding:12px">'+
+      '<p style="margin:0;font-weight:800">'+(p.name||'')+'</p>'+
+      '<p style="margin:4px 0 0;font-size:13px"><span class="'+badge+'">'+status+'</span>'+
+      (role ? (' · '+role) : '')+detail+'</p></div>';
+  });
+  if(matches.length > 40) h += '<p style="color:var(--muted);font-size:13px">Showing 40 of '+matches.length+' matches.</p>';
+  box.innerHTML = h;
+}
+function wirePlayerSearch(){
+  if($('btnSearchPlayer')) $('btnSearchPlayer').onclick = openPlayerSearch;
+  if($('btnPsClose')) $('btnPsClose').onclick = closePlayerSearch;
+  if($('playerSearchModal')){
+    $('playerSearchModal').addEventListener('click', function(e){
+      if(e.target === $('playerSearchModal')) closePlayerSearch();
+    });
+  }
+  if($('psInput')){
+    $('psInput').addEventListener('input', runPlayerSearch);
+    $('psInput').addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); closePlayerSearch(); }
+    });
+  }
+}
+try{ wirePlayerSearch(); }catch(e){ console.warn('wirePlayerSearch', e); }
+
+
 
 let assignUnsub=null;
 function stopAssignLive(){
@@ -4755,8 +5109,11 @@ async function renderPhysicalHelperPanel(box){
     '<p style="color:var(--muted);font-size:14px">Helpers open the link, sign in, then appear below. Approve to allow squad edits.</p>'+
     '<div id="physHelperList"></div>';
   $('btnCopyPhysInv').onclick=()=>{
-    const v=$('physInv').value;
-    if(navigator.clipboard) navigator.clipboard.writeText(v).then(()=>alert('Copied')); else alert(v);
+    try{ shareWithPreview('helper', Object.assign({}, T, {id: auctionId}), { includeHostEmail: true }); }
+    catch(e){
+      const v=$('physInv').value;
+      if(navigator.clipboard) navigator.clipboard.writeText(v).then(()=>alert('Copied')); else alert(v);
+    }
   };
   physHelperUnsub=db.collection('auctions').doc(auctionId).onSnapshot(doc=>{
     if(!doc.exists) return;
@@ -4832,8 +5189,11 @@ async function renderVirtualAssign(body){
     '<div id="assignLive"></div>';
 
   $('btnCopyInv').onclick=()=>{
-    const v=$('invField').value;
-    if(navigator.clipboard) navigator.clipboard.writeText(v).then(()=>alert('Link copied')); else alert(v);
+    try{ shareWithPreview('owner', Object.assign({}, T, {id: auctionId}), { includeHostEmail: true }); }
+    catch(e){
+      const v=($('invUrl')&&$('invUrl').value)||inviteUrl();
+      if(navigator.clipboard) navigator.clipboard.writeText(v).then(()=>alert('Link copied')); else alert(v);
+    }
   };
 
   assignUnsub = db.collection('auctions').doc(auctionId).onSnapshot(doc=>{
@@ -7744,6 +8104,86 @@ function buildAuctionAiContext(){
   return lines.join('\n');
 }
 
+function escapeInsHtml(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function markdownToInsHtml(text){
+  if(!text) return '';
+  let t = String(text).replace(/\r\n/g,'\n').trim();
+  t = t.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1');
+  const lines = t.split('\n');
+  const out = [];
+  let i = 0;
+  while(i < lines.length){
+    const line = lines[i];
+    if(line.indexOf('|') >= 0 && i+1 < lines.length && /^\s*\|?\s*[-:| ]+\s*\|?\s*$/.test(lines[i+1])){
+      const rows = [];
+      while(i < lines.length && lines[i].indexOf('|') >= 0){
+        if(/^\s*\|?\s*[-:| ]+\s*\|?\s*$/.test(lines[i])){ i++; continue; }
+        const cells = lines[i].split('|').map(function(c){ return c.trim(); }).filter(function(c,idx,arr){
+          return !(idx===0 && c==='') && !(idx===arr.length-1 && c==='');
+        });
+        if(cells.length) rows.push(cells);
+        i++;
+      }
+      if(rows.length){
+        let html = '<table><thead><tr>' + rows[0].map(function(c){ return '<th>'+escapeInsHtml(c)+'</th>'; }).join('') + '</tr></thead><tbody>';
+        for(let r=1;r<rows.length;r++){
+          html += '<tr>' + rows[r].map(function(c){ return '<td>'+escapeInsHtml(c)+'</td>'; }).join('') + '</tr>';
+        }
+        html += '</tbody></table>';
+        out.push(html);
+      }
+      continue;
+    }
+    if(!line.trim()){ i++; continue; } // skip blank lines (no huge gaps)
+    if(/^###\s+/.test(line)) out.push('<h4>'+escapeInsHtml(line.replace(/^###\s+/,''))+'</h4>');
+    else if(/^##\s+/.test(line)) out.push('<h3>'+escapeInsHtml(line.replace(/^##\s+/,''))+'</h3>');
+    else if(/^#\s+/.test(line)) out.push('<h3>'+escapeInsHtml(line.replace(/^#\s+/,''))+'</h3>');
+    else if(/^\*\s+/.test(line) || /^-\s+/.test(line) || /^•\s+/.test(line))
+      out.push('<li>'+escapeInsHtml(line.replace(/^[\*\-•]\s+/,''))+'</li>');
+    else out.push('<p>'+escapeInsHtml(line)+'</p>');
+    i++;
+  }
+  let html = out.join('\n');
+  html = html.replace(/(?:<li>[\s\S]*?<\/li>\n?)+/g, function(block){ return '<ul>'+block+'</ul>'; });
+  return html;
+}
+function insStopSpeech(){
+  try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
+  window._insListening = false;
+  if($('insListen')) $('insListen').textContent = 'Listen';
+  if($('insListenDraft')) $('insListenDraft').textContent = 'Listen';
+  if($('wInsListen')) $('wInsListen').textContent = 'Listen';
+}
+function insToggleListen(text, btn){
+  if(!text) return;
+  if(window._insListening){
+    insStopSpeech();
+    return;
+  }
+  window._insListening = true;
+  if(btn) btn.textContent = 'Stop';
+  try{
+    if(typeof sayEvent === 'function') sayEvent(text, 'host');
+    else if(typeof ttsSpeak === 'function') ttsSpeak(text, 'host');
+    else if(window.speechSynthesis){
+      const u = new SpeechSynthesisUtterance(text);
+      u.onend = function(){ insStopSpeech(); };
+      u.onerror = function(){ insStopSpeech(); };
+      speechSynthesis.speak(u);
+    }
+  }catch(e){ insStopSpeech(); }
+  // Auto-reset label if TTS API has no end callback
+  setTimeout(function(){
+    if(window._insListening){
+      try{
+        if(window.speechSynthesis && !speechSynthesis.speaking) insStopSpeech();
+      }catch(e){}
+    }
+  }, 120000);
+}
 function cleanAi360Text(raw){
   let t = String(raw || '').replace(/\r/g, '');
   t = t.replace(/```[\s\S]*?```/g, ' ');
@@ -7826,8 +8266,9 @@ function renderInsAlbum(){
   if(head) head.textContent = item.question ? ('Q: ' + item.question) : 'AI360 response';
   if(body){
     body.style.color = 'var(--text)';
-    body.textContent = item.text || '';
+    body.innerHTML = markdownToInsHtml(item.text || '');
   }
+  if(listen) listen.textContent = 'Listen';
   if(listen) listen.classList.remove('hidden');
   if(prev) prev.classList.toggle('hidden', list.length < 2);
   if(next) next.classList.toggle('hidden', list.length < 2);
@@ -7893,9 +8334,16 @@ function showInsDraft(q, text){
   window._insDraft = text || '';
   window._insDraftQ = q || '';
   const box = $('insDraftBox');
-  if($('insDraftText')) $('insDraftText').textContent = text || '';
+  const el = $('insDraftText');
+  if(el){
+    if(text) el.innerHTML = markdownToInsHtml(text);
+    else el.innerHTML = '';
+  }
   if(box) box.classList.toggle('hidden', !text);
-  if($('insListenDraft')) $('insListenDraft').classList.toggle('hidden', !text);
+  if($('insListenDraft')){
+    $('insListenDraft').classList.toggle('hidden', !text);
+    $('insListenDraft').textContent = 'Listen';
+  }
   if(text){
     try{ focusEl($('insDraftTitle') || $('insDraftText')); }catch(e){}
   }
@@ -7923,6 +8371,7 @@ async function insSendAsk(){
   try{
     const answer = await callAuctionAskMatchAi(q);
     showInsDraft(q, answer);
+    if($('insAsk')) $('insAsk').value = '';
     setInsStatus('Answer ready. Copy, Publish, or Share.');
     try{ if(typeof announce==='function') announce('360AI answer ready.'); }catch(e){}
   }catch(e){
@@ -8038,7 +8487,7 @@ function renderWatchInsights(data){
     '<p id="wInsPage" style="margin:0 0 6px;font-size:12px;font-weight:700;color:var(--muted)" aria-live="polite">'+(window._wInsIndex+1)+' of '+list.length+'</p>'+
     '<div class="ins-card" tabindex="0" role="article" aria-labelledby="wInsHead" style="padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card)">'+
     '<h2 id="wInsHead" style="font-size:1rem;margin:0 0 8px">Insights</h2>'+q+
-    '<p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.45">'+body+'</p></div>'+
+    '<div class="ins-md-body" style="margin:0">'+markdownToInsHtml(item.text||'')+'</div></div>'+
     navBtns;
   if($('wInsPrev')) $('wInsPrev').onclick = function(){
     window._wInsIndex = (window._wInsIndex - 1 + list.length) % list.length;
@@ -8052,11 +8501,7 @@ function renderWatchInsights(data){
   };
   if($('wInsListen')) $('wInsListen').onclick = function(){
     const line = (item.question ? ('Question: ' + item.question + '. Answer: ') : '') + (item.text || '');
-    try{
-      if(typeof sayEvent === 'function') sayEvent(line, 'host');
-      else if(typeof ttsSpeak === 'function') ttsSpeak(line, 'host');
-      else if(typeof announce === 'function') announce(line);
-    }catch(e){}
+    insToggleListen(line, $('wInsListen'));
   };
   // Swipe on card
   try{
@@ -8098,15 +8543,14 @@ function wireAi360(){
     try{ focusEl($('insAsk')); }catch(e){}
   };
   if($('insListenDraft')) $('insListenDraft').onclick = function(){
-    const t = (window._insDraft || '').trim();
-    if(!t) return;
-    try{
-      if(typeof sayEvent === 'function') sayEvent(t, 'host');
-      else if(typeof ttsSpeak === 'function') ttsSpeak(t, 'host');
-      else if(typeof announce === 'function') announce(t);
-    }catch(e){}
+    insToggleListen((window._insDraft || '').trim(), $('insListenDraft'));
   };
-  if($('insListen')) $('insListen').onclick = function(){ insListenCurrent(); };
+  if($('insListen')) $('insListen').onclick = function(){
+    const item = currentInsItem();
+    if(!item || !item.text) return;
+    const line = (item.question ? ('Question: ' + item.question + '. Answer: ') : '') + item.text;
+    insToggleListen(line, $('insListen'));
+  };
   if($('insDelete')) $('insDelete').onclick = function(){ insDeleteCurrent(); };
   if($('insPrev')) $('insPrev').onclick = function(){
     const list = getAiInsightsList(T);

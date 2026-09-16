@@ -632,15 +632,36 @@ ul.plain{list-style:none;padding:0;margin:0}
 ul.plain li{padding:12px 0;border-bottom:1px solid var(--border)}
 
 a{color:var(--primary)}
+
+/* Voice call UI */
+.call-strip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;
+  padding:8px 10px;background:rgba(0,180,216,.12);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:160}
+.call-strip.hidden{display:none}
+.call-strip .call-state{font-weight:700;font-size:13px;color:var(--primary-bright)}
+#btnNavCall{min-height:40px;padding:6px 12px;font-weight:700;font-size:13px}
+#voiceRingModal .modal-box,#voiceHostModal .modal-box{max-width:420px;width:100%}
+.voice-owner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.voice-owner-row:last-child{border-bottom:0}
+
 </style>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <header class="top-nav" role="banner">
   <div class="top-nav-inner">
     <div class="brand-logo"><span class="dot" aria-hidden="true"></span> Auction Tracker 360</div>
-    <div class="user-badge hidden" id="navUserBadge" aria-hidden="true"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button type="button" id="btnNavCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
+      <div class="user-badge hidden" id="navUserBadge" aria-hidden="true"></div>
+    </div>
   </div>
 </header>
+<div id="callStrip" class="call-strip hidden" role="region" aria-label="Voice call controls">
+  <span id="callStateLabel" class="call-state" aria-live="polite">In call</span>
+  <button type="button" id="btnCallMute" class="btn-sec" aria-pressed="false">Mute</button>
+  <button type="button" id="btnCallExit" class="btn-danger">Exit</button>
+  <button type="button" id="btnCallHostOpts" class="btn-sec hidden">Call options</button>
+</div>
 <div id="live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 <div id="liveSoft" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 <div id="timerBanner" class="timer-banner hidden" aria-hidden="true"></div>
@@ -965,6 +986,36 @@ a{color:var(--primary)}
     <input id="psInput" type="search" autocomplete="off" enterkeyhint="search" placeholder="" aria-label="Type a player name" style="width:100%;min-height:48px;font-size:16px" />
     <p id="psHint" style="color:var(--muted);font-size:13px;margin:8px 0 0">Type to find players. Sold shows team and price.</p>
     <div id="psResults" role="list" aria-label="Search results" style="margin-top:12px;max-height:50vh;overflow:auto"></div>
+  </div>
+</div>
+
+
+<div id="voiceRingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="vrTitle">
+  <div class="modal-box">
+    <h2 id="vrTitle" tabindex="-1" style="margin-top:0">Incoming voice call</h2>
+    <p id="vrMsg">Host wants to talk with you.</p>
+    <div class="btn-stack" style="margin-top:12px">
+      <button type="button" id="btnVoiceJoin" class="btn-ok btn-block">Join</button>
+      <button type="button" id="btnVoiceReject" class="btn-sec btn-block">Reject</button>
+    </div>
+  </div>
+</div>
+<div id="voiceHostModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="vhTitle">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+      <h2 id="vhTitle" tabindex="-1" style="margin:0;font-size:1.1rem">Voice call</h2>
+      <button type="button" id="btnVhClose" class="btn-sec" style="min-height:40px">Close</button>
+    </div>
+    <div id="vhOwnerList" role="list" aria-label="Owners"></div>
+    <div class="btn-stack" style="margin-top:12px">
+      <button type="button" id="btnRingAll" class="btn-ok btn-block">Ring all</button>
+      <button type="button" id="btnCallOptsEnd" class="btn-danger btn-block hidden">End call for all</button>
+      <button type="button" id="btnCallOptsMuteAll" class="btn-sec btn-block hidden">Mute all</button>
+    </div>
+    <div id="vhJoinedBox" class="hidden" style="margin-top:14px">
+      <h3 style="font-size:0.95rem;margin:0 0 8px">Joined</h3>
+      <div id="vhJoinedList"></div>
+    </div>
   </div>
 </div>
 
@@ -2717,6 +2768,7 @@ function showScreen(id){
       if(on) el.removeAttribute('inert'); else el.setAttribute('inert','');
     });
   document.body.classList.toggle('has-tabbar', id==='screenAuction' || id==='screenWatch');
+  try{ if(typeof updateNavCallBtn==='function') updateNavCallBtn(); }catch(e){}
   document.body.classList.toggle('has-hub-tabbar', id==='screenHome');
   try{
     const hb=$('hubTabbar');
@@ -3589,6 +3641,7 @@ function applyAuctionData(data){
     lastResult:data.lastResult||null, lastAlert:data.lastAlert||null,
     aiInsights: Array.isArray(data.aiInsights) ? data.aiInsights : [],
     aiInsight: data.aiInsight || null,
+    voiceCall: data.voiceCall || null,
     intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
     playerAdvance: data.playerAdvance==='manual'?'manual':'auto',
     awaitNextPlayer: !!data.awaitNextPlayer
@@ -3597,6 +3650,7 @@ function applyAuctionData(data){
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
   ownerMode=!!(user && data.mode==='virtual' && ow && ow.teamId);
   myTeamId=ow?ow.teamId:null;
+  try{ if(typeof syncVoiceCallUi==='function') syncVoiceCallUi(data); }catch(e){}
   // Refresh Insights album when published list changes
   try{
     const sig = JSON.stringify((T.aiInsights||[]).map(function(x){ return x && (x.id||x.at); }));
@@ -4832,6 +4886,7 @@ async function cloudSave(silent){
     pendingCoOrganisers:T.pendingCoOrganisers||[], coOrganiserIds:T.coOrganiserIds||[], coOrganiserEmails:T.coOrganiserEmails||[],
     meetLink:T.meetLink||'', paused:!!T.paused, alertRules:T.alertRules||null, lastResult:T.lastResult||null, lastAlert:T.lastAlert||null,
     aiInsight:T.aiInsight||null, aiInsights:Array.isArray(T.aiInsights)?T.aiInsights:[],
+    voiceCall:T.voiceCall||null,
     intermissionSec:T.intermissionSec||5, intermissionUntil:T.intermissionUntil||null,
     playerAdvance: T.playerAdvance==='manual'?'manual':'auto',
     awaitNextPlayer: !!T.awaitNextPlayer,
@@ -5089,6 +5144,318 @@ function wirePlayerSearch(){
   }
 }
 try{ wirePlayerSearch(); }catch(e){ console.warn('wirePlayerSearch', e); }
+
+/* ===== LiveKit voice call (audio only, no recording) ===== */
+window._lkRoom = null;
+window._lkMuted = false;
+window._voiceJoining = false;
+
+function isAuctionHostUser(){
+  try{ return !!(user && T && T.ownerId && user.uid === T.ownerId); }catch(e){ return false; }
+}
+function canUseVoiceCall(){
+  if(!T || !auctionId || !user) return false;
+  if(isAuctionHostUser()) return true;
+  if(ownerMode && isVirtual()) return true;
+  return false;
+}
+function updateNavCallBtn(){
+  const b = $('btnNavCall');
+  if(!b) return;
+  const show = canUseVoiceCall() && (
+    ($('screenAuction') && !$('screenAuction').classList.contains('hidden')) ||
+    ($('screenWatch') && !$('screenWatch').classList.contains('hidden'))
+  );
+  b.classList.toggle('hidden', !show);
+  const inCall = !!(window._lkRoom);
+  b.textContent = inCall ? 'In call' : 'Call';
+}
+function openVoiceHostModal(){
+  const m = $('voiceHostModal');
+  if(!m) return;
+  paintVoiceOwnerList();
+  const active = T && T.voiceCall && (T.voiceCall.status==='ringing' || T.voiceCall.status==='live');
+  if($('btnCallOptsEnd')) $('btnCallOptsEnd').classList.toggle('hidden', !active || !isAuctionHostUser());
+  if($('btnCallOptsMuteAll')) $('btnCallOptsMuteAll').classList.toggle('hidden', !active || !isAuctionHostUser());
+  if($('vhJoinedBox')) $('vhJoinedBox').classList.toggle('hidden', !active);
+  paintJoinedList();
+  m.classList.remove('hidden');
+  try{ focusEl($('vhTitle')); }catch(e){}
+}
+function closeVoiceHostModal(){
+  if($('voiceHostModal')) $('voiceHostModal').classList.add('hidden');
+}
+function paintVoiceOwnerList(){
+  const box = $('vhOwnerList');
+  if(!box || !T) return;
+  const owners = T.owners || [];
+  if(!owners.length){
+    box.innerHTML = '<p style="color:var(--muted)">No team owners assigned yet.</p>';
+    return;
+  }
+  let h = '';
+  owners.forEach(function(o){
+    const nm = o.displayName || o.email || o.uid || 'Owner';
+    const team = (T.teams||[]).find(function(t){ return t.id===o.teamId; });
+    const tname = team ? team.name : '';
+    h += '<div class="voice-owner-row" role="listitem">'+
+      '<div><strong>'+String(nm).replace(/</g,'')+'</strong>'+
+      (tname ? ('<br><span style="color:var(--muted);font-size:13px">'+String(tname).replace(/</g,'')+'</span>') : '')+
+      '</div>'+
+      '<button type="button" class="btn-sec btnRingOne" data-uid="'+String(o.uid||'')+'" style="min-height:40px">Ring</button></div>';
+  });
+  box.innerHTML = h;
+  box.querySelectorAll('.btnRingOne').forEach(function(btn){
+    btn.onclick = function(){ ringVoiceOwners([btn.getAttribute('data-uid')]); };
+  });
+}
+function paintJoinedList(){
+  const box = $('vhJoinedList');
+  if(!box) return;
+  const joined = (T && T.voiceCall && T.voiceCall.joined) ? T.voiceCall.joined : {};
+  const keys = Object.keys(joined);
+  if(!keys.length){
+    box.innerHTML = '<p style="color:var(--muted);font-size:13px">No one has joined yet.</p>';
+    return;
+  }
+  let h = '';
+  keys.forEach(function(uid){
+    const j = joined[uid] || {};
+    const nm = j.name || j.email || uid;
+    h += '<div class="voice-owner-row"><span>'+String(nm).replace(/</g,'')+'</span>';
+    if(isAuctionHostUser() && uid !== (user && user.uid)){
+      h += '<button type="button" class="btn-danger btnVoiceRemove" data-uid="'+uid+'" style="min-height:40px">Remove</button>';
+    }
+    h += '</div>';
+  });
+  box.innerHTML = h;
+  box.querySelectorAll('.btnVoiceRemove').forEach(function(btn){
+    btn.onclick = function(){ removeVoiceParticipant(btn.getAttribute('data-uid')); };
+  });
+}
+async function ringVoiceOwners(onlyUids){
+  if(!isAuctionHostUser() || !T || !auctionId) return;
+  const targets = {};
+  (T.owners||[]).forEach(function(o){
+    if(!o.uid) return;
+    if(onlyUids && onlyUids.length && onlyUids.indexOf(o.uid)<0) return;
+    targets[o.uid] = { status: 'ringing', at: Date.now() };
+  });
+  T.voiceCall = {
+    status: 'ringing',
+    hostUid: user.uid,
+    hostName: user.displayName || user.email || 'Host',
+    at: Date.now(),
+    targets: targets,
+    joined: (T.voiceCall && T.voiceCall.joined) || {}
+  };
+  try{
+    await cloudSave(false);
+    try{ announce('Ringing owners for voice call.'); }catch(e){}
+    // Host joins media room too
+    await joinVoiceCall(true);
+    openVoiceHostModal();
+  }catch(e){ safeAlert(e); }
+}
+async function endVoiceCallForAll(){
+  if(!isAuctionHostUser() || !T) return;
+  T.voiceCall = { status: 'ended', at: Date.now(), hostUid: user && user.uid };
+  try{
+    await cloudSave(false);
+  }catch(e){}
+  await leaveVoiceCall(true);
+  closeVoiceHostModal();
+  closeVoiceRingModal();
+  try{ announce('Voice call ended.'); }catch(e){}
+}
+async function removeVoiceParticipant(uid){
+  if(!T || !T.voiceCall || !T.voiceCall.joined) return;
+  delete T.voiceCall.joined[uid];
+  if(T.voiceCall.targets && T.voiceCall.targets[uid]){
+    T.voiceCall.targets[uid] = { status: 'removed', at: Date.now() };
+  }
+  try{ await cloudSave(false); }catch(e){}
+  paintJoinedList();
+  // Remote leave is handled when they see removed status
+}
+function closeVoiceRingModal(){
+  if($('voiceRingModal')) $('voiceRingModal').classList.add('hidden');
+}
+function showIncomingRing(vc){
+  if(!canUseVoiceCall() || isAuctionHostUser()) return;
+  if(window._lkRoom) return;
+  const m = $('voiceRingModal');
+  if(!m) return;
+  const host = (vc && (vc.hostName || 'Host')) || 'Host';
+  if($('vrMsg')) $('vrMsg').textContent = host + ' wants to talk with you. Join or reject.';
+  m.classList.remove('hidden');
+  try{ focusEl($('vrTitle') || $('btnVoiceJoin')); }catch(e){}
+  try{ announce(host + ' wants to talk with you. Join or reject.'); }catch(e){}
+}
+function syncVoiceCallUi(data){
+  updateNavCallBtn();
+  const vc = (data && data.voiceCall) || (T && T.voiceCall) || null;
+  if(!vc){
+    closeVoiceRingModal();
+    return;
+  }
+  if(vc.status === 'ended'){
+    closeVoiceRingModal();
+    if(window._lkRoom) leaveVoiceCall(true);
+    return;
+  }
+  // Owner incoming ring
+  if(!isAuctionHostUser() && ownerMode && (vc.status==='ringing' || vc.status==='live')){
+    const t = (vc.targets && user && vc.targets[user.uid]) || null;
+    const joined = vc.joined && user && vc.joined[user.uid];
+    if(t && t.status==='removed' && window._lkRoom){
+      leaveVoiceCall(true);
+      return;
+    }
+    if(!joined && t && t.status==='ringing' && !window._lkRoom){
+      showIncomingRing(vc);
+    }
+  }
+  if(window._lkRoom && $('callStrip')){
+    $('callStrip').classList.remove('hidden');
+  }
+  try{ paintJoinedList(); }catch(e){}
+}
+async function getCallTokenFromFn(isHost){
+  if(!firebase || !firebase.functions) throw new Error('Functions not ready');
+  const fn = firebase.app().functions('asia-south1').httpsCallable('getCallToken');
+  const res = await fn({ auctionId: auctionId, isHost: !!isHost });
+  const d = res && res.data;
+  if(!d || !d.ok || !d.token || !d.url) throw new Error((d && d.error) || 'No token from server');
+  return d;
+}
+async function joinVoiceCall(asHost){
+  if(window._voiceJoining || window._lkRoom) return;
+  window._voiceJoining = true;
+  try{
+    if(typeof LivekitClient === 'undefined' && typeof window.LivekitClient === 'undefined'){
+      // UMD global may be LivekitClient
+    }
+    const LK = window.LivekitClient || window.livekit || null;
+    if(!LK || !LK.Room){
+      throw new Error('LiveKit client library not loaded. Check network.');
+    }
+    const tok = await getCallTokenFromFn(!!asHost || isAuctionHostUser());
+    const room = new LK.Room({
+      adaptiveStream: true,
+      dynacast: true,
+      audioCaptureDefaults: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+    room.on(LK.RoomEvent.Disconnected, function(){
+      window._lkRoom = null;
+      if($('callStrip')) $('callStrip').classList.add('hidden');
+      updateNavCallBtn();
+    });
+    await room.connect(tok.url, tok.token);
+    // Audio only — publish mic, no camera
+    await room.localParticipant.setCameraEnabled(false);
+    await room.localParticipant.setMicrophoneEnabled(true);
+    window._lkRoom = room;
+    window._lkMuted = false;
+    if($('btnCallMute')){
+      $('btnCallMute').textContent = 'Mute';
+      $('btnCallMute').setAttribute('aria-pressed', 'false');
+    }
+    if($('callStrip')) $('callStrip').classList.remove('hidden');
+    if($('callStateLabel')) $('callStateLabel').textContent = 'In call';
+    if($('btnCallHostOpts')) $('btnCallHostOpts').classList.toggle('hidden', !isAuctionHostUser());
+    updateNavCallBtn();
+
+    // Mark joined in Firestore
+    if(T){
+      T.voiceCall = T.voiceCall || { status: 'live', hostUid: user.uid, joined: {}, targets: {} };
+      T.voiceCall.status = 'live';
+      T.voiceCall.joined = T.voiceCall.joined || {};
+      T.voiceCall.joined[user.uid] = {
+        name: user.displayName || user.email || '',
+        email: user.email || '',
+        at: Date.now()
+      };
+      if(T.voiceCall.targets && T.voiceCall.targets[user.uid]){
+        T.voiceCall.targets[user.uid] = { status: 'joined', at: Date.now() };
+      }
+      try{ await cloudSave(true); }catch(e){}
+    }
+    closeVoiceRingModal();
+    try{ announce('Joined voice call. Use mute or exit in the call bar.'); }catch(e){}
+  }catch(e){
+    safeAlert(e);
+  }finally{
+    window._voiceJoining = false;
+  }
+}
+async function leaveVoiceCall(silent){
+  try{
+    if(window._lkRoom){
+      try{ await window._lkRoom.disconnect(); }catch(e){}
+      window._lkRoom = null;
+    }
+  }catch(e){}
+  if($('callStrip')) $('callStrip').classList.add('hidden');
+  updateNavCallBtn();
+  if(T && T.voiceCall && T.voiceCall.joined && user){
+    delete T.voiceCall.joined[user.uid];
+    try{ await cloudSave(true); }catch(e){}
+  }
+  if(!silent){ try{ announce('Left voice call.'); }catch(e){} }
+}
+async function toggleCallMute(){
+  if(!window._lkRoom) return;
+  window._lkMuted = !window._lkMuted;
+  try{
+    await window._lkRoom.localParticipant.setMicrophoneEnabled(!window._lkMuted);
+  }catch(e){ safeAlert(e); return; }
+  if($('btnCallMute')){
+    $('btnCallMute').textContent = window._lkMuted ? 'Unmute' : 'Mute';
+    $('btnCallMute').setAttribute('aria-pressed', window._lkMuted ? 'true' : 'false');
+  }
+  try{ announce(window._lkMuted ? 'Muted' : 'Unmuted'); }catch(e){}
+}
+function wireVoiceCallUi(){
+  if($('btnNavCall')){
+    $('btnNavCall').onclick = function(){
+      if(window._lkRoom && isAuctionHostUser()){ openVoiceHostModal(); return; }
+      if(window._lkRoom){ return; }
+      if(isAuctionHostUser()) openVoiceHostModal();
+      else if(ownerMode) joinVoiceCall(false);
+    };
+  }
+  if($('btnVhClose')) $('btnVhClose').onclick = closeVoiceHostModal;
+  if($('btnRingAll')) $('btnRingAll').onclick = function(){ ringVoiceOwners(null); };
+  if($('btnCallOptsEnd')) $('btnCallOptsEnd').onclick = function(){ endVoiceCallForAll(); };
+  if($('btnCallOptsMuteAll')){
+    $('btnCallOptsMuteAll').onclick = function(){
+      try{ announce('Mute all is limited to your own mic for now. Ask others to mute.'); }catch(e){}
+      alert('Mute-all for remote participants needs a server API next. For now ask owners to mute, or remove them.');
+    };
+  }
+  if($('btnVoiceJoin')) $('btnVoiceJoin').onclick = function(){ joinVoiceCall(false); };
+  if($('btnVoiceReject')){
+    $('btnVoiceReject').onclick = async function(){
+      closeVoiceRingModal();
+      if(T && T.voiceCall && T.voiceCall.targets && user){
+        T.voiceCall.targets[user.uid] = { status: 'rejected', at: Date.now() };
+        try{ await cloudSave(true); }catch(e){}
+      }
+      try{ announce('Call rejected.'); }catch(e){}
+    };
+  }
+  if($('btnCallMute')) $('btnCallMute').onclick = toggleCallMute;
+  if($('btnCallExit')) $('btnCallExit').onclick = function(){ leaveVoiceCall(false); };
+  if($('btnCallHostOpts')) $('btnCallHostOpts').onclick = openVoiceHostModal;
+}
+try{ wireVoiceCallUi(); }catch(e){ console.warn('wireVoiceCallUi', e); }
+
+
 
 
 

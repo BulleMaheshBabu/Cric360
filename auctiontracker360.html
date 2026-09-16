@@ -726,6 +726,7 @@ a{color:var(--primary)}
     <div class="watch-top">
       <button type="button" id="btnWatchBack" class="btn-sec" aria-label="Back to auction list">Back</button>
       <h1 id="watchTitle" tabindex="-1" class="watch-heading">Live</h1>
+      <button type="button" id="btnWatchCall" class="btn-ok hidden" aria-label="Voice call" style="margin-left:auto;min-height:40px">Call</button>
     </div>
     <div id="watchStats" class="stats" aria-hidden="true"></div>
     <div id="watchPaneLive" class="watch-pane"><div id="watchPlayer"></div></div>
@@ -857,6 +858,7 @@ a{color:var(--primary)}
         <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
         <div class="auc-center" id="aucCenterTitle" tabindex="-1" role="heading" aria-level="1">Auction</div>
         <div class="auc-top-actions" style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+          <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
           <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
           <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings for commentary and sounds">Quick settings</button>
         </div>
@@ -893,7 +895,7 @@ a{color:var(--primary)}
       <div id="aucPlayer"></div>
       <div class="auc-home-row" id="aucHostFooter">
         <button type="button" id="btnEndAuction" class="btn-sec">End this auction</button>
-        <button type="button" id="btnHomeAuc" class="btn-sec">Leave auction</button>
+        <button type="button" id="btnHomeAuc" class="btn-sec" aria-label="Leave auction">Leave auction</button>
       </div>
     </div>
     <div id="tabSquads" class="panel hidden" role="region" aria-labelledby="sqTitle">
@@ -2534,17 +2536,23 @@ function focusEl(el){
   if(!el) return;
   // While a modal is open, only allow focus inside that modal
   if(window._modalOpen || isConfirmOpen() || window._priceEditOpen || window._squadDialogOpen){
-    const inDialog = el.closest && el.closest('#confirmModal, #priceEditOverlay, #squadAddOverlay, #msgOverlay, #msgPanel, #soldForm');
+    const inDialog = el.closest && el.closest('#confirmModal, #priceEditOverlay, #squadAddOverlay, #msgOverlay, #msgPanel, #soldForm, #voiceRingModal, #voiceHostModal, #playerSearchModal');
     if(!inDialog) return;
   }
+  // Never yank focus away from bottom tab bar / hub tabs
+  try{
+    const ae = document.activeElement;
+    if(ae && ae.getAttribute && ae.getAttribute('role')==='tab'){
+      if(!(el.getAttribute && el.getAttribute('role')==='tab') && !el.closest('#confirmModal, #voiceRingModal, #voiceHostModal, #msgPanel')){
+        return;
+      }
+    }
+  }catch(e){}
   try{
     if(!el.hasAttribute('tabindex') && el.tagName!=='BUTTON' && el.tagName!=='INPUT' && el.tagName!=='SELECT' && el.tagName!=='A'){
       el.setAttribute('tabindex','-1');
     }
-    el.focus({ preventScroll: false });
-    if(typeof el.scrollIntoView==='function'){
-      el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
-    }
+    el.focus({ preventScroll: true });
   }catch(e){
     try{ el.focus(); }catch(e2){}
   }
@@ -2748,14 +2756,21 @@ function showScreen(id){
       if(!st || st.screen!==id) history.pushState({ screen: id }, '', location.pathname + location.search);
     }
   }catch(e){}
-  // Hide site brand/account from SR inside live auction (focus Message → title → settings)
+  // Keep top-nav usable for Call on auction/watch. Only hide brand/account chrome from SR.
   try{
     const tn=document.querySelector('.top-nav');
     if(tn){
-      const hide = (id==='screenAuction' || id==='screenWatch');
-      tn.setAttribute('aria-hidden', hide ? 'true' : 'false');
-      if(hide) tn.setAttribute('inert', '');
-      else tn.removeAttribute('inert');
+      tn.removeAttribute('inert');
+      tn.removeAttribute('aria-hidden');
+    }
+    const brand = document.querySelector('.top-nav .brand-logo');
+    const badge = $('navUserBadge');
+    const liveScr = (id==='screenAuction' || id==='screenWatch');
+    if(brand){
+      brand.setAttribute('aria-hidden', liveScr ? 'true' : 'false');
+    }
+    if(badge){
+      badge.setAttribute('aria-hidden', liveScr ? 'true' : 'false');
     }
   }catch(e){}
 
@@ -4131,6 +4146,7 @@ function resumeAuction(id, data){
   else if(helperMode) switchTab('squads');
   else switchTab('auction');
   renderAuction();
+  try{ updateNavCallBtn(); }catch(e){}
   const isHost = user && data.ownerId === user.uid;
   if(data.paused && isHost){
     ask('Continue bidding?','You were on break. Continue the auction? A fresh timer will start for the current player.', async()=>{
@@ -4195,10 +4211,10 @@ function switchWatchTab(which){
     try{ renderWatchInsights(window._lastWatchData); }catch(e){}
   }
   setTimeout(function(){
-    if(which==='live') focusEl($('wPN')||$('watchTitle'));
-    else if(which==='squads') focusEl($('wSqListH')||$('wSqH')||$('watchTitle'));
-    else if(which==='insights') focusEl($('wInsHead')||$('watchTitle'));
-    else focusEl($('wMoreH')||$('wListH')||$('watchTitle'));
+    /* stay on viewer tab control */
+    /* stay on viewer tab control */
+    /* stay on viewer tab control */
+    /* stay on viewer tab control */
   }, 80);
 }
 
@@ -5155,20 +5171,25 @@ function isAuctionHostUser(){
 }
 function canUseVoiceCall(){
   if(!T || !auctionId || !user) return false;
+  // Host always; virtual team owners always
   if(isAuctionHostUser()) return true;
-  if(ownerMode && isVirtual()) return true;
+  if(ownerMode) return true;
   return false;
 }
 function updateNavCallBtn(){
-  const b = $('btnNavCall');
-  if(!b) return;
   const show = canUseVoiceCall() && (
     ($('screenAuction') && !$('screenAuction').classList.contains('hidden')) ||
     ($('screenWatch') && !$('screenWatch').classList.contains('hidden'))
   );
-  b.classList.toggle('hidden', !show);
   const inCall = !!(window._lkRoom);
-  b.textContent = inCall ? 'In call' : 'Call';
+  const label = inCall ? 'In call' : 'Call';
+  ['btnNavCall','btnAucCall','btnWatchCall'].forEach(function(id){
+    const b = $(id);
+    if(!b) return;
+    b.classList.toggle('hidden', !show);
+    b.textContent = label;
+    b.setAttribute('aria-label', inCall ? 'Voice call, in call' : 'Voice call');
+  });
 }
 function openVoiceHostModal(){
   const m = $('voiceHostModal');
@@ -5421,14 +5442,15 @@ async function toggleCallMute(){
   try{ announce(window._lkMuted ? 'Muted' : 'Unmuted'); }catch(e){}
 }
 function wireVoiceCallUi(){
-  if($('btnNavCall')){
-    $('btnNavCall').onclick = function(){
-      if(window._lkRoom && isAuctionHostUser()){ openVoiceHostModal(); return; }
-      if(window._lkRoom){ return; }
-      if(isAuctionHostUser()) openVoiceHostModal();
-      else if(ownerMode) joinVoiceCall(false);
-    };
+  function onCallBtnClick(){
+    if(window._lkRoom && isAuctionHostUser()){ openVoiceHostModal(); return; }
+    if(window._lkRoom){ return; }
+    if(isAuctionHostUser()) openVoiceHostModal();
+    else if(ownerMode) joinVoiceCall(false);
   }
+  if($('btnNavCall')) $('btnNavCall').onclick = onCallBtnClick;
+  if($('btnAucCall')) $('btnAucCall').onclick = onCallBtnClick;
+  if($('btnWatchCall')) $('btnWatchCall').onclick = onCallBtnClick;
   if($('btnVhClose')) $('btnVhClose').onclick = closeVoiceHostModal;
   if($('btnRingAll')) $('btnRingAll').onclick = function(){ ringVoiceOwners(null); };
   if($('btnCallOptsEnd')) $('btnCallOptsEnd').onclick = function(){ endVoiceCallForAll(); };
@@ -5944,13 +5966,42 @@ function switchTab(which){
       const show = which==='auction';
       foot.setAttribute('aria-hidden', show ? 'false' : 'true');
       foot.classList.toggle('hidden', !show);
-      // Leave auction must not be focusable off the auction tab
+      if(show) foot.removeAttribute('inert');
+      else foot.setAttribute('inert','');
+      // Leave auction must never be found by SR on Squads / Insights / More
       foot.querySelectorAll('button').forEach(function(b){
-        if(show){ b.removeAttribute('tabindex'); b.removeAttribute('aria-hidden'); }
-        else { b.setAttribute('tabindex','-1'); b.setAttribute('aria-hidden','true'); }
+        if(show){
+          b.removeAttribute('tabindex');
+          b.removeAttribute('aria-hidden');
+          b.disabled = false;
+        } else {
+          b.setAttribute('tabindex','-1');
+          b.setAttribute('aria-hidden','true');
+          b.disabled = true;
+        }
       });
     }
+    // Dead headers in hidden tabs: not focusable
+    ['tabAuction','tabSquads','tabInsights','tabTools'].forEach(function(tid){
+      const pane = $(tid);
+      if(!pane) return;
+      const on = !pane.classList.contains('hidden') && pane.style.display !== 'none';
+      pane.querySelectorAll('h1,h2,[role="heading"]').forEach(function(hd){
+        if(on){
+          /* leave intentional tabindex on active pane alone */
+        } else {
+          hd.setAttribute('tabindex','-1');
+          hd.setAttribute('aria-hidden','true');
+        }
+      });
+      if(on){
+        pane.querySelectorAll('h1,h2,[role="heading"]').forEach(function(hd){
+          hd.removeAttribute('aria-hidden');
+        });
+      }
+    });
   }catch(e){}
+  try{ updateNavCallBtn(); }catch(e){}
   if(which==='auction') renderAuction();
   if(which==='squads'){
     // Keep squad dialog if still open; only reset list when no dialog
@@ -5963,7 +6014,7 @@ function switchTab(which){
     }catch(e){}
     if(!isSquadDialogOpen()){
       renderSquads();
-      setTimeout(function(){ focusEl($('sqTitle')); }, 80);
+      /* keep focus on tab control — do not steal to empty Squads header */
     }
   }
   if(which==='tools'){
@@ -6003,7 +6054,7 @@ function switchTab(which){
         if(panel){
           panel.classList.remove('hidden');
           try{ paintDownloadSquadChecks(); wireDownloadPanel(); }catch(e){}
-          focusEl($('dlTitle')||$('btnDoDownload'));
+          /* no auto focus */
         }
       };
     }
@@ -6012,7 +6063,7 @@ function switchTab(which){
         const panel=$('downloadPanel');
         if(panel) panel.classList.add('hidden');
         if($('toolsMenuWrap')) $('toolsMenuWrap').classList.remove('hidden');
-        focusEl($('btnToolsDownload')||$('toolsTitle'));
+        /* keep focus on More tab */
       };
     }
     // Focus first list control — not the page "More" heading (avoids SR reading it after lists)
@@ -8686,9 +8737,9 @@ function switchInsSub(which){
   if(!ask){
     try{ setInsStatus(''); }catch(e){}
     try{ renderInsAlbum(); }catch(e){}
-    try{ focusEl($('insCardHead') || $('insPageLabel')); }catch(e){}
+    /* no focus steal on Responses */
   } else {
-    try{ focusEl($('insAsk') || $('insDraftTitle')); }catch(e){}
+    /* no focus steal on Ask */
   }
 }
 

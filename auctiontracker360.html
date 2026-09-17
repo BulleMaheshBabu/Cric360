@@ -661,6 +661,44 @@ a{color:var(--primary)}
 #micPermModal .modal-box{max-width:420px;width:100%}
 #micPermModal .btn-stack button{min-height:52px;font-size:16px;font-weight:700}
 
+
+/* Recent result: visual only — do not steal focus / explore-by-touch */
+.recent-card,.recent-line{
+  pointer-events:none;
+  user-select:none;
+}
+.recent-card[aria-hidden="true"],.recent-line[aria-hidden="true"]{display:block}
+
+/* Native-feel auction live density */
+#screenAuction .auc-toolbar{
+  display:flex;flex-wrap:nowrap;gap:8px;align-items:stretch;
+  padding:6px 0 8px;border-bottom:1px solid var(--border);
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+#screenAuction .auc-toolbar > button{
+  flex:1 1 0;min-width:56px;min-height:52px;padding:10px 8px;
+  font-size:14px;font-weight:700;border-radius:12px;
+  touch-action:manipulation;
+}
+#screenAuction #aucPlayer{margin-top:8px}
+#screenAuction .player-stage{
+  padding:14px 12px;border-radius:16px;margin:8px 0;
+  border:1px solid var(--border);
+}
+#screenAuction .stats,#screenAuction .stats-4{margin:8px 0;gap:8px}
+#screenAuction .stat{min-height:52px;border-radius:12px;padding:10px 6px}
+#aucHostFooter{
+  position:sticky;bottom:0;padding:10px 0 6px;
+  background:linear-gradient(180deg,transparent,var(--bg) 30%);
+  z-index:40;
+}
+#aucHostFooter button{min-height:52px;border-radius:12px;font-weight:700}
+@media(max-width:600px){
+  #screenAuction .wrap{padding:0 10px!important}
+  #screenAuction .panel{padding:8px 10px 12px!important;margin:0!important;border-radius:0;border-left:none;border-right:none}
+  #screenAuction .auc-center{display:none} /* less dead text on mobile */
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -2269,7 +2307,7 @@ function ttsStop() {
    - Root (GitHub flat):  welcome.mp3
    - Folder:              sounds/welcome.mp3
 */
-const SFX_NAMES = ['welcome','bid','ultimate','sold','unsold','timer','player'];
+const SFX_NAMES = ['welcome','bid','ultimate','sold','unsold','timer','player','ring','join','left','end'];
 function sfxCandidates(name) {
   const n = String(name || '').toLowerCase().replace(/\.mp3$/i, '');
   return [
@@ -2288,7 +2326,11 @@ const SFX_FILES = {
   sold: 'sold.mp3',
   unsold: 'unsold.mp3',
   timer: 'timer.mp3',
-  player: 'player.mp3'
+  player: 'player.mp3',
+  ring: 'ring.mp3',
+  join: 'join.mp3',
+  left: 'left.mp3',
+  end: 'end.mp3'
 };
 let sfxOn = true;
 let sfxVolume = 0.75;
@@ -2397,6 +2439,15 @@ function playSfx(name) {
   } catch (e) {
     console.warn('SFX', name, e);
   }
+}
+
+/** Call tones: host + team owners only (not public viewers). */
+function playCallSfx(name){
+  try{
+    if(!(isAuctionHostUser() || ownerMode)) return;
+    unlockSfx();
+    playSfx(name);
+  }catch(e){}
 }
 
 function wireSfxSettings() {
@@ -4300,7 +4351,7 @@ function recentCardHtml(recent){
   const detail=recent.sold
     ? (' <strong>'+(recent.team||'')+'</strong> · price '+(recent.price!=null?recent.price:''))
     : '';
-  return '<aside class="recent-card" aria-label="Most recent result"><p class="label">Recent result</p><p style="font-weight:800;margin:0">'+(recent.name||'')+'</p><p style="margin:4px 0 0">'+badge+detail+'</p></aside>';
+  return '<aside class="recent-card" aria-hidden="true"><p class="label">Recent result</p><p style="font-weight:800;margin:0">'+(recent.name||'')+'</p><p style="margin:4px 0 0">'+badge+detail+'</p></aside>';
 }
 
 
@@ -5334,12 +5385,24 @@ function wireRoomAudio(room, LK){
     });
   }
   if(Ev.ParticipantConnected){
-    room.on(Ev.ParticipantConnected, function(){
+    room.on(Ev.ParticipantConnected, function(p){
+      try{ playCallSfx('join'); }catch(e){}
+      try{
+        const nm = (p && (p.name || p.identity)) || 'Someone';
+        announce(nm + ' joined the call');
+      }catch(e){}
       setTimeout(function(){ subscribeAllRemote(room, LK); paintJoinedList(); }, 300);
     });
   }
   if(Ev.ParticipantDisconnected){
-    room.on(Ev.ParticipantDisconnected, function(){ paintJoinedList(); });
+    room.on(Ev.ParticipantDisconnected, function(p){
+      try{ playCallSfx('left'); }catch(e){}
+      try{
+        const nm = (p && (p.name || p.identity)) || 'Someone';
+        announce(nm + ' left the call');
+      }catch(e){}
+      paintJoinedList();
+    });
   }
   setTimeout(function(){ subscribeAllRemote(room, LK); }, 200);
   setTimeout(function(){ subscribeAllRemote(room, LK); }, 1500);
@@ -5487,6 +5550,7 @@ async function ringVoiceOwners(onlyUids){
   }catch(e){ safeAlert(e); }
 }
 async function endVoiceCallForAll(){
+  try{ playCallSfx('end'); }catch(e){}
   if(!isAuctionHostUser() || !T) return;
   T.voiceCall = { status: 'ended', at: Date.now(), hostUid: user && user.uid };
   try{ await cloudSave(false); }catch(e){}
@@ -5526,6 +5590,7 @@ function showIncomingRing(vc){
     closeVoiceRingModal();
     try{ announce('Missed voice call. Open Call to join if still ongoing.'); }catch(e){}
   }, 20000);
+  try{ playCallSfx('ring'); }catch(e){}
   try{ focusEl($('btnVoiceJoin')); }catch(e){}
   try{ announce(host + ' wants to talk with you. Join or reject.'); }catch(e){}
 }
@@ -5602,7 +5667,36 @@ function closeMicPermModal(){
     m.setAttribute('aria-hidden','true');
   }
 }
-/** Show Yes/No dialog, then on Yes trigger browser mic prompt. Returns true if granted. */
+window._micGranted = false;
+
+async function queryMicPermission(){
+  if(window._micGranted) return 'granted';
+  try{
+    if(navigator.permissions && navigator.permissions.query){
+      const st = await navigator.permissions.query({ name: 'microphone' });
+      if(st && st.state === 'granted'){ window._micGranted = true; return 'granted'; }
+      if(st && st.state === 'denied') return 'denied';
+      if(st && st.state === 'prompt') return 'prompt';
+    }
+  }catch(e){}
+  return 'unknown';
+}
+
+async function rawGetUserMedia(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    window._micGranted = true;
+    return true;
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: false
+  });
+  try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+  window._micGranted = true;
+  return true;
+}
+
+/** Yes/No or blocked dialog. mode: 'ask' | 'blocked'. Returns true if mic obtained. */
 function askMicPermissionDialog(opts){
   opts = opts || {};
   return new Promise(function(resolve){
@@ -5612,16 +5706,16 @@ function askMicPermissionDialog(opts){
     const msg = $('micPermMsg');
     const yes = $('btnMicYes');
     const no = $('btnMicNo');
-    const mode = opts.mode || 'ask'; // ask | blocked
+    const mode = opts.mode || 'ask';
 
     if(mode === 'blocked'){
       if(title) title.textContent = 'Microphone blocked';
-      if(msg) msg.textContent = 'The browser blocked the microphone. Tap Try again. When the browser asks, choose Allow. If it still fails, open the lock icon in the address bar, set Microphone to Allow, then try again.';
+      if(msg) msg.textContent = 'Microphone is blocked for this site. Tap Try again. If the browser does not ask again, open the lock icon in the address bar, set Microphone to Allow, then tap Try again.';
       if(yes) yes.textContent = 'Try again';
       if(no) no.textContent = 'Close';
     } else {
       if(title) title.textContent = 'Use microphone?';
-      if(msg) msg.textContent = opts.message || 'Voice call needs your microphone so others can hear you. Tap Yes, then choose Allow when the browser asks.';
+      if(msg) msg.textContent = opts.message || 'Voice call needs your microphone so others can hear you. Tap Yes, then choose Allow.';
       if(yes) yes.textContent = 'Yes, use microphone';
       if(no) no.textContent = 'Not now';
     }
@@ -5640,21 +5734,19 @@ function askMicPermissionDialog(opts){
     yes.onclick = async function(){
       cleanup();
       try{
-        if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-          resolve(true);
-          return;
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-          video: false
-        });
-        try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+        await rawGetUserMedia();
         resolve(true);
       }catch(err){
-        console.warn('mic dialog getUserMedia', err);
-        // Show blocked dialog once, then resolve based on retry
-        const again = await askMicPermissionDialog({ mode: 'blocked' });
-        resolve(!!again);
+        console.warn('mic getUserMedia', err);
+        // Permanent block: cannot force; offer one blocked dialog only if we were in ask mode
+        if(mode === 'ask'){
+          const again = await askMicPermissionDialog({ mode: 'blocked' });
+          resolve(!!again);
+        } else {
+          // already blocked mode — try failed again
+          try{ announce('Still blocked. Open site settings and allow microphone.'); }catch(e){}
+          resolve(false);
+        }
       }
     };
     no.onclick = function(){
@@ -5663,35 +5755,55 @@ function askMicPermissionDialog(opts){
     };
   });
 }
-async function requestBrowserMic(opts){
-  // Prefer friendly Yes/No dialog so new users understand before browser prompt
-  const ok = await askMicPermissionDialog(opts || {});
-  if(!ok) throw new Error('Microphone not allowed');
-  return true;
+
+/** Ensure mic access. Skips dialog if already granted. */
+async function ensureMicAccess(opts){
+  opts = opts || {};
+  const state = await queryMicPermission();
+  if(state === 'granted' || window._micGranted) return true;
+  // Already permanently denied → blocked dialog (Try again still runs getUserMedia)
+  if(state === 'denied' || (opts && opts.mode === 'blocked')){
+    return !!(await askMicPermissionDialog({ mode: 'blocked' }));
+  }
+  // First time / prompt → Yes/No then browser prompt
+  return !!(await askMicPermissionDialog(opts));
 }
+
+async function requestBrowserMic(opts){
+  return ensureMicAccess(opts || {});
+}
+
 async function ensureMicPublished(room){
   try{ await room.localParticipant.setCameraEnabled(false); }catch(e){}
+  // If already granted, just enable — no dialog
+  const state = await queryMicPermission();
+  if(state !== 'granted' && !window._micGranted){
+    const ok = await ensureMicAccess({ message: 'Microphone is needed to talk. Tap Yes, then Allow.' });
+    if(!ok) throw new Error('Microphone was not allowed');
+  }
   try{
     await room.localParticipant.setMicrophoneEnabled(true);
   }catch(e){
     console.warn('mic enable', e);
-    try{
-      await requestBrowserMic({ message: 'Microphone is needed to talk. Tap Yes, then Allow.' });
-      await room.localParticipant.setMicrophoneEnabled(true);
-    }catch(e2){
-      console.warn('mic enable retry', e2);
-      throw e2;
-    }
+    const ok = await ensureMicAccess({ mode: 'blocked' });
+    if(!ok) throw e;
+    await room.localParticipant.setMicrophoneEnabled(true);
   }
 }
+
 async function joinVoiceCall(asHost){
   if(window._voiceJoining || window._lkRoom) return;
   window._voiceJoining = true;
   try{
-    // Friendly Yes/No dialog, then browser mic prompt
+    // Mic only if not already allowed
     try{
-      await requestBrowserMic({ message: 'To join the voice call, your microphone is needed so others can hear you. Tap Yes, then choose Allow.' });
+      const st = await queryMicPermission();
+      if(st !== 'granted' && !window._micGranted){
+        const ok = await ensureMicAccess({ message: 'To join the voice call, your microphone is needed so others can hear you. Tap Yes, then choose Allow.' });
+        if(!ok) throw new Error('Microphone was not allowed. Join again and tap Yes when asked.');
+      }
     }catch(e){
+      if(/Microphone was not allowed/i.test(String(e && e.message))) throw e;
       throw new Error('Microphone was not allowed. Join again and tap Yes when asked.');
     }
     const LK = window.LivekitClient || window.livekit || null;
@@ -5718,6 +5830,7 @@ async function joinVoiceCall(asHost){
     await ensureMicPublished(room);
     window._lkRoom = room;
     window._lkMuted = false;
+    try{ playCallSfx('join'); }catch(e){}
     updateNavCallBtn();
     updateInCallChrome();
 
@@ -5764,6 +5877,7 @@ async function joinVoiceCall(asHost){
 }
 async function leaveVoiceCall(silent){
   try{
+    if(!silent){ try{ playCallSfx('left'); }catch(e){} }
     if(window._lkRoom){
       try{ await window._lkRoom.localParticipant.setMicrophoneEnabled(false); }catch(e){}
       try{ await window._lkRoom.disconnect(); }catch(e){}
@@ -5786,10 +5900,11 @@ async function toggleCallMute(){
   const wantUnmute = window._lkMuted; // currently muted → unmute
   try{
     if(wantUnmute){
-      try{
-        await requestBrowserMic({ message: 'To unmute, allow the microphone so others can hear you. Tap Yes, then choose Allow.' });
-      }catch(e){
-        return; // user said Not now or still blocked after dialog
+      // Only ask dialog if mic not already granted
+      const st = await queryMicPermission();
+      if(st !== 'granted' && !window._micGranted){
+        const ok = await ensureMicAccess({ message: 'To unmute, allow the microphone so others can hear you. Tap Yes, then choose Allow.' });
+        if(!ok) return;
       }
     }
     await window._lkRoom.localParticipant.setMicrophoneEnabled(wantUnmute ? true : false);
@@ -5797,6 +5912,7 @@ async function toggleCallMute(){
   }catch(e){
     const msg = (e && (e.message || e.name)) || String(e);
     if(/NotAllowed|Permission|getUserMedia|microphone|not allowed/i.test(msg)){
+      window._micGranted = false;
       try{ await askMicPermissionDialog({ mode: 'blocked' }); }catch(e2){}
       return;
     }
@@ -6874,7 +6990,7 @@ function aiInsightHtml(data){
 function recentLineHtml(recent){
   // One spoken line for SR (children hidden so not read as 3 lines)
   if(!recent){
-    return '<div class="recent-line" aria-label="Recent player: none yet"><span aria-hidden="true">Recent: —</span></div>';
+    return '<div class="recent-line" aria-hidden="true" aria-label="Recent player: none yet"><span aria-hidden="true">Recent: —</span></div>';
   }
   if(recent.sold){
     const spoken='Recent player: '+(recent.name||'')+' sold to '+(recent.team||'')+' for '+(recent.price||'');

@@ -638,7 +638,9 @@ a{color:var(--primary)}
   padding:8px 10px;background:rgba(0,180,216,.12);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:160}
 .call-strip.hidden{display:none}
 .call-strip .call-state{font-weight:700;font-size:13px;color:var(--primary-bright)}
-#btnNavCall{min-height:40px;padding:6px 12px;font-weight:700;font-size:13px}
+#btnNavCall,#btnAucCall,#btnAucMute,#btnAucEndCall{min-height:40px;padding:6px 12px;font-weight:700;font-size:13px}
+.auc-topbar{flex-wrap:wrap;gap:6px}
+#btnAucMute:not(.hidden),#btnAucEndCall:not(.hidden){display:inline-flex !important;align-items:center}
 #voiceRingModal .modal-box,#voiceHostModal .modal-box{max-width:420px;width:100%}
 .voice-owner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .voice-owner-row:last-child{border-bottom:0}
@@ -858,7 +860,7 @@ a{color:var(--primary)}
         <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
         <button type="button" id="btnAucMute" class="btn-sec hidden" aria-pressed="false" aria-label="Mute microphone">Mute</button>
         <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">End</button>
-        <div class="auc-center" id="aucCenterTitle" tabindex="-1" role="heading" aria-level="1">Auction</div>
+        <div class="auc-center" id="aucCenterTitle" role="text">Auction</div>
         <div class="auc-top-actions" style="display:flex;gap:6px;align-items:center;flex-shrink:0">
           <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
           <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
@@ -5202,9 +5204,8 @@ function updateNavCallBtn(){
   if(b){
     b.classList.toggle('hidden', !show);
     b.textContent = inCall ? 'In call' : 'Call';
-    b.setAttribute('aria-label', inCall ? 'Voice call options' : 'Voice call');
+    b.setAttribute('aria-label', inCall ? 'Open call options' : 'Open voice call');
   }
-  // Hide legacy/global call buttons everywhere else
   if($('btnNavCall')) $('btnNavCall').classList.add('hidden');
   if($('btnWatchCall')) $('btnWatchCall').classList.add('hidden');
   updateInCallChrome();
@@ -5212,73 +5213,144 @@ function updateNavCallBtn(){
 function updateInCallChrome(){
   const inCall = !!(window._lkRoom);
   const isHost = isAuctionHostUser();
-  if($('btnAucMute')){
-    $('btnAucMute').classList.toggle('hidden', !inCall);
+  ['btnAucMute','btnAucEndCall'].forEach(function(id){
+    const el = $(id);
+    if(!el) return;
     if(inCall){
-      $('btnAucMute').textContent = window._lkMuted ? 'Unmute' : 'Mute';
-      $('btnAucMute').setAttribute('aria-pressed', window._lkMuted ? 'true' : 'false');
+      el.classList.remove('hidden');
+      el.style.display = '';
+      el.removeAttribute('aria-hidden');
+      el.disabled = false;
+    } else {
+      el.classList.add('hidden');
     }
+  });
+  if($('btnAucMute') && inCall){
+    $('btnAucMute').textContent = window._lkMuted ? 'Unmute' : 'Mute';
+    $('btnAucMute').setAttribute('aria-pressed', window._lkMuted ? 'true' : 'false');
+    $('btnAucMute').setAttribute('aria-label', window._lkMuted ? 'Unmute microphone' : 'Mute microphone');
   }
-  if($('btnAucEndCall')){
-    $('btnAucEndCall').classList.toggle('hidden', !inCall);
+  if($('btnAucEndCall') && inCall){
     $('btnAucEndCall').textContent = isHost ? 'End' : 'Leave';
     $('btnAucEndCall').setAttribute('aria-label', isHost ? 'End call for everyone' : 'Leave call');
   }
-  if($('callStrip')) $('callStrip').classList.add('hidden'); // use topbar instead
+  if($('callStrip')) $('callStrip').classList.add('hidden');
+}
+function isAudioTrack(track, LK){
+  if(!track) return false;
+  if(track.kind === 'audio') return true;
+  if(LK && LK.Track && track.kind === LK.Track.Kind.Audio) return true;
+  if(typeof track.kind === 'string' && track.kind.toLowerCase() === 'audio') return true;
+  try{ if(typeof track.attach === 'function' && track.mediaStreamTrack && track.mediaStreamTrack.kind === 'audio') return true; }catch(e){}
+  return false;
 }
 function attachRemoteAudio(track, participant){
   try{
-    if(!track || track.kind !== 'audio') return;
+    if(!track || typeof track.attach !== 'function') return;
     const sink = $('lkAudioSink') || document.body;
-    // detach old elements for this track
-    try{ track.detach().forEach(function(el){ try{ el.remove(); }catch(e){} }); }catch(e){}
+    try{
+      const old = track.detach();
+      if(old && old.forEach) old.forEach(function(el){ try{ el.remove(); }catch(e){} });
+    }catch(e){}
     const el = track.attach();
     el.autoplay = true;
     el.playsInline = true;
-    el.setAttribute('data-lk-id', (participant && participant.identity) || '');
+    el.muted = false;
+    el.volume = 1;
+    el.setAttribute('data-lk-id', (participant && (participant.identity || participant.sid)) || '');
+    el.setAttribute('aria-hidden', 'true');
     sink.appendChild(el);
     const p = el.play();
-    if(p && p.catch) p.catch(function(){ /* autoplay may need gesture — user already joined */ });
+    if(p && p.catch) p.catch(function(){});
   }catch(e){ console.warn('attachRemoteAudio', e); }
 }
-function wireRoomAudio(room, LK){
-  const Ev = LK.RoomEvent;
-  room.on(Ev.TrackSubscribed, function(track, pub, participant){
-    if(track.kind === 'audio' || (LK.Track && track.kind === LK.Track.Kind.Audio)){
-      attachRemoteAudio(track, participant);
-    }
-  });
-  room.on(Ev.TrackUnsubscribed, function(track){
-    try{ track.detach().forEach(function(el){ try{ el.remove(); }catch(e){} }); }catch(e){}
-  });
-  room.on(Ev.ParticipantDisconnected, function(){ try{ paintJoinedList(); }catch(e){} });
-  room.on(Ev.ParticipantConnected, function(){ try{ paintJoinedList(); }catch(e){} });
-  // Already-subscribed tracks (join mid-call)
+function subscribeAllRemote(room, LK){
   try{
-    room.remoteParticipants.forEach(function(p){
-      p.trackPublications.forEach(function(pub){
-        if(pub.track && (pub.kind === 'audio' || (pub.track.kind === 'audio'))){
-          attachRemoteAudio(pub.track, p);
-        }
-      });
+    const parts = room.remoteParticipants;
+    if(!parts) return;
+    const visit = function(p){
+      try{
+        const pubs = p.trackPublications || p.tracks;
+        if(!pubs) return;
+        pubs.forEach(function(pub){
+          try{
+            if(pub && pub.setSubscribed) pub.setSubscribed(true);
+            if(pub && pub.track && isAudioTrack(pub.track, LK)) attachRemoteAudio(pub.track, p);
+            if(pub && pub.audioTrack) attachRemoteAudio(pub.audioTrack, p);
+          }catch(e){}
+        });
+      }catch(e){}
+    };
+    if(typeof parts.forEach === 'function') parts.forEach(visit);
+    else Object.keys(parts).forEach(function(k){ visit(parts[k]); });
+  }catch(e){ console.warn('subscribeAllRemote', e); }
+}
+function wireRoomAudio(room, LK){
+  const Ev = LK.RoomEvent || {};
+  const onSub = function(track, pub, participant){
+    if(isAudioTrack(track, LK)) attachRemoteAudio(track, participant);
+  };
+  if(Ev.TrackSubscribed) room.on(Ev.TrackSubscribed, onSub);
+  if(Ev.TrackPublished){
+    room.on(Ev.TrackPublished, function(pub, participant){
+      try{ if(pub && pub.setSubscribed) pub.setSubscribed(true); }catch(e){}
     });
-  }catch(e){
-    try{
-      room.participants.forEach(function(p){
-        p.audioTracks && p.audioTracks.forEach(function(pub){
-          if(pub.track) attachRemoteAudio(pub.track, p);
+  }
+  if(Ev.TrackUnsubscribed){
+    room.on(Ev.TrackUnsubscribed, function(track){
+      try{ track.detach().forEach(function(el){ try{ el.remove(); }catch(e){} }); }catch(e){}
+    });
+  }
+  if(Ev.ParticipantConnected){
+    room.on(Ev.ParticipantConnected, function(){
+      setTimeout(function(){ subscribeAllRemote(room, LK); paintJoinedList(); }, 300);
+    });
+  }
+  if(Ev.ParticipantDisconnected){
+    room.on(Ev.ParticipantDisconnected, function(){ paintJoinedList(); });
+  }
+  setTimeout(function(){ subscribeAllRemote(room, LK); }, 200);
+  setTimeout(function(){ subscribeAllRemote(room, LK); }, 1500);
+}
+function liveKitJoinedRows(){
+  const rows = [];
+  try{
+    if(window._lkRoom && window._lkRoom.localParticipant){
+      const lp = window._lkRoom.localParticipant;
+      rows.push({
+        uid: lp.identity || (user && user.uid),
+        name: (user && (user.displayName || user.email)) || lp.name || 'You',
+        muted: window._lkMuted,
+        source: 'livekit-local'
+      });
+    }
+    if(window._lkRoom && window._lkRoom.remoteParticipants){
+      window._lkRoom.remoteParticipants.forEach(function(p){
+        let muted = false;
+        try{
+          p.trackPublications && p.trackPublications.forEach(function(pub){
+            if(pub && pub.isMuted) muted = true;
+          });
+        }catch(e){}
+        rows.push({
+          uid: p.identity,
+          name: p.name || p.identity,
+          muted: muted,
+          source: 'livekit'
         });
       });
-    }catch(e2){}
-  }
+    }
+  }catch(e){}
+  return rows;
 }
 function openVoiceHostModal(){
   const m = $('voiceHostModal');
   if(!m) return;
   paintVoiceOwnerList();
-  const active = T && T.voiceCall && (T.voiceCall.status==='ringing' || T.voiceCall.status==='live');
-  if($('btnCallOptsEnd')) $('btnCallOptsEnd').classList.toggle('hidden', !active || !isAuctionHostUser());
-  if($('btnCallOptsMuteAll')) $('btnCallOptsMuteAll').classList.toggle('hidden', !active || !isAuctionHostUser());
+  const inCall = !!(window._lkRoom);
+  const active = inCall || (T && T.voiceCall && (T.voiceCall.status==='ringing' || T.voiceCall.status==='live'));
+  if($('btnCallOptsEnd')) $('btnCallOptsEnd').classList.toggle('hidden', !inCall || !isAuctionHostUser());
+  if($('btnCallOptsMuteAll')) $('btnCallOptsMuteAll').classList.toggle('hidden', !inCall || !isAuctionHostUser());
   if($('vhJoinedBox')) $('vhJoinedBox').classList.toggle('hidden', !active);
   paintJoinedList();
   m.classList.remove('hidden');
@@ -5295,41 +5367,55 @@ function paintVoiceOwnerList(){
     box.innerHTML = '<p style="color:var(--muted)">No team owners assigned yet.</p>';
     return;
   }
-  const joined = (T.voiceCall && T.voiceCall.joined) || {};
+  const lkIds = {};
+  liveKitJoinedRows().forEach(function(r){ if(r.uid) lkIds[r.uid] = true; });
+  const joinedFs = (T.voiceCall && T.voiceCall.joined) || {};
   let h = '';
   owners.forEach(function(o){
     const nm = o.displayName || o.email || o.uid || 'Owner';
     const team = (T.teams||[]).find(function(t){ return t.id===o.teamId; });
     const tname = team ? team.name : '';
-    const st = joined[o.uid] ? ' (in call)' : '';
+    const onCall = !!(lkIds[o.uid] || joinedFs[o.uid]);
+    const st = onCall ? ' · in call' : '';
     h += '<div class="voice-owner-row" role="listitem">'+
       '<div><strong>'+String(nm).replace(/</g,'')+'</strong>'+
       (tname ? ('<br><span style="color:var(--muted);font-size:13px">'+String(tname).replace(/</g,'')+st+'</span>') : ('<br><span style="color:var(--muted);font-size:13px">'+st+'</span>'))+
       '</div>'+
-      '<button type="button" class="btn-sec btnRingOne" data-uid="'+String(o.uid||'')+'" style="min-height:40px">Ring</button></div>';
+      '<button type="button" class="btn-sec btnRingOne" data-uid="'+String(o.uid||'')+'" style="min-height:40px" '+(onCall?'disabled':'')+'>'+(onCall?'Joined':'Ring')+'</button></div>';
   });
   box.innerHTML = h;
   box.querySelectorAll('.btnRingOne').forEach(function(btn){
-    btn.onclick = function(){ ringVoiceOwners([btn.getAttribute('data-uid')]); };
+    btn.onclick = function(){ if(!btn.disabled) ringVoiceOwners([btn.getAttribute('data-uid')]); };
   });
 }
 function paintJoinedList(){
   const box = $('vhJoinedList');
   if(!box) return;
-  const joined = (T && T.voiceCall && T.voiceCall.joined) ? T.voiceCall.joined : {};
-  const keys = Object.keys(joined);
+  const lk = liveKitJoinedRows();
+  const fs = (T && T.voiceCall && T.voiceCall.joined) ? T.voiceCall.joined : {};
+  const byUid = {};
+  lk.forEach(function(r){ byUid[r.uid] = r; });
+  Object.keys(fs).forEach(function(uid){
+    if(!byUid[uid]){
+      byUid[uid] = { uid: uid, name: (fs[uid].label || fs[uid].name || fs[uid].email || uid), muted: !!fs[uid].muted, source: 'firestore' };
+    } else if(fs[uid].label || fs[uid].name){
+      byUid[uid].name = fs[uid].label || fs[uid].name || byUid[uid].name;
+    }
+  });
+  const keys = Object.keys(byUid);
   if(!keys.length){
-    box.innerHTML = '<p style="color:var(--muted);font-size:13px">No one has joined yet.</p>';
+    box.innerHTML = '<p style="color:var(--muted);font-size:13px">No one is in the room yet. After owners tap Join, names appear here.</p>';
     return;
   }
   let h = '';
   keys.forEach(function(uid){
-    const j = joined[uid] || {};
-    const nm = j.name || j.email || uid;
+    const j = byUid[uid];
+    const nm = j.name || uid;
     const muted = !!j.muted;
+    const self = user && uid === user.uid;
     h += '<div class="voice-owner-row" role="listitem"><span>'+String(nm).replace(/</g,'')+
-      (muted ? ' · muted' : ' · unmuted')+'</span>';
-    if(isAuctionHostUser() && uid !== (user && user.uid)){
+      (self ? ' (you)' : '') + (muted ? ' · muted' : ' · unmuted')+'</span>';
+    if(isAuctionHostUser() && !self){
       h += '<button type="button" class="btn-danger btnVoiceRemove" data-uid="'+uid+'" style="min-height:40px">Remove</button>';
     }
     h += '</div>';
@@ -5338,6 +5424,9 @@ function paintJoinedList(){
   box.querySelectorAll('.btnVoiceRemove').forEach(function(btn){
     btn.onclick = function(){ removeVoiceParticipant(btn.getAttribute('data-uid')); };
   });
+  const inCall = !!(window._lkRoom);
+  if($('btnCallOptsEnd')) $('btnCallOptsEnd').classList.toggle('hidden', !inCall || !isAuctionHostUser());
+  if($('btnCallOptsMuteAll')) $('btnCallOptsMuteAll').classList.toggle('hidden', !inCall || !isAuctionHostUser());
 }
 async function ringVoiceOwners(onlyUids){
   if(!isAuctionHostUser() || !T || !auctionId) return;
@@ -5361,6 +5450,7 @@ async function ringVoiceOwners(onlyUids){
     await cloudSave(false);
     try{ announce('Ringing owners for voice call.'); }catch(e){}
     if(!window._lkRoom) await joinVoiceCall(true);
+    updateInCallChrome();
     openVoiceHostModal();
   }catch(e){ safeAlert(e); }
 }
@@ -5404,14 +5494,14 @@ function showIncomingRing(vc){
     closeVoiceRingModal();
     try{ announce('Missed voice call. Open Call to join if still ongoing.'); }catch(e){}
   }, 20000);
-  try{ focusEl($('vrTitle') || $('btnVoiceJoin')); }catch(e){}
+  try{ focusEl($('btnVoiceJoin')); }catch(e){}
   try{ announce(host + ' wants to talk with you. Join or reject.'); }catch(e){}
 }
 function showLateJoinPrompt(){
   const m = $('voiceLateJoinModal');
   if(!m) return;
   m.classList.remove('hidden');
-  try{ focusEl($('vljTitle') || $('btnLateJoinYes')); }catch(e){}
+  try{ focusEl($('btnLateJoinYes')); }catch(e){}
 }
 function syncVoiceCallUi(data){
   updateNavCallBtn();
@@ -5426,7 +5516,6 @@ function syncVoiceCallUi(data){
     if(window._lkRoom) leaveVoiceCall(true);
     return;
   }
-  // Expire ringing for this user after 20s
   if(!isAuctionHostUser() && ownerMode && user){
     const t = (vc.targets && vc.targets[user.uid]) || null;
     const joined = vc.joined && vc.joined[user.uid];
@@ -5445,7 +5534,6 @@ function syncVoiceCallUi(data){
     }
   }
   try{ paintJoinedList(); }catch(e){}
-  // Host mute-all: mute local mic if flagged
   try{
     if(window._lkRoom && user && vc && vc.joined && vc.joined[user.uid] && vc.joined[user.uid].forceMute){
       if(!window._lkMuted){
@@ -5458,7 +5546,6 @@ function syncVoiceCallUi(data){
     }
   }catch(e){}
 }
-
 async function getCallTokenFromFn(isHost){
   if(!firebase || !firebase.functions) throw new Error('Functions not ready');
   const fn = firebase.app().functions('asia-south1').httpsCallable('getCallToken');
@@ -5476,6 +5563,21 @@ function ownerDisplayLabel(){
   }catch(e){}
   return (user && (user.displayName || user.email)) || 'Owner';
 }
+async function ensureMicPublished(room){
+  try{ await room.localParticipant.setCameraEnabled(false); }catch(e){}
+  try{ await room.localParticipant.setMicrophoneEnabled(true); }
+  catch(e){
+    try{ await room.localParticipant.setMicrophoneEnabled(true); }catch(e2){ console.warn('mic', e2); }
+  }
+  setTimeout(async function(){
+    try{
+      if(window._lkRoom === room && !window._lkMuted){
+        await room.localParticipant.setMicrophoneEnabled(false);
+        await room.localParticipant.setMicrophoneEnabled(true);
+      }
+    }catch(e){}
+  }, 800);
+}
 async function joinVoiceCall(asHost){
   if(window._voiceJoining || window._lkRoom) return;
   window._voiceJoining = true;
@@ -5488,6 +5590,7 @@ async function joinVoiceCall(asHost){
     const room = new LK.Room({
       adaptiveStream: true,
       dynacast: true,
+      autoSubscribe: true,
       audioCaptureDefaults: {
         echoCancellation: true,
         noiseSuppression: true,
@@ -5499,14 +5602,14 @@ async function joinVoiceCall(asHost){
       updateNavCallBtn();
     });
     wireRoomAudio(room, LK);
-    await room.connect(tok.url, tok.token);
-    await room.localParticipant.setCameraEnabled(false);
-    await room.localParticipant.setMicrophoneEnabled(true);
+    await room.connect(tok.url, tok.token, { autoSubscribe: true });
+    await ensureMicPublished(room);
     window._lkRoom = room;
     window._lkMuted = false;
     updateNavCallBtn();
+    updateInCallChrome();
 
-    const label = ownerDisplayLabel();
+    const label = isAuctionHostUser() ? ('Host ' + (user.displayName || user.email || '')) : ownerDisplayLabel();
     if(T){
       T.voiceCall = T.voiceCall || { status: 'live', hostUid: user.uid, joined: {}, targets: {} };
       T.voiceCall.status = 'live';
@@ -5517,12 +5620,13 @@ async function joinVoiceCall(asHost){
         email: user.email || '',
         label: label,
         muted: false,
+        role: isAuctionHostUser() ? 'host' : 'owner',
         at: Date.now()
       };
       if(T.voiceCall.targets && T.voiceCall.targets[user.uid]){
         T.voiceCall.targets[user.uid] = { status: 'joined', at: Date.now() };
       }
-      try{ await cloudSave(true); }catch(e){}
+      try{ await cloudSave(true); }catch(e){ console.warn('voice join save', e); }
       if(!already && !isAuctionHostUser()){
         try{
           if(typeof sayEvent === 'function') sayEvent(label + ' joined the voice call.', 'host');
@@ -5532,8 +5636,14 @@ async function joinVoiceCall(asHost){
     }
     closeVoiceRingModal();
     closeLateJoinModal();
-    closeVoiceHostModal();
-    try{ announce('Joined voice call.'); }catch(e){}
+    if(isAuctionHostUser()){
+      paintJoinedList();
+      openVoiceHostModal();
+    } else {
+      closeVoiceHostModal();
+    }
+    subscribeAllRemote(room, LK);
+    try{ announce(isAuctionHostUser() ? 'You are in the voice call as host. Mute and End are next to Message.' : 'Joined voice call.'); }catch(e){}
   }catch(e){
     safeAlert(e);
   }finally{
@@ -5578,7 +5688,6 @@ function wireVoiceCallUi(){
       openVoiceHostModal();
       return;
     }
-    // Owner: in call → show joined list briefly via host modal read-only; not in call → late join if live
     if(window._lkRoom){
       openVoiceHostModal();
       return;
@@ -5596,8 +5705,8 @@ function wireVoiceCallUi(){
   if($('btnCallOptsEnd')) $('btnCallOptsEnd').onclick = function(){ endVoiceCallForAll(); };
   if($('btnCallOptsMuteAll')){
     $('btnCallOptsMuteAll').onclick = async function(){
-      // Local request: mark all as muted in firestore; each client should mute when they see flag
-      if(!T || !T.voiceCall || !T.voiceCall.joined) return;
+      if(!T || !T.voiceCall) return;
+      T.voiceCall.joined = T.voiceCall.joined || {};
       Object.keys(T.voiceCall.joined).forEach(function(uid){
         if(uid === (user && user.uid)) return;
         T.voiceCall.joined[uid].muted = true;
@@ -5633,6 +5742,7 @@ function wireVoiceCallUi(){
   if($('btnCallHostOpts')) $('btnCallHostOpts').onclick = openVoiceHostModal;
 }
 try{ wireVoiceCallUi(); }catch(e){ console.warn('wireVoiceCallUi', e); }
+
 
 
 

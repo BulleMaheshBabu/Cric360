@@ -1,1 +1,9 @@
 
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "in.cric360teluguyt.twa",
+    "sha256_cert_fingerprints": ["E6:06:C1:76:3B:7B:EB:69:CE:68:7E:97:E3:25:A0:05:B4:8D:EC:FF:03:67:BE:42:64:23:8D:4F:B1:64:A9:C4"]
+  }
+}]

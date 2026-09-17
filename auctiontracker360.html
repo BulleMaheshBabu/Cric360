@@ -657,6 +657,10 @@ a{color:var(--primary)}
 #tabAuction button,#tabAuction .btn-ok,#tabAuction .btn-sec,#tabAuction .btn-danger{min-height:48px}
 .bottom-tabs button,.tab-bar button{min-height:52px}
 
+
+#micPermModal .modal-box{max-width:420px;width:100%}
+#micPermModal .btn-stack button{min-height:52px;font-size:16px;font-weight:700}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -1048,6 +1052,17 @@ a{color:var(--primary)}
     </div>
   </div>
 </div>
+<div id="micPermModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="micPermTitle">
+  <div class="modal-box">
+    <h2 id="micPermTitle" tabindex="-1" style="margin-top:0">Microphone</h2>
+    <p id="micPermMsg" style="margin:8px 0 14px;line-height:1.45">Voice call needs your microphone so others can hear you.</p>
+    <div class="btn-stack" id="micPermActions" style="margin-top:4px">
+      <button type="button" id="btnMicYes" class="btn-ok btn-block">Yes, use microphone</button>
+      <button type="button" id="btnMicNo" class="btn-sec btn-block">Not now</button>
+    </div>
+  </div>
+</div>
+
 
 <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cTitle">
   <div class="modal-box">
@@ -2564,14 +2579,14 @@ function focusEl(el){
   if(!el) return;
   // While a modal is open, only allow focus inside that modal
   if(window._modalOpen || isConfirmOpen() || window._priceEditOpen || window._squadDialogOpen){
-    const inDialog = el.closest && el.closest('#confirmModal, #priceEditOverlay, #squadAddOverlay, #msgOverlay, #msgPanel, #soldForm, #voiceRingModal, #voiceHostModal, #playerSearchModal');
+    const inDialog = el.closest && el.closest('#confirmModal, #priceEditOverlay, #squadAddOverlay, #msgOverlay, #msgPanel, #soldForm, #voiceRingModal, #voiceHostModal, #voiceLateJoinModal, #micPermModal, #playerSearchModal');
     if(!inDialog) return;
   }
   // Never yank focus away from bottom tab bar / hub tabs
   try{
     const ae = document.activeElement;
     if(ae && ae.getAttribute && ae.getAttribute('role')==='tab'){
-      if(!(el.getAttribute && el.getAttribute('role')==='tab') && !el.closest('#confirmModal, #voiceRingModal, #voiceHostModal, #msgPanel')){
+      if(!(el.getAttribute && el.getAttribute('role')==='tab') && !el.closest('#confirmModal, #voiceRingModal, #voiceHostModal, #voiceLateJoinModal, #micPermModal, #msgPanel')){
         return;
       }
     }
@@ -5580,19 +5595,79 @@ function ownerDisplayLabel(){
   }catch(e){}
   return (user && (user.displayName || user.email)) || 'Owner';
 }
-async function requestBrowserMic(){
-  try{
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      video: false
-    });
-    try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
-    return true;
-  }catch(e){
-    console.warn('requestBrowserMic', e);
-    throw e;
+function closeMicPermModal(){
+  const m = $('micPermModal');
+  if(m){
+    m.classList.add('hidden');
+    m.setAttribute('aria-hidden','true');
   }
+}
+/** Show Yes/No dialog, then on Yes trigger browser mic prompt. Returns true if granted. */
+function askMicPermissionDialog(opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    const m = $('micPermModal');
+    if(!m){ resolve(false); return; }
+    const title = $('micPermTitle');
+    const msg = $('micPermMsg');
+    const yes = $('btnMicYes');
+    const no = $('btnMicNo');
+    const mode = opts.mode || 'ask'; // ask | blocked
+
+    if(mode === 'blocked'){
+      if(title) title.textContent = 'Microphone blocked';
+      if(msg) msg.textContent = 'The browser blocked the microphone. Tap Try again. When the browser asks, choose Allow. If it still fails, open the lock icon in the address bar, set Microphone to Allow, then try again.';
+      if(yes) yes.textContent = 'Try again';
+      if(no) no.textContent = 'Close';
+    } else {
+      if(title) title.textContent = 'Use microphone?';
+      if(msg) msg.textContent = opts.message || 'Voice call needs your microphone so others can hear you. Tap Yes, then choose Allow when the browser asks.';
+      if(yes) yes.textContent = 'Yes, use microphone';
+      if(no) no.textContent = 'Not now';
+    }
+
+    m.classList.remove('hidden');
+    m.setAttribute('aria-hidden','false');
+    try{ if(title) title.focus(); }catch(e){}
+    try{ announce((title && title.textContent) + '. ' + (msg && msg.textContent)); }catch(e){}
+
+    function cleanup(){
+      yes.onclick = null;
+      no.onclick = null;
+      closeMicPermModal();
+    }
+
+    yes.onclick = async function(){
+      cleanup();
+      try{
+        if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+          resolve(true);
+          return;
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: false
+        });
+        try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+        resolve(true);
+      }catch(err){
+        console.warn('mic dialog getUserMedia', err);
+        // Show blocked dialog once, then resolve based on retry
+        const again = await askMicPermissionDialog({ mode: 'blocked' });
+        resolve(!!again);
+      }
+    };
+    no.onclick = function(){
+      cleanup();
+      resolve(false);
+    };
+  });
+}
+async function requestBrowserMic(opts){
+  // Prefer friendly Yes/No dialog so new users understand before browser prompt
+  const ok = await askMicPermissionDialog(opts || {});
+  if(!ok) throw new Error('Microphone not allowed');
+  return true;
 }
 async function ensureMicPublished(room){
   try{ await room.localParticipant.setCameraEnabled(false); }catch(e){}
@@ -5600,9 +5675,8 @@ async function ensureMicPublished(room){
     await room.localParticipant.setMicrophoneEnabled(true);
   }catch(e){
     console.warn('mic enable', e);
-    // one more try after explicit browser prompt
     try{
-      await requestBrowserMic();
+      await requestBrowserMic({ message: 'Microphone is needed to talk. Tap Yes, then Allow.' });
       await room.localParticipant.setMicrophoneEnabled(true);
     }catch(e2){
       console.warn('mic enable retry', e2);
@@ -5614,9 +5688,11 @@ async function joinVoiceCall(asHost){
   if(window._voiceJoining || window._lkRoom) return;
   window._voiceJoining = true;
   try{
-    // Ask browser for mic FIRST so host/owner audio can publish
-    try{ await requestBrowserMic(); }catch(e){
-      throw new Error('Microphone access was blocked. Allow Microphone for this site, then join the call again.');
+    // Friendly Yes/No dialog, then browser mic prompt
+    try{
+      await requestBrowserMic({ message: 'To join the voice call, your microphone is needed so others can hear you. Tap Yes, then choose Allow.' });
+    }catch(e){
+      throw new Error('Microphone was not allowed. Join again and tap Yes when asked.');
     }
     const LK = window.LivekitClient || window.livekit || null;
     if(!LK || !LK.Room){
@@ -5710,23 +5786,23 @@ async function toggleCallMute(){
   const wantUnmute = window._lkMuted; // currently muted → unmute
   try{
     if(wantUnmute){
-      try{ await requestBrowserMic(); }catch(e){
-        alert('Microphone access was blocked. In the browser address bar, allow Microphone for this site, then tap Unmute again.');
-        return;
+      try{
+        await requestBrowserMic({ message: 'To unmute, allow the microphone so others can hear you. Tap Yes, then choose Allow.' });
+      }catch(e){
+        return; // user said Not now or still blocked after dialog
       }
     }
     await window._lkRoom.localParticipant.setMicrophoneEnabled(wantUnmute ? true : false);
     window._lkMuted = !wantUnmute;
   }catch(e){
     const msg = (e && (e.message || e.name)) || String(e);
-    if(/NotAllowed|Permission|getUserMedia|microphone/i.test(msg)){
-      alert('Microphone access was blocked. Allow Microphone for this site, then tap Unmute again.');
-    } else {
-      safeAlert(e);
+    if(/NotAllowed|Permission|getUserMedia|microphone|not allowed/i.test(msg)){
+      try{ await askMicPermissionDialog({ mode: 'blocked' }); }catch(e2){}
+      return;
     }
+    safeAlert(e);
     return;
   }
-  // Best-effort Firestore flag — never block mute UI on rules errors
   try{
     if(T && T.voiceCall && T.voiceCall.joined && user && T.voiceCall.joined[user.uid]){
       T.voiceCall.joined[user.uid].muted = window._lkMuted;

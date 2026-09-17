@@ -645,6 +645,18 @@ a{color:var(--primary)}
 .voice-owner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .voice-owner-row:last-child{border-bottom:0}
 
+
+/* Auction toolbar — one clear row for SR + touch */
+.auc-topbar{display:flex;flex-direction:column;gap:6px;padding:4px 0 8px;margin:0}
+.auc-toolbar{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0}
+.auc-toolbar > button{flex:0 0 auto;min-height:48px;min-width:48px;padding:8px 12px;font-size:14px;font-weight:700}
+.auc-center{font-size:13px;font-weight:700;color:var(--muted);padding:0 2px;line-height:1.2;pointer-events:none;user-select:none}
+#aucPlayer{margin-top:4px}
+#aucPlayer [role="heading"],#aucPlayer h1,#aucPlayer h2{outline:none}
+/* Prefer large touch targets in auction */
+#tabAuction button,#tabAuction .btn-ok,#tabAuction .btn-sec,#tabAuction .btn-danger{min-height:48px}
+.bottom-tabs button,.tab-bar button{min-height:52px}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -856,16 +868,16 @@ a{color:var(--primary)}
 <section id="screenAuction" class="hidden">
   <div class="wrap">
     <div id="tabAuction" class="panel" role="region" aria-labelledby="aucCenterTitle">
-      <div class="auc-topbar">
-        <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
-        <button type="button" id="btnAucMute" class="btn-sec hidden" aria-pressed="false" aria-label="Mute microphone">Mute</button>
-        <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">End</button>
-        <div class="auc-center" id="aucCenterTitle" role="text">Auction</div>
-        <div class="auc-top-actions" style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+      <div class="auc-topbar" role="region" aria-label="Auction controls">
+        <div class="auc-toolbar" role="toolbar" aria-label="Messages and voice call">
+          <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
+          <button type="button" id="btnAucMute" class="btn-sec hidden" aria-pressed="false" aria-label="Mute microphone">Mute</button>
+          <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">End</button>
           <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
           <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
-          <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings for commentary and sounds">Quick settings</button>
+          <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings">Settings</button>
         </div>
+        <div class="auc-center" id="aucCenterTitle" aria-hidden="true">Auction</div>
       </div>
       <div id="lkAudioSink" class="sr-only" aria-hidden="true"></div>
       <div id="onlinePanelTop" class="hidden" style="margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>
@@ -897,7 +909,7 @@ a{color:var(--primary)}
       </div>
       
       
-      <div id="aucPlayer"></div>
+      <div id="aucPlayer" role="region" aria-label="Current player and timer"></div>
       <div class="auc-home-row" id="aucHostFooter">
         <button type="button" id="btnEndAuction" class="btn-sec">End this auction</button>
         <button type="button" id="btnHomeAuc" class="btn-sec" aria-label="Leave auction">Leave auction</button>
@@ -2654,6 +2666,11 @@ function friendlyError(e){
     if(fsMap[short]) return fsMap[short];
   }
 
+  // Microphone / camera (must run BEFORE generic "permission" match)
+  if(/NotAllowedError|Permission denied by user|Permission dismissed|getUserMedia|microphone|Microphone|camera permission/i.test(raw) ||
+     /Could not start audio source|NotReadableError|OverconstrainedError/i.test(raw)){
+    return 'Microphone access was blocked. In the browser address bar, allow Microphone for this site, then tap Unmute again.';
+  }
   // Message-based fallbacks
   if(/permission|insufficient/i.test(raw))
     return 'Permission denied. Sign in again or ask the host to assign your team.';
@@ -5563,25 +5580,44 @@ function ownerDisplayLabel(){
   }catch(e){}
   return (user && (user.displayName || user.email)) || 'Owner';
 }
+async function requestBrowserMic(){
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false
+    });
+    try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+    return true;
+  }catch(e){
+    console.warn('requestBrowserMic', e);
+    throw e;
+  }
+}
 async function ensureMicPublished(room){
   try{ await room.localParticipant.setCameraEnabled(false); }catch(e){}
-  try{ await room.localParticipant.setMicrophoneEnabled(true); }
-  catch(e){
-    try{ await room.localParticipant.setMicrophoneEnabled(true); }catch(e2){ console.warn('mic', e2); }
-  }
-  setTimeout(async function(){
+  try{
+    await room.localParticipant.setMicrophoneEnabled(true);
+  }catch(e){
+    console.warn('mic enable', e);
+    // one more try after explicit browser prompt
     try{
-      if(window._lkRoom === room && !window._lkMuted){
-        await room.localParticipant.setMicrophoneEnabled(false);
-        await room.localParticipant.setMicrophoneEnabled(true);
-      }
-    }catch(e){}
-  }, 800);
+      await requestBrowserMic();
+      await room.localParticipant.setMicrophoneEnabled(true);
+    }catch(e2){
+      console.warn('mic enable retry', e2);
+      throw e2;
+    }
+  }
 }
 async function joinVoiceCall(asHost){
   if(window._voiceJoining || window._lkRoom) return;
   window._voiceJoining = true;
   try{
+    // Ask browser for mic FIRST so host/owner audio can publish
+    try{ await requestBrowserMic(); }catch(e){
+      throw new Error('Microphone access was blocked. Allow Microphone for this site, then join the call again.');
+    }
     const LK = window.LivekitClient || window.livekit || null;
     if(!LK || !LK.Room){
       throw new Error('LiveKit client library not loaded. Check network.');
@@ -5671,14 +5707,32 @@ async function leaveVoiceCall(silent){
 }
 async function toggleCallMute(){
   if(!window._lkRoom) return;
-  window._lkMuted = !window._lkMuted;
+  const wantUnmute = window._lkMuted; // currently muted → unmute
   try{
-    await window._lkRoom.localParticipant.setMicrophoneEnabled(!window._lkMuted);
-  }catch(e){ safeAlert(e); return; }
-  if(T && T.voiceCall && T.voiceCall.joined && user && T.voiceCall.joined[user.uid]){
-    T.voiceCall.joined[user.uid].muted = window._lkMuted;
-    try{ await cloudSave(true); }catch(e){}
+    if(wantUnmute){
+      try{ await requestBrowserMic(); }catch(e){
+        alert('Microphone access was blocked. In the browser address bar, allow Microphone for this site, then tap Unmute again.');
+        return;
+      }
+    }
+    await window._lkRoom.localParticipant.setMicrophoneEnabled(wantUnmute ? true : false);
+    window._lkMuted = !wantUnmute;
+  }catch(e){
+    const msg = (e && (e.message || e.name)) || String(e);
+    if(/NotAllowed|Permission|getUserMedia|microphone/i.test(msg)){
+      alert('Microphone access was blocked. Allow Microphone for this site, then tap Unmute again.');
+    } else {
+      safeAlert(e);
+    }
+    return;
   }
+  // Best-effort Firestore flag — never block mute UI on rules errors
+  try{
+    if(T && T.voiceCall && T.voiceCall.joined && user && T.voiceCall.joined[user.uid]){
+      T.voiceCall.joined[user.uid].muted = window._lkMuted;
+      cloudSave(true).catch(function(){});
+    }
+  }catch(e){}
   updateInCallChrome();
   try{ announce(window._lkMuted ? 'Muted' : 'Unmuted'); }catch(e){}
 }

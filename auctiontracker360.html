@@ -634,69 +634,112 @@ ul.plain li{padding:12px 0;border-bottom:1px solid var(--border)}
 a{color:var(--primary)}
 
 /* Voice call UI */
-.call-strip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;
-  padding:8px 10px;background:rgba(0,180,216,.12);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:160}
-.call-strip.hidden{display:none}
-.call-strip .call-state{font-weight:700;font-size:13px;color:var(--primary-bright)}
-#btnNavCall,#btnAucCall,#btnAucMute,#btnAucEndCall{min-height:40px;padding:6px 12px;font-weight:700;font-size:13px}
-.auc-topbar{flex-wrap:wrap;gap:6px}
-#btnAucMute:not(.hidden),#btnAucEndCall:not(.hidden){display:inline-flex !important;align-items:center}
-#voiceRingModal .modal-box,#voiceHostModal .modal-box{max-width:420px;width:100%}
-.voice-owner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.call-strip{display:none!important}
+#voiceRingModal .modal-box,#voiceHostModal .modal-box,#voiceLateJoinModal .modal-box,#micPermModal .modal-box{max-width:420px;width:100%}
+.voice-owner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);min-height:52px}
 .voice-owner-row:last-child{border-bottom:0}
 
-
-/* Auction toolbar — one clear row for SR + touch */
-.auc-topbar{display:flex;flex-direction:column;gap:6px;padding:4px 0 8px;margin:0}
-.auc-toolbar{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0}
-.auc-toolbar > button{flex:0 0 auto;min-height:48px;min-width:48px;padding:8px 12px;font-size:14px;font-weight:700}
-.auc-center{font-size:13px;font-weight:700;color:var(--muted);padding:0 2px;line-height:1.2;pointer-events:none;user-select:none}
-#aucPlayer{margin-top:4px}
-#aucPlayer [role="heading"],#aucPlayer h1,#aucPlayer h2{outline:none}
-/* Prefer large touch targets in auction */
-#tabAuction button,#tabAuction .btn-ok,#tabAuction .btn-sec,#tabAuction .btn-danger{min-height:48px}
-.bottom-tabs button,.tab-bar button{min-height:52px}
-
-
-#micPermModal .modal-box{max-width:420px;width:100%}
-#micPermModal .btn-stack button{min-height:52px;font-size:16px;font-weight:700}
-
-
-/* Recent result: visual only — do not steal focus / explore-by-touch */
-.recent-card,.recent-line{
-  pointer-events:none;
-  user-select:none;
+/* Closed modals: fully out of a11y + touch */
+.modal.hidden,
+.modal[aria-hidden="true"]{
+  display:none!important;
+  pointer-events:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
 }
-.recent-card[aria-hidden="true"],.recent-line[aria-hidden="true"]{display:block}
-
-/* Native-feel auction live density */
-#screenAuction .auc-toolbar{
-  display:flex;flex-wrap:nowrap;gap:8px;align-items:stretch;
-  padding:6px 0 8px;border-bottom:1px solid var(--border);
-  overflow-x:auto;-webkit-overflow-scrolling:touch;
+.modal.hidden *,
+.modal[aria-hidden="true"] *{
+  pointer-events:none!important;
 }
-#screenAuction .auc-toolbar > button{
-  flex:1 1 0;min-width:56px;min-height:52px;padding:10px 8px;
+
+/* Native Android-style top chrome: Message | Mute Leave | Call */
+.auc-topbar{
+  display:flex;flex-direction:column;gap:0;
+  padding:0;margin:0 0 6px;border:none;
+}
+.auc-toolbar{
+  display:flex;flex-direction:row;flex-wrap:nowrap;
+  align-items:stretch;justify-content:space-between;
+  gap:6px;padding:6px 0 8px;
+  border-bottom:1px solid var(--border);
+  -webkit-overflow-scrolling:touch;
+}
+.auc-tb-left,.auc-tb-mid,.auc-tb-right{
+  display:flex;flex-direction:row;align-items:stretch;gap:6px;
+}
+.auc-tb-left{flex:0 0 auto}
+.auc-tb-mid{flex:1 1 auto;justify-content:center;min-width:0}
+.auc-tb-right{flex:0 0 auto;justify-content:flex-end}
+.auc-toolbar > .auc-tb-left > button,
+.auc-toolbar > .auc-tb-mid > button,
+.auc-toolbar > .auc-tb-right > button,
+.auc-toolbar button{
+  flex:0 0 auto;min-height:48px;min-width:52px;padding:8px 12px;
   font-size:14px;font-weight:700;border-radius:12px;
   touch-action:manipulation;
 }
-#screenAuction #aucPlayer{margin-top:8px}
+#btnAucMute:not(.hidden),#btnAucEndCall:not(.hidden){
+  display:inline-flex!important;align-items:center;justify-content:center;
+}
+.auc-center{display:none!important} /* no dead title text */
+#aucPlayer{margin-top:4px}
+#aucPlayer [role="heading"],#aucPlayer h1,#aucPlayer h2{outline:none}
+
+/* Large touch targets everywhere in auction */
+#tabAuction button,#tabAuction .btn-ok,#tabAuction .btn-sec,#tabAuction .btn-danger{min-height:48px}
+.bottom-tabs button,.tab-bar button,.tabbar button{min-height:52px}
+
+#micPermModal .btn-stack button{min-height:52px;font-size:16px;font-weight:700}
+
+/* Recent result: visual only — never steal focus */
+.recent-card,.recent-line{pointer-events:none;user-select:none}
+.recent-card[aria-hidden="true"],.recent-line[aria-hidden="true"]{display:block}
+
+/* Bid chips — native row like 0–6 bats */
+#bidRegion{
+  display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px;
+  align-items:stretch;justify-content:flex-start;
+}
+#bidRegion .bidRaise,
+#bidRegion #btnQuitLot,
+#bidRegion > button{
+  flex:1 1 calc(25% - 8px);min-width:64px;min-height:56px;
+  padding:12px 8px;font-size:16px;font-weight:800;border-radius:14px;
+  touch-action:manipulation;
+}
+#bidRegion .bidRaise.btn-ok{background:var(--primary);color:#fff}
+#bidRegion #btnQuitLot{flex:1 1 100%}
+
+/* Native density — flush top, no empty bands */
+#screenAuction .wrap{padding:0 10px!important}
+#screenAuction .panel{
+  padding:6px 10px 10px!important;margin:0!important;
+  border-radius:0;border-left:none;border-right:none;
+}
+#screenAuction #aucPlayer{margin-top:4px}
 #screenAuction .player-stage{
-  padding:14px 12px;border-radius:16px;margin:8px 0;
+  padding:12px 12px;border-radius:16px;margin:6px 0;
   border:1px solid var(--border);
 }
-#screenAuction .stats,#screenAuction .stats-4{margin:8px 0;gap:8px}
-#screenAuction .stat{min-height:52px;border-radius:12px;padding:10px 6px}
+#screenAuction .stats,#screenAuction .stats-4{margin:6px 0;gap:6px}
+#screenAuction .stat{min-height:48px;border-radius:12px;padding:8px 6px}
 #aucHostFooter{
-  position:sticky;bottom:0;padding:10px 0 6px;
-  background:linear-gradient(180deg,transparent,var(--bg) 30%);
+  position:sticky;bottom:0;padding:8px 0 4px;
+  background:linear-gradient(180deg,transparent,var(--bg) 28%);
   z-index:40;
 }
-#aucHostFooter button{min-height:52px;border-radius:12px;font-weight:700}
-@media(max-width:600px){
-  #screenAuction .wrap{padding:0 10px!important}
-  #screenAuction .panel{padding:8px 10px 12px!important;margin:0!important;border-radius:0;border-left:none;border-right:none}
-  #screenAuction .auc-center{display:none} /* less dead text on mobile */
+#aucHostFooter button{min-height:48px;border-radius:12px;font-weight:700}
+
+/* Hide inactive panels hard — no SR leakage of Leave auction / headers */
+#tabAuction[aria-hidden="true"],
+#tabSquads[aria-hidden="true"],
+#tabInsights[aria-hidden="true"],
+#tabTools[aria-hidden="true"],
+#tabAuction[inert],#tabSquads[inert],#tabInsights[inert],#tabTools[inert]{
+  display:none!important;visibility:hidden!important;pointer-events:none!important;
+}
+#aucHostFooter[aria-hidden="true"],#aucHostFooter.hidden,#aucHostFooter[inert]{
+  display:none!important;visibility:hidden!important;pointer-events:none!important;
 }
 
 </style>
@@ -912,14 +955,20 @@ a{color:var(--primary)}
     <div id="tabAuction" class="panel" role="region" aria-labelledby="aucCenterTitle">
       <div class="auc-topbar" role="region" aria-label="Auction controls">
         <div class="auc-toolbar" role="toolbar" aria-label="Messages and voice call">
-          <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
-          <button type="button" id="btnAucMute" class="btn-sec hidden" aria-pressed="false" aria-label="Mute microphone">Mute</button>
-          <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">End</button>
-          <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
-          <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
-          <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings">Settings</button>
+          <div class="auc-tb-left">
+            <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
+          </div>
+          <div class="auc-tb-mid" id="aucCallMid" aria-label="In call controls">
+            <button type="button" id="btnAucMute" class="btn-sec hidden" aria-pressed="false" aria-label="Mute microphone">Mute</button>
+            <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">Leave</button>
+          </div>
+          <div class="auc-tb-right">
+            <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
+            <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
+            <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings">Settings</button>
+          </div>
         </div>
-        <div class="auc-center" id="aucCenterTitle" aria-hidden="true">Auction</div>
+        <div class="auc-center" id="aucCenterTitle" aria-hidden="true" hidden>Auction</div>
       </div>
       <div id="lkAudioSink" class="sr-only" aria-hidden="true"></div>
       <div id="onlinePanelTop" class="hidden" style="margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>
@@ -5296,6 +5345,7 @@ function updateNavCallBtn(){
 function updateInCallChrome(){
   const inCall = !!(window._lkRoom);
   const isHost = isAuctionHostUser();
+  const mid = $('aucCallMid');
   ['btnAucMute','btnAucEndCall'].forEach(function(id){
     const el = $(id);
     if(!el) return;
@@ -5303,11 +5353,24 @@ function updateInCallChrome(){
       el.classList.remove('hidden');
       el.style.display = '';
       el.removeAttribute('aria-hidden');
+      el.removeAttribute('tabindex');
       el.disabled = false;
     } else {
       el.classList.add('hidden');
+      el.setAttribute('aria-hidden','true');
+      el.setAttribute('tabindex','-1');
+      el.disabled = true;
     }
   });
+  if(mid){
+    if(inCall){
+      mid.removeAttribute('aria-hidden');
+      mid.removeAttribute('inert');
+    } else {
+      mid.setAttribute('aria-hidden','true');
+      mid.setAttribute('inert','');
+    }
+  }
   if($('btnAucMute') && inCall){
     $('btnAucMute').textContent = window._lkMuted ? 'Unmute' : 'Mute';
     $('btnAucMute').setAttribute('aria-pressed', window._lkMuted ? 'true' : 'false');
@@ -5317,7 +5380,10 @@ function updateInCallChrome(){
     $('btnAucEndCall').textContent = isHost ? 'End' : 'Leave';
     $('btnAucEndCall').setAttribute('aria-label', isHost ? 'End call for everyone' : 'Leave call');
   }
-  if($('callStrip')) $('callStrip').classList.add('hidden');
+  if($('callStrip')){
+    $('callStrip').classList.add('hidden');
+    $('callStrip').setAttribute('aria-hidden','true');
+  }
 }
 function isAudioTrack(track, LK){
   if(!track) return false;
@@ -5439,8 +5505,6 @@ function liveKitJoinedRows(){
   return rows;
 }
 function openVoiceHostModal(){
-  const m = $('voiceHostModal');
-  if(!m) return;
   paintVoiceOwnerList();
   const inCall = !!(window._lkRoom);
   const active = inCall || (T && T.voiceCall && (T.voiceCall.status==='ringing' || T.voiceCall.status==='live'));
@@ -5448,11 +5512,8 @@ function openVoiceHostModal(){
   if($('btnCallOptsMuteAll')) $('btnCallOptsMuteAll').classList.toggle('hidden', !inCall || !isAuctionHostUser());
   if($('vhJoinedBox')) $('vhJoinedBox').classList.toggle('hidden', !active);
   paintJoinedList();
-  m.classList.remove('hidden');
+  unsealModal('voiceHostModal');
   try{ focusEl($('vhTitle') || $('btnRingAll')); }catch(e){}
-}
-function closeVoiceHostModal(){
-  if($('voiceHostModal')) $('voiceHostModal').classList.add('hidden');
 }
 function paintVoiceOwnerList(){
   const box = $('vhOwnerList');
@@ -5569,12 +5630,31 @@ async function removeVoiceParticipant(uid){
   try{ await cloudSave(false); }catch(e){}
   paintJoinedList();
 }
+function sealModal(id){
+  const m = $(id);
+  if(!m) return;
+  m.classList.add('hidden');
+  m.setAttribute('aria-hidden','true');
+  m.setAttribute('inert','');
+  try{ m.setAttribute('tabindex','-1'); }catch(e){}
+}
+function unsealModal(id){
+  const m = $(id);
+  if(!m) return;
+  m.classList.remove('hidden');
+  m.setAttribute('aria-hidden','false');
+  m.removeAttribute('inert');
+  m.removeAttribute('tabindex');
+}
 function closeVoiceRingModal(){
   if(window._ringTimer){ clearTimeout(window._ringTimer); window._ringTimer = null; }
-  if($('voiceRingModal')) $('voiceRingModal').classList.add('hidden');
+  sealModal('voiceRingModal');
 }
 function closeLateJoinModal(){
-  if($('voiceLateJoinModal')) $('voiceLateJoinModal').classList.add('hidden');
+  sealModal('voiceLateJoinModal');
+}
+function closeVoiceHostModal(){
+  sealModal('voiceHostModal');
 }
 function showIncomingRing(vc){
   if(!canUseVoiceCall() || isAuctionHostUser()) return;
@@ -5583,7 +5663,7 @@ function showIncomingRing(vc){
   if(!m) return;
   const host = (vc && (vc.hostName || 'Host')) || 'Host';
   if($('vrMsg')) $('vrMsg').textContent = host + ' wants to talk with you. Join or reject. This closes in 20 seconds.';
-  m.classList.remove('hidden');
+  unsealModal('voiceRingModal');
   window._ringShownAt = Date.now();
   if(window._ringTimer) clearTimeout(window._ringTimer);
   window._ringTimer = setTimeout(function(){
@@ -5595,9 +5675,7 @@ function showIncomingRing(vc){
   try{ announce(host + ' wants to talk with you. Join or reject.'); }catch(e){}
 }
 function showLateJoinPrompt(){
-  const m = $('voiceLateJoinModal');
-  if(!m) return;
-  m.classList.remove('hidden');
+  unsealModal('voiceLateJoinModal');
   try{ focusEl($('btnLateJoinYes')); }catch(e){}
 }
 function syncVoiceCallUi(data){
@@ -5661,11 +5739,7 @@ function ownerDisplayLabel(){
   return (user && (user.displayName || user.email)) || 'Owner';
 }
 function closeMicPermModal(){
-  const m = $('micPermModal');
-  if(m){
-    m.classList.add('hidden');
-    m.setAttribute('aria-hidden','true');
-  }
+  sealModal('micPermModal');
 }
 window._micGranted = false;
 
@@ -5720,8 +5794,7 @@ function askMicPermissionDialog(opts){
       if(no) no.textContent = 'Not now';
     }
 
-    m.classList.remove('hidden');
-    m.setAttribute('aria-hidden','false');
+    unsealModal('micPermModal');
     try{ if(title) title.focus(); }catch(e){}
     try{ announce((title && title.textContent) + '. ' + (msg && msg.textContent)); }catch(e){}
 
@@ -5929,6 +6002,10 @@ async function toggleCallMute(){
   try{ announce(window._lkMuted ? 'Muted' : 'Unmuted'); }catch(e){}
 }
 function wireVoiceCallUi(){
+  // Fully seal all voice dialogs so SR never reads them when closed
+  ['voiceRingModal','voiceHostModal','voiceLateJoinModal','micPermModal'].forEach(function(id){
+    try{ sealModal(id); }catch(e){}
+  });
   function onCallBtnClick(){
     if(isAuctionHostUser()){
       openVoiceHostModal();
@@ -6924,7 +7001,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     '<p class="lead-line" id="leadLine" style="margin:8px 0 0;padding:8px;font-size:0.95rem">'+leadText+'</p>'+
     '</div>'+
     '<p class="timer-box" id="pTimer" role="timer" aria-label="Time remaining '+sec+' seconds"><span aria-hidden="true">'+sec+'s</span><span class="sr-only">Time remaining '+sec+' seconds</span></p>'+
-    '<div id="bidRegion" class="bid-stack" role="group" aria-label="Bidding actions">'+
+    '<div id="bidRegion" role="group" aria-label="Bidding actions">'+
     raiseBtns+chat+
     '</div>'+
     hostBtns+

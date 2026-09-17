@@ -1,29 +1,30 @@
-{
+  {
   "name": "Cric360 – Cricket Tools",
   "short_name": "Cric360",
   "description": "Live scoring, player auctions, and tournament tracking for cricket events.",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "./",
+"scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0b1326",
   "theme_color": "#0b1326",
   "lang": "en",
+  "id": "/",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

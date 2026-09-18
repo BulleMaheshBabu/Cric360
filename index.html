@@ -10,226 +10,240 @@
 <meta name="apple-mobile-web-app-title" content="Cric360" />
 <meta name="description" content="Live cricket scoring, player auctions, and match tracking — installable as a web app." />
 <link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon-192.png" type="image/png" />
 <link rel="icon" href="icons/icon-192.png" type="image/png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-<title>Cric360 – Tools</title>
+<title>Cric360</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0b1326;--card:rgba(30,41,59,.78);--border:rgba(56,189,248,.28);
+  --bg:#0b1326;--card:rgba(30,41,59,.88);--border:rgba(56,189,248,.28);
   --text:#e8eefc;--muted:#a8b4c8;--primary:#38bdf8;--primary-bright:#7dd3fc;
-  --ok:#00e676;--danger:#f43f5e;--sec:#1e293b;--shadow:0 16px 48px rgba(0,0,0,.45);
+  --ok:#00e676;--danger:#f43f5e;--sec:#1e293b;
   --accent-auction:#38bdf8;--accent-live:#00e676;
 }
 *{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100%;min-height:100dvh}
 body{
-  margin:0;min-height:100dvh;font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif;
   background:
     radial-gradient(900px 480px at 12% -8%,rgba(14,165,233,.18),transparent 55%),
     radial-gradient(700px 400px at 95% 8%,rgba(0,230,118,.1),transparent 50%),
     #0f172a;
-  color:var(--text);line-height:1.5;
+  color:var(--text);line-height:1.45;
+  -webkit-tap-highlight-color:transparent;
 }
-.wrap{max-width:520px;margin:0 auto;padding:20px 16px 48px}
+.wrap{
+  max-width:440px;margin:0 auto;
+  padding:max(12px,env(safe-area-inset-top)) 14px max(24px,env(safe-area-inset-bottom));
+  min-height:100dvh;display:flex;flex-direction:column;
+}
 .panel{
+  flex:1;display:flex;flex-direction:column;
   background:var(--card);border:1px solid var(--border);border-radius:20px;
-  padding:22px 18px 28px;box-shadow:var(--shadow);backdrop-filter:blur(16px);
+  padding:20px 16px 22px;box-shadow:0 16px 48px rgba(0,0,0,.4);
+  backdrop-filter:blur(16px);
 }
-.topbar{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  margin-bottom:18px;min-height:44px;
+.hidden{display:none!important}
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);border:0;
 }
+
+/* Brand */
 .brand{
   font-family:'Space Grotesk','Plus Jakarta Sans',system-ui,sans-serif;
-  font-size:1.45rem;font-weight:700;letter-spacing:-.03em;margin:0;
-  background:linear-gradient(90deg,#e0f2fe,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent;
+  font-size:1.5rem;font-weight:700;letter-spacing:-.03em;margin:0;
+  background:linear-gradient(90deg,#e0f2fe,#38bdf8);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
 }
 .brand:focus{outline:none}
 .brand:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
-.user-pill{border:none;cursor:pointer;font:inherit;appearance:none;-webkit-appearance:none;
-  display:inline-flex;align-items:center;gap:8px;max-width:52%;
-  padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;
+
+/* Auth screen */
+.auth-hero{text-align:center;padding:8px 4px 0}
+.logo-row{
+  display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 14px;
+}
+.logo-mark{
+  width:52px;height:52px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;line-height:1;
+  background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.35);
+  box-shadow:0 4px 20px rgba(14,165,233,.25);
+}
+.auth-hero .brand{font-size:1.85rem}
+.welcome{
+  margin:0 0 8px;font-size:15px;font-weight:600;line-height:1.55;color:var(--text);
+  text-align:center;
+}
+.welcome-sub{
+  margin:0 0 20px;font-size:13px;font-weight:500;line-height:1.5;color:var(--muted);
+  text-align:center;
+}
+.emoji{font-style:normal}
+
+/* Google sign-in chip button */
+.btn-google{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;min-height:54px;padding:12px 18px;margin:0;
+  border-radius:14px;border:1px solid rgba(255,255,255,.18);
+  background:#fff;color:#1f1f1f;
+  font-family:inherit;font-size:16px;font-weight:700;
+  cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.25);
+  -webkit-appearance:none;appearance:none;
+}
+.btn-google:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.btn-google:active{transform:scale(.98)}
+.g-icon{
+  width:22px;height:22px;flex-shrink:0;
+  display:block;
+}
+#authError{color:var(--danger);font-weight:600;min-height:1.3em;margin:12px 0 0;text-align:center;font-size:14px}
+
+/* Hub top bar */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:0 0 16px;min-height:44px;
+}
+.user-pill{
+  border:none;cursor:pointer;font:inherit;appearance:none;-webkit-appearance:none;
+  display:inline-flex;align-items:center;gap:8px;max-width:55%;
+  padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700;
   background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:var(--primary-bright);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.user-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0;box-shadow:0 0 8px var(--ok)}
-.tagline{
-  text-align:center;margin:0 0 8px;font-size:15px;font-weight:700;line-height:1.4;color:var(--text);
+.user-pill:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.user-pill .dot{
+  width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0;
+  box-shadow:0 0 8px var(--ok);
 }
-.tagline-sub{
-  color:var(--muted);text-align:center;margin:0 0 16px;font-size:13px;line-height:1.5;font-weight:500;
+
+/* App grid — native launcher feel */
+.app-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  margin:0;padding:0;flex:1;align-content:start;
 }
-.feature-strip{
-  display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 22px;list-style:none;padding:0;
-}
-.feature-strip li{
-  font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;
-  background:rgba(15,23,42,.7);border:1px solid var(--border);color:var(--primary-bright);
-}
-.hidden{display:none!important}
-button{
-  font-family:inherit;font-size:1rem;font-weight:700;border-radius:14px;
-  border:1px solid var(--border);min-height:52px;padding:12px 18px;cursor:pointer;
-  background:var(--sec);color:var(--text);
-}
-button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.btn-ok{
-  background:linear-gradient(135deg,#0ea5e9,#0284c7);border-color:transparent;color:#001e2f;font-weight:800;
-  box-shadow:0 4px 24px rgba(14,165,233,.35);
-}
-.btn-sec{background:transparent;border:1px solid var(--border);color:var(--primary-bright)}
-.btn-block{width:100%;display:block;margin-top:12px}
-.tool-card{
-  display:block;width:100%;text-align:left;margin-top:14px;padding:0;
+.app-tile{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;min-height:132px;padding:18px 10px;
   border-radius:18px;border:1px solid var(--border);
-  background:linear-gradient(145deg,rgba(15,23,42,.98),rgba(30,41,59,.8));
-  text-decoration:none;color:inherit;box-shadow:0 8px 28px rgba(0,0,0,.35);
-  overflow:hidden;position:relative;
+  background:linear-gradient(160deg,rgba(15,23,42,.98),rgba(30,41,59,.85));
+  color:var(--text);cursor:pointer;
+  font-family:inherit;font-size:14px;font-weight:800;
+  box-shadow:0 8px 24px rgba(0,0,0,.3);
+  -webkit-appearance:none;appearance:none;
+  touch-action:manipulation;
 }
-.tool-card:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
-.tool-card:hover{border-color:var(--primary);transform:translateY(-1px);transition:border-color .15s,transform .15s}
-.tool-card.card-auction{border-left:4px solid var(--accent-auction)}
-.tool-card.card-live{border-left:4px solid var(--accent-live)}
-.tool-card-inner{padding:18px 16px 16px}
-.tool-card-head{display:flex;align-items:flex-start;gap:12px}
-.tool-icon{
-  flex-shrink:0;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-  font-size:22px;line-height:1;
-  background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);
+.app-tile:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.app-tile:active{transform:scale(.97)}
+.app-tile .tile-icon{
+  width:56px;height:56px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;line-height:1;
 }
-.card-live .tool-icon{background:rgba(0,230,118,.12);border-color:rgba(0,230,118,.3)}
-.tool-card strong{
-  display:block;font-size:1.15rem;font-weight:800;color:var(--primary-bright);letter-spacing:-.02em;margin:0;
+.tile-auction .tile-icon{
+  background:rgba(56,189,248,.18);border:1px solid rgba(56,189,248,.4);
 }
-.card-live strong{color:#5eead4}
-.tool-card .desc{display:block;margin-top:8px;font-size:13px;color:var(--muted);font-weight:500;line-height:1.5}
-.tool-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
-.cta{
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  min-height:40px;padding:8px 16px;border-radius:999px;font-size:13px;font-weight:800;
-  letter-spacing:.04em;text-transform:uppercase;
-  background:linear-gradient(135deg,#00e676,#00c853);color:#003d1a;
-  box-shadow:0 4px 16px rgba(0,230,118,.35);
+.tile-live .tile-icon{
+  background:rgba(0,230,118,.14);border:1px solid rgba(0,230,118,.35);
 }
-.card-auction .cta{
-  background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#002033;
-  box-shadow:0 4px 16px rgba(14,165,233,.4);
+.app-tile .tile-label{text-align:center;line-height:1.25;letter-spacing:-.01em}
+.tile-auction .tile-label{color:var(--primary-bright)}
+.tile-live .tile-label{color:#5eead4}
+
+.hub-hint{
+  margin:16px 0 0;text-align:center;font-size:12px;font-weight:600;color:var(--muted);
 }
-.cta-chevron{font-size:16px;opacity:.9}
-.pill-tag{
-  font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;
-  background:rgba(56,189,248,.15);color:var(--primary-bright);letter-spacing:.03em;text-transform:uppercase;
+
+/* Install (secondary) */
+.install-row{
+  margin-top:14px;display:flex;align-items:center;justify-content:center;
 }
-.card-live .pill-tag{background:rgba(0,230,118,.15);color:#5eead4}
-#authError{color:var(--danger);font-weight:600;min-height:1.3em;margin-top:12px;text-align:center}
-.auth-brand{text-align:center;margin-bottom:8px}
-.auth-brand .brand{font-size:1.75rem}
-.sr-only{
-  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;
+.btn-install{
+  min-height:44px;padding:10px 16px;border-radius:999px;
+  border:1px solid var(--border);background:rgba(56,189,248,.1);
+  color:var(--primary-bright);font:inherit;font-size:13px;font-weight:700;
+  cursor:pointer;-webkit-appearance:none;appearance:none;
 }
-.install-card{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  margin-top:16px;padding:14px 16px;border-radius:16px;
-  background:linear-gradient(145deg,rgba(56,189,248,.14),rgba(15,23,42,.9));
-  border:1px solid var(--border);
-}
-.install-card strong{display:block;font-weight:800;font-size:1rem;color:var(--primary-bright)}
-.install-sub{display:block;margin-top:3px;font-size:12px;color:var(--muted);line-height:1.4}
-.install-btn{flex-shrink:0;min-height:40px;padding:8px 18px;font-size:13px;text-transform:none;letter-spacing:0}
-.install-card.hidden{display:none!important}
+.btn-install:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+#screenBoot{justify-content:center;align-items:center;text-align:center}
 </style>
 </head>
 <body>
 <main class="wrap">
-<section id="screenBoot" class="panel" role="status" aria-live="polite">
-  <p style="text-align:center;font-weight:700;margin:0">Starting…</p>
-</section>
+  <section id="screenBoot" class="panel" role="status" aria-live="polite">
+    <p style="font-weight:700;margin:0">Starting…</p>
+  </section>
 
-<section id="screenAuth" class="panel hidden" role="region" aria-labelledby="authTitle">
-  <div class="auth-brand">
-    <h1 id="authTitle" class="brand" tabindex="-1">Cric360</h1>
-  </div>
-  <p class="tagline">Live matches, auctions, and tournament tracking — in one place.</p>
-  <p class="tagline-sub">From club games to full tournament coverage, with screen-reader friendly tools.</p>
-  <ul class="feature-strip" aria-label="Highlights">
-    <li>Live scoring</li>
-    <li>Player auctions</li>
-    <li>Match tracking</li>
-  </ul>
-  <button type="button" id="btnGoogle" class="btn-ok btn-block" aria-label="Sign in with Google">Sign in with Google</button>
-  <div id="installCardAuth" class="install-card hidden" style="margin-top:14px">
-    <div>
-      <strong>Install Cric360</strong>
-      <span class="install-sub">Add to your home screen and open it like an app — even offline.</span>
+  <!-- ===== Sign-in ===== -->
+  <section id="screenAuth" class="panel hidden" role="region" aria-labelledby="authTitle">
+    <div class="auth-hero">
+      <div class="logo-row">
+        <span class="logo-mark" aria-hidden="true">🏏</span>
+        <h1 id="authTitle" class="brand" tabindex="-1">Cric360</h1>
+      </div>
+      <p class="welcome">
+        We can’t wait for you to try our powerful cricketing apps — all in one place!
+        <span class="emoji" aria-hidden="true"> 🏏⚡</span>
+      </p>
+      <p class="welcome-sub">
+        Sign in to watch and run your auctions, view matches, and broadcast your cricketing action.
+        <span class="emoji" aria-hidden="true"> 🎯📢</span>
+      </p>
     </div>
-    <button type="button" id="btnInstallAuth" class="cta install-btn" aria-label="Install Cric360 app">Install</button>
-  </div>
-  <p id="authError" role="alert"></p>
-</section>
 
-<section id="screenHub" class="panel hidden" role="region" aria-labelledby="hubTitle">
-  <div class="topbar">
-    <h1 id="hubTitle" class="brand" tabindex="-1">Cric360</h1>
-    <button type="button" class="user-pill" id="userPill" aria-label="Signed in. Double tap to sign out.">
-      <span class="dot" aria-hidden="true"></span>
-      <span id="hubSub">Signed in</span>
+    <button type="button" id="btnGoogle" class="btn-google" aria-label="Continue with Google">
+      <svg class="g-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      <span>Continue with Google</span>
     </button>
-  </div>
 
-  <p class="tagline">Choose a tool to get started</p>
-  <p class="tagline-sub">Live scoring, player auctions, and tournament tracking for your cricket events.</p>
-  <ul class="feature-strip" aria-hidden="true">
-    <li>Live scoring</li>
-    <li>Player auctions</li>
-    <li>Match tracking</li>
-  </ul>
-
-  <a class="tool-card card-auction" href="auctiontracker360.html"
-     aria-label="Auction Tracker 360. Run and view live club cricket auctions. Open tool.">
-    <div class="tool-card-inner">
-      <div class="tool-card-head">
-        <span class="tool-icon" aria-hidden="true">🔨</span>
-        <div>
-          <strong>Auction Tracker 360</strong>
-          <span class="desc">Run live club auctions. Track every bid, player, and purse in real time.</span>
-        </div>
-      </div>
-      <div class="tool-card-foot">
-        <span class="pill-tag">Auctions</span>
-        <span class="cta">Open <span class="cta-chevron" aria-hidden="true">→</span></span>
-      </div>
+    <div id="installAuthWrap" class="install-row hidden">
+      <button type="button" id="btnInstallAuth" class="btn-install" aria-label="Install Cric360 on this device">Install app</button>
     </div>
-  </a>
+    <p id="authError" role="alert"></p>
+  </section>
 
-  <a class="tool-card card-live" href="cric360live.html"
-     aria-label="Cric360 Live. Host or watch live matches and simple player auctions. Open tool.">
-    <div class="tool-card-inner">
-      <div class="tool-card-head">
-        <span class="tool-icon" aria-hidden="true">🏏</span>
-        <div>
-          <strong>Cric360 Live</strong>
-          <span class="desc">Host or watch live matches and player auctions with ball-by-ball updates.</span>
-        </div>
-      </div>
-      <div class="tool-card-foot">
-        <span class="pill-tag" id="badgeCric">Matches</span>
-        <span class="cta">Open <span class="cta-chevron" aria-hidden="true">→</span></span>
-      </div>
+  <!-- ===== Home (after sign-in) ===== -->
+  <section id="screenHub" class="panel hidden" role="region" aria-labelledby="hubTitle">
+    <div class="topbar">
+      <h1 id="hubTitle" class="brand" tabindex="-1">Cric360</h1>
+      <button type="button" class="user-pill" id="userPill" aria-label="Signed in. Double tap to sign out.">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="hubSub">Signed in</span>
+      </button>
     </div>
-  </a>
 
-  <div id="installCard" class="install-card hidden" role="region" aria-labelledby="installTitle">
-    <div>
-      <strong id="installTitle">Install Cric360</strong>
-      <span class="install-sub">Add to your home screen and open it like an app — even offline.</span>
+    <div class="app-grid" role="group" aria-label="Apps">
+      <button type="button" class="app-tile tile-auction" id="btnAuction"
+              aria-label="Auction Tracker 360">
+        <span class="tile-icon" aria-hidden="true">🔨</span>
+        <span class="tile-label">Auction<br>Tracker 360</span>
+      </button>
+      <button type="button" class="app-tile tile-live" id="btnLive"
+              aria-label="Cric360 Live">
+        <span class="tile-icon" aria-hidden="true">🏏</span>
+        <span class="tile-label">Cric360<br>Live</span>
+      </button>
     </div>
-    <button type="button" id="btnInstall" class="cta install-btn" aria-label="Install Cric360 app">Install</button>
-  </div>
 
-  <p class="sr-only" id="userLine"></p>
-  <div id="hubLive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
-</section>
+    <p class="hub-hint" id="hubHint">Tap an app to open</p>
+
+    <div id="installHubWrap" class="install-row hidden">
+      <button type="button" id="btnInstall" class="btn-install" aria-label="Install Cric360 on this device">Install app</button>
+    </div>
+  </section>
 </main>
+
+<div id="hubLive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>
@@ -249,42 +263,43 @@ try {
   auth = firebase.auth();
   try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (pe) {}
 } catch (e) {
-  document.getElementById('screenBoot').innerHTML = '<p style="color:#f43f5e;text-align:center">Could not start. Check connection and refresh.</p>';
+  document.getElementById('screenBoot').innerHTML =
+    '<p style="color:#f43f5e;text-align:center;font-weight:700;margin:0">Could not start. Check connection and refresh.</p>';
 }
+
 function $(id){ return document.getElementById(id); }
 function show(id){
-  ['screenBoot','screenAuth','screenHub'].forEach(s => $(s).classList.add('hidden'));
+  ['screenBoot','screenAuth','screenHub'].forEach(function(s){ $(s).classList.add('hidden'); });
   $(id).classList.remove('hidden');
 }
 function announce(msg){
-  const el = $('hubLive');
+  var el = $('hubLive');
   if(!el) return;
   el.textContent = '';
   setTimeout(function(){ el.textContent = msg || ''; }, 30);
 }
 function friendlyAuthError(e){
   if(!e) return 'Sign-in failed. Please try again.';
-  const c = e.code || '';
+  var c = e.code || '';
   if(c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return 'Sign-in was cancelled.';
   if(c === 'auth/popup-blocked') return 'Pop-up was blocked. Trying full-screen sign-in.';
   if(c === 'auth/unauthorized-domain') return 'This website is not allowed for Google sign-in yet. Ask the admin to allow the domain.';
   if(c === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
-  // Never read raw Firebase / API paths to the user
   return 'Could not sign in. Please try again.';
 }
 function googleProvider(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  // Prefer account picker; app name shown by Google comes from OAuth consent screen (set to Cric360 Telugu in Google Cloud)
+  var provider = new firebase.auth.GoogleAuthProvider();
   try { provider.setCustomParameters({ prompt: 'select_account' }); } catch (x) {}
   return provider;
 }
-$('btnGoogle').onclick = async () => {
+
+$('btnGoogle').onclick = async function(){
   $('authError').textContent = '';
-  announce('Loading accounts for Cric360. Please wait.');
+  announce('Opening Google accounts for Cric360.');
   try {
     await auth.signInWithPopup(googleProvider());
   } catch (e) {
-    let msg = friendlyAuthError(e);
+    var msg = friendlyAuthError(e);
     if (e && e.code === 'auth/popup-blocked') {
       try {
         announce('Opening full-screen sign-in for Cric360.');
@@ -296,76 +311,77 @@ $('btnGoogle').onclick = async () => {
     announce(msg);
   }
 };
+
 function confirmSignOut(){
-  if(!confirm('Are you sure you want to sign out from this account?')) return;
+  if(!confirm('Sign out of Cric360?')) return;
   announce('Signing out.');
   auth.signOut();
 }
-if($('userPill')){
-  $('userPill').onclick = confirmSignOut;
-}
-auth.onAuthStateChanged(u => {
+if($('userPill')) $('userPill').onclick = confirmSignOut;
+
+/* App tiles = buttons, not links */
+$('btnAuction').onclick = function(){
+  announce('Opening Auction Tracker 360.');
+  window.location.href = 'auctiontracker360.html';
+};
+$('btnLive').onclick = function(){
+  announce('Opening Cric360 Live.');
+  window.location.href = 'cric360live.html';
+};
+
+auth.onAuthStateChanged(function(u){
   if (!u) {
     show('screenAuth');
-    setTimeout(() => $('authTitle').focus(), 50);
+    setTimeout(function(){ try{ $('authTitle').focus(); }catch(e){} }, 40);
     return;
   }
-  const admin = (u.email || '').toLowerCase() === SUPER_ADMIN;
-  const short = admin ? 'Admin' : ((u.email || 'User').split('@')[0]);
+  var admin = (u.email || '').toLowerCase() === SUPER_ADMIN;
+  var short = admin ? 'Admin' : ((u.email || 'User').split('@')[0]);
   $('hubSub').textContent = short;
-  const lab = (admin ? 'Signed in as admin. ' : ('Signed in as ' + (u.email || 'user') + '. ')) + 'Double tap to sign out.';
+  var lab = (admin ? 'Signed in as admin. ' : ('Signed in as ' + (u.email || 'user') + '. ')) + 'Double tap to sign out.';
   $('userPill').setAttribute('aria-label', lab);
-  $('userLine').textContent = u.email || '';
-  if ($('badgeCric')) $('badgeCric').textContent = admin ? 'Admin' : 'Matches';
   show('screenHub');
-  setTimeout(() => $('hubTitle').focus(), 50);
+  setTimeout(function(){ try{ $('hubTitle').focus(); }catch(e){} }, 40);
 });
 
-/* ===== PWA: service worker + install button ===== */
-let deferredPrompt = null;
-const installCard = $('installCard');
-const btnInstall = $('btnInstall');
-const installCardAuth = $('installCardAuth');
-const btnInstallAuth = $('btnInstallAuth');
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+/* PWA install */
+var deferredPrompt = null;
+function showInstall(on){
+  ['installAuthWrap','installHubWrap'].forEach(function(id){
+    var el = $(id);
+    if(el) el.classList.toggle('hidden', !on);
   });
 }
-
-window.addEventListener('beforeinstallprompt', (e) => {
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+window.addEventListener('beforeinstallprompt', function(e){
   e.preventDefault();
   deferredPrompt = e;
-  if (installCardAuth) installCardAuth.classList.remove('hidden');
-  if (installCard && !$('screenHub').classList.contains('hidden')) installCard.classList.remove('hidden');
+  showInstall(true);
 });
-
-window.addEventListener('appinstalled', () => {
+window.addEventListener('appinstalled', function(){
   deferredPrompt = null;
-  if (installCard) installCard.classList.add('hidden');
-  if (installCardAuth) installCardAuth.classList.add('hidden');
-  announce('Cric360 installed. You can now open it from your home screen.');
+  showInstall(false);
+  announce('Cric360 installed. Open it from your home screen.');
 });
-
-function runInstall() {
-  return async () => {
+function runInstall(){
+  return async function(){
     if (!deferredPrompt) {
-      announce('Install is not available right now. It appears once the requirements are met.');
+      announce('Install is not available right now.');
       return;
     }
     deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice.catch(() => ({}));
-    if (choice && choice.outcome === 'accepted') {
-      announce('Installing Cric360…');
-    }
+    var choice = await deferredPrompt.userChoice.catch(function(){ return {}; });
+    if (choice && choice.outcome === 'accepted') announce('Installing Cric360…');
     deferredPrompt = null;
-    if (installCard) installCard.classList.add('hidden');
-    if (installCardAuth) installCardAuth.classList.add('hidden');
+    showInstall(false);
   };
 }
-if (btnInstall) btnInstall.addEventListener('click', runInstall());
-if (btnInstallAuth) btnInstallAuth.addEventListener('click', runInstall());
+if ($('btnInstall')) $('btnInstall').addEventListener('click', runInstall());
+if ($('btnInstallAuth')) $('btnInstallAuth').addEventListener('click', runInstall());
 </script>
 </body>
 </html>

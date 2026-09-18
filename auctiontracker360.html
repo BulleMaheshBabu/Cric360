@@ -1731,6 +1731,17 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
   </div>
 </div>
 
+<div id="bidHistoryModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="bhTitle">
+  <div class="modal-box" style="max-width:440px;width:100%;text-align:left">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <h2 id="bhTitle" tabindex="-1" style="margin:0;font-size:1.15rem">Bid history</h2>
+      <button type="button" id="btnBhClose" class="btn-sec" style="min-height:40px" aria-label="Close bid history">Close</button>
+    </div>
+    <p id="bhPlayer" style="margin:0 0 10px;font-weight:700;color:var(--text-secondary)"></p>
+    <div id="bhList" role="list" aria-label="Bids" style="max-height:55vh;overflow:auto"></div>
+  </div>
+</div>
+
 
 <div id="voiceRingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="vrTitle">
   <div class="modal-box">
@@ -2118,6 +2129,8 @@ function friendlyFnError(e) {
 
 /** List Google Cloud voices (cached). */
 async function gcloudListVoices() {
+  // Disabled — device voices only
+  return [];
   if (_gcloudVoicesCache && _gcloudVoicesCache.length) return _gcloudVoicesCache;
   if (_gcloudVoicesLoading) {
     // wait briefly for in-flight
@@ -2221,6 +2234,8 @@ async function gcloudListVoices() {
  *  Returns { url } or null.
  */
 async function gcloudSynthesize(text, voiceUri) {
+  // Disabled — device voices only
+  return { ok: false, error: 'device-only' };
   const fns = getFunctionsRegion();
   if (!fns || !text) {
     ttsStatus('Google TTS: functions not ready');
@@ -2287,6 +2302,8 @@ async function gcloudSynthesize(text, voiceUri) {
 }
 
 async function hostBroadcastP0(text, category) {
+  // Disabled — device voices only
+  return false;
   if (!isAuctionHost() || !auctionId || !db) return false;
   if (!ttsPref.hostVoices) return false;
   try {
@@ -2327,6 +2344,8 @@ async function hostBroadcastP0(text, category) {
 
 /** Client: play incoming host Google audio if Host Voices is ON. */
 function handleIncomingHostTts(data) {
+  // Disabled — device voices only
+  return;
   try {
     const m = data && data.bid && data.bid.hostTts;
     if (!m || !m.at || !m.audio) return;
@@ -2380,6 +2399,8 @@ function piperSetStatus(s, detail) {
   } catch (e) {}
 }
 async function piperEnsure() {
+  // Disabled — device voices only
+  return false;
   if (_piperReady && _piperMod) return true;
   if (_piperLoading) {
     for (let i = 0; i < 90 && _piperLoading; i++) {
@@ -2425,6 +2446,9 @@ async function piperEnsure() {
   }
 }
 function piperSpeak(text, onEnd) {
+  // Disabled — device voices only
+  if (typeof onEnd === 'function') onEnd();
+  return;
   if (!_piperMod || !_piperReady) {
     if (typeof onEnd === 'function') onEnd();
     return;
@@ -2694,6 +2718,9 @@ function meSpeakLoadSelected(cb) {
 }
 
 function meSpeakSpeak(text, onEnd) {
+  // Disabled — device voices only
+  if (typeof onEnd === 'function') onEnd();
+  return;
   meSpeakLoadSelected(function (ok) {
     if (!ok || !window.meSpeak) {
       ttsStatus('Could not load meSpeak voice. Check internet and retry.');
@@ -2964,18 +2991,11 @@ function ttsSpeak(text, category, onEnd) {
     if (typeof onEnd === 'function') onEnd();
     return;
   }
-  // Device voices only — no Google, no meSpeak, no server audio
+  // Device voices only — Google / Piper / meSpeak permanently disabled
   ttsSpeakWeb(text, onEnd);
 }
 
 function ttsStop() {
-  try { if (window.meSpeak && window.meSpeak.stop) window.meSpeak.stop(); } catch (e) {}
-  try {
-    if (_piperAudio) {
-      _piperAudio.pause();
-      _piperAudio.removeAttribute('src');
-    }
-  } catch (e) {}
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
 }
 
@@ -3309,6 +3329,8 @@ function focusBidArea(){
 
 function focusEl(el){
   if(!el) return;
+  // Live snapshot redraws must not steal focus — only user actions may focus
+  if(window._skipSnapshotFocus) return;
   // While a modal is open, only allow focus inside that modal
   if(window._modalOpen || isConfirmOpen() || window._priceEditOpen || window._squadDialogOpen){
     const inDialog = el.closest && el.closest('#confirmModal, #priceEditOverlay, #squadAddOverlay, #msgOverlay, #msgPanel, #soldForm, #voiceRingModal, #voiceHostModal, #voiceLateJoinModal, #micPermModal, #playerSearchModal');
@@ -3481,6 +3503,15 @@ function showAppError(msg, opts){
 function clearAppError(){
   const bar = $('appErrorBar');
   if(bar){ bar.textContent=''; bar.classList.add('hidden'); }
+}
+/** Escape user/team/player text before any innerHTML insert (XSS + broken markup) */
+function escHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 /** Safe DOM write — never throws on missing nodes (fixes "Cannot set innerHTML of null") */
 function setHtml(idOrEl, html){
@@ -4397,15 +4428,19 @@ async function openAuctionList(kind){
     body.innerHTML='';
     items.forEach(it=>{
       const btn=document.createElement('button'); btn.type='button'; btn.className='list-btn';
-      const sold=(it.players||[]).filter(p=>p.sold).length;
-      const unsold=(it.players||[]).filter(p=>p.unsold).length;
-      const left=(it.players||[]).filter(p=>!p.sold&&!p.unsold).length;
+      // Prefer v2 summary counts on main doc; fall back to legacy arrays
+      let sold = it.soldCount, unsold = it.unsoldCount, left = it.remainingCount;
+      if(sold == null || unsold == null || left == null){
+        sold=(it.players||[]).filter(p=>p.sold).length;
+        unsold=(it.players||[]).filter(p=>p.unsold).length;
+        left=(it.players||[]).filter(p=>!p.sold&&!p.unsold).length;
+      }
       const mode=it.mode==='virtual'?'Virtual · ':((it.mode||'physical')==='physical'?'Physical · ':'');
       const st=it.status==='setup'?'Setup · ':'';
       const sub=kind==='ended'
         ? ('Sold '+sold+' · Unsold '+unsold+' · '+(it.ownerName||it.ownerEmail||''))
         : (st+'Remaining '+left+' · '+(it.ownerName||it.ownerEmail||''));
-      btn.innerHTML='<strong>'+mode+(it.title||'Auction')+'</strong><br><span style="font-size:13px;color:var(--muted)">'+sub+'</span>';
+      btn.innerHTML='<strong>'+mode+escHtml(it.title||'Auction')+'</strong><br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span>';
       btn.setAttribute('aria-label', (it.title||'Auction')+', '+(kind==='ended'?'past':'live')+', '+sub);
       btn.onclick=()=>openAuction(it.id);
       body.appendChild(btn);
@@ -4413,20 +4448,33 @@ async function openAuctionList(kind){
   }catch(e){ body.innerHTML='<p class="hub-empty">'+(e.message||e)+'</p>'; }
 }
 
-function stopAuctionLive(){ if(auctionLiveUnsub){ try{auctionLiveUnsub();}catch(e){} auctionLiveUnsub=null; } stopPresence(); }
+function stopAuctionLive(){
+  if(auctionLiveUnsub){ try{auctionLiveUnsub();}catch(e){} auctionLiveUnsub=null; }
+  stopSubListeners();
+  stopPresence();
+}
 function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
 
 function applyAuctionData(data){
   if(data.presence) window._lastPresence=data.presence;
   // While host is editing squads (price / add / remove), do NOT replace local teams/players
   // from a mid-flight snapshot — that was wiping the new price before Save finished.
-  const keepLocalSquad = !!(window._squadBusy || window._priceEditOpen || window._modalOpen);
+  const keepLocalSquad = !!(window._squadBusy || window._priceEditOpen || window._modalOpen || window._soldFormOpen);
   const localTeams = keepLocalSquad && T ? T.teams : null;
   const localPlayers = keepLocalSquad && T ? T.players : null;
+  // Prefer live subcollection cache (storage v2); else legacy arrays on main doc
+  const subP = window._subPlayers;
+  const subT = window._subTeams;
+  const resolvedPlayers = localPlayers != null ? localPlayers
+    : (subP && subP.length ? subP
+    : (Array.isArray(data.players) && data.players.length ? data.players : (T && T.players) || []));
+  const resolvedTeams = localTeams != null ? localTeams
+    : (subT && subT.length ? subT
+    : (Array.isArray(data.teams) && data.teams.length ? data.teams : (T && T.teams) || []));
   T={
     title:data.title, mode:data.mode||'physical', status:data.status||'live',
-    teams: (localTeams != null ? localTeams : (data.teams||[])),
-    players: (localPlayers != null ? localPlayers : (data.players||[])),
+    teams: resolvedTeams,
+    players: resolvedPlayers,
     meta:data.meta||{currentIndex:0},
     activeColumns:data.activeColumns||activeCols, rules:data.rules||null,
     bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
@@ -4439,7 +4487,8 @@ function applyAuctionData(data){
     voiceCall: data.voiceCall || null,
     intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
     playerAdvance: data.playerAdvance==='manual'?'manual':'auto',
-    awaitNextPlayer: !!data.awaitNextPlayer
+    awaitNextPlayer: !!data.awaitNextPlayer,
+    storageVersion: data.storageVersion || 2
   };
   helperMode=!!(user && data.ownerId!==user.uid && (data.coOrganiserIds||[]).includes(user.uid));
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
@@ -4515,8 +4564,9 @@ if(data.lastAlert && data.lastAlert.at){
       window._liveJoinQuiet=false;
     }
 
-    // Player change — once per player; skip pause / intermission / manual wait / quiet join
-    if(!quietJoin && onLiveScreen && data.players && !data.paused){
+    // Player change — host on auction: renderAuction announces once (avoid double with this path)
+    // Helpers/owners on auction without full render path still need this
+    if(!quietJoin && onLiveScreen && data.players && !data.paused && !onAuction){
       const inGap = (data.intermissionUntil && data.intermissionUntil > Date.now()) || window._gapPendingPlayer;
       const bidPhase = data.bid && data.bid.phase;
       const waitingManual = !!(data.awaitNextPlayer || bidPhase==='await_next' || T.awaitNextPlayer);
@@ -4525,7 +4575,6 @@ if(data.lastAlert && data.lastAlert.at){
         const pl=data.players||[];
         while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
         if(idx<pl.length){
-          // Speech only here — focus is handled once inside renderAuction
           announceNowPlayer(idx, pl[idx].name, pl.length, data);
         }
       }
@@ -4771,7 +4820,8 @@ if(data.lastAlert && data.lastAlert.at){
       else renderSquads();
     } else if(!onSq){
       if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()) return;
-      renderAuction({ skipFocus: !pauseFlipped, focusBid: !!pauseFlipped && !data.paused });
+      // Live snapshots never force focus; only explicit user actions pass focusBid
+      renderAuction({ skipFocus: true });
     }
   }
 }
@@ -4789,6 +4839,8 @@ function startAuctionLive(id){
   try{ queueClearSpeech(); }catch(e){}
   try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
   try{ unlockSfx(); }catch(e){}
+  // Subcollections drive players/teams; main doc drives meta/bid/speech
+  startSubListeners(id);
   auctionLiveUnsub=db.collection('auctions').doc(id).onSnapshot(doc=>{
     try{
       if(!doc.exists){
@@ -4796,9 +4848,16 @@ function startAuctionLive(id){
         try{ stopAuctionLive(); enterHome(); }catch(e){}
         return;
       }
-      applyAuctionData(doc.data());
+      // Snapshot redraw must not steal focus from tabs / buttons
+      window._skipSnapshotFocus = true;
+      try{
+        applyAuctionData(doc.data());
+      }finally{
+        window._skipSnapshotFocus = false;
+      }
       clearAppError();
     }catch(e){
+      window._skipSnapshotFocus = false;
       console.error('applyAuctionData', e);
       // Ignore transient null-DOM races during screen switches
       const m=String(e && e.message || e);
@@ -4845,10 +4904,18 @@ async function openAuction(id){
   const isHelper=user&&(data.coOrganiserIds||[]).includes(user.uid);
   const isTeamOwner=user&&(data.owners||[]).some(o=>o.uid===user.uid&&o.teamId);
   if((isOwner||isHelper||isTeamOwner) && (data.status==='live'||data.status==='setup')){
-    resumeAuction(id,data);
+    await resumeAuction(id,data);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
     return;
   }
+  auctionId = id;
+  try{
+    const parts = await hydrateAuctionFromSubs(id, data);
+    if(parts){
+      if(parts.players && parts.players.length) data = Object.assign({}, data, { players: parts.players });
+      if(parts.teams && parts.teams.length) data = Object.assign({}, data, { teams: parts.teams });
+    }
+  }catch(e){ console.warn('hydrate watch', e); }
   showScreen('screenWatch');
   try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: false }); }catch(e){}
   window._liveJoinQuiet=true;
@@ -4859,20 +4926,23 @@ async function openAuction(id){
     if(raw) ttsPref=Object.assign({}, TTS_DEFAULTS, JSON.parse(raw));
   }catch(e){}
   try{ loadSfxPref(); unlockSfx(); }catch(e){}
-  // Start gap ticker so viewers leave "waiting" when time ends (no extra Firestore write needed)
   ensureIntermissionTicker();
   switchWatchTab('live');
   focusEl($('watchTitle'));
-  // Commentary enable lives only in More tab (not on Live/Squads/Insights)
   try{ const old=$('watchAudioUnlock'); if(old) old.remove(); }catch(e){}
+  startSubListeners(id);
+  if(watchUnsub){ try{ watchUnsub(); }catch(e){} watchUnsub=null; }
   watchUnsub=db.collection('auctions').doc(id).onSnapshot(doc=>{
     try{
       if(!doc.exists){
         showAppError('This auction is no longer available.', { alert:true });
-        try{ if(watchUnsub){ watchUnsub(); watchUnsub=null; } enterHome(); }catch(e){}
+        try{ if(watchUnsub){ watchUnsub(); watchUnsub=null; } stopSubListeners(); enterHome(); }catch(e){}
         return;
       }
-      const data=doc.data();
+      let data=doc.data();
+      // Merge subcollection players/teams into watch payload
+      if(window._subPlayers && window._subPlayers.length) data = Object.assign({}, data, { players: window._subPlayers });
+      if(window._subTeams && window._subTeams.length) data = Object.assign({}, data, { teams: window._subTeams });
       window._lastWatchData=data;
       try{ applyShareMeta('watch', data, { includeHostEmail: false }); }catch(e){}
       if(data.status!=='ended'){
@@ -4889,12 +4959,19 @@ async function openAuction(id){
   });
 }
 
-function resumeAuction(id, data){
+async function resumeAuction(id, data){
   auctionId=id;
   // Seed without replaying sold/player commentary from last session
   window._liveJoinQuiet=true;
   try{ queueClearSpeech(); }catch(e){}
   try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
+  try{
+    const parts = await hydrateAuctionFromSubs(id, data);
+    if(parts){
+      if(parts.players && parts.players.length) data = Object.assign({}, data, { players: parts.players });
+      if(parts.teams && parts.teams.length) data = Object.assign({}, data, { teams: parts.teams });
+    }
+  }catch(e){ console.warn('hydrate', e); }
   applyAuctionData(data);
   showScreen('screenAuction');
   startAuctionLive(id);
@@ -4931,7 +5008,7 @@ function resumeAuction(id, data){
   }
 }
 
-$('btnWatchBack').onclick=()=>{ if(watchUnsub){watchUnsub();watchUnsub=null;} enterHome(); };
+$('btnWatchBack').onclick=()=>{ if(watchUnsub){watchUnsub();watchUnsub=null;} stopSubListeners(); enterHome(); };
 try{ if($('btnWatchCommentary')) $('btnWatchCommentary').onclick=openWatchCommentary; }catch(e){}
 $('wTabLive').onclick=()=>switchWatchTab('live');
 $('wTabSquads').onclick=()=>switchWatchTab('squads');
@@ -5059,9 +5136,9 @@ function recentCardHtml(recent){
   if(!recent) return '';
   const badge=recent.sold?'<span class="badge sold">Sold</span>':'<span class="badge unsold">Unsold</span>';
   const detail=recent.sold
-    ? (' <strong>'+(recent.team||'')+'</strong> · price '+(recent.price!=null?recent.price:''))
+    ? (' <strong>'+escHtml(recent.team||'')+'</strong> · price '+escHtml(recent.price!=null?recent.price:''))
     : '';
-  return '<aside class="recent-card" aria-hidden="true"><p class="label">Recent result</p><p style="font-weight:800;margin:0">'+(recent.name||'')+'</p><p style="margin:4px 0 0">'+badge+detail+'</p></aside>';
+  return '<aside class="recent-card" aria-hidden="true"><p class="label">Recent result</p><p style="font-weight:800;margin:0">'+escHtml(recent.name||'')+'</p><p style="margin:4px 0 0">'+badge+detail+'</p></aside>';
 }
 
 
@@ -5069,8 +5146,11 @@ function recentCardHtml(recent){
 function processLiveSpeech(data, opts){
   opts = opts || {};
   if(!data) return;
+  // Viewer-only path — host/helper use applyAuctionData + renderAuction (no double speech)
+  if(opts.isViewer === false) return;
   const onAuction = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
   const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
+  if(onAuction && !opts.isViewer) return;
   if(!onAuction && !onWatch) return;
   // First paint after open/reopen: seed keys only, no speech/SFX
   if(window._liveJoinQuiet){
@@ -5699,50 +5779,423 @@ function doImport(){
   names.forEach((hn,idx)=>{ if(/serial|^id$|sno/.test(hn)&&map.serial<0)map.serial=checks[idx]; if(/name|player/.test(hn)&&map.name<0)map.name=checks[idx]; if(/gamer|username|ign/.test(hn)&&map.gamerId<0)map.gamerId=checks[idx]; if(/state|region|city/.test(hn)&&map.state<0)map.state=checks[idx]; });
   if(map.name<0) map.name=checks[0];
   activeCols={serial:map.serial>=0,name:true,gamerId:map.gamerId>=0,state:map.state>=0};
-  T.players=parsedRows.slice(1).map(r=>({serial:map.serial>=0?String(r[map.serial]||''):'',name:map.name>=0?String(r[map.name]||''):'',gamerId:map.gamerId>=0?String(r[map.gamerId]||''):'',state:map.state>=0?String(r[map.state]||''):'',sold:false,unsold:false}));
+  T.players=parsedRows.slice(1).map(function(r, idx){
+    return {
+      id: 'p_' + idx,
+      order: idx,
+      serial: map.serial>=0?String(r[map.serial]||''):'',
+      name: map.name>=0?String(r[map.name]||''):'',
+      gamerId: map.gamerId>=0?String(r[map.gamerId]||''):'',
+      state: map.state>=0?String(r[map.state]||''):'',
+      sold:false, unsold:false, status:'remaining', bidCount:0
+    };
+  });
   T.activeColumns=activeCols;
+  try{ ensurePlayerIds(); ensureTeamIds(); }catch(e){}
   $('wImportMsg').innerHTML='<p><strong>Imported '+T.players.length+' players.</strong></p>';
-  alert('Import complete. '+T.players.length+' players imported.');
+  var sizeNote = '';
+  try{
+    const bytes = estimateAuctionDocBytes();
+    sizeNote = ' Approx size '+formatKb(bytes)+' of 1024 KB.';
+    if(bytes >= AUCTION_DOC_SOFT){
+      alert('Import complete. '+T.players.length+' players.'+sizeNote+'\n\nWarning: nearing Firestore size limit. Prefer only Name (+ optional Serial) columns for large lists.');
+    } else {
+      alert('Import complete. '+T.players.length+' players.'+sizeNote);
+    }
+  }catch(e){
+    alert('Import complete. '+T.players.length+' players imported.');
+  }
   announce('Imported '+T.players.length+' players');
 }
 
-async function cloudSave(silent){
-  if(!T||!db||!user){
-    if(!silent) showAppError('Cannot save: not signed in or auction not ready.');
-    return;
+/** Approximate UTF-8 size of a JSON-serializable value (for Firestore 1 MB monitoring) */
+function estimateJsonBytes(obj){
+  try{
+    return new Blob([JSON.stringify(obj)]).size;
+  }catch(e){
+    try{ return JSON.stringify(obj).length * 2; }catch(e2){ return 0; }
   }
-  // Never steal host identity — helpers/owners must not overwrite ownerId
-  const hostId = T.ownerId || user.uid;
-  const hostEmail = T.ownerEmail || (hostId===user.uid ? (user.email||'') : '');
-  const hostName = T.ownerName || (hostId===user.uid ? (user.displayName||'') : '');
-  const payload={
-    title:T.title, mode:T.mode||'physical', ownerId:hostId, ownerEmail:hostEmail, ownerName:hostName,
-    status:T.status||'setup', teams:T.teams||[], players:T.players||[], meta:T.meta||{currentIndex:0},
-    activeColumns:T.activeColumns||activeCols, rules:T.rules||null, bid:T.bid||null,
-    owners:T.owners||[], pendingOwners:T.pendingOwners||[],
-    pendingCoOrganisers:T.pendingCoOrganisers||[], coOrganiserIds:T.coOrganiserIds||[], coOrganiserEmails:T.coOrganiserEmails||[],
-    meetLink:T.meetLink||'', paused:!!T.paused, alertRules:T.alertRules||null, lastResult:T.lastResult||null, lastAlert:T.lastAlert||null,
-    aiInsight:T.aiInsight||null, aiInsights:Array.isArray(T.aiInsights)?T.aiInsights:[],
-    voiceCall:T.voiceCall||null,
-    intermissionSec:T.intermissionSec||5, intermissionUntil:T.intermissionUntil||null,
-    playerAdvance: T.playerAdvance==='manual'?'manual':'auto',
-    awaitNextPlayer: !!T.awaitNextPlayer,
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+}
+/** Soft/hard limits — Firestore max document size is 1,048,576 bytes */
+var AUCTION_DOC_SOFT = 750000;  // warn host
+var AUCTION_DOC_HARD = 950000;  // block non-critical full saves
+function estimateAuctionDocBytes(){
+  if(!T) return 0;
+  return estimateJsonBytes({
+    title:T.title, mode:T.mode, status:T.status, teams:T.teams, players:T.players,
+    meta:T.meta, rules:T.rules, bid:T.bid, owners:T.owners, aiInsights:T.aiInsights,
+    voiceCall:T.voiceCall, lastResult:T.lastResult, presence:T.presence
+  });
+}
+function formatKb(n){ return (Math.round(n/1024*10)/10) + ' KB'; }
+function warnAuctionSizeIfNeeded(forceAlert){
+  try{
+    const bytes = estimateAuctionDocBytes();
+    window._lastAuctionBytes = bytes;
+    if(bytes >= AUCTION_DOC_HARD){
+      const msg = 'Auction data is very large ('+formatKb(bytes)+' / 1024 KB limit). Sold/unsold may fail. Reduce player fields or split the list.';
+      if(forceAlert) alert(msg);
+      else showAppError(msg, { ms: 8000 });
+      return 'hard';
+    }
+    if(bytes >= AUCTION_DOC_SOFT){
+      const msg = 'Auction size warning: '+formatKb(bytes)+' of 1024 KB. Prefer fewer columns on import.';
+      if(forceAlert) alert(msg);
+      else showAppError(msg, { ms: 5000 });
+      return 'soft';
+    }
+  }catch(e){}
+  return 'ok';
+}
+
+/**
+ * Lightweight save after sold/unsold — only lot-related fields.
+ * Avoids rewriting owners, voiceCall, aiInsights, presence every sale.
+ */
+/* ===== Split storage v2: main doc + players/ + teams/ + bids/ ===== */
+function aucDoc(id){ return db.collection('auctions').doc(id || auctionId); }
+function playersCol(id){ return aucDoc(id).collection('players'); }
+function teamsCol(id){ return aucDoc(id).collection('teams'); }
+function bidsCol(playerId, id){ return playersCol(id).doc(String(playerId)).collection('bids'); }
+
+function ensurePlayerIds(){
+  if(!T || !Array.isArray(T.players)) return;
+  T.players.forEach(function(p, i){
+    if(!p.id) p.id = 'p_' + i;
+    if(p.order == null) p.order = i;
+    if(p.status) return;
+    if(p.sold) p.status = 'sold';
+    else if(p.unsold) p.status = 'unsold';
+    else p.status = 'remaining';
+  });
+}
+function ensureTeamIds(){
+  if(!T || !Array.isArray(T.teams)) return;
+  T.teams.forEach(function(t, i){
+    if(!t.id) t.id = 't_' + i;
+  });
+}
+function playerToDoc(p, idx){
+  const id = p.id || ('p_' + (idx != null ? idx : 0));
+  const status = p.sold ? 'sold' : (p.unsold ? 'unsold' : (p.status || 'remaining'));
+  return {
+    id: id,
+    order: p.order != null ? p.order : (idx != null ? idx : 0),
+    serial: p.serial || '',
+    name: p.name || '',
+    gamerId: p.gamerId || '',
+    state: p.state || '',
+    status: status,
+    sold: !!p.sold,
+    unsold: !!p.unsold,
+    soldTeam: p.soldTeam || p.team || '',
+    soldTeamId: p.soldTeamId || '',
+    soldPrice: p.soldPrice != null ? p.soldPrice : (p.price != null ? p.price : null),
+    team: p.team || p.soldTeam || '',
+    price: p.price != null ? p.price : (p.soldPrice != null ? p.soldPrice : null),
+    bidCount: p.bidCount || 0
   };
-  // Do not wipe presence from host saves
-  if(T.presence) payload.presence=T.presence;
-  let lastErr = null;
-  for(let attempt=0; attempt<3; attempt++){
+}
+function teamToDoc(t){
+  return {
+    id: t.id,
+    name: t.name || '',
+    remaining: t.remaining != null ? t.remaining : (t.purse != null ? t.purse : 0),
+    purse: t.purse != null ? t.purse : (t.remaining != null ? t.remaining : 0),
+    maxPlayers: t.maxPlayers != null ? t.maxPlayers : 0,
+    minPlayers: t.minPlayers != null ? t.minPlayers : 0,
+    maxReached: !!t.maxReached,
+    players: (t.players || []).map(function(pl){
+      return {
+        id: pl.id || '',
+        name: pl.name || '',
+        price: pl.price != null ? pl.price : 0,
+        serial: pl.serial || ''
+      };
+    })
+  };
+}
+function docToPlayer(id, d){
+  d = d || {};
+  return {
+    id: id,
+    order: d.order != null ? d.order : 0,
+    serial: d.serial || '',
+    name: d.name || '',
+    gamerId: d.gamerId || '',
+    state: d.state || '',
+    status: d.status || (d.sold ? 'sold' : (d.unsold ? 'unsold' : 'remaining')),
+    sold: !!(d.sold || d.status === 'sold'),
+    unsold: !!(d.unsold || d.status === 'unsold'),
+    soldTeam: d.soldTeam || d.team || '',
+    soldTeamId: d.soldTeamId || '',
+    soldPrice: d.soldPrice != null ? d.soldPrice : d.price,
+    team: d.team || d.soldTeam || '',
+    price: d.price != null ? d.price : d.soldPrice,
+    bidCount: d.bidCount || 0
+  };
+}
+function docToTeam(id, d){
+  d = d || {};
+  return {
+    id: id,
+    name: d.name || '',
+    remaining: d.remaining != null ? d.remaining : 0,
+    purse: d.purse != null ? d.purse : (d.remaining != null ? d.remaining : 0),
+    maxPlayers: d.maxPlayers != null ? d.maxPlayers : 0,
+    minPlayers: d.minPlayers != null ? d.minPlayers : 0,
+    maxReached: !!d.maxReached,
+    players: Array.isArray(d.players) ? d.players : []
+  };
+}
+function countPlayerStats(players){
+  players = players || [];
+  var sold = 0, unsold = 0;
+  players.forEach(function(p){
+    if(p.sold || p.status === 'sold') sold++;
+    else if(p.unsold || p.status === 'unsold') unsold++;
+  });
+  return {
+    playerCount: players.length,
+    soldCount: sold,
+    unsoldCount: unsold,
+    remainingCount: Math.max(0, players.length - sold - unsold)
+  };
+}
+async function firestoreCommitBatches(writes){
+  // writes: [{ref, data}] — set with merge
+  const chunk = 400;
+  for(let i = 0; i < writes.length; i += chunk){
+    const batch = db.batch();
+    writes.slice(i, i + chunk).forEach(function(w){
+      batch.set(w.ref, w.data, { merge: true });
+    });
+    await batch.commit();
+  }
+}
+async function writeAllPlayersToSub(id){
+  ensurePlayerIds();
+  const col = playersCol(id);
+  const writes = (T.players || []).map(function(p, idx){
+    const doc = playerToDoc(p, idx);
+    p.id = doc.id;
+    return { ref: col.doc(doc.id), data: doc };
+  });
+  if(writes.length) await firestoreCommitBatches(writes);
+}
+async function writeAllTeamsToSub(id){
+  ensureTeamIds();
+  const col = teamsCol(id);
+  const writes = (T.teams || []).map(function(t){
+    const doc = teamToDoc(t);
+    return { ref: col.doc(String(doc.id)), data: doc };
+  });
+  if(writes.length) await firestoreCommitBatches(writes);
+}
+async function writeOnePlayer(p, idx, id){
+  if(!p) return;
+  const doc = playerToDoc(p, idx);
+  p.id = doc.id;
+  await playersCol(id).doc(doc.id).set(doc, { merge: true });
+}
+async function writeOneTeam(t, id){
+  if(!t || !t.id) return;
+  await teamsCol(id).doc(String(t.id)).set(teamToDoc(t), { merge: true });
+}
+/** Main auction control panel — no full players/teams arrays */
+function buildMainPayload(){
+  const hostId = T.ownerId || (user && user.uid);
+  const hostEmail = T.ownerEmail || (hostId === (user && user.uid) ? (user.email || '') : '');
+  const hostName = T.ownerName || (hostId === (user && user.uid) ? (user.displayName || '') : '');
+  if(Array.isArray(T.aiInsights) && T.aiInsights.length > 20){
+    T.aiInsights = T.aiInsights.slice(0, 20);
+  }
+  ensurePlayerIds();
+  ensureTeamIds();
+  const stats = countPlayerStats(T.players);
+  const payload = {
+    storageVersion: 2,
+    title: T.title,
+    mode: T.mode || 'physical',
+    ownerId: hostId,
+    ownerEmail: hostEmail,
+    ownerName: hostName,
+    status: T.status || 'setup',
+    meta: T.meta || { currentIndex: 0 },
+    activeColumns: T.activeColumns || activeCols,
+    rules: T.rules || null,
+    bid: T.bid || null,
+    owners: T.owners || [],
+    pendingOwners: T.pendingOwners || [],
+    pendingCoOrganisers: T.pendingCoOrganisers || [],
+    coOrganiserIds: T.coOrganiserIds || [],
+    coOrganiserEmails: T.coOrganiserEmails || [],
+    meetLink: T.meetLink || '',
+    paused: !!T.paused,
+    alertRules: T.alertRules || null,
+    lastResult: T.lastResult || null,
+    lastAlert: T.lastAlert || null,
+    aiInsight: T.aiInsight || null,
+    aiInsights: Array.isArray(T.aiInsights) ? T.aiInsights : [],
+    voiceCall: T.voiceCall || null,
+    intermissionSec: T.intermissionSec || 5,
+    intermissionUntil: T.intermissionUntil || null,
+    playerAdvance: T.playerAdvance === 'manual' ? 'manual' : 'auto',
+    awaitNextPlayer: !!T.awaitNextPlayer,
+    playerCount: stats.playerCount,
+    soldCount: stats.soldCount,
+    unsoldCount: stats.unsoldCount,
+    remainingCount: stats.remainingCount,
+    teamCount: (T.teams || []).length,
+    // Clear legacy arrays so main doc stays small
+    players: [],
+    teams: [],
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(T.presence) payload.presence = T.presence;
+  return payload;
+}
+async function loadPlayersAndTeams(id){
+  const pid = id || auctionId;
+  if(!pid || !db) return { players: [], teams: [] };
+  const [pSnap, tSnap] = await Promise.all([
+    playersCol(pid).orderBy('order').get().catch(function(){ return playersCol(pid).get(); }),
+    teamsCol(pid).get()
+  ]);
+  let players = [];
+  pSnap.forEach(function(doc){ players.push(docToPlayer(doc.id, doc.data())); });
+  players.sort(function(a, b){ return (a.order || 0) - (b.order || 0); });
+  let teams = [];
+  tSnap.forEach(function(doc){ teams.push(docToTeam(doc.id, doc.data())); });
+  // Stable team order by name if needed
+  return { players: players, teams: teams };
+}
+async function hydrateAuctionFromSubs(id, mainData){
+  const parts = await loadPlayersAndTeams(id);
+  // Legacy fallback: old auctions that still have arrays on main doc
+  if((!parts.players || !parts.players.length) && mainData && Array.isArray(mainData.players) && mainData.players.length){
+    parts.players = mainData.players.map(function(p, i){
+      const x = Object.assign({}, p);
+      if(!x.id) x.id = 'p_' + i;
+      if(x.order == null) x.order = i;
+      return x;
+    });
+  }
+  if((!parts.teams || !parts.teams.length) && mainData && Array.isArray(mainData.teams) && mainData.teams.length){
+    parts.teams = mainData.teams.slice();
+  }
+  window._subPlayers = parts.players;
+  window._subTeams = parts.teams;
+  return parts;
+}
+function stopSubListeners(){
+  if(window._playersUnsub){ try{ window._playersUnsub(); }catch(e){} window._playersUnsub = null; }
+  if(window._teamsUnsub){ try{ window._teamsUnsub(); }catch(e){} window._teamsUnsub = null; }
+}
+function startSubListeners(id){
+  stopSubListeners();
+  if(!id || !db) return;
+  window._playersUnsub = playersCol(id).onSnapshot(function(snap){
     try{
-      if(auctionId) await db.collection('auctions').doc(auctionId).set(payload,{merge:true});
-      else { const ref=await db.collection('auctions').add(payload); auctionId=ref.id; }
+      if(window._squadBusy || window._priceEditOpen || window._soldFormOpen) return;
+      const list = [];
+      snap.forEach(function(doc){ list.push(docToPlayer(doc.id, doc.data())); });
+      list.sort(function(a, b){ return (a.order || 0) - (b.order || 0); });
+      window._subPlayers = list;
+      if(T){
+        T.players = list;
+        const onAuc = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
+        const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
+        window._skipSnapshotFocus = true;
+        try{
+          if(onAuc) renderAuction({ skipFocus: true });
+          if(onWatch) renderWatch(Object.assign({}, window._lastWatchData || {}, { players: list, teams: T.teams }));
+        }finally{ window._skipSnapshotFocus = false; }
+      }
+    }catch(e){ console.warn('players listener', e); }
+  }, function(err){ console.warn('players listen err', err); });
+  window._teamsUnsub = teamsCol(id).onSnapshot(function(snap){
+    try{
+      if(window._squadBusy || window._priceEditOpen || window._soldFormOpen) return;
+      const list = [];
+      snap.forEach(function(doc){ list.push(docToTeam(doc.id, doc.data())); });
+      window._subTeams = list;
+      if(T){
+        T.teams = list;
+        const onAuc = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
+        const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
+        window._skipSnapshotFocus = true;
+        try{
+          if(onAuc){
+            const onSq = $('tabSquads') && !$('tabSquads').classList.contains('hidden');
+            if(onSq) renderSquads();
+            else renderAuction({ skipFocus: true });
+          }
+          if(onWatch) renderWatch(Object.assign({}, window._lastWatchData || {}, { players: T.players, teams: list }));
+        }finally{ window._skipSnapshotFocus = false; }
+      }
+    }catch(e){ console.warn('teams listener', e); }
+  }, function(err){ console.warn('teams listen err', err); });
+}
+
+/** Lot save: main control fields + only touched player/team docs */
+async function cloudSaveLot(silent){
+  if(!T || !db || !user || !auctionId){
+    return cloudSave(silent);
+  }
+  ensurePlayerIds();
+  ensureTeamIds();
+  const stats = countPlayerStats(T.players);
+  const mainPatch = {
+    storageVersion: 2,
+    meta: T.meta || { currentIndex: 0 },
+    bid: T.bid || null,
+    lastResult: T.lastResult || null,
+    lastAlert: T.lastAlert || null,
+    status: T.status || 'live',
+    paused: !!T.paused,
+    intermissionSec: T.intermissionSec || 5,
+    intermissionUntil: T.intermissionUntil || null,
+    playerAdvance: T.playerAdvance === 'manual' ? 'manual' : 'auto',
+    awaitNextPlayer: !!T.awaitNextPlayer,
+    playerCount: stats.playerCount,
+    soldCount: stats.soldCount,
+    unsoldCount: stats.unsoldCount,
+    remainingCount: stats.remainingCount,
+    players: [],
+    teams: [],
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  let lastErr = null;
+  for(let attempt = 0; attempt < 3; attempt++){
+    try{
+      await aucDoc(auctionId).set(mainPatch, { merge: true });
+      // Persist all players/teams that may have changed (still small docs)
+      const idx = (T.meta && T.meta.currentIndex != null) ? T.meta.currentIndex : 0;
+      // Write current and previous index player (sale target)
+      const toWrite = new Set();
+      [idx, idx - 1, idx - 2].forEach(function(i){
+        if(i >= 0 && T.players[i]) toWrite.add(i);
+      });
+      // Also any sold/unsold recently via lastResult name match
+      if(T.lastResult && T.lastResult.name){
+        T.players.forEach(function(p, i){
+          if(p && p.name === T.lastResult.name) toWrite.add(i);
+        });
+      }
+      for(const i of toWrite){
+        await writeOnePlayer(T.players[i], i, auctionId);
+      }
+      // Teams with squad changes
+      for(let ti = 0; ti < (T.teams || []).length; ti++){
+        await writeOneTeam(T.teams[ti], auctionId);
+      }
       clearAppError();
       return;
     }catch(e){
       lastErr = e;
-      // Brief backoff on retryable Firebase errors
-      if(attempt<2 && isFirebaseRetryable(e)){
-        await new Promise(r=>setTimeout(r, 400*(attempt+1)));
+      if(attempt < 2 && isFirebaseRetryable(e)){
+        await new Promise(function(r){ setTimeout(r, 400 * (attempt + 1)); });
         continue;
       }
       break;
@@ -5751,6 +6204,152 @@ async function cloudSave(silent){
   if(!silent) safeAlert(lastErr);
   throw lastErr;
 }
+
+async function cloudSave(silent){
+  if(!T || !db || !user){
+    if(!silent) showAppError('Cannot save: not signed in or auction not ready.');
+    return;
+  }
+  ensurePlayerIds();
+  ensureTeamIds();
+  const payload = buildMainPayload();
+  let lastErr = null;
+  for(let attempt = 0; attempt < 3; attempt++){
+    try{
+      if(auctionId){
+        await aucDoc(auctionId).set(payload, { merge: true });
+      } else {
+        const ref = await db.collection('auctions').add(payload);
+        auctionId = ref.id;
+      }
+      // Full sync of player + team notebooks
+      await writeAllPlayersToSub(auctionId);
+      await writeAllTeamsToSub(auctionId);
+      clearAppError();
+      try{ warnAuctionSizeIfNeeded(false); }catch(e){}
+      return;
+    }catch(e){
+      lastErr = e;
+      if(attempt < 2 && isFirebaseRetryable(e)){
+        await new Promise(function(r){ setTimeout(r, 400 * (attempt + 1)); });
+        continue;
+      }
+      break;
+    }
+  }
+  if(!silent) safeAlert(lastErr);
+  throw lastErr;
+}
+
+/** Record one bid under the current player (virtual raises + optional host log) */
+async function recordPlayerBid(opts){
+  opts = opts || {};
+  if(!db || !auctionId || !T) return;
+  ensurePlayerIds();
+  const idx = opts.playerIndex != null ? opts.playerIndex : ((T.meta && T.meta.currentIndex) || 0);
+  const p = T.players && T.players[idx];
+  if(!p) return;
+  if(!p.id) p.id = 'p_' + idx;
+  const row = {
+    teamId: opts.teamId || '',
+    teamName: opts.teamName || '',
+    amount: Number(opts.amount) || 0,
+    at: Date.now(),
+    by: (user && user.uid) || '',
+    ultimate: !!opts.ultimate
+  };
+  try{
+    await bidsCol(p.id, auctionId).add(row);
+    p.bidCount = (p.bidCount || 0) + 1;
+    await playersCol(auctionId).doc(p.id).set({ bidCount: p.bidCount }, { merge: true });
+  }catch(e){
+    console.warn('recordPlayerBid', e);
+  }
+}
+
+async function fetchPlayerBids(playerId){
+  if(!db || !auctionId || !playerId) return [];
+  try{
+    const snap = await bidsCol(playerId, auctionId).orderBy('at', 'asc').get();
+    const rows = [];
+    snap.forEach(function(doc){
+      const d = doc.data() || {};
+      rows.push({
+        id: doc.id,
+        teamId: d.teamId || '',
+        teamName: d.teamName || '',
+        amount: d.amount != null ? d.amount : 0,
+        at: d.at || 0,
+        ultimate: !!d.ultimate
+      });
+    });
+    return rows;
+  }catch(e){
+    // Fallback without orderBy if index missing
+    try{
+      const snap = await bidsCol(playerId, auctionId).get();
+      const rows = [];
+      snap.forEach(function(doc){
+        const d = doc.data() || {};
+        rows.push({
+          id: doc.id,
+          teamId: d.teamId || '',
+          teamName: d.teamName || '',
+          amount: d.amount != null ? d.amount : 0,
+          at: d.at || 0,
+          ultimate: !!d.ultimate
+        });
+      });
+      rows.sort(function(a, b){ return (a.at || 0) - (b.at || 0); });
+      return rows;
+    }catch(e2){
+      console.warn('fetchPlayerBids', e2);
+      return [];
+    }
+  }
+}
+
+async function openBidHistoryDialog(player){
+  if(!player) return;
+  const modal = $('bidHistoryModal');
+  const list = $('bhList');
+  const title = $('bhTitle');
+  const sub = $('bhPlayer');
+  if(!modal || !list) return;
+  if(sub) sub.textContent = player.name || 'Player';
+  if(title) title.textContent = 'Bid history';
+  list.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  window._modalOpen = true;
+  try{ focusEl($('btnBhClose') || title); }catch(e){}
+  const pid = player.id || '';
+  const rows = pid ? await fetchPlayerBids(pid) : [];
+  if(!rows.length){
+    list.innerHTML = '<p style="color:var(--muted);margin:0">No bids recorded for this player yet.</p>';
+  } else {
+    let h = '';
+    rows.forEach(function(r, i){
+      h += '<div role="listitem" class="list-btn" style="cursor:default;margin:0 0 8px">'+
+        '<strong>'+escHtml(r.teamName || 'Team')+'</strong> · '+escHtml(r.amount)+
+        (r.ultimate ? ' · ultimate' : '')+
+        '</div>';
+    });
+    list.innerHTML = h;
+  }
+}
+function closeBidHistoryDialog(){
+  const modal = $('bidHistoryModal');
+  if(modal){
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  window._modalOpen = false;
+}
+document.addEventListener('click', function(ev){
+  const t = ev.target;
+  if(t && t.id === 'btnBhClose') closeBidHistoryDialog();
+});
 
 
 /* ===== Link previews + share text ===== */
@@ -6220,17 +6819,30 @@ function paintVoiceOwnerList(){
 function paintJoinedList(){
   const box = $('vhJoinedList');
   if(!box) return;
+  // LiveKit is source of truth while connected; Firestore only fills gaps (names) or offline list
   const lk = liveKitJoinedRows();
   const fs = (T && T.voiceCall && T.voiceCall.joined) ? T.voiceCall.joined : {};
   const byUid = {};
-  lk.forEach(function(r){ byUid[r.uid] = r; });
-  Object.keys(fs).forEach(function(uid){
-    if(!byUid[uid]){
-      byUid[uid] = { uid: uid, name: (fs[uid].label || fs[uid].name || fs[uid].email || uid), muted: !!fs[uid].muted, source: 'firestore' };
-    } else if(fs[uid].label || fs[uid].name){
-      byUid[uid].name = fs[uid].label || fs[uid].name || byUid[uid].name;
-    }
-  });
+  const inRoom = !!(window._lkRoom);
+  if(inRoom && lk.length){
+    lk.forEach(function(r){
+      byUid[r.uid] = r;
+      // Prefer Firestore display label if available
+      if(fs[r.uid] && (fs[r.uid].label || fs[r.uid].name)){
+        byUid[r.uid].name = fs[r.uid].label || fs[r.uid].name || byUid[r.uid].name;
+      }
+    });
+  } else {
+    // Not in LiveKit room yet — show Firestore joined so host sees who accepted
+    Object.keys(fs).forEach(function(uid){
+      byUid[uid] = {
+        uid: uid,
+        name: (fs[uid].label || fs[uid].name || fs[uid].email || uid),
+        muted: !!fs[uid].muted,
+        source: 'firestore'
+      };
+    });
+  }
   const keys = Object.keys(byUid);
   if(!keys.length){
     box.innerHTML = '<p style="color:var(--muted);font-size:13px">No one is in the room yet. After owners tap Join, names appear here.</p>';
@@ -6239,13 +6851,13 @@ function paintJoinedList(){
   let h = '';
   keys.forEach(function(uid){
     const j = byUid[uid];
-    const nm = j.name || uid;
+    const nm = escHtml(j.name || uid);
     const muted = !!j.muted;
     const self = user && uid === user.uid;
-    h += '<div class="voice-owner-row" role="listitem"><span>'+String(nm).replace(/</g,'')+
+    h += '<div class="voice-owner-row" role="listitem"><span>'+nm+
       (self ? ' (you)' : '') + (muted ? ' · muted' : ' · unmuted')+'</span>';
     if(isAuctionHostUser() && !self){
-      h += '<button type="button" class="btn-danger btnVoiceRemove" data-uid="'+uid+'" style="min-height:40px">Remove</button>';
+      h += '<button type="button" class="btn-danger btnVoiceRemove" data-uid="'+escHtml(uid)+'" style="min-height:40px">Remove</button>';
     }
     h += '</div>';
   });
@@ -6579,6 +7191,8 @@ async function joinVoiceCall(asHost){
     try{ playCallSfx('join'); }catch(e){}
     updateNavCallBtn();
     updateInCallChrome();
+    // LiveKit list first (immediate), Firestore second (persist)
+    try{ paintJoinedList(); }catch(e){}
 
     const label = isAuctionHostUser() ? ('Host ' + (user.displayName || user.email || '')) : ownerDisplayLabel();
     if(T){
@@ -6597,6 +7211,7 @@ async function joinVoiceCall(asHost){
       if(T.voiceCall.targets && T.voiceCall.targets[user.uid]){
         T.voiceCall.targets[user.uid] = { status: 'joined', at: Date.now() };
       }
+      try{ paintJoinedList(); }catch(e){}
       try{ await cloudSave(true); }catch(e){ console.warn('voice join save', e); }
       if(!already && !isAuctionHostUser()){
         try{
@@ -6614,6 +7229,8 @@ async function joinVoiceCall(asHost){
       closeVoiceHostModal();
     }
     subscribeAllRemote(room, LK);
+    setTimeout(function(){ try{ paintJoinedList(); }catch(e){} }, 400);
+    setTimeout(function(){ try{ paintJoinedList(); }catch(e){} }, 1500);
     try{ announce(isAuctionHostUser() ? 'You are in the voice call as host. Mute and End are next to Message.' : 'Joined voice call.'); }catch(e){}
   }catch(e){
     safeAlert(e);
@@ -7454,8 +8071,8 @@ function renderAuction(opts){
   if(helperMode){
     box.innerHTML='<p style="text-align:center;font-size:13px;font-weight:700;color:var(--muted)">HELPER · SQUADS ONLY</p>'+
       '<div class="player-stage"><p style="margin:0;font-size:13px;font-weight:700;color:var(--muted)">NOW AUCTIONING</p>'+
-      '<h2 class="player-name" id="pName" tabindex="-1">'+(p.name||'')+'</h2></div>'+recentCardHtml(recent);
-    focusEl($('pName'));
+      '<h2 class="player-name" id="pName" tabindex="-1">'+escHtml(p.name||'')+'</h2></div>'+recentCardHtml(recent);
+    if(opts.focusBid) focusEl($('pName'));
     if($('btnEndAuction')) $('btnEndAuction').classList.add('hidden');
     return;
   }
@@ -7465,7 +8082,7 @@ function renderAuction(opts){
   box.innerHTML=
     '<div class="player-stage" id="playerCard">'+
     '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
-    '<h2 class="player-name" id="pName" tabindex="-1">'+physSpoken+'</h2></div>'+
+    '<h2 class="player-name" id="pName" tabindex="-1">'+escHtml(physSpoken)+'</h2></div>'+
     '<div id="bidRegion" class="btn-stack">'+
     '<button type="button" id="btnSold" class="btn-ok btn-block" aria-label="Sold">Sold</button>'+
     '<button type="button" id="btnUnsold" class="btn-danger btn-block" aria-label="Unsold">Unsold</button></div>'+
@@ -7473,7 +8090,8 @@ function renderAuction(opts){
     (recentLineHtml(recent)||'');
   // Do not re-announce on every redraw — only when key is new (quiet join seeds key)
   if(!window._liveJoinQuiet) announceNowPlayer(idx, p.name, pl.length);
-  if(!opts.skipFocus && !window._soldFormOpen && !window._modalOpen && !isUiLocked()){
+  // Only focus on explicit user action (focusBid), never on snapshot redraws
+  if(opts.focusBid && !opts.skipFocus && !window._soldFormOpen && !window._modalOpen && !isUiLocked()){
     const fk='physfocus|'+idx+'|'+(p.name||'');
     if(window._bidFocusKey!==fk){
       window._bidFocusKey=fk;
@@ -7485,6 +8103,7 @@ function renderAuction(opts){
   }
   $('btnSold').onclick=()=>ask('Confirm sold','Mark '+(p.name||'')+' as sold?',()=>openSoldForm(idx));
   $('btnUnsold').onclick=()=>ask('Confirm unsold','Mark '+(p.name||'')+' as unsold?', async()=>{
+    if(!p){ alert('No player at this position'); return; }
     try{ playSfx('unsold'); }catch(e){}
     p.unsold=true; p.sold=false; T.players[idx]=p;
     T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now() };
@@ -7748,12 +8367,12 @@ function recentLineHtml(recent){
   }
   if(recent.sold){
     const spoken='Recent player: '+(recent.name||'')+' sold to '+(recent.team||'')+' for '+(recent.price||'');
-    return '<div class="recent-line" aria-label="'+spoken.replace(/"/g,'')+'">'+
-      '<span aria-hidden="true"><span class="badge sold">Sold</span> <strong>'+(recent.name||'')+'</strong> / '+(recent.team||'')+' / '+(recent.price||'')+'</span></div>';
+    return '<div class="recent-line" aria-label="'+escHtml(spoken)+'">'+
+      '<span aria-hidden="true"><span class="badge sold">Sold</span> <strong>'+escHtml(recent.name||'')+'</strong> / '+escHtml(recent.team||'')+' / '+escHtml(recent.price||'')+'</span></div>';
   }
   const spoken='Recent player: '+(recent.name||'')+' unsold';
-  return '<div class="recent-line" aria-label="'+spoken.replace(/"/g,'')+'">'+
-    '<span aria-hidden="true"><span class="badge unsold">Unsold</span> <strong>'+(recent.name||'')+'</strong></span></div>';
+  return '<div class="recent-line" aria-label="'+escHtml(spoken)+'">'+
+    '<span aria-hidden="true"><span class="badge unsold">Unsold</span> <strong>'+escHtml(recent.name||'')+'</strong></span></div>';
 }
 
 function showOnlineOwners(){
@@ -8025,6 +8644,8 @@ async function doRaise(targetPrice, inc, isUltimate){
   }
   try{
     let acceptedPrice=null, acceptedTeam=null;
+    // Resolve team from memory (v2) or legacy main doc inside transaction
+    const localTeam = (T && T.teams || []).find(function(t){ return t.id === myTeamId; });
     await db.runTransaction(async tx=>{
       const ref=db.collection('auctions').doc(auctionId);
       const snap=await tx.get(ref);
@@ -8033,11 +8654,15 @@ async function doRaise(targetPrice, inc, isUltimate){
       if(data.status==='ended') throw new Error('Auction is closed');
       const bid=data.bid||{};
       const rules=data.rules||{};
-      const teams=data.teams||[];
-      const myTeam=teams.find(t=>t.id===myTeamId);
+      let myTeam = localTeam;
+      if(!myTeam){
+        const tref = teamsCol(auctionId).doc(String(myTeamId));
+        const tsnap = await tx.get(tref);
+        if(tsnap.exists) myTeam = docToTeam(tsnap.id, tsnap.data());
+      }
+      if(!myTeam && Array.isArray(data.teams)) myTeam = data.teams.find(function(t){ return t.id===myTeamId; });
       if(!myTeam) throw new Error('Your team was not found');
       if(data.paused) throw new Error('Host is on break. Bidding paused.');
-      // Maximum squad — cannot bid further
       const maxP = Number(myTeam.maxPlayers)||0;
       const squadCount = (myTeam.players||[]).length;
       if(myTeam.maxReached || (maxP > 0 && squadCount >= maxP)){
@@ -8049,7 +8674,6 @@ async function doRaise(targetPrice, inc, isUltimate){
       if(bid.timerEndsAt && bid.phase==='contest' && Date.now()>=bid.timerEndsAt) throw new Error('Time is up. Waiting for host decision.');
       const curIdx=(data.meta&&data.meta.currentIndex)!=null ? data.meta.currentIndex : 0;
       if(bid.playerIndex!=null && Number(bid.playerIndex)!==Number(curIdx)) throw new Error('This bid was for a previous player and was rejected.');
-      // Client must still be on same lot
       if(T && T.meta && Number(T.meta.currentIndex)!==Number(curIdx)) throw new Error('Player has changed. Bid rejected.');
       if((bid.teamStatus||{})[myTeamId]!=='eligible') throw new Error('You cannot bid on this player');
       if(bid.leaderTeamId===myTeamId) throw new Error('You already lead');
@@ -8066,7 +8690,6 @@ async function doRaise(targetPrice, inc, isUltimate){
       const maxInc=rules.maxRaise||999999;
       if(!isUltimate && bid.leaderTeamId && (newPrice-bid.price)>maxInc) throw new Error('Above maximum increase allowed');
       if(isUltimate && newPrice % 5 !== 0) throw new Error('Ultimate bid must be a multiple of 5');
-      // Ultimate: still respect max increase unless opening bid
       bid.price=newPrice;
       bid.leaderTeamId=myTeamId;
       bid.leaderTeamName=myTeam.name;
@@ -8084,6 +8707,16 @@ async function doRaise(targetPrice, inc, isUltimate){
       acceptedTeam=myTeam.name;
       tx.update(ref,{ bid, updatedAt:firebase.firestore.FieldValue.serverTimestamp() });
     });
+    // Record bid history under current player (split storage)
+    try{
+      await recordPlayerBid({
+        teamId: myTeamId,
+        teamName: acceptedTeam,
+        amount: acceptedPrice,
+        ultimate: !!isUltimate,
+        playerIndex: (T && T.meta && T.meta.currentIndex) || 0
+      });
+    }catch(e){ console.warn('bid history', e); }
     // Assertive live region — all devices get this via their own snapshot too
     if(acceptedTeam!=null){
       window._countdownSec=null;
@@ -8530,13 +9163,20 @@ async function afterLotSequence(resultLine, alertLine){
   // Start gap; speech for sold/alert comes once from live snapshot for all roles
   if(T && T.lastResult && !T.lastResult.at) T.lastResult.at = Date.now();
   beginIntermission();
-  try{ await cloudSave(false); }catch(e){}
+  // Lot-only write: players/teams/meta/lastResult — not full doc (owners/AI/voice)
+  try{ await cloudSaveLot(false); }catch(e){
+    try{ console.warn('cloudSaveLot', e); }catch(e2){}
+    // Fallback once to full merge if update rejected
+    try{ await cloudSave(false); }catch(e3){}
+  }
 }
 
 async function finalizeSold(teamId, price){
+  if(!T || !Array.isArray(T.players)){ alert('Auction data missing'); return; }
   const idx=T.meta.currentIndex||0;
   const p=T.players[idx];
-  const team=T.teams.find(t=>t.id===teamId);
+  if(!p){ alert('No player at this position'); return; }
+  const team=(T.teams||[]).find(t=>t.id===teamId);
   if(!team){ alert('Team missing'); return; }
   if(price>team.remaining){ alert('Purse issue'); return; }
   // Block if already at maximum (before adding this player)
@@ -8555,7 +9195,7 @@ async function finalizeSold(teamId, price){
   team.players.push({...p, price});
   team.remaining-=price;
   if(maxP > 0 && team.players.length >= maxP) team.maxReached = true;
-  p.sold=true; p.unsold=false; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
+  p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
   T.players[idx]=p;
   T.meta.currentIndex=idx+1;
   T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
@@ -8567,15 +9207,21 @@ async function finalizeSold(teamId, price){
     T.bid=makeBidStateForPlayer(T.meta.currentIndex, true); // start after intermission
   } else T.bid=null;
   window._soldN=(T.players||[]).filter(x=>x.sold).length;
+  // Log final sale as a bid row (physical + virtual)
+  try{
+    await recordPlayerBid({ teamId: team.id, teamName: team.name, amount: price, playerIndex: idx });
+  }catch(e){}
   await afterLotSequence(resultLine, alertLine);
   renderAuction();
 }
 
 async function finalizeUnsold(){
+  if(!T || !Array.isArray(T.players)){ alert('Auction data missing'); return; }
   const idx=T.meta.currentIndex||0;
   const p=T.players[idx];
+  if(!p){ alert('No player at this position'); return; }
   try{ playSfx('unsold'); }catch(e){}
-  p.unsold=true; p.sold=false;
+  p.unsold=true; p.sold=false; p.status='unsold';
   T.players[idx]=p;
   T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now() };
   T.meta.currentIndex=idx+1;
@@ -8584,11 +9230,13 @@ async function finalizeUnsold(){
   else T.bid=null;
   window._unsoldN=(T.players||[]).filter(x=>x.unsold).length;
   await afterLotSequence((p.name||'Player')+' unsold.', '');
-  renderAuction();
+  renderAuction({ focusBid:true });
 }
 
 function openSoldForm(idx){
+  if(!T || !Array.isArray(T.players)){ alert('Auction data missing'); return; }
   const p=T.players[idx];
+  if(!p){ alert('No player at this position'); return; }
   window._soldFormOpen=true;
   window._soldFormIdx=idx;
   window._soldTeamId=null;
@@ -8603,16 +9251,18 @@ function openSoldForm(idx){
   } else {
     teams.forEach((t)=>{
       const left = getTeamMax(t) > 0 ? (getTeamMax(t)-(t.players||[]).length) : '—';
-      teamBtns+='<button type="button" class="btn-sec sold-team" data-id="'+t.id+'" aria-pressed="false"'+
-        ' aria-label="'+t.name+', '+(t.players||[]).length+' players, purse '+t.remaining+', slots left '+left+'">'+
-        t.name+' · '+(t.players||[]).length+' players · purse '+t.remaining+
+      const tName = escHtml(t.name||'Team');
+      const tId = escHtml(t.id||'');
+      teamBtns+='<button type="button" class="btn-sec sold-team" data-id="'+tId+'" aria-pressed="false"'+
+        ' aria-label="'+tName+', '+(t.players||[]).length+' players, purse '+escHtml(t.remaining)+', slots left '+escHtml(left)+'">'+
+        tName+' · '+(t.players||[]).length+' players · purse '+escHtml(t.remaining)+
         (getTeamMax(t)>0?' · '+(getTeamMax(t)-(t.players||[]).length)+' slots left':'')+
         '</button>';
     });
   }
   teamBtns+='</div>';
   form.innerHTML=
-    '<h3 id="soldFormH" tabindex="-1" style="margin:0 0 8px">Sold — '+(p.name||'Player')+'</h3>'+
+    '<h3 id="soldFormH" tabindex="-1" style="margin:0 0 8px">Sold — '+escHtml(p.name||'Player')+'</h3>'+
     '<p style="margin:0 0 8px;font-weight:700">1. Choose team</p>'+
     teamBtns+
     '<label for="sPrice">2. Price</label>'+
@@ -8621,6 +9271,7 @@ function openSoldForm(idx){
     '<div class="btn-stack">'+
     '<button type="button" id="sSave" class="btn-ok btn-block">Save purchase</button>'+
     '<button type="button" id="sCancel" class="btn-sec btn-block">Cancel</button></div>';
+  window._skipSnapshotFocus=false;
   focusEl($('soldFormH'));
   form.querySelectorAll('.sold-team').forEach(btn=>{
     btn.onclick=function(){
@@ -8636,12 +9287,11 @@ function openSoldForm(idx){
   };
   $('sSave').onclick=async()=>{
     const teamId=window._soldTeamId || (form.querySelector('.sold-team[aria-pressed="true"]') && form.querySelector('.sold-team[aria-pressed="true"]').getAttribute('data-id'));
-    const team=T.teams.find(t=>t.id===teamId);
+    const team=(T.teams||[]).find(t=>t.id===teamId);
     const price=parseInt(String($('sPrice')&&$('sPrice').value||'').replace(/\D/g,''),10);
     if(!team){ alert('Choose a team first'); return; }
     if(!price){ alert('Enter price'); focusEl($('sPrice')); return; }
     if(price>team.remaining){ alert('Not enough purse'); return; }
-    // Maximum players — alert and reopen sold form fresh
     if(isTeamAtMax(team)){
       alert('Maximum players filled for '+team.name+'. Unable to proceed.');
       openSoldForm(idx);
@@ -8653,7 +9303,7 @@ function openSoldForm(idx){
     team.remaining-=price;
     const maxP=getTeamMax(team);
     if(maxP>0 && team.players.length>=maxP) team.maxReached=true;
-    p.sold=true; p.unsold=false; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price; T.players[idx]=p;
+    p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price; T.players[idx]=p;
     T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
     T.meta.currentIndex=idx+1;
     let alertLine='';
@@ -8661,6 +9311,7 @@ function openSoldForm(idx){
     window._soldFormOpen=false;
     window._soldTeamId=null;
     try{ form.classList.add('hidden'); form.innerHTML=''; }catch(e){}
+    try{ await recordPlayerBid({ teamId: team.id, teamName: team.name, amount: price, playerIndex: idx }); }catch(e){}
     await afterLotSequence((p.name||'Player')+' sold to '+team.name+' for '+price, alertLine);
     renderAuction({ focusBid:true });
   };
@@ -9081,10 +9732,25 @@ function renderSquads(){
     priceEl.textContent='Price '+pprice;
     item.appendChild(priceEl);
 
-    if(canEditSquads()){
-      const actions=document.createElement('div');
-      actions.className='btn-stack';
+    const actions=document.createElement('div');
+    actions.className='btn-stack';
 
+    // View bids — available to everyone
+    const vb=document.createElement('button');
+    vb.type='button'; vb.className='btn-sec';
+    vb.textContent='View bids';
+    vb.setAttribute('aria-label','View bids for '+pname);
+    vb.onclick=function(){
+      // Resolve full player from master list for id
+      let full = pl;
+      if((!pl.id) && T && T.players){
+        full = T.players.find(function(x){ return samePlayer(x, pl); }) || pl;
+      }
+      openBidHistoryDialog(full);
+    };
+    actions.appendChild(vb);
+
+    if(canEditSquads()){
       const ed=document.createElement('button');
       ed.type='button'; ed.className='btn-sec';
       ed.textContent='Change price';
@@ -9107,8 +9773,8 @@ function renderSquads(){
 
       actions.appendChild(ed);
       actions.appendChild(rm);
-      item.appendChild(actions);
     }
+    item.appendChild(actions);
     list.appendChild(item);
   });
 
@@ -9895,9 +10561,42 @@ function cleanAi360Text(raw){
   return t;
 }
 
+/**
+ * AI errors stay inside Insights (setInsStatus) — never global appError / alert.
+ * Maps Cloud Functions codes to short, host-actionable text.
+ */
+function friendlyAiError(e){
+  try{
+    const code = String((e && e.code) || '').toLowerCase();
+    const details = e && e.details != null ? (typeof e.details === 'string' ? e.details : JSON.stringify(e.details)) : '';
+    let msg = String((e && e.message) || e || '');
+    msg = msg.replace(/^FirebaseError:\s*/i, '').replace(/^functions\/[\w-]+\s*/i, '').trim();
+    if(details && (/\binternal\b/i.test(msg) || !msg)) msg = details;
+    if(/unauthenticated|not.?signed|auth/i.test(code + msg))
+      return 'Sign in again, then retry Ask 360AI.';
+    if(/permission-denied|permission/i.test(code + msg))
+      return 'Permission denied. Only the host can use 360AI on this auction.';
+    if(/resource-exhausted|quota|429|rate/i.test(code + msg))
+      return 'AI quota or rate limit hit. Wait a minute and try again.';
+    if(/deadline|timeout|unavailable|network/i.test(code + msg))
+      return 'Network or timeout. Check internet and retry.';
+    if(/not-found|404/i.test(code + msg))
+      return 'askMatchAi function not found. Deploy functions to asia-south1.';
+    if(/failed-precondition|GEMINI|API.?KEY|secret/i.test(code + msg))
+      return 'Gemini key missing. Set GEMINI_API_KEY secret and redeploy askMatchAi.';
+    if(!msg || /^internal$/i.test(msg))
+      return 'Server error (internal). Check Functions logs for askMatchAi / GEMINI_API_KEY.';
+    // Cap length so status line stays readable for SR
+    if(msg.length > 180) msg = msg.slice(0, 177) + '…';
+    return msg;
+  }catch(x){
+    return '360AI failed. Try again.';
+  }
+}
+
 async function callAuctionAskMatchAi(question){
   const fns = (typeof getFunctionsRegion === 'function') ? getFunctionsRegion() : null;
-  if(!fns) throw new Error('Firebase Functions not ready');
+  if(!fns) throw new Error('Firebase Functions not ready — open the app online and retry.');
   const call = fns.httpsCallable('askMatchAi');
   let res;
   try {
@@ -9907,21 +10606,23 @@ async function callAuctionAskMatchAi(question){
       mode: 'auction'
     });
   } catch (e) {
-    // Surface server message instead of bare "internal"
-    const code = (e && e.code) ? String(e.code) : '';
-    const details = (e && e.details) ? String(e.details) : '';
-    const msg = (e && e.message) ? String(e.message) : String(e);
-    let out = details || msg;
-    out = out.replace(/^FirebaseError:\s*/i, '').replace(/^functions\/[\w-]+\s*/i, '');
-    if (/\binternal\b/i.test(out) && details) out = details;
-    if (!out || out === 'internal') out = 'Server error. Redeploy askMatchAi with GEMINI_API_KEY secret and check Functions logs.';
-    const err = new Error(out);
-    err.code = code;
+    const err = new Error(friendlyAiError(e));
+    err.code = e && e.code;
+    err.aiOnly = true; // UI must not escalate to global alert
     throw err;
   }
   const data = (res && res.data) ? res.data : res;
+  if(data && data.ok === false && data.error){
+    const err = new Error(friendlyAiError({ message: data.error }));
+    err.aiOnly = true;
+    throw err;
+  }
   const textOut = cleanAi360Text((data && data.text) || '');
-  if(!textOut) throw new Error((data && data.error) || 'Empty answer from AI360');
+  if(!textOut){
+    const err = new Error((data && data.error) || 'Empty answer from 360AI');
+    err.aiOnly = true;
+    throw err;
+  }
   return textOut;
 }
 
@@ -10089,9 +10790,11 @@ async function insSendAsk(){
     setInsStatus('Answer ready.');
     try{ if(typeof announce==='function') announce('360AI answer ready.'); }catch(e){}
   }catch(e){
+    // Keep failure inside Insights status only — never global app error bar / alert
     console.warn('AI360', e);
-    const msg = (e && (e.message || e.details)) ? String(e.message || e.details) : String(e);
-    setInsStatus('360AI failed: ' + msg.replace(/^FirebaseError:\s*/i, ''));
+    const msg = (e && e.aiOnly) ? String(e.message) : friendlyAiError(e);
+    setInsStatus('360AI failed: ' + msg);
+    try{ if(typeof announce==='function') announce('360AI failed. ' + msg); }catch(e2){}
   }finally{
     if(btn) btn.disabled = false;
   }
@@ -10114,7 +10817,8 @@ async function insPublishDraft(){
   };
   const list = getAiInsightsList(T);
   list.unshift(item);
-  T.aiInsights = list;
+  // Keep only latest 20 published responses to protect Firestore 1 MB limit
+  T.aiInsights = list.slice(0, 20);
   T.aiInsight = item;
   T.lastAlert = {
     text: 'Host has posted a new response. Check Insights.',

@@ -102,16 +102,23 @@ body{
 }
 #authError{color:var(--danger);font-weight:600;min-height:1.3em;margin:12px 0 0;text-align:center;font-size:14px}
 
-/* Hub top bar */
+/* Hub: slim top bar, launch keys centered */
+#screenHub.panel{
+  background:
+    linear-gradient(180deg,rgba(14,165,233,.12) 0%,transparent 28%),
+    linear-gradient(180deg,transparent 60%,rgba(0,230,118,.08) 100%),
+    rgba(15,23,42,.92);
+  border-color:rgba(56,189,248,.22);
+}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin:0 0 16px;min-height:44px;
+  margin:0;min-height:44px;flex-shrink:0;
 }
 .user-pill{
   border:none;cursor:pointer;font:inherit;appearance:none;-webkit-appearance:none;
   display:inline-flex;align-items:center;gap:8px;max-width:55%;
   padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700;
-  background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:var(--primary-bright);
+  background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.4);color:var(--primary-bright);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .user-pill:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
@@ -120,50 +127,64 @@ body{
   box-shadow:0 0 8px var(--ok);
 }
 
-/* App grid — native launcher feel */
-.app-grid{
-  display:grid;grid-template-columns:1fr 1fr;gap:12px;
-  margin:0;padding:0;flex:1;align-content:start;
+/* Centered vertical launch keys */
+.hub-center{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:16px;padding:12px 4px 8px;min-height:0;
 }
 .app-tile{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:10px;min-height:132px;padding:18px 10px;
-  border-radius:18px;border:1px solid var(--border);
-  background:linear-gradient(160deg,rgba(15,23,42,.98),rgba(30,41,59,.85));
-  color:var(--text);cursor:pointer;
-  font-family:inherit;font-size:14px;font-weight:800;
-  box-shadow:0 8px 24px rgba(0,0,0,.3);
+  display:flex;flex-direction:row;align-items:center;justify-content:flex-start;
+  gap:16px;width:100%;max-width:340px;
+  min-height:88px;padding:16px 18px;
+  border-radius:20px;border:none;
+  color:#fff;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:800;
+  letter-spacing:-.01em;text-align:left;
+  box-shadow:0 10px 28px rgba(0,0,0,.35);
   -webkit-appearance:none;appearance:none;
   touch-action:manipulation;
+  transition:transform .12s ease,box-shadow .12s ease;
 }
-.app-tile:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.app-tile:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .app-tile:active{transform:scale(.97)}
 .app-tile .tile-icon{
-  width:56px;height:56px;border-radius:16px;
+  width:56px;height:56px;border-radius:16px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
   font-size:28px;line-height:1;
+  background:rgba(255,255,255,.2);
+  border:1px solid rgba(255,255,255,.28);
+  box-shadow:0 4px 12px rgba(0,0,0,.15);
 }
-.tile-auction .tile-icon{
-  background:rgba(56,189,248,.18);border:1px solid rgba(56,189,248,.4);
+.app-tile .tile-label{
+  flex:1;line-height:1.25;text-shadow:0 1px 2px rgba(0,0,0,.2);
 }
-.tile-live .tile-icon{
-  background:rgba(0,230,118,.14);border:1px solid rgba(0,230,118,.35);
+.app-tile .tile-chevron{
+  flex-shrink:0;font-size:22px;opacity:.85;font-weight:700;
 }
-.app-tile .tile-label{text-align:center;line-height:1.25;letter-spacing:-.01em}
-.tile-auction .tile-label{color:var(--primary-bright)}
-.tile-live .tile-label{color:#5eead4}
+
+/* Distinct colorful boxes */
+.tile-auction{
+  background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 55%,#1e3a8a 100%);
+  box-shadow:0 12px 32px rgba(14,165,233,.45);
+}
+.tile-live{
+  background:linear-gradient(135deg,#34d399 0%,#059669 50%,#047857 100%);
+  box-shadow:0 12px 32px rgba(16,185,129,.42);
+}
 
 .hub-hint{
-  margin:16px 0 0;text-align:center;font-size:12px;font-weight:600;color:var(--muted);
+  margin:4px 0 0;text-align:center;font-size:12px;font-weight:600;color:var(--muted);
+  flex-shrink:0;
 }
 
 /* Install (secondary) */
 .install-row{
-  margin-top:14px;display:flex;align-items:center;justify-content:center;
+  margin-top:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
 .btn-install{
   min-height:44px;padding:10px 16px;border-radius:999px;
-  border:1px solid var(--border);background:rgba(56,189,248,.1);
+  border:1px solid var(--border);background:rgba(56,189,248,.12);
   color:var(--primary-bright);font:inherit;font-size:13px;font-weight:700;
   cursor:pointer;-webkit-appearance:none;appearance:none;
 }
@@ -221,20 +242,21 @@ body{
       </button>
     </div>
 
-    <div class="app-grid" role="group" aria-label="Apps">
+    <div class="hub-center" role="group" aria-label="Apps">
       <button type="button" class="app-tile tile-auction" id="btnAuction"
               aria-label="Auction Tracker 360">
         <span class="tile-icon" aria-hidden="true">🔨</span>
-        <span class="tile-label">Auction<br>Tracker 360</span>
+        <span class="tile-label">Auction Tracker 360</span>
+        <span class="tile-chevron" aria-hidden="true">›</span>
       </button>
       <button type="button" class="app-tile tile-live" id="btnLive"
               aria-label="Cric360 Live">
         <span class="tile-icon" aria-hidden="true">🏏</span>
-        <span class="tile-label">Cric360<br>Live</span>
+        <span class="tile-label">Cric360 Live</span>
+        <span class="tile-chevron" aria-hidden="true">›</span>
       </button>
+      <p class="hub-hint" id="hubHint">Tap an app to open</p>
     </div>
-
-    <p class="hub-hint" id="hubHint">Tap an app to open</p>
 
     <div id="installHubWrap" class="install-row hidden">
       <button type="button" id="btnInstall" class="btn-install" aria-label="Install Cric360 on this device">Install app</button>

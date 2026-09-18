@@ -3407,8 +3407,8 @@ function friendlyError(e){
 
   // ----- Firestore -----
   const fsMap = {
-    'permission-denied': 'Permission denied. Sign in again or ask the host to assign your team.',
-    'firestore/permission-denied': 'Permission denied. Sign in again or ask the host to assign your team.',
+    'permission-denied': 'Permission denied. If you are the host, update Firestore rules for players/teams subcollections. If you are an owner, ask the host to assign your team.',
+    'firestore/permission-denied': 'Permission denied. If you are the host, update Firestore rules for players/teams subcollections. If you are an owner, ask the host to assign your team.',
     'not-found': 'Auction not found or was removed.',
     'firestore/not-found': 'Auction not found or was removed.',
     'unavailable': 'Network problem. Check your connection and try again.',
@@ -3442,7 +3442,7 @@ function friendlyError(e){
   }
   // Message-based fallbacks
   if(/permission|insufficient/i.test(raw))
-    return 'Permission denied. Sign in again or ask the host to assign your team.';
+    return 'Permission denied. Hosts: deploy Firestore rules that allow writing auctions/{id}/players and /teams. Owners: ask the host to assign your team.';
   if(/network|unavailable|offline|Failed to get document|client is offline/i.test(raw))
     return 'Network problem. Check your connection and try again.';
   if(/not-found|No document to update/i.test(raw))
@@ -6146,50 +6146,60 @@ async function cloudSaveLot(silent){
   ensurePlayerIds();
   ensureTeamIds();
   const stats = countPlayerStats(T.players);
-  const mainPatch = {
-    storageVersion: 2,
-    meta: T.meta || { currentIndex: 0 },
-    bid: T.bid || null,
-    lastResult: T.lastResult || null,
-    lastAlert: T.lastAlert || null,
-    status: T.status || 'live',
-    paused: !!T.paused,
-    intermissionSec: T.intermissionSec || 5,
-    intermissionUntil: T.intermissionUntil || null,
-    playerAdvance: T.playerAdvance === 'manual' ? 'manual' : 'auto',
-    awaitNextPlayer: !!T.awaitNextPlayer,
-    playerCount: stats.playerCount,
-    soldCount: stats.soldCount,
-    unsoldCount: stats.unsoldCount,
-    remainingCount: stats.remainingCount,
-    players: [],
-    teams: [],
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
   let lastErr = null;
   for(let attempt = 0; attempt < 3; attempt++){
     try{
-      await aucDoc(auctionId).set(mainPatch, { merge: true });
-      // Persist all players/teams that may have changed (still small docs)
+      // Try split writes first
       const idx = (T.meta && T.meta.currentIndex != null) ? T.meta.currentIndex : 0;
-      // Write current and previous index player (sale target)
       const toWrite = new Set();
       [idx, idx - 1, idx - 2].forEach(function(i){
         if(i >= 0 && T.players[i]) toWrite.add(i);
       });
-      // Also any sold/unsold recently via lastResult name match
       if(T.lastResult && T.lastResult.name){
         T.players.forEach(function(p, i){
           if(p && p.name === T.lastResult.name) toWrite.add(i);
         });
       }
-      for(const i of toWrite){
-        await writeOnePlayer(T.players[i], i, auctionId);
+      let subOk = true;
+      try{
+        for(const i of toWrite){
+          await writeOnePlayer(T.players[i], i, auctionId);
+        }
+        for(let ti = 0; ti < (T.teams || []).length; ti++){
+          await writeOneTeam(T.teams[ti], auctionId);
+        }
+      }catch(subErr){
+        subOk = false;
+        console.warn('cloudSaveLot sub write', subErr);
       }
-      // Teams with squad changes
-      for(let ti = 0; ti < (T.teams || []).length; ti++){
-        await writeOneTeam(T.teams[ti], auctionId);
+
+      const mainPatch = {
+        storageVersion: subOk ? 2 : 1,
+        meta: T.meta || { currentIndex: 0 },
+        bid: T.bid || null,
+        lastResult: T.lastResult || null,
+        lastAlert: T.lastAlert || null,
+        status: T.status || 'live',
+        paused: !!T.paused,
+        intermissionSec: T.intermissionSec || 5,
+        intermissionUntil: T.intermissionUntil || null,
+        playerAdvance: T.playerAdvance === 'manual' ? 'manual' : 'auto',
+        awaitNextPlayer: !!T.awaitNextPlayer,
+        playerCount: stats.playerCount,
+        soldCount: stats.soldCount,
+        unsoldCount: stats.unsoldCount,
+        remainingCount: stats.remainingCount,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if(subOk){
+        mainPatch.players = [];
+        mainPatch.teams = [];
+      } else {
+        // Safe mode: full arrays on main so sold/unsold never lose data
+        mainPatch.players = (T.players || []).map(function(p, i){ return playerToDoc(p, i); });
+        mainPatch.teams = (T.teams || []).map(function(t){ return teamToDoc(t); });
       }
+      await aucDoc(auctionId).set(mainPatch, { merge: true });
       clearAppError();
       return;
     }catch(e){
@@ -6212,19 +6222,58 @@ async function cloudSave(silent){
   }
   ensurePlayerIds();
   ensureTeamIds();
-  const payload = buildMainPayload();
+  // Ensure owner fields exist before first create
+  if(!T.ownerId && user) T.ownerId = user.uid;
+  if(!T.ownerEmail && user) T.ownerEmail = user.email || '';
+  if(!T.ownerName && user) T.ownerName = user.displayName || '';
+
   let lastErr = null;
   for(let attempt = 0; attempt < 3; attempt++){
     try{
-      if(auctionId){
-        await aucDoc(auctionId).set(payload, { merge: true });
-      } else {
-        const ref = await db.collection('auctions').add(payload);
+      // 1) Create/update main doc FIRST with full data if needed for id, but prefer v2 path
+      const payload = buildMainPayload();
+
+      if(!auctionId){
+        // First create: write main WITH players/teams so auction exists even if subs fail
+        const bootstrap = Object.assign({}, payload, {
+          players: (T.players || []).map(function(p, i){ return playerToDoc(p, i); }),
+          teams: (T.teams || []).map(function(t){ return teamToDoc(t); }),
+          storageVersion: 2
+        });
+        const ref = await db.collection('auctions').add(bootstrap);
         auctionId = ref.id;
       }
-      // Full sync of player + team notebooks
-      await writeAllPlayersToSub(auctionId);
-      await writeAllTeamsToSub(auctionId);
+
+      // 2) Write subcollections (the real split storage)
+      let subsOk = true;
+      try{
+        await writeAllPlayersToSub(auctionId);
+        await writeAllTeamsToSub(auctionId);
+      }catch(subErr){
+        subsOk = false;
+        console.warn('subcollection write failed', subErr);
+        const code = firebaseErrorCode(subErr);
+        // Fall back: keep full arrays on main so Go live / sold still work
+        const fallback = Object.assign({}, buildMainPayload(), {
+          storageVersion: 1,
+          players: (T.players || []).map(function(p, i){ return playerToDoc(p, i); }),
+          teams: (T.teams || []).map(function(t){ return teamToDoc(t); })
+        });
+        await aucDoc(auctionId).set(fallback, { merge: true });
+        if(!silent){
+          const hint = /permission/i.test(code + (subErr && subErr.message || ''))
+            ? 'Firestore blocked players/teams folders. Auction saved in safe mode. Deploy firestore.rules (see package) so split storage works.'
+            : 'Could not write player folders. Auction saved in safe mode. '+friendlyError(subErr);
+          showAppError(hint, { ms: 10000 });
+        }
+        clearAppError();
+        return;
+      }
+
+      // 3) Main control panel only (empty arrays) after subs succeeded
+      if(subsOk){
+        await aucDoc(auctionId).set(payload, { merge: true });
+      }
       clearAppError();
       try{ warnAuctionSizeIfNeeded(false); }catch(e){}
       return;
@@ -7557,7 +7606,8 @@ function paintAssignList(box){
 }
 
 async function goLive(){
-  if(!T||!T.players.length){ alert('Import players first'); return; }
+  if(!T||!T.players||!T.players.length){ alert('Import players first'); return; }
+  if(!user){ alert('Sign in first, then tap Go live again.'); return; }
   if(isVirtual() || (T.mode==='virtual')){
     const assigned=(T.owners||[]).filter(o=>o.teamId);
     if(assigned.length<2){
@@ -7567,6 +7617,10 @@ async function goLive(){
   }
   if(T.mode==='virtual' && $('meetLink')) T.meetLink=$('meetLink').value.trim();
   else if(T.mode!=='virtual') T.meetLink='';
+  // Host identity must be set for Firestore rules
+  T.ownerId = T.ownerId || user.uid;
+  T.ownerEmail = T.ownerEmail || user.email || '';
+  T.ownerName = T.ownerName || user.displayName || '';
   T.status='live';
   T.meta=T.meta||{currentIndex:0};
   const fi=T.players.findIndex(p=>!p.sold&&!p.unsold);
@@ -7577,6 +7631,8 @@ async function goLive(){
     T.bid=makeBidStateForPlayer(T.meta.currentIndex);
   }
   helperMode=false; ownerMode=false;
+  ensurePlayerIds();
+  ensureTeamIds();
   try{
     await cloudSave(false);
     if(!auctionId){ alert('Could not save auction'); return; }
@@ -7587,7 +7643,14 @@ async function goLive(){
     startAuctionLive(auctionId);
     switchTab('auction');
     renderAuction();
-  }catch(e){ safeAlert(e); }
+  }catch(e){
+    const code = firebaseErrorCode(e);
+    if(/permission/i.test(code + String(e && e.message || ''))){
+      alert('Could not go live: Firestore permission denied.\n\nYou are the host — this is not a team-assign problem.\n\nDeploy the firestore.rules file from the package (allows writing players and teams under each auction), then try Go live again.');
+    } else {
+      safeAlert(e);
+    }
+  }
 }
 
 function makeBidStateForPlayer(idx, afterIntermission){

@@ -324,16 +324,61 @@ button{
   padding:12px 18px;border-radius:12px;min-height:48px;font-size:15px;
 }
 button:hover{filter:brightness(1.06)}
-button:active{transform:scale(0.98)}
+button, .list-btn, .squad-card, .hub-card, .menu-item, .bidRaise, a.btn {
+  transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button:active, .list-btn:active, .squad-card:active, .hub-card:active,
+.menu-item:active, .bidRaise:active, a.btn:active {
+  transform: scale(0.97);
+  filter: brightness(1.08);
+}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
   outline:2px solid var(--primary);outline-offset:2px;
 }
 button:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none}
 
-.btn-ok{background:linear-gradient(135deg,#0ea5e9,#0284c7);border:none;color:#001e2f;font-weight:800;box-shadow:0 4px 24px rgba(14,165,233,.3)}
-.btn-danger{background:linear-gradient(135deg,#f43f5e,#e11d48);border:none;color:#fff;font-weight:800;box-shadow:0 4px 14px var(--danger-glow)}
-.btn-sec{background:transparent;border:1px solid var(--border-subtle);color:var(--primary-bright);box-shadow:none}
+/* Primary — solid filled */
+.btn-ok{
+  background:linear-gradient(135deg,#0ea5e9,#0284c7);
+  border:none;color:#001e2f;font-weight:800;
+  box-shadow:0 4px 20px rgba(14,165,233,.28);
+  border-radius:14px;
+}
+/* Secondary — soft surface */
+.btn-sec{
+  background:rgba(30,41,59,.55);
+  border:1px solid rgba(255,255,255,.10);
+  color:var(--primary-bright);font-weight:700;
+  box-shadow:none;border-radius:14px;
+}
 body.light .btn-sec{background:#e2e8f0;color:var(--primary);border-color:var(--border)}
+/* Destructive — outlined warning (not heavy solid) to reduce mis-taps */
+.btn-danger{
+  background:transparent;
+  border:1.5px solid rgba(244,63,94,.55);
+  color:#fb7185;font-weight:800;
+  box-shadow:none;border-radius:14px;
+}
+.btn-danger:active{background:rgba(244,63,94,.12);border-color:#f43f5e}
+body.light .btn-danger{
+  border-color:rgba(225,29,72,.5);color:#e11d48;background:transparent;
+}
+body.light .btn-danger:active{background:rgba(225,29,72,.08)}
+/* Exception: Sold/Unsold live actions stay solid for speed */
+.phys-actions .btn-danger,
+#bidRegion #btnUnsold{
+  background:linear-gradient(135deg,#f43f5e,#e11d48)!important;
+  border:none!important;color:#fff!important;
+  box-shadow:0 4px 14px var(--danger-glow)!important;
+}
+.phys-actions .btn-ok,
+#bidRegion #btnSold{
+  background:linear-gradient(135deg,#10b981,#059669)!important;
+  border:none!important;color:#fff!important;
+  box-shadow:0 4px 14px var(--ok-glow)!important;
+}
 /* Back links — match Cric360 Live */
 button.btn-sec[aria-label*="Back"],button.btn-sec[aria-label*="back"]{
   background:transparent!important;border:none!important;box-shadow:none!important;
@@ -471,10 +516,40 @@ button.btn-sec[aria-label*="Back"]::before,button.btn-sec[aria-label*="back"]::b
 }
 .list-btn:hover,.list-btn:focus-visible{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary-glow)}
 
-.modal{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;pointer-events:auto}
+.modal{
+  position:fixed;inset:0;z-index:200;padding:16px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(11,15,25,.78);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  pointer-events:auto;
+}
 .modal.hidden{display:none!important;pointer-events:none!important;visibility:hidden!important}
-.modal-box{background:rgba(11,19,38,.92);border:1px solid var(--border);padding:22px;border-radius:var(--radius-lg);max-width:440px;width:100%;text-align:center;box-shadow:var(--shadow);backdrop-filter:blur(24px);pointer-events:auto}
-body.light .modal-box{background:var(--panel-solid)}
+.modal-box{
+  background:#131a29;
+  border:1px solid rgba(255,255,255,.08);
+  padding:22px 20px;
+  border-radius:20px;
+  max-width:440px;width:100%;
+  text-align:center;
+  box-shadow:0 16px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  pointer-events:auto;
+}
+body.light .modal-box{
+  background:#ffffff;
+  border:1px solid rgba(15,23,42,.1);
+  box-shadow:0 16px 40px rgba(15,23,42,.12);
+}
+.modal-box .btn-ok,
+.modal-box .btn-sec,
+.modal-box .btn-danger{
+  border-radius:999px!important;
+  min-height:48px!important;
+  font-weight:800!important;
+}
+.modal-box .btn-ok{width:100%}
+.modal-box .btn-sec,
+.modal-box .btn-danger{width:100%;margin-top:8px}
 /* Squad action buttons — large tap targets, never blocked by inert parents */
 #sqBody button,#tabSquads button{pointer-events:auto;position:relative;z-index:2}
 #tabSquads:not([inert]){pointer-events:auto}
@@ -1102,20 +1177,37 @@ body.light .tabbar,body.light .hub-tabbar{
 }
 #screenAuction .auc-topbar{
   position:sticky;top:0;z-index:50;
-  margin:0 0 4px!important;padding:0!important;
-  background:var(--bg-base);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+  margin:0 0 2px!important;padding:0!important;
+  background:rgba(11,15,25,.88);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(255,255,255,.06);
 }
 #screenAuction .auc-toolbar{
-  padding:4px 0 6px!important;
+  padding:6px 0 8px!important;
   gap:6px!important;
-  border-bottom:1px solid var(--border-subtle)!important;
+  border-bottom:none!important;
 }
 #screenAuction .auc-toolbar button{
   min-height:44px!important;min-width:48px!important;
   padding:8px 12px!important;font-size:13px!important;font-weight:700!important;
   border-radius:12px!important;
+}
+#screenAuction .auc-toolbar button:active{transform:scale(0.97)}
+/* Viewer top bar — same unified chrome */
+#screenWatch .watch-top{
+  position:sticky;top:0;z-index:50;
+  margin:0 0 4px!important;padding:6px 0 8px!important;
+  background:rgba(11,15,25,.88);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  display:flex;align-items:center;gap:6px;
+}
+body.light #screenAuction .auc-topbar,
+body.light #screenWatch .watch-top{
+  background:rgba(255,255,255,.92);
+  border-bottom-color:rgba(15,23,42,.08);
 }
 #screenAuction .auc-tb-right{
   margin-left:auto;
@@ -1149,7 +1241,18 @@ body.light .tabbar,body.light .hub-tabbar{
   position:static!important;background:transparent!important;
 }
 #screenAuction #aucHostFooter button{
-  min-height:48px!important;border-radius:12px!important;font-weight:700!important;
+  min-height:48px!important;border-radius:14px!important;font-weight:700!important;
+}
+/* Leave auction = secondary; End this auction stays secondary; Remove = outlined danger */
+#screenAuction #btnHomeAuc{
+  background:transparent!important;
+  border:1.5px solid rgba(255,255,255,.14)!important;
+  color:var(--text-secondary)!important;
+}
+#screenAuction #btnEndAuction{
+  background:rgba(30,41,59,.55)!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  color:var(--primary-bright)!important;
 }
 /* Squads — no redundant title */
 #screenAuction #tabSquads #sqTitle.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
@@ -1192,36 +1295,57 @@ body.light .tabbar,body.light .hub-tabbar{
 #screenAuction .dl-squads label{
   display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600;
 }
-/* Sold form / price / confirm modals — clear primary vs secondary */
+/* Sold form / price / confirm modals — primary filled, destructive outlined, pill actions */
 #soldForm,#priceEditOverlay .modal-box,#squadAddOverlay .modal-box{
-  padding:16px!important;
+  padding:18px!important;
+  background:#131a29!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+  border-radius:20px!important;
+  box-shadow:0 16px 48px rgba(0,0,0,.5)!important;
 }
 #soldForm label{font-weight:700;margin:10px 0 6px;display:block}
 #soldForm input[type="text"],#soldForm input[type="number"],
 #priceEditOverlay input,#squadAddOverlay input{
   width:100%;min-height:52px!important;font-size:18px!important;
-  border-radius:12px!important;padding:12px 14px!important;
+  border-radius:14px!important;padding:12px 14px!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  background:rgba(30,41,59,.6)!important;color:var(--text)!important;
 }
 #soldForm .btn-ok,#priceEditOverlay .btn-ok,#squadAddOverlay .btn-ok,
 #confirmModal .btn-ok{
   min-height:52px!important;font-size:16px!important;font-weight:800!important;
-  border-radius:14px!important;margin-top:8px!important;
+  border-radius:999px!important;margin-top:10px!important;
 }
 #soldForm .btn-sec,#priceEditOverlay .btn-sec,#squadAddOverlay .btn-sec,
-#confirmModal .btn-sec,#confirmModal .btn-danger{
-  min-height:48px!important;border-radius:12px!important;font-weight:700!important;
+#confirmModal .btn-sec{
+  min-height:48px!important;border-radius:999px!important;font-weight:700!important;
+}
+#confirmModal .btn-danger,
+#squadAddOverlay .btn-danger,
+#priceEditOverlay .btn-danger,
+button.btn-danger[id*="Remove"],
+button.btn-danger.remove-btn{
+  min-height:48px!important;border-radius:999px!important;font-weight:800!important;
+  background:transparent!important;
+  border:1.5px solid rgba(244,63,94,.55)!important;
+  color:#fb7185!important;
 }
 .modal-box{
-  padding:20px 18px!important;border-radius:18px!important;
-  text-align:left!important;
+  padding:22px 20px!important;border-radius:20px!important;
+  text-align:center!important;
+  background:#131a29!important;
+  border:1px solid rgba(255,255,255,.08)!important;
 }
-.modal-box h2{margin:0 0 10px!important;font-size:1.15rem!important;text-align:center}
-.modal-box .btn-ok{width:100%}
-.modal-box .btn-sec,.modal-box .btn-danger{width:100%;margin-top:8px}
-#playerSearchModal .modal-box{text-align:left!important;padding:16px!important}
+.modal-box h2{margin:0 0 12px!important;font-size:1.15rem!important;text-align:center;font-weight:800}
+.modal-box p{margin:0 0 16px;color:var(--text-secondary);line-height:1.5}
+.modal-box .btn-ok{width:100%;border-radius:999px!important}
+.modal-box .btn-sec,.modal-box .btn-danger{width:100%;margin-top:8px;border-radius:999px!important}
+#playerSearchModal .modal-box{text-align:left!important;padding:18px!important}
 #playerSearchModal input[type="search"],#playerSearchModal input[type="text"]{
-  min-height:52px!important;font-size:16px!important;border-radius:12px!important;
+  min-height:52px!important;font-size:16px!important;border-radius:14px!important;
   width:100%;padding:12px 14px!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  background:rgba(30,41,59,.6)!important;color:var(--text)!important;
 }
 
 /* Light mode body + panels */

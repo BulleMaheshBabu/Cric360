@@ -947,22 +947,19 @@ button:active:not(:disabled),.list-btn:active,.squad-card:active,.hub-card:activ
 body.has-tabbar{padding-bottom:96px!important}
 body.has-hub-tabbar{padding-bottom:100px!important}
 
-/* ===== Premium polish (v5) — soft borders, depth, pills, tactile ===== */
+/* ===== Premium polish (v6) — top-align, light theme, commentary in More ===== */
 
-/* Ultra-thin borders + soft depth */
+/* Theme-aware surfaces (works in dark + light) */
 .panel,.watch-panel,.modal-box,.player-stage,.stat,
 .list-btn,.squad-card,.hub-card,.recent-card,.recent-line,
 .timer-box,.lead-line{
-  border:1px solid rgba(255,255,255,.06)!important;
+  border:1px solid var(--border-subtle)!important;
 }
 .player-stage,.list-btn,.squad-card,.hub-card,.stat,.modal-box{
-  box-shadow:0 4px 20px rgba(0,0,0,.30)!important;
-}
-.timer-box,.lead-line,.recent-card,.recent-line{
-  box-shadow:0 2px 12px rgba(0,0,0,.22)!important;
+  box-shadow:var(--shadow-soft)!important;
 }
 
-/* Hub auction card — taller, premium */
+/* Hub auction card */
 .hub-list .hub-card,.hub-list .list-btn{
   min-height:72px!important;
   padding:18px 16px!important;
@@ -973,9 +970,9 @@ body.has-hub-tabbar{padding-bottom:100px!important}
 /* Stats — soft rounded chips */
 .stat{
   border-radius:16px!important;
-  background:rgba(30,41,59,.85)!important;
-  border:1px solid rgba(255,255,255,.06)!important;
-  box-shadow:0 4px 16px rgba(0,0,0,.25)!important;
+  background:var(--bg-surface-elevated)!important;
+  border:1px solid var(--border-subtle)!important;
+  box-shadow:var(--shadow-soft)!important;
 }
 .stat strong{font-weight:800!important;letter-spacing:-.02em}
 
@@ -989,12 +986,12 @@ body.has-hub-tabbar{padding-bottom:100px!important}
   border:none!important;
 }
 .badge.sold{
-  background:rgba(16,185,129,.18)!important;
-  color:#6ee7b7!important;
+  background:var(--ok-glow)!important;
+  color:var(--ok-bright)!important;
 }
 .badge.unsold{
-  background:rgba(244,63,94,.16)!important;
-  color:#fda4af!important;
+  background:var(--danger-glow)!important;
+  color:var(--danger)!important;
 }
 
 /* Typography contrast */
@@ -1002,12 +999,12 @@ body.has-hub-tabbar{padding-bottom:100px!important}
   font-weight:800!important;
   color:var(--text-primary)!important;
 }
-.sc-sub,.hub-hello,.hub-empty,.progress{
+.sc-sub,.hub-hello,.hub-empty,.progress,.sq-detail-meta,.sq-purse,.sq-meta{
   color:var(--text-secondary)!important;
   font-weight:500!important;
 }
 
-/* Tactile press — all interactive */
+/* Tactile press */
 button,.list-btn,.squad-card,.hub-card,.app-tile,
 .tabbar button,.hub-tabbar button,#bidRegion > button{
   transition:transform .15s ease,filter .15s ease,box-shadow .15s ease!important;
@@ -1021,34 +1018,95 @@ button:active:not(:disabled),
 .hub-tabbar button:active,
 #bidRegion > button:active{
   transform:scale(.97)!important;
-  filter:brightness(1.08);
+  filter:brightness(1.06);
 }
 
-/* List rows — soft cards */
+/* List / squad cards */
 #screenWatch .list-btn,
 #tabTools .list-btn,
-#wLists .list-btn,
-.wListKind{
+.wListKind,.squad-card.watch-sq{
   border-radius:16px!important;
   margin-top:8px!important;
-  background:rgba(30,41,59,.9)!important;
-  border:1px solid rgba(255,255,255,.06)!important;
-  box-shadow:0 3px 14px rgba(0,0,0,.22)!important;
+  background:var(--bg-surface-elevated)!important;
+  border:1px solid var(--border-subtle)!important;
+  box-shadow:var(--shadow-soft)!important;
+  text-align:left;
 }
+.sq-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sq-name{font-size:1.05rem;font-weight:800}
+.sq-meta{font-size:.85rem;font-weight:600}
+.sq-purse{margin-top:4px;font-size:.9rem}
 
-/* Waiting / hero card */
+/* Waiting / hero card — subtle primary accent */
 #screenWatch .player-stage{
   border-radius:20px!important;
-  background:rgba(30,41,59,.92)!important;
-  border:1px solid rgba(255,255,255,.07)!important;
-  box-shadow:0 6px 24px rgba(0,0,0,.32)!important;
+  background:var(--bg-surface-elevated)!important;
+  border:1px solid var(--border-subtle)!important;
+  box-shadow:var(--shadow)!important;
+  border-left:3px solid var(--primary)!important;
 }
 
-/* Floating nav edge */
+/* Floating nav — theme aware */
 .tabbar,.hub-tabbar{
-  border:1px solid rgba(255,255,255,.07)!important;
-  box-shadow:0 10px 36px rgba(0,0,0,.42)!important;
+  border:1px solid var(--border-subtle)!important;
+  box-shadow:var(--shadow)!important;
+  background:var(--bg-surface)!important;
+  backdrop-filter:blur(20px)!important;
+  -webkit-backdrop-filter:blur(20px)!important;
 }
+body.light .tabbar,body.light .hub-tabbar{
+  background:rgba(255,255,255,.92)!important;
+}
+
+/* Top-aligned viewer content — zero waste */
+#screenWatch .watch-wrap{
+  padding:0 12px 100px!important;
+  margin:0 auto!important;
+}
+#screenWatch .watch-panel{
+  padding:4px 0 8px!important;
+  margin:0!important;
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+}
+#screenWatch .watch-top{
+  margin:0 0 6px!important;
+  padding:0!important;
+}
+#screenWatch #watchStats{margin:0 0 8px!important}
+#screenWatch .watch-pane{padding-top:2px!important}
+
+/* More tab section label */
+.more-section-label{
+  font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-secondary);margin:4px 0 6px;padding:0 2px;
+}
+
+/* Light mode body + panels */
+body.light{
+  background:var(--bg-base)!important;
+  color:var(--text-primary)!important;
+}
+body.light .top-nav{
+  background:rgba(255,255,255,.92)!important;
+  border-bottom:1px solid var(--border-subtle)!important;
+}
+body.light .player-stage,
+body.light .list-btn,
+body.light .squad-card,
+body.light .stat,
+body.light .hub-card{
+  background:#ffffff!important;
+  border-color:rgba(15,23,42,.08)!important;
+  box-shadow:0 2px 12px rgba(15,23,42,.06)!important;
+}
+body.light .badge.sold{background:rgba(5,150,105,.12)!important;color:#047857!important}
+body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!important}
+
+/* Host squads heading — keep but tighter */
+#tabSquads h1{margin:4px 0 8px;font-size:1.15rem}
+#tabTools h1{margin:4px 0 8px;font-size:1.15rem}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
@@ -4539,32 +4597,8 @@ async function openAuction(id){
   ensureIntermissionTicker();
   switchWatchTab('live');
   focusEl($('watchTitle'));
-  // One-tap unlock reminder for mobile autoplay (compact)
-  try{
-    if(!$('watchAudioUnlock')){
-      const b=document.createElement('button');
-      b.id='watchAudioUnlock';
-      b.type='button';
-      b.className='btn-sec';
-      b.textContent='Tap to enable commentary and sounds';
-      b.onclick=function(){
-        try{ unlockSfx(); }catch(e){}
-        try{
-          if(window.speechSynthesis){
-            const u=new SpeechSynthesisUtterance('Hello, I am your commentator for the auction.');
-            u.volume=1;
-            speechSynthesis.speak(u);
-          }
-        }catch(e){}
-        try{ ttsPref.on=true; saveTtsPref(); }catch(e){}
-        b.remove();
-      };
-      const panel=document.querySelector('#screenWatch .watch-panel');
-      const stats=$('watchStats');
-      if(panel && stats) panel.insertBefore(b, stats);
-      else if(stats && stats.parentNode) stats.parentNode.insertBefore(b, stats);
-    }
-  }catch(e){}
+  // Commentary enable lives only in More tab (not on Live/Squads/Insights)
+  try{ const old=$('watchAudioUnlock'); if(old) old.remove(); }catch(e){}
   watchUnsub=db.collection('auctions').doc(id).onSnapshot(doc=>{
     try{
       if(!doc.exists){
@@ -4650,28 +4684,59 @@ function switchWatchTab(which){
     if(pane) pane.classList.toggle('hidden',!on);
     if(btn){ btn.classList.toggle('active',on); btn.setAttribute('aria-selected',on?'true':'false'); }
   });
-  // Short title per tab (no long host-style heading clutter)
+  // Stats only on Live — frees vertical space on other tabs
+  try{
+    const ws=$('watchStats');
+    if(ws) ws.style.display = (which==='live') ? '' : 'none';
+  }catch(e){}
+  // Short title per tab
   if($('watchTitle')){
     if(which==='live') $('watchTitle').textContent = (window._lastWatchData && window._lastWatchData.title) || 'Live';
     else if(which==='squads') $('watchTitle').textContent = 'Squads';
     else if(which==='insights') $('watchTitle').textContent = 'Insights';
-    else $('watchTitle').textContent = 'Lists';
+    else $('watchTitle').textContent = 'More';
   }
   if(which==='squads'||which==='lists'){
     if(window._lastWatchData) renderWatch(window._lastWatchData);
     else if(which==='lists' && $('watchPaneLists')){
-      $('watchPaneLists').innerHTML='<h2 tabindex="-1" id="wMoreH">Lists</h2>';
+      $('watchPaneLists').innerHTML=buildWatchMoreShell();
+      wireWatchMoreShell();
     }
   }
   if(which==='insights'){
     try{ renderWatchInsights(window._lastWatchData); }catch(e){}
   }
-  setTimeout(function(){
-    /* stay on viewer tab control */
-    /* stay on viewer tab control */
-    /* stay on viewer tab control */
-    /* stay on viewer tab control */
-  }, 80);
+}
+
+function buildWatchMoreShell(sold, unsold, pending, total){
+  sold=sold!=null?sold:'—'; unsold=unsold!=null?unsold:'—';
+  pending=pending!=null?pending:'—'; total=total!=null?total:'—';
+  return ''+
+    '<button type="button" id="watchAudioUnlock" class="btn-ok" style="width:100%;margin:0 0 12px;border-radius:14px;min-height:48px">Enable commentary &amp; sounds</button>'+
+    '<div class="more-section-label">Player lists</div>'+
+    '<button type="button" class="list-btn wListKind" data-k="sold" aria-label="Sold players, '+sold+'">Sold — '+sold+'</button>'+
+    '<button type="button" class="list-btn wListKind" data-k="unsold" aria-label="Unsold players, '+unsold+'">Unsold — '+unsold+'</button>'+
+    '<button type="button" class="list-btn wListKind" data-k="remaining" aria-label="Remaining players, '+pending+'">Remaining — '+pending+'</button>'+
+    '<button type="button" class="list-btn wListKind" data-k="total" aria-label="Total players, '+total+'">Total — '+total+'</button>';
+}
+function wireWatchMoreShell(){
+  const b=$('watchAudioUnlock');
+  if(b){
+    b.onclick=function(){
+      try{ unlockSfx(); }catch(e){}
+      try{
+        if(window.speechSynthesis){
+          const u=new SpeechSynthesisUtterance('Hello, I am your commentator for the auction.');
+          u.volume=1;
+          speechSynthesis.speak(u);
+        }
+      }catch(e){}
+      try{ ttsPref.on=true; saveTtsPref(); }catch(e){}
+      try{ showSettingsPanel('commentary'); wireTtsSettings(); }catch(e){}
+      b.textContent='Commentary enabled';
+      b.setAttribute('aria-label','Commentary enabled. Open settings to change voice.');
+    };
+  }
 }
 
 function findLastResult(players, teams, beforeIdx){
@@ -4982,10 +5047,12 @@ function renderWatch(data){
     if(window._watchSquadIdx==null){
       if(window._watchSquadSig!==squadSig){
         window._watchSquadSig=squadSig;
-        let sh='<h2 tabindex="-1" id="wSqListH" style="font-size:1.15rem;margin:0 0 10px">Squads</h2><div class="squad-grid">';
+        // No redundant "Squads" heading — tab already says it
+        let sh='<div class="squad-grid" id="wSqListH" tabindex="-1">';
         teams.forEach((t,ti)=>{
-          sh+='<button type="button" class="list-btn watch-sq" data-i="'+ti+'" aria-label="'+t.name+', '+(t.players||[]).length+' players, purse left '+t.remaining+'">'+
-            '<strong>'+t.name+'</strong><br><span style="color:var(--muted)">'+(t.players||[]).length+' players · Purse left '+t.remaining+'</span></button>';
+          sh+='<button type="button" class="list-btn squad-card watch-sq" data-i="'+ti+'" aria-label="'+t.name+', '+(t.players||[]).length+' players, purse left '+t.remaining+'">'+
+            '<div class="sq-row"><strong class="sq-name">'+t.name+'</strong><span class="sq-meta">'+(t.players||[]).length+' players</span></div>'+
+            '<div class="sq-purse">Purse left '+t.remaining+'</div></button>';
         });
         sh+='</div>';
         if($('watchPaneSquads')) $('watchPaneSquads').innerHTML=sh;
@@ -5002,7 +5069,7 @@ function renderWatch(data){
         if(!t){ sh+='<p>Team not found</p>'; }
         else {
           sh+='<h2 tabindex="-1" id="wSqH">'+t.name+'</h2>';
-          sh+='<p style="color:var(--muted)">Purse left: '+t.remaining+' · Players: '+(t.players||[]).length+'</p><ul class="plain">';
+          sh+='<p class="sq-detail-meta">Purse left: '+t.remaining+' · Players: '+(t.players||[]).length+'</p><ul class="plain">';
           (t.players||[]).forEach((p,n)=>{
             sh+='<li>'+(n+1)+'. '+(p.name||'Player')+(p.price!=null?' · '+p.price:'')+'</li>';
           });
@@ -5022,16 +5089,13 @@ function renderWatch(data){
       const listsEmpty = !$('watchPaneLists') || !$('watchPaneLists').innerHTML.trim();
       if(window._watchListSig!==lk || listsEmpty){
         window._watchListSig=lk;
-        if($('watchPaneLists')) $('watchPaneLists').innerHTML=
-          '<h2 tabindex="-1" id="wMoreH" style="font-size:1.15rem;margin:0 0 10px">Lists</h2>'+
-          '<button type="button" class="list-btn wListKind" data-k="sold" aria-label="Sold players, '+sold+'">Sold — '+sold+'</button>'+
-          '<button type="button" class="list-btn wListKind" data-k="unsold" aria-label="Unsold players, '+unsold+'">Unsold — '+unsold+'</button>'+
-          '<button type="button" class="list-btn wListKind" data-k="remaining" aria-label="Remaining players, '+pending+'">Remaining — '+pending+'</button>'+
-          '<button type="button" class="list-btn wListKind" data-k="total" aria-label="Total players, '+players.length+'">Total — '+players.length+'</button>';
-        if($('watchPaneLists')) $('watchPaneLists').querySelectorAll('.wListKind').forEach(btn=>{
-          btn.onclick=()=>{ window._watchListKind=btn.getAttribute('data-k'); window._watchListPage=0; window._watchListSig=null; window._watchListDetailSig=null; renderWatch(data); };
-        });
-        try{ focusEl($('wMoreH')); }catch(e){}
+        if($('watchPaneLists')){
+          $('watchPaneLists').innerHTML=buildWatchMoreShell(sold,unsold,pending,players.length);
+          wireWatchMoreShell();
+          $('watchPaneLists').querySelectorAll('.wListKind').forEach(btn=>{
+            btn.onclick=()=>{ window._watchListKind=btn.getAttribute('data-k'); window._watchListPage=0; window._watchListSig=null; window._watchListDetailSig=null; renderWatch(data); };
+          });
+        }
       }
     } else {
       const kind=window._watchListKind;

@@ -138,8 +138,8 @@ body.has-tabbar{padding-bottom:88px}
 body.has-hub-tabbar{padding-bottom:96px}
 /* Main hub (home) — Cric360 Live style */
 .hub-hello{color:var(--muted);font-size:13px;font-weight:600;margin:0 0 10px;padding:0 2px}
-.hub-admin{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-.hub-admin .btn-ok,.hub-admin .btn-sec{width:100%}
+.hub-admin{display:flex;flex-direction:column;gap:8px;margin:0 0 10px}
+.hub-admin .btn-ok,.hub-admin .btn-sec{width:100%;min-height:52px;border-radius:14px;font-weight:800;font-size:16px}
 .hub-list{display:flex;flex-direction:column;gap:8px;min-height:40px}
 .hub-list .list-btn{text-align:left;width:100%}
 .hub-list .hub-card{
@@ -1064,23 +1064,164 @@ body.light .tabbar,body.light .hub-tabbar{
   margin:0 auto!important;
 }
 #screenWatch .watch-panel{
-  padding:4px 0 8px!important;
+  padding:2px 0 8px!important;
   margin:0!important;
   background:transparent!important;
   border:none!important;
   box-shadow:none!important;
 }
 #screenWatch .watch-top{
-  margin:0 0 6px!important;
+  margin:0 0 4px!important;
   padding:0!important;
+  gap:6px!important;
 }
 #screenWatch #watchStats{margin:0 0 8px!important}
-#screenWatch .watch-pane{padding-top:2px!important}
+#screenWatch .watch-pane{padding-top:0!important;margin-top:0!important}
 
-/* More tab section label */
-.more-section-label{
-  font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--text-secondary);margin:4px 0 6px;padding:0 2px;
+/* Stats ONLY on Live tab — CSS hard lock */
+#screenWatch:not(.tab-live) #watchStats{
+  display:none!important;
+  height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;
+}
+#screenWatch.tab-live #watchStats{display:block!important}
+
+/* Top-right Commentary button — only More tab (JS toggles .hidden) */
+#btnWatchCommentary{
+  flex-shrink:0;
+  white-space:nowrap;
+}
+#btnWatchCommentary:not(.hidden){
+  display:inline-flex!important;
+  align-items:center;
+}
+
+/* ===== Admin host polish (v8) — pinned utilities, flush top, forms ===== */
+#screenAuction .auc-host-wrap{
+  padding:0 10px 100px!important;
+  margin:0 auto!important;
+}
+#screenAuction .auc-topbar{
+  position:sticky;top:0;z-index:50;
+  margin:0 0 4px!important;padding:0!important;
+  background:var(--bg-base);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+#screenAuction .auc-toolbar{
+  padding:4px 0 6px!important;
+  gap:6px!important;
+  border-bottom:1px solid var(--border-subtle)!important;
+}
+#screenAuction .auc-toolbar button{
+  min-height:44px!important;min-width:48px!important;
+  padding:8px 12px!important;font-size:13px!important;font-weight:700!important;
+  border-radius:12px!important;
+}
+#screenAuction .auc-tb-right{
+  margin-left:auto;
+  justify-content:flex-end!important;
+}
+#screenAuction #tabAuction.panel,
+#screenAuction #tabSquads.panel,
+#screenAuction #tabInsights.panel,
+#screenAuction #tabTools.panel{
+  padding:2px 0 8px!important;margin:0!important;
+  background:transparent!important;border:none!important;box-shadow:none!important;
+  border-radius:0!important;
+}
+#screenAuction #aucStats{margin:0 0 6px!important}
+#screenAuction #aucPlayer{margin:0!important}
+#screenAuction .player-stage{
+  margin:2px 0 8px!important;padding:14px 14px!important;
+  border-radius:16px!important;
+}
+#screenAuction .phys-actions{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 6px!important;
+}
+#screenAuction .phys-actions .btn-ok,
+#screenAuction .phys-actions .btn-danger{
+  min-height:56px!important;font-size:17px!important;font-weight:800!important;
+  border-radius:14px!important;
+}
+#screenAuction #aucHostFooter{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  margin:10px 0 0!important;padding:8px 0 4px!important;
+  position:static!important;background:transparent!important;
+}
+#screenAuction #aucHostFooter button{
+  min-height:48px!important;border-radius:12px!important;font-weight:700!important;
+}
+/* Squads — no redundant title */
+#screenAuction #tabSquads #sqTitle.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+#screenAuction #sqBody{margin:0!important;padding:0!important}
+#screenAuction .squad-card,#screenAuction #sqBody .list-btn{
+  min-height:64px!important;padding:14px 16px!important;margin:0 0 8px!important;
+  border-radius:14px!important;
+}
+/* Insights flush */
+#screenAuction #tabInsights .ins-subtabs{margin:0 0 8px!important}
+#screenAuction #insAsk{min-height:72px!important;border-radius:12px!important;padding:12px!important}
+#screenAuction #insSend{min-height:48px!important;border-radius:12px!important;margin-top:8px!important}
+#screenAuction .ins-md-body{line-height:1.55;font-size:14px}
+#screenAuction .btn-stack .btn-ok,
+#screenAuction .btn-stack .btn-sec,
+#screenAuction .btn-stack .btn-danger{
+  min-height:48px!important;border-radius:12px!important;font-weight:700!important;
+}
+/* More tab — Search top-right, lists flush */
+#screenAuction .tools-head{
+  display:flex;align-items:center;justify-content:flex-end;
+  margin:0 0 8px!important;padding:0!important;min-height:40px;
+}
+#screenAuction .tools-search-btn{
+  min-height:40px!important;padding:8px 14px!important;
+  font-size:13px!important;font-weight:700!important;border-radius:12px!important;
+}
+#screenAuction #toolsMenu .list-btn{
+  min-height:52px!important;padding:14px 16px!important;margin:0 0 8px!important;
+  border-radius:14px!important;font-weight:700!important;
+}
+#screenAuction .dl-panel{margin-top:4px!important;padding-top:8px!important;border-top:1px solid var(--border-subtle)}
+#screenAuction .dl-hint{color:var(--muted);font-size:13px;margin:0 0 10px}
+#screenAuction .dl-check{
+  display:flex;align-items:center;gap:12px;min-height:48px;
+  padding:4px 2px;font-weight:600;font-size:15px;
+}
+#screenAuction .dl-check input{width:22px;height:22px;flex-shrink:0}
+#screenAuction .dl-squads{margin:4px 0 12px;padding-left:6px}
+#screenAuction .dl-squads label{
+  display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600;
+}
+/* Sold form / price / confirm modals — clear primary vs secondary */
+#soldForm,#priceEditOverlay .modal-box,#squadAddOverlay .modal-box{
+  padding:16px!important;
+}
+#soldForm label{font-weight:700;margin:10px 0 6px;display:block}
+#soldForm input[type="text"],#soldForm input[type="number"],
+#priceEditOverlay input,#squadAddOverlay input{
+  width:100%;min-height:52px!important;font-size:18px!important;
+  border-radius:12px!important;padding:12px 14px!important;
+}
+#soldForm .btn-ok,#priceEditOverlay .btn-ok,#squadAddOverlay .btn-ok,
+#confirmModal .btn-ok{
+  min-height:52px!important;font-size:16px!important;font-weight:800!important;
+  border-radius:14px!important;margin-top:8px!important;
+}
+#soldForm .btn-sec,#priceEditOverlay .btn-sec,#squadAddOverlay .btn-sec,
+#confirmModal .btn-sec,#confirmModal .btn-danger{
+  min-height:48px!important;border-radius:12px!important;font-weight:700!important;
+}
+.modal-box{
+  padding:20px 18px!important;border-radius:18px!important;
+  text-align:left!important;
+}
+.modal-box h2{margin:0 0 10px!important;font-size:1.15rem!important;text-align:center}
+.modal-box .btn-ok{width:100%}
+.modal-box .btn-sec,.modal-box .btn-danger{width:100%;margin-top:8px}
+#playerSearchModal .modal-box{text-align:left!important;padding:16px!important}
+#playerSearchModal input[type="search"],#playerSearchModal input[type="text"]{
+  min-height:52px!important;font-size:16px!important;border-radius:12px!important;
+  width:100%;padding:12px 14px!important;
 }
 
 /* Light mode body + panels */
@@ -1191,7 +1332,8 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
     <div class="watch-top">
       <button type="button" id="btnWatchBack" class="btn-sec" aria-label="Back to auction list">Back</button>
       <h1 id="watchTitle" tabindex="-1" class="watch-heading">Live</h1>
-      <button type="button" id="btnWatchCall" class="btn-ok hidden" aria-label="Voice call" style="margin-left:auto;min-height:40px">Call</button>
+      <button type="button" id="btnWatchCommentary" class="btn-sec hidden" aria-label="Enable commentary and sounds" style="margin-left:auto;min-height:40px;border-radius:12px;font-weight:700;font-size:13px;padding:0 12px">Commentary</button>
+      <button type="button" id="btnWatchCall" class="btn-ok hidden" aria-label="Voice call" style="min-height:40px">Call</button>
     </div>
     <div id="watchStats" class="stats" aria-hidden="true"></div>
     <div id="watchPaneLive" class="watch-pane"><div id="watchPlayer"></div></div>
@@ -1317,55 +1459,55 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
 </section>
 
 <section id="screenAuction" class="hidden">
-  <div class="wrap">
-    <div id="tabAuction" class="panel" role="region" aria-labelledby="aucCenterTitle">
-      <div class="auc-topbar" role="region" aria-label="Auction controls">
-        <div class="auc-toolbar" role="toolbar" aria-label="Messages and voice call">
-          <div class="auc-tb-left">
-            <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
-          </div>
-          <div class="auc-tb-mid" id="aucCallMid" aria-label="In call controls">
-            <button type="button" id="btnAucMute" class="btn-sec hidden" aria-pressed="false" aria-label="Mute microphone">Mute</button>
-            <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">Leave</button>
-          </div>
-          <div class="auc-tb-right">
-            <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
-            <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
-            <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings">Settings</button>
-          </div>
+  <div class="wrap auc-host-wrap">
+    <!-- Sticky host utilities — visible on ALL admin tabs -->
+    <div class="auc-topbar" role="region" aria-label="Auction controls">
+      <div class="auc-toolbar" role="toolbar" aria-label="Messages and voice call">
+        <div class="auc-tb-left">
+          <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
         </div>
-        <div class="auc-center" id="aucCenterTitle" aria-hidden="true" hidden>Auction</div>
+        <div class="auc-tb-mid" id="aucCallMid" aria-label="In call controls">
+          <button type="button" id="btnAucMute" class="btn-sec hidden" aria-pressed="false" aria-label="Mute microphone">Mute</button>
+          <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">Leave</button>
+        </div>
+        <div class="auc-tb-right">
+          <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
+          <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
+          <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings">Settings</button>
+        </div>
       </div>
-      <div id="lkAudioSink" class="sr-only" aria-hidden="true"></div>
-      <div id="onlinePanelTop" class="hidden" style="margin:8px 0 12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>
-      <div id="msgOverlay" class="msg-overlay hidden" role="presentation">
-      <div id="msgPanel" class="msg-panel" role="dialog" aria-modal="true" aria-labelledby="msgPanelTitle" aria-hidden="true">
-        <button type="button" id="btnMsgCloseTop" class="btn-sec" style="width:100%;margin:0 0 10px;min-height:44px" aria-label="Close message box">Close</button>
-        <h2 id="msgPanelTitle" style="margin:0 0 8px;font-size:1.1rem" tabindex="-1">Message</h2>
-        <label for="msgText">Message</label>
-        <textarea id="msgText" maxlength="120" autocomplete="off" enterkeyhint="send" rows="3" placeholder="Type your message"></textarea>
-        <button type="button" id="btnMsgAll" class="btn-ok btn-block" aria-label="Send message to everyone in the room">Send to all</button>
-        <button type="button" id="btnMsgHost" class="btn-sec btn-block" aria-label="Send message only to host">Send to host</button>
-        <button type="button" id="btnMsgClose" class="btn-sec btn-block" aria-label="Close message box">Close</button>
-      </div>
-      </div>
+      <div class="auc-center" id="aucCenterTitle" aria-hidden="true" hidden>Auction</div>
+    </div>
+    <div id="lkAudioSink" class="sr-only" aria-hidden="true"></div>
+    <div id="onlinePanelTop" class="hidden" style="margin:4px 0 8px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>
+    <div id="msgOverlay" class="msg-overlay hidden" role="presentation">
+    <div id="msgPanel" class="msg-panel" role="dialog" aria-modal="true" aria-labelledby="msgPanelTitle" aria-hidden="true">
+      <button type="button" id="btnMsgCloseTop" class="btn-sec" style="width:100%;margin:0 0 10px;min-height:44px" aria-label="Close message box">Close</button>
+      <h2 id="msgPanelTitle" style="margin:0 0 8px;font-size:1.1rem" tabindex="-1">Message</h2>
+      <label for="msgText">Message</label>
+      <textarea id="msgText" maxlength="120" autocomplete="off" enterkeyhint="send" rows="3" placeholder="Type your message"></textarea>
+      <button type="button" id="btnMsgAll" class="btn-ok btn-block" aria-label="Send message to everyone in the room">Send to all</button>
+      <button type="button" id="btnMsgHost" class="btn-sec btn-block" aria-label="Send message only to host">Send to host</button>
+      <button type="button" id="btnMsgClose" class="btn-sec btn-block" aria-label="Close message box">Close</button>
+    </div>
+    </div>
+    <div id="aucQuickSetPanel" class="auc-settings-panel hidden" role="dialog" aria-label="Quick settings">
+      <h2 style="margin-top:0;font-size:1.1rem" id="qSetTitle" tabindex="-1">Quick settings</h2>
+      <label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="qChkTts" /> Commentary on</label>
+      <label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="qChkSfx" /> Sound effects on</label>
+      <p id="qSfxVolLbl" style="margin:8px 0 4px;font-weight:700">Sound volume: 75%</p>
+      <label for="qSfxVol" class="sr-only">Sound effects volume</label>
+      <input id="qSfxVol" type="range" min="0" max="100" value="75" aria-valuemin="0" aria-valuemax="100" />
+      <p id="qTtsVolLbl" style="margin:8px 0 4px;font-weight:700">Commentary volume: 100%</p>
+      <label for="qTtsVol" class="sr-only">Commentary volume</label>
+      <input id="qTtsVol" type="range" min="0" max="100" value="100" aria-valuemin="0" aria-valuemax="100" />
+      <button type="button" id="btnQTestSfx" class="btn-sec btn-block">Test bid sound</button>
+      <button type="button" id="btnQFullSet" class="btn-sec btn-block">Full settings</button>
+      <button type="button" id="btnQCloseSet" class="btn-ok btn-block">Close</button>
+    </div>
+
+    <div id="tabAuction" class="panel" role="region" aria-labelledby="aucCenterTitle">
       <div id="aucStats" class="stats" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
-<div id="aucQuickSetPanel" class="auc-settings-panel hidden" role="dialog" aria-label="Quick settings">
-        <h2 style="margin-top:0;font-size:1.1rem" id="qSetTitle" tabindex="-1">Quick settings</h2>
-        <label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="qChkTts" /> Commentary on</label>
-        <label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="qChkSfx" /> Sound effects on</label>
-        <p id="qSfxVolLbl" style="margin:8px 0 4px;font-weight:700">Sound volume: 75%</p>
-        <label for="qSfxVol" class="sr-only">Sound effects volume</label>
-        <input id="qSfxVol" type="range" min="0" max="100" value="75" aria-valuemin="0" aria-valuemax="100" />
-        <p id="qTtsVolLbl" style="margin:8px 0 4px;font-weight:700">Commentary volume: 100%</p>
-        <label for="qTtsVol" class="sr-only">Commentary volume</label>
-        <input id="qTtsVol" type="range" min="0" max="100" value="100" aria-valuemin="0" aria-valuemax="100" />
-        <button type="button" id="btnQTestSfx" class="btn-sec btn-block">Test bid sound</button>
-        <button type="button" id="btnQFullSet" class="btn-sec btn-block">Full settings</button>
-        <button type="button" id="btnQCloseSet" class="btn-ok btn-block">Close</button>
-      </div>
-      
-      
       <div id="aucPlayer" role="region" aria-label="Current player and timer"></div>
       <div class="auc-home-row" id="aucHostFooter">
         <button type="button" id="btnEndAuction" class="btn-sec">End this auction</button>
@@ -1373,7 +1515,7 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
       </div>
     </div>
     <div id="tabSquads" class="panel hidden" role="region" aria-labelledby="sqTitle">
-      <h1 id="sqTitle">Squads</h1>
+      <h1 id="sqTitle" class="sr-only">Squads</h1>
       <div id="sqBody"></div>
     </div>
     <div id="tabInsights" class="panel hidden" role="region" aria-labelledby="insTitle">
@@ -1414,32 +1556,32 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
       </div>
     </div>
     <div id="tabTools" class="panel hidden" role="region" aria-labelledby="toolsTitle">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
-        <h1 id="toolsTitle" tabindex="-1" style="margin:0">More</h1>
-        <button type="button" id="btnSearchPlayer" class="btn-sec" style="flex-shrink:0;min-height:40px;padding:8px 12px;font-size:13px;font-weight:700" aria-label="Search player">Search player</button>
+      <div class="tools-head">
+        <h1 id="toolsTitle" class="sr-only" tabindex="-1">More</h1>
+        <button type="button" id="btnSearchPlayer" class="btn-sec tools-search-btn" aria-label="Search player">Search player</button>
       </div>
-      <div id="moreStats" class="stats" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
+      <div id="moreStats" class="stats hidden" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
       <div id="toolsMenuWrap">
         <div id="toolsMenu" class="squad-grid" role="navigation" aria-label="Player lists">
-          <button type="button" class="list-btn" data-list="sold" id="btnListSold">Sold players</button>
-          <button type="button" class="list-btn" data-list="unsold" id="btnListUnsold">Unsold players</button>
-          <button type="button" class="list-btn" data-list="remaining" id="btnListRemaining">Remaining players</button>
-          <button type="button" class="list-btn" data-list="total" id="btnListTotal">Total players</button>
+          <button type="button" class="list-btn" data-list="sold" id="btnListSold">Sold — list</button>
+          <button type="button" class="list-btn" data-list="unsold" id="btnListUnsold">Unsold — list</button>
+          <button type="button" class="list-btn" data-list="remaining" id="btnListRemaining">Remaining — list</button>
+          <button type="button" class="list-btn" data-list="total" id="btnListTotal">Total — list</button>
           <button type="button" class="list-btn" id="btnToolsDownload">Download</button>
         </div>
       </div>
       <div id="toolsList" class="hidden" style="margin-top:0"></div>
-      <div id="downloadPanel" class="hidden" style="margin-top:12px;padding-top:14px;border-top:1px solid var(--border)">
-        <h2 style="font-size:1.1rem" id="dlTitle" tabindex="-1">Download</h2>
-        <p style="color:var(--muted);font-size:14px">Tick what to export, then download.</p>
-        <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="dlSold" checked /> Sold list</label>
-        <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="dlUnsold" checked /> Unsold list</label>
-        <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="dlTotal" checked /> Total player list</label>
-        <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="dlSquads" checked /> Squad lists</label>
-        <div id="dlSquadChecks" style="margin:8px 0 12px;padding-left:8px"></div>
+      <div id="downloadPanel" class="hidden dl-panel">
+        <h2 class="sr-only" id="dlTitle" tabindex="-1">Download</h2>
+        <p class="dl-hint">Tick what to export, then download.</p>
+        <label class="dl-check"><input type="checkbox" id="dlSold" checked /> Sold list</label>
+        <label class="dl-check"><input type="checkbox" id="dlUnsold" checked /> Unsold list</label>
+        <label class="dl-check"><input type="checkbox" id="dlTotal" checked /> Total player list</label>
+        <label class="dl-check"><input type="checkbox" id="dlSquads" checked /> Squad lists</label>
+        <div id="dlSquadChecks" class="dl-squads"></div>
         <button type="button" id="btnDoDownload" class="btn-ok btn-block">Download selected</button>
         <button type="button" id="btnDlClose" class="btn-sec btn-block">Back to lists</button>
-        <div id="meetInMore" style="margin-top:16px"></div>
+        <div id="meetInMore" style="margin-top:12px"></div>
       </div>
     </div>
   </div>
@@ -4666,6 +4808,7 @@ function resumeAuction(id, data){
 }
 
 $('btnWatchBack').onclick=()=>{ if(watchUnsub){watchUnsub();watchUnsub=null;} enterHome(); };
+try{ if($('btnWatchCommentary')) $('btnWatchCommentary').onclick=openWatchCommentary; }catch(e){}
 $('wTabLive').onclick=()=>switchWatchTab('live');
 $('wTabSquads').onclick=()=>switchWatchTab('squads');
 $('wTabInsights').onclick=()=>switchWatchTab('insights');
@@ -4678,16 +4821,38 @@ function switchWatchTab(which){
     window._watchListSig=null;
     window._watchListDetailSig=null;
   }
+  window._watchTab = which;
+  const sw = $('screenWatch');
+  if(sw){
+    sw.classList.remove('tab-live','tab-squads','tab-insights','tab-lists');
+    sw.classList.add('tab-'+(which==='lists'?'lists':which));
+  }
   ['Live','Squads','Insights','Lists'].forEach(n=>{
     const on=which.toLowerCase()===n.toLowerCase();
     const pane=$('watchPane'+n); const btn=$('wTab'+n);
     if(pane) pane.classList.toggle('hidden',!on);
     if(btn){ btn.classList.toggle('active',on); btn.setAttribute('aria-selected',on?'true':'false'); }
   });
-  // Stats only on Live — frees vertical space on other tabs
+  // Stats only on Live (CSS + inline for reliability)
   try{
     const ws=$('watchStats');
-    if(ws) ws.style.display = (which==='live') ? '' : 'none';
+    if(ws){
+      ws.style.display = (which==='live') ? '' : 'none';
+      ws.setAttribute('aria-hidden', which==='live' ? 'false' : 'true');
+    }
+  }catch(e){}
+  // Top-right Commentary only on More tab
+  try{
+    const bc=$('btnWatchCommentary');
+    if(bc){
+      const onMore = which==='lists';
+      bc.classList.toggle('hidden', !onMore);
+      if(onMore){
+        const enabled = !!(window.ttsPref && window.ttsPref.on);
+        bc.textContent = enabled ? 'Voice' : 'Commentary';
+        bc.setAttribute('aria-label', enabled ? 'Commentary settings' : 'Enable commentary and sounds');
+      }
+    }
   }catch(e){}
   // Short title per tab
   if($('watchTitle')){
@@ -4711,32 +4876,31 @@ function switchWatchTab(which){
 function buildWatchMoreShell(sold, unsold, pending, total){
   sold=sold!=null?sold:'—'; unsold=unsold!=null?unsold:'—';
   pending=pending!=null?pending:'—'; total=total!=null?total:'—';
+  // No body commentary button, no redundant "Player lists" heading — tab + top-right button cover it
   return ''+
-    '<button type="button" id="watchAudioUnlock" class="btn-ok" style="width:100%;margin:0 0 12px;border-radius:14px;min-height:48px">Enable commentary &amp; sounds</button>'+
-    '<div class="more-section-label">Player lists</div>'+
     '<button type="button" class="list-btn wListKind" data-k="sold" aria-label="Sold players, '+sold+'">Sold — '+sold+'</button>'+
     '<button type="button" class="list-btn wListKind" data-k="unsold" aria-label="Unsold players, '+unsold+'">Unsold — '+unsold+'</button>'+
     '<button type="button" class="list-btn wListKind" data-k="remaining" aria-label="Remaining players, '+pending+'">Remaining — '+pending+'</button>'+
     '<button type="button" class="list-btn wListKind" data-k="total" aria-label="Total players, '+total+'">Total — '+total+'</button>';
 }
 function wireWatchMoreShell(){
-  const b=$('watchAudioUnlock');
-  if(b){
-    b.onclick=function(){
-      try{ unlockSfx(); }catch(e){}
-      try{
-        if(window.speechSynthesis){
-          const u=new SpeechSynthesisUtterance('Hello, I am your commentator for the auction.');
-          u.volume=1;
-          speechSynthesis.speak(u);
-        }
-      }catch(e){}
-      try{ ttsPref.on=true; saveTtsPref(); }catch(e){}
-      try{ showSettingsPanel('commentary'); wireTtsSettings(); }catch(e){}
-      b.textContent='Commentary enabled';
-      b.setAttribute('aria-label','Commentary enabled. Open settings to change voice.');
-    };
-  }
+  // list buttons wired by renderWatch / caller
+}
+function openWatchCommentary(){
+  try{ unlockSfx(); }catch(e){}
+  try{
+    if(window.speechSynthesis){
+      const u=new SpeechSynthesisUtterance('Hello, I am your commentator for the auction.');
+      u.volume=1;
+      speechSynthesis.speak(u);
+    }
+  }catch(e){}
+  try{ ttsPref.on=true; saveTtsPref(); }catch(e){}
+  try{
+    const bc=$('btnWatchCommentary');
+    if(bc){ bc.textContent='Voice'; bc.setAttribute('aria-label','Commentary settings'); }
+  }catch(e){}
+  try{ showSettingsPanel('commentary'); wireTtsSettings(); }catch(e){}
 }
 
 function findLastResult(players, teams, beforeIdx){
@@ -4911,7 +5075,10 @@ function processLiveSpeech(data, opts){
 
 function renderWatch(data){
   window._lastWatchData=data;
-  if($('watchTitle')) $('watchTitle').textContent=data.title||'Live auction';
+  // Only overwrite title when on Live tab (other tabs set their own title)
+  if($('watchTitle') && (window._watchTab==='live' || !window._watchTab)){
+    $('watchTitle').textContent=data.title||'Live auction';
+  }
   const players=data.players||[], teams=data.teams||[];
   const sold=players.filter(p=>p.sold).length, unsold=players.filter(p=>p.unsold).length;
   const pending=players.length-sold-unsold;
@@ -4925,6 +5092,14 @@ function renderWatch(data){
       '<span class="stat">Pending<br><strong>'+pending+'</strong></span>'+
       '<span class="stat">Total<br><strong>'+players.length+'</strong></span></div>';
   }
+  // Keep stats hidden if not on Live
+  try{
+    const ws=$('watchStats');
+    if(ws && window._watchTab && window._watchTab!=='live'){
+      ws.style.display='none';
+      ws.setAttribute('aria-hidden','true');
+    }
+  }catch(e){}
 
   // Live board only — never return early before Squads/More are filled
   if(data.paused){

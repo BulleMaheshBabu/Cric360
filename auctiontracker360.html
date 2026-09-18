@@ -4497,6 +4497,7 @@ function applyAuctionData(data){
     awaitNextPlayer: !!data.awaitNextPlayer,
     storageVersion: data.storageVersion || 2
   };
+  try{ syncSoldFlagsFromTeams(); }catch(e){}
   helperMode=!!(user && data.ownerId!==user.uid && (data.coOrganiserIds||[]).includes(user.uid));
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
   ownerMode=!!(user && data.mode==='virtual' && ow && ow.teamId);
@@ -5299,7 +5300,12 @@ function processLiveSpeech(data, opts){
   }
 }
 
-function isPlayerSold(p){ return !!(p && (p.sold || p.status==='sold')); }
+function isPlayerSold(p){
+  if(!p) return false;
+  if(p.sold || p.status==='sold') return true;
+  try{ if(typeof findPlayerTeamInfo==='function' && findPlayerTeamInfo(p)) return true; }catch(e){}
+  return false;
+}
 function isPlayerUnsold(p){ return !!(p && !isPlayerSold(p) && (p.unsold || p.status==='unsold')); }
 function isPlayerRemaining(p){ return !!(p && !isPlayerSold(p) && !isPlayerUnsold(p)); }
 
@@ -5317,8 +5323,10 @@ function renderWatch(data){
     $('watchTitle').textContent=data.title||'Live auction';
   }
   const players=data.players||[], teams=data.teams||[];
-  const sold=players.filter(isPlayerSold).length, unsold=players.filter(isPlayerUnsold).length;
-  const pending=players.length-sold-unsold;
+  // Prefer roster-aware counts so Sold never stays 0 when squads have players
+  const _wst = countPlayerStats(players, teams);
+  const sold=_wst.soldCount, unsold=_wst.unsoldCount;
+  const pending=_wst.remainingCount;
   const statsKey=sold+'|'+unsold+'|'+pending+'|'+players.length;
   if($('watchStats') && window._watchStatsKey!==statsKey){
     window._watchStatsKey=statsKey;
@@ -5999,11 +6007,59 @@ function docToTeam(id, d){
     players: Array.isArray(d.players) ? d.players : []
   };
 }
-function countPlayerStats(players){
+/** Keep master player sold flags in sync with team rosters (source of truth for squad) */
+function syncSoldFlagsFromTeams(){
+  if(!T || !Array.isArray(T.players)) return;
+  const byName = {};
+  (T.teams || []).forEach(function(tm){
+    (tm.players || []).forEach(function(sp){
+      const key = (sp.name || '').trim().toLowerCase();
+      if(!key) return;
+      byName[key] = {
+        team: tm.name || '',
+        teamId: tm.id || '',
+        price: sp.price != null ? sp.price : null
+      };
+    });
+  });
+  T.players.forEach(function(p){
+    if(!p) return;
+    const key = (p.name || '').trim().toLowerCase();
+    const hit = key ? byName[key] : null;
+    if(hit){
+      p.sold = true;
+      p.unsold = false;
+      p.status = 'sold';
+      p.soldTeam = hit.team;
+      p.soldTeamId = hit.teamId;
+      if(hit.price != null){
+        p.soldPrice = hit.price;
+        p.price = hit.price;
+      }
+      p.team = hit.team;
+    } else if(p.sold && !(p.unsold)){
+      // Keep explicit sold flag even if not yet in roster (edge race)
+      p.status = 'sold';
+    }
+  });
+}
+
+function countPlayerStats(players, teams){
   players = players || [];
+  teams = teams || (T && T.teams) || [];
+  // Roster is authoritative for "in a squad"
+  const rosterNames = {};
+  teams.forEach(function(tm){
+    (tm.players || []).forEach(function(sp){
+      const key = (sp.name || '').trim().toLowerCase();
+      if(key) rosterNames[key] = true;
+    });
+  });
   var sold = 0, unsold = 0;
   players.forEach(function(p){
-    if(p.sold || p.status === 'sold') sold++;
+    if(!p) return;
+    const key = (p.name || '').trim().toLowerCase();
+    if(p.sold || p.status === 'sold' || (key && rosterNames[key])) sold++;
     else if(p.unsold || p.status === 'unsold') unsold++;
   });
   return {
@@ -6152,15 +6208,25 @@ function startSubListeners(id){
       const list = [];
       snap.forEach(function(doc){ list.push(docToPlayer(doc.id, doc.data())); });
       list.sort(function(a, b){ return (a.order || 0) - (b.order || 0); });
+      // Never wipe a full local pool with an empty/partial snapshot
+      if(!list.length && T && T.players && T.players.length){
+        console.warn('players snapshot empty — keeping local pool');
+        return;
+      }
+      if(list.length && T && T.players && T.players.length && list.length < Math.floor(T.players.length * 0.5)){
+        console.warn('players snapshot too small — keeping local pool');
+        return;
+      }
       window._subPlayers = list;
       if(T){
         T.players = list;
+        try{ syncSoldFlagsFromTeams(); }catch(e){}
         const onAuc = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
         const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
         window._skipSnapshotFocus = true;
         try{
           if(onAuc) renderAuction({ skipFocus: true });
-          if(onWatch) renderWatch(Object.assign({}, window._lastWatchData || {}, { players: list, teams: T.teams }));
+          if(onWatch) renderWatch(Object.assign({}, window._lastWatchData || {}, { players: T.players, teams: T.teams }));
         }finally{ window._skipSnapshotFocus = false; }
       }
     }catch(e){ console.warn('players listener', e); }
@@ -6170,9 +6236,14 @@ function startSubListeners(id){
       if(window._squadBusy || window._priceEditOpen || window._soldFormOpen) return;
       const list = [];
       snap.forEach(function(doc){ list.push(docToTeam(doc.id, doc.data())); });
+      if(!list.length && T && T.teams && T.teams.length){
+        console.warn('teams snapshot empty — keeping local teams');
+        return;
+      }
       window._subTeams = list;
       if(T){
         T.teams = list;
+        try{ syncSoldFlagsFromTeams(); }catch(e){}
         const onAuc = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
         const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
         window._skipSnapshotFocus = true;
@@ -6189,33 +6260,41 @@ function startSubListeners(id){
   }, function(err){ console.warn('teams listen err', err); });
 }
 
-/** Lot save: main control fields + only touched player/team docs */
+/** Lot save: main control fields + sold player + all teams (stats stay correct) */
 async function cloudSaveLot(silent){
   if(!T || !db || !user || !auctionId){
     return cloudSave(silent);
   }
   ensurePlayerIds();
   ensureTeamIds();
-  const stats = countPlayerStats(T.players);
+  try{ syncSoldFlagsFromTeams(); }catch(e){}
+  const stats = countPlayerStats(T.players, T.teams);
   let lastErr = null;
   for(let attempt = 0; attempt < 3; attempt++){
     try{
-      // Try split writes first
       const idx = (T.meta && T.meta.currentIndex != null) ? T.meta.currentIndex : 0;
       const toWrite = new Set();
-      [idx, idx - 1, idx - 2].forEach(function(i){
+      // Always touch current and previous 3 slots (covers sold player after index advance)
+      [idx, idx - 1, idx - 2, idx - 3].forEach(function(i){
         if(i >= 0 && T.players[i]) toWrite.add(i);
       });
       if(T.lastResult && T.lastResult.name){
+        const lrName = String(T.lastResult.name).trim().toLowerCase();
         T.players.forEach(function(p, i){
-          if(p && p.name === T.lastResult.name) toWrite.add(i);
+          if(p && String(p.name || '').trim().toLowerCase() === lrName) toWrite.add(i);
         });
       }
+      // Also persist every currently sold/unsold player (keeps stats truthful)
+      T.players.forEach(function(p, i){
+        if(p && (p.sold || p.unsold || p.status === 'sold' || p.status === 'unsold')) toWrite.add(i);
+      });
+
       let subOk = true;
       try{
         for(const i of toWrite){
           await writeOnePlayer(T.players[i], i, auctionId);
         }
+        // Always write full team roster state
         for(let ti = 0; ti < (T.teams || []).length; ti++){
           await writeOneTeam(T.teams[ti], auctionId);
         }
@@ -6246,7 +6325,6 @@ async function cloudSaveLot(silent){
         mainPatch.players = [];
         mainPatch.teams = [];
       } else {
-        // Safe mode: full arrays on main so sold/unsold never lose data
         mainPatch.players = (T.players || []).map(function(p, i){ return playerToDoc(p, i); });
         mainPatch.teams = (T.teams || []).map(function(t){ return teamToDoc(t); });
       }
@@ -8030,14 +8108,14 @@ function switchTab(which){
         meet.innerHTML='<button type="button" class="btn-sec btn-block" disabled>Join meeting (no link set)</button>';
       } else meet.innerHTML='';
     }
-    // List buttons with counts for SR
+    // List buttons with counts for SR (roster + flags)
     try{
-      const pl=T.players||[];
-      const s=pl.filter(p=>p.sold).length,u=pl.filter(p=>p.unsold).length,r=pl.filter(p=>!p.sold&&!p.unsold).length;
-      if($('btnListSold')){ $('btnListSold').textContent='Sold — '+s; $('btnListSold').setAttribute('aria-label','Sold players, '+s); }
-      if($('btnListUnsold')){ $('btnListUnsold').textContent='Unsold — '+u; $('btnListUnsold').setAttribute('aria-label','Unsold players, '+u); }
-      if($('btnListRemaining')){ $('btnListRemaining').textContent='Remaining — '+r; $('btnListRemaining').setAttribute('aria-label','Remaining players, '+r); }
-      if($('btnListTotal')){ $('btnListTotal').textContent='Total — '+pl.length; $('btnListTotal').setAttribute('aria-label','Total players, '+pl.length); }
+      syncSoldFlagsFromTeams();
+      const _st = countPlayerStats(T.players, T.teams);
+      if($('btnListSold')){ $('btnListSold').textContent='Sold — '+_st.soldCount; $('btnListSold').setAttribute('aria-label','Sold players, '+_st.soldCount); }
+      if($('btnListUnsold')){ $('btnListUnsold').textContent='Unsold — '+_st.unsoldCount; $('btnListUnsold').setAttribute('aria-label','Unsold players, '+_st.unsoldCount); }
+      if($('btnListRemaining')){ $('btnListRemaining').textContent='Remaining — '+_st.remainingCount; $('btnListRemaining').setAttribute('aria-label','Remaining players, '+_st.remainingCount); }
+      if($('btnListTotal')){ $('btnListTotal').textContent='Total — '+_st.playerCount; $('btnListTotal').setAttribute('aria-label','Total players, '+_st.playerCount); }
       if($('btnToolsDownload')){ $('btnToolsDownload').setAttribute('aria-label','Download export options'); }
     }catch(e){}
     // Wire download expand
@@ -8101,15 +8179,17 @@ function renderAuction(opts){
   // Never rebuild auction DOM while dialogs / typing (message, sold form, confirm)
   if(!opts.force && typeof isUiLocked==='function' && isUiLocked()) return;
 
+  try{ syncSoldFlagsFromTeams(); }catch(e){}
   const pl=T.players||[];
-  const sold=pl.filter(p=>p.sold).length, unsold=pl.filter(p=>p.unsold).length;
+  const _st = countPlayerStats(pl, T.teams);
+  const sold=_st.soldCount, unsold=_st.unsoldCount;
   if($('aucStats')){
     setHtml('aucStats',
       '<div class="stats-4" aria-hidden="true">'+
       '<span class="stat">Sold<br><strong>'+sold+'</strong></span>'+
       '<span class="stat">Unsold<br><strong>'+unsold+'</strong></span>'+
-      '<span class="stat">Pending<br><strong>'+(pl.length-sold-unsold)+'</strong></span>'+
-      '<span class="stat">Total<br><strong>'+pl.length+'</strong></span></div>');
+      '<span class="stat">Pending<br><strong>'+_st.remainingCount+'</strong></span>'+
+      '<span class="stat">Total<br><strong>'+_st.playerCount+'</strong></span></div>');
   }
 
   // Keep center title as tournament name only (not lead price / brand)
@@ -8327,20 +8407,22 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   const myTeamObj = myTeamId ? (T.teams||[]).find(t=>t.id===myTeamId) : null;
   const squadFull = !!(ownerMode && myTeamObj && isTeamAtMax(myTeamObj));
   const canRaise=ownerMode && myTeamId && !squadFull && b.phase==='contest' && teamCanRaiseNow(myTeamId, b, rules);
+  try{ syncSoldFlagsFromTeams(); }catch(e){}
   const pl=T.players||[];
-  const sold=pl.filter(x=>x.sold).length, unsold=pl.filter(x=>x.unsold).length;
-  const pending=pl.length-sold-unsold;
+  const _vst = countPlayerStats(pl, T.teams);
+  const sold=_vst.soldCount, unsold=_vst.unsoldCount;
+  const pending=_vst.remainingCount;
 
   // Safe stats update (never crash if element missing)
   try{
-    const statsKey=sold+'|'+unsold+'|'+pending+'|'+pl.length;
+    const statsKey=sold+'|'+unsold+'|'+pending+'|'+_vst.playerCount;
     if(window._statsKey!==statsKey){
       window._statsKey=statsKey;
       const html='<div class="stats-4" aria-hidden="true">'+
         '<span class="stat">Sold<br><strong>'+sold+'</strong></span>'+
         '<span class="stat">Unsold<br><strong>'+unsold+'</strong></span>'+
         '<span class="stat">Pending<br><strong>'+pending+'</strong></span>'+
-        '<span class="stat">Total<br><strong>'+pl.length+'</strong></span></div>';
+        '<span class="stat">Total<br><strong>'+_vst.playerCount+'</strong></span></div>';
       setHtml('aucStats', html);
       setHtml('moreStats', html);
     }
@@ -9448,10 +9530,14 @@ function canEditSquads(){
   return false;
 }
 
-/** Match master player to a squad row (serial may be number or string) */
+/** Match master player to a squad row — never match on empty serial */
 function samePlayer(a, b){
   if(!a || !b) return false;
-  if(a.serial!=null && b.serial!=null && String(a.serial)===String(b.serial)) return true;
+  if(a.id && b.id && String(a.id)===String(b.id)) return true;
+  const sa = a.serial != null ? String(a.serial).trim() : '';
+  const sb = b.serial != null ? String(b.serial).trim() : '';
+  // Only match serial when BOTH are non-empty (empty serial matched everyone → "In CSK for 500" on all rows)
+  if(sa && sb && sa === sb) return true;
   const na=(a.name||'').trim().toLowerCase();
   const nb=(b.name||'').trim().toLowerCase();
   return !!(na && nb && na===nb);

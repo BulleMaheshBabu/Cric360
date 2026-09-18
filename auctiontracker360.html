@@ -742,6 +742,182 @@ a{color:var(--primary)}
   display:none!important;visibility:hidden!important;pointer-events:none!important;
 }
 
+/* ===== Play Store native polish (v3) ===== */
+:root{
+  --radius:14px;
+  --radius-lg:18px;
+  --border:rgba(56,189,248,.22);
+  --border-subtle:rgba(56,189,248,.14);
+  --border-soft:rgba(56,189,248,.28);
+  --card:rgba(30,41,59,.92);
+  --stat:rgba(14,165,233,.16);
+}
+body{
+  background-image:
+    radial-gradient(at 15% 0%, rgba(14,165,233,.16) 0px, transparent 45%),
+    radial-gradient(at 90% 100%, rgba(16,185,129,.10) 0px, transparent 48%);
+}
+
+/* Stats chips — stronger, colorful, less empty */
+.stats,.stats-4{
+  gap:8px!important;margin:4px 0 8px!important;
+}
+.stat{
+  background:linear-gradient(160deg,rgba(30,41,59,.95),rgba(15,23,42,.98));
+  border:1px solid var(--border-soft);
+  border-radius:14px!important;
+  padding:10px 6px!important;
+  min-height:52px;
+  color:var(--primary-bright);
+  font-size:11px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;
+}
+.stat strong{
+  font-family:var(--font-score);
+  font-size:1.35rem!important;font-weight:900;color:#fff;margin-top:4px;
+}
+
+/* Hero player card */
+.player-stage{
+  text-align:center;
+  padding:16px 14px!important;
+  border-radius:var(--radius-lg)!important;
+  border:1px solid rgba(56,189,248,.35)!important;
+  background:
+    linear-gradient(160deg,rgba(14,165,233,.18) 0%,rgba(15,23,42,.96) 42%,rgba(16,185,129,.10) 100%)!important;
+  box-shadow:0 12px 32px rgba(0,0,0,.35),0 0 0 1px rgba(56,189,248,.08);
+  margin:4px 0 8px!important;
+}
+.player-name{
+  font-size:clamp(1.45rem,5vw,2.1rem)!important;
+  margin:6px 0 4px!important;
+  color:#e0f2fe!important;
+}
+.live-pill{
+  background:linear-gradient(135deg,#f43f5e,#e11d48)!important;
+  box-shadow:0 4px 14px rgba(244,63,94,.35);
+}
+
+/* Lead strip */
+.lead-line{
+  margin:10px 0 0!important;padding:12px 14px!important;
+  border-radius:14px!important;font-size:1rem!important;font-weight:800!important;
+  background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,165,233,.14))!important;
+  border:1px solid rgba(52,211,153,.4)!important;
+  color:#a7f3d0!important;
+}
+.lead-line.lead-none{
+  background:rgba(100,116,139,.15)!important;
+  border-color:rgba(148,163,184,.25)!important;
+  color:var(--muted)!important;
+}
+
+/* Timer badge */
+.timer-box{
+  margin:8px 0!important;padding:12px 14px!important;
+  border-radius:16px!important;font-size:1.35rem!important;
+  background:linear-gradient(135deg,rgba(14,165,233,.22),rgba(3,105,161,.25))!important;
+  border:1px solid rgba(56,189,248,.4)!important;
+  color:#e0f2fe!important;
+  box-shadow:0 6px 18px rgba(14,165,233,.2);
+}
+.timer-box.warn{
+  background:linear-gradient(135deg,rgba(245,158,11,.25),rgba(217,119,6,.2))!important;
+  border-color:rgba(251,191,36,.45)!important;color:#fde68a!important;
+}
+.timer-box.end{
+  background:linear-gradient(135deg,rgba(244,63,94,.28),rgba(190,18,60,.22))!important;
+  border-color:rgba(251,113,133,.45)!important;color:#fecdd3!important;
+}
+
+/* Bid launch keys */
+#bidRegion{
+  display:flex;flex-direction:column;gap:10px;margin:10px 0 8px;
+}
+#bidRegion .bidRaise,
+#bidRegion #btnQuitLot,
+#bidRegion > button{
+  flex:none!important;width:100%!important;min-width:0!important;
+  min-height:56px!important;padding:14px 16px!important;
+  font-size:17px!important;font-weight:800!important;border-radius:16px!important;
+  border:none!important;
+}
+#bidRegion .bidRaise.btn-ok{
+  background:linear-gradient(135deg,#38bdf8,#0284c7)!important;
+  color:#002033!important;
+  box-shadow:0 8px 22px rgba(14,165,233,.4)!important;
+}
+#bidRegion .bidRaise.btn-sec{
+  background:linear-gradient(135deg,#1e3a5f,#0f172a)!important;
+  color:#7dd3fc!important;
+  border:1px solid rgba(56,189,248,.35)!important;
+}
+#bidRegion #btnQuitLot{
+  background:linear-gradient(135deg,#f43f5e,#be123c)!important;
+  color:#fff!important;
+  box-shadow:0 8px 22px rgba(244,63,94,.35)!important;
+}
+
+/* Physical Sold / Unsold */
+#bidRegion #btnSold,
+.phys-actions .btn-ok{
+  background:linear-gradient(135deg,#34d399,#059669)!important;
+  color:#003d1a!important;border:none!important;
+  box-shadow:0 8px 22px rgba(16,185,129,.35)!important;
+}
+#bidRegion #btnUnsold,
+.phys-actions .btn-danger{
+  background:linear-gradient(135deg,#f43f5e,#be123c)!important;
+  color:#fff!important;border:none!important;
+}
+
+/* Tab bar — solid active pill */
+.tabbar{
+  background:rgba(7,13,24,.96)!important;
+  border-top:1px solid rgba(56,189,248,.18)!important;
+  padding:10px 10px calc(10px + env(safe-area-inset-bottom))!important;
+}
+.tabbar button{
+  min-height:48px!important;border-radius:14px!important;
+  font-size:.85rem!important;font-weight:700!important;
+}
+.tabbar button.active{
+  background:linear-gradient(135deg,#0ea5e9,#0284c7)!important;
+  color:#fff!important;
+  box-shadow:0 4px 14px rgba(14,165,233,.4)!important;
+}
+
+/* Viewer: kill empty void under hero */
+#screenWatch .watch-wrap{padding:0 10px 88px!important}
+#screenWatch .watch-panel{
+  padding:6px 0 8px!important;margin:0!important;
+  border:none!important;background:transparent!important;
+  min-height:0!important;
+}
+#screenWatch .player-stage{margin:2px 0 6px!important}
+#screenWatch .timer-box{margin:6px 0 4px!important}
+#screenWatch .stats,#screenWatch .stats-4{margin:2px 0 6px!important}
+#screenWatch .recent-card,#screenWatch .recent-line{
+  margin-top:6px!important;padding:10px 12px!important;
+  border-radius:14px!important;
+  background:rgba(30,41,59,.9)!important;
+  border:1px solid rgba(56,189,248,.2)!important;
+}
+
+/* Auction host density */
+#screenAuction .player-stage{margin:4px 0 6px!important}
+#screenAuction .stats,#screenAuction .stats-4{margin:2px 0 6px!important}
+#screenAuction .stat{min-height:52px!important}
+
+/* List / squad cards slightly brighter */
+.list-btn,.squad-card{
+  border-color:rgba(56,189,248,.22)!important;
+  background:linear-gradient(160deg,rgba(30,41,59,.95),rgba(15,23,42,.98))!important;
+}
+.list-btn:focus-visible,.squad-card:focus-visible{
+  border-color:var(--primary)!important;
+  box-shadow:0 0 0 2px var(--primary-glow)!important;
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -4643,12 +4819,14 @@ function renderWatch(data){
     if(window._watchUIKey!==uiKey){
       window._watchUIKey=uiKey;
       const spoken='Now auctioning '+(p.name||'Unnamed')+', '+(idx+1)+' of '+players.length+(lead?'. '+lead:'');
+      const leadCls = lead ? 'lead-line' : 'lead-line lead-none';
+      const leadShow = data.mode==='virtual' ? (lead || 'No leading bid') : '';
       box.innerHTML=
         '<div class="player-stage">'+
-        '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase">Now auctioning</p>'+
+        '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase" aria-hidden="true">Now auctioning</p>'+
         '<h2 class="player-name" id="wPN" tabindex="-1">'+(p.name||'Unnamed')+'</h2>'+
-        '<p style="margin:0;font-weight:700;color:var(--primary-bright)">'+(idx+1)+' of '+players.length+'</p>'+
-        (data.mode==='virtual'&&lead?'<p class="lead-line" id="wLead" style="margin:8px 0 0;padding:8px;font-size:0.95rem" aria-hidden="true">'+lead+'</p>':'')+
+        '<p style="margin:0;font-weight:800;color:var(--primary-bright);font-size:14px">'+(idx+1)+' of '+players.length+'</p>'+
+        (data.mode==='virtual'?'<p class="'+leadCls+'" id="wLead" aria-hidden="true">'+leadShow+'</p>':'')+
         '<span class="sr-only">'+spoken+'</span>'+
         '</div>'+
         (data.mode==='virtual'?'<p class="timer-box" id="wTimer" aria-hidden="true">'+timer+'</p>':'')+
@@ -6898,14 +7076,17 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   }
   if(b.phase==='await_host' || (b.phase==='contest' && b.timerEndsAt && Date.now()>=b.timerEndsAt)){
     const isHost=user&&T.ownerId===user.uid;
-    const lead=b.leaderTeamName?('Lead: '+b.leaderTeamName+' at '+b.price):'No leading bid';
+    const hasLead=!!b.leaderTeamName;
+    const lead=hasLead?('Lead: '+b.leaderTeamName+' at '+b.price):'No leading bid';
+    const leadCls=hasLead?'lead-line':'lead-line lead-none';
     const playerSpoken='Now auctioning '+(p.name||'')+', '+(idx+1)+' of '+((T.players||[]).length);
     box.innerHTML=
       '<div class="player-stage" id="playerCard">'+
-      '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
+      '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase" aria-hidden="true">NOW AUCTIONING</p>'+
       '<h2 class="player-name" id="pName" tabindex="-1">'+playerSpoken+'</h2>'+
-      '<p class="lead-line">'+lead+'</p>'+
-      '<p class="timer-box warn" role="status">Waiting for host</p></div>'+
+      '<p class="'+leadCls+'">'+lead+'</p>'+
+      '</div>'+
+      '<p class="timer-box warn" role="status">Waiting for host</p>'+
       (isHost?'<div id="hostDecisionMount"></div>':'')+
       recentLineHtml(recent);
     if(isHost) showHostTimerDecision(!!b.leaderTeamId);
@@ -6988,17 +7169,18 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   const msLeft=Math.max(0,(b.timerEndsAt||0)-Date.now());
   let sec=Math.ceil(msLeft/1000);
   if(sec>maxSec) sec=maxSec;
-  const leadText=b.leaderTeamName?('Leading '+b.leaderTeamName+' at '+b.price):('No bid, base '+(rules.basePrice||'—'));
+  const hasLead=!!b.leaderTeamName;
+  const leadText=hasLead?('Leading '+b.leaderTeamName+' at '+b.price):('No bid, base '+(rules.basePrice||'—'));
+  const leadCls=hasLead?'lead-line':'lead-line lead-none';
   // One focusable heading with FULL sentence (SR reads text, not empty "region")
   const playerSpoken='Now auctioning '+(p.name||'Unnamed')+', '+(idx+1)+' of '+pl.length;
 
   // Focus order: player card → timer → bid region → teams online → recent
-  // No role="region" alone (TalkBack says only "region") — use labelled groups + real heading text
   box.innerHTML=
-    '<div class="auc-player-line player-stage" id="playerCard" style="padding:14px 12px">'+
-    '<p style="margin:0;font-size:12px;font-weight:800;color:var(--muted)" aria-hidden="true">NOW AUCTIONING</p>'+
+    '<div class="auc-player-line player-stage" id="playerCard">'+
+    '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase" aria-hidden="true">NOW AUCTIONING</p>'+
     '<h2 class="player-name" id="pName" tabindex="-1">'+playerSpoken+'</h2>'+
-    '<p class="lead-line" id="leadLine" style="margin:8px 0 0;padding:8px;font-size:0.95rem">'+leadText+'</p>'+
+    '<p class="'+leadCls+'" id="leadLine">'+leadText+'</p>'+
     '</div>'+
     '<p class="timer-box" id="pTimer" role="timer" aria-label="Time remaining '+sec+' seconds"><span aria-hidden="true">'+sec+'s</span><span class="sr-only">Time remaining '+sec+' seconds</span></p>'+
     '<div id="bidRegion" role="group" aria-label="Bidding actions">'+

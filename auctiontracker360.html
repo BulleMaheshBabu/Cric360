@@ -947,6 +947,109 @@ button:active:not(:disabled),.list-btn:active,.squad-card:active,.hub-card:activ
 body.has-tabbar{padding-bottom:96px!important}
 body.has-hub-tabbar{padding-bottom:100px!important}
 
+/* ===== Premium polish (v5) — soft borders, depth, pills, tactile ===== */
+
+/* Ultra-thin borders + soft depth */
+.panel,.watch-panel,.modal-box,.player-stage,.stat,
+.list-btn,.squad-card,.hub-card,.recent-card,.recent-line,
+.timer-box,.lead-line{
+  border:1px solid rgba(255,255,255,.06)!important;
+}
+.player-stage,.list-btn,.squad-card,.hub-card,.stat,.modal-box{
+  box-shadow:0 4px 20px rgba(0,0,0,.30)!important;
+}
+.timer-box,.lead-line,.recent-card,.recent-line{
+  box-shadow:0 2px 12px rgba(0,0,0,.22)!important;
+}
+
+/* Hub auction card — taller, premium */
+.hub-list .hub-card,.hub-list .list-btn{
+  min-height:72px!important;
+  padding:18px 16px!important;
+  border-radius:18px!important;
+  background:var(--bg-surface-elevated)!important;
+}
+
+/* Stats — soft rounded chips */
+.stat{
+  border-radius:16px!important;
+  background:rgba(30,41,59,.85)!important;
+  border:1px solid rgba(255,255,255,.06)!important;
+  box-shadow:0 4px 16px rgba(0,0,0,.25)!important;
+}
+.stat strong{font-weight:800!important;letter-spacing:-.02em}
+
+/* Status badges — true pills */
+.badge{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  padding:5px 14px!important;
+  border-radius:50px!important;
+  font-size:12px!important;font-weight:700!important;
+  letter-spacing:.02em;
+  border:none!important;
+}
+.badge.sold{
+  background:rgba(16,185,129,.18)!important;
+  color:#6ee7b7!important;
+}
+.badge.unsold{
+  background:rgba(244,63,94,.16)!important;
+  color:#fda4af!important;
+}
+
+/* Typography contrast */
+.player-name,h1,h2,.sc-name{
+  font-weight:800!important;
+  color:var(--text-primary)!important;
+}
+.sc-sub,.hub-hello,.hub-empty,.progress{
+  color:var(--text-secondary)!important;
+  font-weight:500!important;
+}
+
+/* Tactile press — all interactive */
+button,.list-btn,.squad-card,.hub-card,.app-tile,
+.tabbar button,.hub-tabbar button,#bidRegion > button{
+  transition:transform .15s ease,filter .15s ease,box-shadow .15s ease!important;
+}
+button:active:not(:disabled),
+.list-btn:active,
+.squad-card:active,
+.hub-card:active,
+.app-tile:active,
+.tabbar button:active,
+.hub-tabbar button:active,
+#bidRegion > button:active{
+  transform:scale(.97)!important;
+  filter:brightness(1.08);
+}
+
+/* List rows — soft cards */
+#screenWatch .list-btn,
+#tabTools .list-btn,
+#wLists .list-btn,
+.wListKind{
+  border-radius:16px!important;
+  margin-top:8px!important;
+  background:rgba(30,41,59,.9)!important;
+  border:1px solid rgba(255,255,255,.06)!important;
+  box-shadow:0 3px 14px rgba(0,0,0,.22)!important;
+}
+
+/* Waiting / hero card */
+#screenWatch .player-stage{
+  border-radius:20px!important;
+  background:rgba(30,41,59,.92)!important;
+  border:1px solid rgba(255,255,255,.07)!important;
+  box-shadow:0 6px 24px rgba(0,0,0,.32)!important;
+}
+
+/* Floating nav edge */
+.tabbar,.hub-tabbar{
+  border:1px solid rgba(255,255,255,.07)!important;
+  box-shadow:0 10px 36px rgba(0,0,0,.42)!important;
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>

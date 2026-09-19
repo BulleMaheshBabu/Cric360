@@ -3915,6 +3915,7 @@ async function handleJoinInvite(){
 }
 
 function stopWait(){
+  try{ if(typeof setupBgmStop==='function') setupBgmStop(); }catch(e){}
   if(waitUnsub){ try{waitUnsub();}catch(e){} waitUnsub=null; }
 }
 
@@ -3922,6 +3923,7 @@ function enterWaitingRoom(id){
   stopWait();
   auctionId = id;
   showScreen('screenWait');
+  try{ if(typeof setupBgmPlay==='function') setupBgmPlay('waiting'); }catch(e){}
   $('waitStatus').textContent = 'Connecting…';
   $('waitTeam').classList.add('hidden');
   $('waitOwners').innerHTML = '';
@@ -4650,6 +4652,7 @@ if(data.lastAlert && data.lastAlert.at){
 
 
 function startAuctionLive(id){
+  try{ if(typeof setupBgmStop==='function') setupBgmStop(); }catch(e){}
   stopAuctionLive();
   if(!id||!db){
     showAppError('Cannot connect to live auction. Missing auction id.');
@@ -5367,7 +5370,7 @@ function setupBgmPlay(kind){
   }
 
   if(kind === 'background'){
-    a.volume = 0.25;
+    a.volume = 0.15;
     a.onended = function(){ restartSameVol(); };
     try{
       var p = a.play();
@@ -6095,6 +6098,11 @@ function wireRoomAudio(room, LK){
   }
   if(Ev.ParticipantConnected){
     room.on(Ev.ParticipantConnected, function(p){
+      // Remote only — local join SFX is played once in joinVoiceCall
+      try{
+        const id = p && (p.identity || '');
+        if(id && user && id === user.uid) return;
+      }catch(e){}
       try{ playCallSfx('join'); }catch(e){}
       try{
         const nm = (p && (p.name || p.identity)) || 'Someone';
@@ -6331,7 +6339,19 @@ function syncVoiceCallUi(data){
   if(vc.status === 'ended'){
     closeVoiceRingModal();
     closeLateJoinModal();
-    if(window._lkRoom) leaveVoiceCall(true);
+    if(window._lkRoom){
+      // Play end tone for everyone still in the call (once)
+      if(!window._endSfxPlayed){
+        window._endSfxPlayed = true;
+        try{ playCallSfx('end'); }catch(e){}
+        setTimeout(function(){ window._endSfxPlayed = false; }, 3000);
+      }
+      leaveVoiceCall(true);
+    } else if(!window._endSfxPlayed && (isAuctionHostUser() || ownerMode)){
+      window._endSfxPlayed = true;
+      try{ playCallSfx('end'); }catch(e){}
+      setTimeout(function(){ window._endSfxPlayed = false; }, 3000);
+    }
     return;
   }
   if(!isAuctionHostUser() && ownerMode && user){
@@ -6342,7 +6362,21 @@ function syncVoiceCallUi(data){
       return;
     }
     const exp = (t && t.expiresAt) || vc.ringExpiresAt || 0;
-    const stillRinging = t && t.status === 'ringing' && (!exp || Date.now() < exp);
+    const ringAt = (t && t.at) || vc.at || 0;
+    // Rejected: ignore until host rings again with a newer timestamp
+    if(t && t.status === 'rejected'){
+      if(window._voiceRejectedAt && ringAt && ringAt <= window._voiceRejectedAt){
+        closeVoiceRingModal();
+        // stay rejected — do not re-open Join
+      } else if(ringAt && window._voiceRejectedAt && ringAt > window._voiceRejectedAt){
+        // host re-rang after reject — allow new prompt
+        window._voiceRejectedAt = 0;
+      } else {
+        closeVoiceRingModal();
+      }
+    }
+    const stillRinging = t && t.status === 'ringing' && (!exp || Date.now() < exp)
+      && !(window._voiceRejectedAt && ringAt && ringAt <= window._voiceRejectedAt);
     if(!joined && stillRinging && !window._lkRoom){
       if(!$('voiceRingModal') || $('voiceRingModal').classList.contains('hidden')){
         showIncomingRing(vc);
@@ -6546,7 +6580,11 @@ async function joinVoiceCall(asHost){
     await ensureMicPublished(room);
     window._lkRoom = room;
     window._lkMuted = false;
-    try{ playCallSfx('join'); }catch(e){}
+    if(!window._joinSfxPlayed){
+      window._joinSfxPlayed = true;
+      try{ playCallSfx('join'); }catch(e){}
+      setTimeout(function(){ window._joinSfxPlayed = false; }, 2500);
+    }
     updateNavCallBtn();
     updateInCallChrome();
 
@@ -6575,6 +6613,7 @@ async function joinVoiceCall(asHost){
         }catch(e){}
       }
     }
+    window._voiceRejectedAt = 0;
     closeVoiceRingModal();
     closeLateJoinModal();
     if(isAuctionHostUser()){
@@ -6686,9 +6725,11 @@ function wireVoiceCallUi(){
   if($('btnVoiceJoin')) $('btnVoiceJoin').onclick = function(){ joinVoiceCall(false); };
   if($('btnVoiceReject')){
     $('btnVoiceReject').onclick = async function(){
+      window._voiceRejectedAt = Date.now();
       closeVoiceRingModal();
+      closeLateJoinModal();
       if(T && T.voiceCall && T.voiceCall.targets && user){
-        T.voiceCall.targets[user.uid] = { status: 'rejected', at: Date.now() };
+        T.voiceCall.targets[user.uid] = { status: 'rejected', at: window._voiceRejectedAt };
         try{ await cloudSave(true); }catch(e){}
       }
       try{ announce('Call rejected.'); }catch(e){}
@@ -7541,6 +7582,36 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     }
   }
   if(b.phase==='await_host' || (b.phase==='contest' && b.timerEndsAt && Date.now()>=b.timerEndsAt)){
+    // If this lot was already sold/unsold, never show Extend/Sold/Unsold again
+    const bpi = (b.playerIndex != null) ? b.playerIndex : idx;
+    const bp = (T.players||[])[bpi];
+    if(bp && (bp.sold || bp.unsold || bp.status==='sold' || bp.status==='unsold')){
+      try{ const hp=$('hostDecisionPanel'); if(hp && hp.parentNode) hp.parentNode.removeChild(hp); }catch(e){}
+      if(T.playerAdvance==='manual' || T.awaitNextPlayer){
+        T.awaitNextPlayer = true;
+        if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
+        box.innerHTML='<div class="player-stage"><span class="live-pill" aria-hidden="true">LIVE</span>'+
+          '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
+          '<h2 class="player-name" id="pName" tabindex="-1">Waiting for next player</h2>'+
+          '<p style="color:var(--muted)">Press Next player when ready.</p></div>'+
+          (user&&T.ownerId===user.uid ? '<button type="button" id="btnNextPlayer" class="btn-ok btn-block" style="margin-top:12px">Next player</button>' : '')+
+          recentLineHtml(recent);
+        if($('btnNextPlayer')) $('btnNextPlayer').onclick=function(){ hostAdvanceNextPlayer(); };
+        return;
+      }
+      // auto mode: treat as intermission gap
+      if(T.bid){ T.bid.phase='intermission'; T.bid.timerEndsAt=null; }
+      if(!T.intermissionUntil || T.intermissionUntil < Date.now()){
+        T.intermissionUntil = Date.now() + (intermissionSeconds()||5)*1000;
+      }
+      box.innerHTML='<div class="player-stage"><span class="live-pill" aria-hidden="true">Live</span>'+
+        '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
+        '<h2 class="player-name" id="pName" tabindex="-1">Waiting for player details</h2>'+
+        '<p style="color:var(--muted)">Next player will appear after the short break.</p></div>'+
+        recentLineHtml(recent);
+      ensureIntermissionTicker();
+      return;
+    }
     const isHost=user&&T.ownerId===user.uid;
     const hasLead=!!b.leaderTeamName;
     const lead=hasLead?('Lead: '+b.leaderTeamName+' at '+b.price):'No leading bid';
@@ -8500,6 +8571,16 @@ function ensureIntermissionTicker(){
 
 /** After sold/unsold: speech result + optional alert, then visual gap (no player speech yet) */
 async function afterLotSequence(resultLine, alertLine){
+  // Clear timer-decision UI so Extend/Sold/Unsold cannot stick after a sale
+  try{ window._hostDecKey = null; window._awaitSaved = null; window._sayAwait = null; }catch(e){}
+  try{ const hp=$('hostDecisionPanel'); if(hp && hp.parentNode) hp.parentNode.removeChild(hp); }catch(e){}
+  // Never keep await_host after a lot is decided
+  try{
+    if(T && T.bid && T.bid.phase==='await_host'){
+      T.bid.phase = (T.playerAdvance==='manual') ? 'await_next' : 'intermission';
+      T.bid.timerEndsAt = null;
+    }
+  }catch(e){}
   // Start gap; speech for sold/alert comes once from live snapshot for all roles
   if(T && T.lastResult && !T.lastResult.at) T.lastResult.at = Date.now();
   beginIntermission();

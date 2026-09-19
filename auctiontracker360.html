@@ -1899,9 +1899,14 @@ function announceNowPlayer(idx, name, total, liveData){
   if(window._sayPlayerKey === '__in_gap__' || window._gapPendingPlayer) return;
   // isAwaitingNextPlayer uses T — only apply when we have host state
   if(T && typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
+  // Manual mode: only announce after host presses Next player
+  if((D.playerAdvance==='manual' || (T && T.playerAdvance==='manual')) && !window._allowNextPlayerAnnounce){
+    return;
+  }
   const pkey = 'pl|'+idx+'|'+(name||'');
   if(window._sayPlayerKey === pkey) return;
   window._sayPlayerKey = pkey;
+  window._allowNextPlayerAnnounce=false;
   // Drop older queued player lines so commentary cannot loop old names
   _speechQueue = (_speechQueue||[]).filter(function(x){ return x.category !== 'player'; });
   // If gap was skipped or sound not yet played, play player cue now
@@ -2425,51 +2430,8 @@ async function piperEnsure() {
   }
 }
 function piperSpeak(text, onEnd) {
-  if (!_piperMod || !_piperReady) {
-    if (typeof onEnd === 'function') onEnd();
-    return;
-  }
-  const done = function () {
-    if (typeof onEnd === 'function') onEnd();
-  };
-  _piperMod
-    .predict({ text: String(text), voiceId: PIPER_VOICE_ID })
-    .then(function (wav) {
-      try {
-        if (_piperAudio) {
-          try {
-            _piperAudio.pause();
-            _piperAudio.removeAttribute('src');
-          } catch (e) {}
-        }
-        if (!_piperAudio) _piperAudio = new Audio();
-        const url = URL.createObjectURL(wav);
-        _piperAudio.onended = function () {
-          try {
-            URL.revokeObjectURL(url);
-          } catch (e) {}
-          done();
-        };
-        _piperAudio.onerror = function () {
-          try {
-            URL.revokeObjectURL(url);
-          } catch (e) {}
-          done();
-        };
-        _piperAudio.volume = Math.min(1, Math.max(0, Number(ttsPref.volume) != null ? ttsPref.volume : 1));
-        _piperAudio.src = url;
-        const p = _piperAudio.play();
-        if (p && p.catch) p.catch(function () { done(); });
-      } catch (e) {
-        console.warn('Piper play', e);
-        done();
-      }
-    })
-    .catch(function (e) {
-      console.warn('Piper predict', e);
-      piperSetStatus('device', 'Piper error — device voice this time');
-      ttsSpeakWeb(text, onEnd);
-    });
+  // Piper disabled — device Web Speech only
+  ttsSpeakWeb(text, onEnd);
 }
 
 function ttsPickVoice() {
@@ -2694,100 +2656,8 @@ function meSpeakLoadSelected(cb) {
 }
 
 function meSpeakSpeak(text, onEnd) {
-  meSpeakLoadSelected(function (ok) {
-    if (!ok || !window.meSpeak) {
-      ttsStatus('Could not load meSpeak voice. Check internet and retry.');
-      if (typeof onEnd === 'function') onEnd();
-      return;
-    }
-    try {
-      try { if (window.meSpeak.stop) window.meSpeak.stop(); } catch (e0) {}
-      try {
-        if (window._meAudio) {
-          window._meAudio.onended = null;
-          window._meAudio.onerror = null;
-          window._meAudio.pause();
-          window._meAudio.src = '';
-          window._meAudio = null;
-        }
-      } catch (eStop) {}
-      const meta = meMetaFromUri(ttsPref.voiceURI);
-      const vol = Math.min(1, Math.max(0, Number(ttsPref.volume) != null ? ttsPref.volume : 1));
-      const speed = Math.round(175 * (Number(ttsPref.rate) || 1));
-      var finished = false;
-      function finish() {
-        if (finished) return;
-        finished = true;
-        if (typeof onEnd === 'function') onEnd();
-      }
-      const opts = {
-        amplitude: Math.round(100 * vol),
-        speed: Math.max(80, Math.min(300, speed)),
-        wordgap: 1,
-        variant: meta.variant || _meVariant || 'm3',
-        rawdata: 'data-url'
-      };
-      // rawdata → play via HTML5 Audio (does not use system TTS / Eloquent channel)
-      var spoke = false;
-      try {
-        window.meSpeak.speak(String(text), opts, function (success, id, data) {
-          spoke = true;
-          if (!success || !data) {
-            try {
-              window.meSpeak.speak(String(text), {
-                amplitude: opts.amplitude,
-                speed: opts.speed,
-                wordgap: 1,
-                variant: opts.variant
-              }, function () { finish(); });
-              setTimeout(finish, 12000);
-            } catch (e2) {
-              finish();
-            }
-            return;
-          }
-          try {
-            const a = new Audio(data);
-            window._meAudio = a;
-            a.volume = vol;
-            a.onended = function () { ttsStatus('meSpeak OK'); finish(); };
-            a.onerror = function () { ttsStatus('meSpeak play error'); finish(); };
-            const p = a.play();
-            if (p && typeof p.catch === 'function') {
-              p.catch(function () {
-                try {
-                  const ctx = window._sfxCtx || (window.AudioContext && new (window.AudioContext || window.webkitAudioContext)());
-                  if (ctx && ctx.state === 'suspended') ctx.resume();
-                } catch (e3) {}
-                a.play().catch(function () { ttsStatus('meSpeak blocked'); finish(); });
-              });
-            }
-            setTimeout(finish, 20000);
-          } catch (ePlay) {
-            finish();
-          }
-        });
-      } catch (eSpeak) {
-        // v1.9 API: speak(text, opts) returns id, callback via opts
-        try {
-          window.meSpeak.speak(String(text), {
-            amplitude: opts.amplitude,
-            speed: opts.speed,
-            wordgap: 1,
-            variant: opts.variant,
-            rawdata: 'data-url'
-          });
-          setTimeout(finish, 8000);
-        } catch (e3) {
-          finish();
-        }
-      }
-      setTimeout(function () { if (!spoke) finish(); }, 16000);
-    } catch (e) {
-      console.warn('meSpeak speak', e);
-      if (typeof onEnd === 'function') onEnd();
-    }
-  });
+  // meSpeak disabled — device Web Speech only
+  ttsSpeakWeb(text, onEnd);
 }
 
 function ttsFillVoiceSelect() {
@@ -2969,13 +2839,6 @@ function ttsSpeak(text, category, onEnd) {
 }
 
 function ttsStop() {
-  try { if (window.meSpeak && window.meSpeak.stop) window.meSpeak.stop(); } catch (e) {}
-  try {
-    if (_piperAudio) {
-      _piperAudio.pause();
-      _piperAudio.removeAttribute('src');
-    }
-  } catch (e) {}
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
 }
 
@@ -3483,6 +3346,14 @@ function clearAppError(){
   if(bar){ bar.textContent=''; bar.classList.add('hidden'); }
 }
 /** Safe DOM write — never throws on missing nodes (fixes "Cannot set innerHTML of null") */
+function escHtml(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
 function setHtml(idOrEl, html){
   const el = typeof idOrEl === 'string' ? $(idOrEl) : idOrEl;
   if(!el) return false;
@@ -5399,9 +5270,9 @@ function renderWatch(data){
     } else {
       const kind=window._watchListKind;
       let list=players, title='Players';
-      if(kind==='sold'){ list=players.filter(p=>p.sold); title='Sold players'; }
-      if(kind==='unsold'){ list=players.filter(p=>p.unsold); title='Unsold players'; }
-      if(kind==='remaining'){ list=players.filter(p=>!p.sold&&!p.unsold); title='Remaining players'; }
+      if(kind==='sold'){ list=players.filter(function(p){ return p && (p.sold || p.status==='sold'); }); title='Sold players'; }
+      if(kind==='unsold'){ list=players.filter(function(p){ return p && (p.unsold || p.status==='unsold') && !(p.sold || p.status==='sold'); }); title='Unsold players'; }
+      if(kind==='remaining'){ list=players.filter(function(p){ return p && !(p.sold||p.status==='sold') && !(p.unsold||p.status==='unsold'); }); title='Remaining players'; }
       if(kind==='total'){ list=players; title='Total players'; }
       const pageSize=10;
       let page=window._watchListPage||0;
@@ -5444,11 +5315,108 @@ function updateTimerDisplay(el, endsAt, phase){
 }
 
 /* ========== WIZARD ========== */
+
+/* ===== Setup background music (background.mp3 / waiting.mp3) =====
+   Host places files next to the HTML: background.mp3, waiting.mp3
+   - Create auction → background at 25%, loops
+   - Invite / copy-link step (virtual) → waiting: 5s@10%, ramp 5s→25%, then 25% loop
+   - Go live / cancel → stop all
+*/
+var _setupBgm = null; // HTMLAudioElement
+var _setupBgmKind = null; // 'background' | 'waiting'
+var _setupBgmFadeTimer = null;
+var _setupBgmRampTimer = null;
+
+function setupBgmStop(){
+  try{
+    if(_setupBgmFadeTimer){ clearInterval(_setupBgmFadeTimer); _setupBgmFadeTimer=null; }
+    if(_setupBgmRampTimer){ clearInterval(_setupBgmRampTimer); _setupBgmRampTimer=null; }
+  }catch(e){}
+  try{
+    if(_setupBgm){
+      _setupBgm.onended = null;
+      _setupBgm.pause();
+      _setupBgm.removeAttribute('src');
+      try{ _setupBgm.load(); }catch(e2){}
+    }
+  }catch(e){}
+  _setupBgm = null;
+  _setupBgmKind = null;
+}
+
+function setupBgmPlay(kind){
+  // kind: 'background' | 'waiting'
+  if(kind !== 'background' && kind !== 'waiting') return;
+  if(_setupBgmKind === kind && _setupBgm && !_setupBgm.paused) return; // already playing this track
+  setupBgmStop();
+  var src = kind === 'waiting' ? 'waiting.mp3' : 'background.mp3';
+  var a = new Audio();
+  a.preload = 'auto';
+  a.loop = false; // we handle restart ourselves for volume control
+  a.src = src;
+  _setupBgm = a;
+  _setupBgmKind = kind;
+
+  function restartSameVol(){
+    if(!_setupBgm || _setupBgmKind !== kind) return;
+    try{
+      _setupBgm.currentTime = 0;
+      var p = _setupBgm.play();
+      if(p && p.catch) p.catch(function(){});
+    }catch(e){}
+  }
+
+  if(kind === 'background'){
+    a.volume = 0.25;
+    a.onended = function(){ restartSameVol(); };
+    try{
+      var p = a.play();
+      if(p && p.catch) p.catch(function(){ /* autoplay blocked until gesture — create click already is gesture */ });
+    }catch(e){}
+    return;
+  }
+
+  // waiting.mp3: first 5s at 10%, next 5s ramp to 25%, then hold 25%
+  a.volume = 0.10;
+  a.onended = function(){
+    // Restart without fade — stay at 25%
+    if(!_setupBgm || _setupBgmKind !== 'waiting') return;
+    try{ _setupBgm.volume = 0.25; }catch(e){}
+    restartSameVol();
+  };
+  try{
+    var p2 = a.play();
+    if(p2 && p2.catch) p2.catch(function(){});
+  }catch(e){}
+
+  var startAt = Date.now();
+  _setupBgmRampTimer = setInterval(function(){
+    if(!_setupBgm || _setupBgmKind !== 'waiting'){
+      try{ clearInterval(_setupBgmRampTimer); }catch(e){}
+      _setupBgmRampTimer = null;
+      return;
+    }
+    var elapsed = (Date.now() - startAt) / 1000;
+    if(elapsed < 5){
+      try{ _setupBgm.volume = 0.10; }catch(e){}
+    } else if(elapsed < 10){
+      // ramp 10% → 25% over seconds 5–10
+      var t = (elapsed - 5) / 5;
+      try{ _setupBgm.volume = 0.10 + t * 0.15; }catch(e){}
+    } else {
+      try{ _setupBgm.volume = 0.25; }catch(e){}
+      try{ clearInterval(_setupBgmRampTimer); }catch(e){}
+      _setupBgmRampTimer = null;
+    }
+  }, 200);
+}
+
 $('btnCreate').onclick=async()=>{ stopAssignLive(); stopWait();
   await refreshProfile();
   if(!canCreate()){ alert('You need organiser permission.'); return; }
   wiz={name:'',teamCount:'',purse:'',minP:'',maxP:'',teamNames:[],mode:'physical',rules:{}};
   step=0; T=null; auctionId=null;
+  try{ if(typeof setupBgmPlay==='function') setupBgmPlay('background'); }catch(e){}
   renderWizard(); showScreen('screenWizard');
 };
 
@@ -5542,6 +5510,7 @@ function renderWizard(){
     setTimeout(()=>renderPhysicalHelperPanel($('physHelperLive')), 0);
   }
   else if(step===8 && wiz.mode==='virtual'){
+    try{ if(typeof setupBgmPlay==='function') setupBgmPlay('waiting'); }catch(e){}
     renderVirtualAssign(body);
   }
   else if((step===8 && wiz.mode!=='virtual') || (step===9 && wiz.mode==='virtual')){
@@ -5577,6 +5546,7 @@ function renderWizard(){
       'Cancel tournament?',
       'Are you sure you want to cancel this tournament? This cannot be undone.',
       function(){
+        try{ if(typeof setupBgmStop==='function') setupBgmStop(); }catch(e){}
         try{ wiz=null; step=0; }catch(e){}
         enterHome();
       },
@@ -6940,6 +6910,7 @@ function paintAssignList(box){
 }
 
 async function goLive(){
+  try{ if(typeof setupBgmStop==='function') setupBgmStop(); }catch(e){}
   if(!T||!T.players.length){ alert('Import players first'); return; }
   if(isVirtual() || (T.mode==='virtual')){
     const assigned=(T.owners||[]).filter(o=>o.teamId);
@@ -8291,6 +8262,7 @@ function beginIntermission(){
   window._bidFocusKey = null;
   window._playerSfxForGap = false;
   window._gapEndedLocal = false;
+  window._allowNextPlayerAnnounce = false;
   // Drop any queued "now auctioning" lines from the previous advance
   try{ _speechQueue = (_speechQueue||[]).filter(function(x){ return x.category !== 'player'; }); }catch(e){}
   if(isManualAdvance()){
@@ -8327,6 +8299,7 @@ async function hostAdvanceNextPlayer(){
     window._gapPendingPlayer=false; window._gapEndedLocal=true;
     window._playerSfxForGap=false;
     window._sayPlayerKey=null; window._bidFocusKey=null; window._aucSig=null;
+    window._allowNextPlayerAnnounce=true;
     showIntermissionBar(0);
     if(idx>=pl.length){
       T.bid=null;
@@ -8534,9 +8507,11 @@ async function afterLotSequence(resultLine, alertLine){
 }
 
 async function finalizeSold(teamId, price){
+  if(!T || !Array.isArray(T.players)){ alert('Auction data missing'); return; }
   const idx=T.meta.currentIndex||0;
   const p=T.players[idx];
-  const team=T.teams.find(t=>t.id===teamId);
+  if(!p){ alert('No player at this position'); return; }
+  const team=(T.teams||[]).find(t=>t.id===teamId);
   if(!team){ alert('Team missing'); return; }
   if(price>team.remaining){ alert('Purse issue'); return; }
   // Block if already at maximum (before adding this player)
@@ -8555,7 +8530,7 @@ async function finalizeSold(teamId, price){
   team.players.push({...p, price});
   team.remaining-=price;
   if(maxP > 0 && team.players.length >= maxP) team.maxReached = true;
-  p.sold=true; p.unsold=false; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
+  p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
   T.players[idx]=p;
   T.meta.currentIndex=idx+1;
   T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
@@ -8572,10 +8547,12 @@ async function finalizeSold(teamId, price){
 }
 
 async function finalizeUnsold(){
+  if(!T || !Array.isArray(T.players)){ alert('Auction data missing'); return; }
   const idx=T.meta.currentIndex||0;
   const p=T.players[idx];
+  if(!p){ alert('No player at this position'); return; }
   try{ playSfx('unsold'); }catch(e){}
-  p.unsold=true; p.sold=false;
+  p.unsold=true; p.sold=false; p.status='unsold'; p.soldTeam=''; p.soldTeamId=''; p.soldPrice=null; p.team=''; p.price=null;
   T.players[idx]=p;
   T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now() };
   T.meta.currentIndex=idx+1;
@@ -8653,7 +8630,7 @@ function openSoldForm(idx){
     team.remaining-=price;
     const maxP=getTeamMax(team);
     if(maxP>0 && team.players.length>=maxP) team.maxReached=true;
-    p.sold=true; p.unsold=false; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price; T.players[idx]=p;
+    p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price; T.players[idx]=p;
     T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
     T.meta.currentIndex=idx+1;
     let alertLine='';
@@ -8679,7 +8656,11 @@ function canEditSquads(){
 /** Match master player to a squad row (serial may be number or string) */
 function samePlayer(a, b){
   if(!a || !b) return false;
-  if(a.serial!=null && b.serial!=null && String(a.serial)===String(b.serial)) return true;
+  if(a.id && b.id && String(a.id)===String(b.id)) return true;
+  const sa = a.serial != null ? String(a.serial).trim() : '';
+  const sb = b.serial != null ? String(b.serial).trim() : '';
+  // Only match serial when BOTH are non-empty (empty serial matched everyone)
+  if(sa && sb && sa === sb) return true;
   const na=(a.name||'').trim().toLowerCase();
   const nb=(b.name||'').trim().toLowerCase();
   return !!(na && nb && na===nb);
@@ -8719,7 +8700,8 @@ function markPlayerAvailable(mp){
   if(!mp) return;
   mp.sold=false;
   mp.unsold=false;
-  // keep name/serial; price on master list is optional history
+  mp.status='remaining';
+  mp.soldTeam=''; mp.soldTeamId=''; mp.soldPrice=null; mp.team=''; mp.price=null;
 }
 
 /** Persist squad edits (teams + players) — throws on failure */
@@ -9335,13 +9317,18 @@ function renderToolsBook(){
   // Sold = in a squad OR flag sold; Remaining = not sold and not unsold
   let list=pl, title='Players';
   if(toolsKind==='sold'){
-    list=pl.filter(function(p){
-      return !!findPlayerTeamInfo(p) || !!p.sold;
-    });
+    // Explicit sold flag only — never match by name (that caused duplicate rows)
+    list=pl.filter(function(p){ return !!(p && (p.sold || p.status==='sold')); });
     title='Sold players';
   }
-  if(toolsKind==='unsold'){ list=pl.filter(p=>p.unsold && !findPlayerTeamInfo(p)); title='Unsold players'; }
-  if(toolsKind==='remaining'){ list=pl.filter(p=>!p.sold&&!p.unsold && !findPlayerTeamInfo(p)); title='Remaining players'; }
+  if(toolsKind==='unsold'){
+    list=pl.filter(function(p){ return !!(p && (p.unsold || p.status==='unsold') && !(p.sold || p.status==='sold')); });
+    title='Unsold players';
+  }
+  if(toolsKind==='remaining'){
+    list=pl.filter(function(p){ return !!(p && !(p.sold||p.status==='sold') && !(p.unsold||p.status==='unsold')); });
+    title='Remaining players';
+  }
   if(toolsKind==='total'){ list=pl; title='Total players'; }
   const pageSize=10;
   const totalPages=Math.max(1, Math.ceil(list.length/pageSize)||1);
@@ -9366,9 +9353,19 @@ function renderToolsBook(){
   } else {
     h+='<ul class="plain">';
     slice.forEach((p,i)=>{
-      const info=findPlayerTeamInfo(p);
-      const extra=info ? (' · '+info.team.name+' · '+info.price) : (p.unsold ? ' · Unsold' : '');
-      h+='<li><strong>'+(start+i+1)+'.</strong> '+(p.serial?p.serial+' · ':'')+(p.name||'Unnamed')+extra+'</li>';
+      let extra='';
+      if(p.sold || p.status==='sold'){
+        const team = p.soldTeam || p.team || '';
+        const price = (p.soldPrice!=null ? p.soldPrice : (p.price!=null ? p.price : ''));
+        if(team || price!=='') extra = ' · '+(team||'—')+' · '+(price!==''?price:'—');
+        else {
+          const info=findPlayerTeamInfo(p);
+          if(info) extra = ' · '+info.team.name+' · '+info.price;
+        }
+      } else if(p.unsold || p.status==='unsold'){
+        extra = ' · Unsold';
+      }
+      h+='<li><strong>'+(start+i+1)+'.</strong> '+(p.serial?p.serial+' · ':'')+escHtml(p.name||'Unnamed')+extra+'</li>';
     });
     h+='</ul>';
   }

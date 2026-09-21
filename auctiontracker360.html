@@ -1531,6 +1531,15 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <div id="hubPastList" class="hub-list" aria-label="Past auctions"></div>
   </div>
 
+  <!-- REGISTRATIONS tab -->
+  <div id="hubPaneRegs" class="hidden" role="tabpanel" aria-labelledby="hubTabRegs">
+    <div id="hubRegsAdmin" class="hub-admin hidden" style="margin-bottom:10px">
+      <button type="button" id="btnCreateReg" class="btn-ok btn-block">Create registration</button>
+    </div>
+    <div id="hubRegsAlert" class="hidden" role="status" style="margin:0 0 10px;padding:10px 12px;border-radius:12px;background:rgba(14,165,233,.12);border:1px solid rgba(14,165,233,.35);font-weight:700"></div>
+    <div id="hubRegsList" class="hub-list" aria-label="Registrations"></div>
+  </div>
+
   <!-- MORE tab: settings & account -->
   <div id="hubPaneMore" class="hidden" role="tabpanel" aria-labelledby="hubTabMore">
     <div class="hub-more-grid">
@@ -1544,6 +1553,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <nav class="hub-tabbar hidden" id="hubTabbar" role="tablist" aria-label="Main tabs">
   <button type="button" role="tab" id="hubTabLive" class="active" aria-selected="true">Live</button>
   <button type="button" role="tab" id="hubTabPast" aria-selected="false">Past</button>
+  <button type="button" role="tab" id="hubTabRegs" aria-selected="false">Registrations</button>
   <button type="button" role="tab" id="hubTabMore" aria-selected="false">More</button>
 </nav>
 
@@ -1676,6 +1686,42 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     </ul>
     <p class="set-version">Version: 2026.09.10.5.20</p>
   </div>
+</section>
+
+
+<!-- Registration create / edit wizard -->
+<section id="screenRegWizard" class="wrap panel hidden" role="region" aria-labelledby="regWizTitle">
+  <button type="button" id="btnRegWizBack" class="btn-sec" aria-label="Back to registrations">Back</button>
+  <p class="progress" id="regWizProgress">Step 1 of 2</p>
+  <h1 id="regWizTitle" tabindex="-1">Create registration</h1>
+  <div id="regWizBody"></div>
+  <div class="row" id="regWizNav" style="margin-top:12px;gap:8px;flex-wrap:wrap"></div>
+</section>
+
+<!-- User fills registration form -->
+<section id="screenRegForm" class="wrap panel hidden" role="region" aria-labelledby="regFormTitle">
+  <button type="button" id="btnRegFormBack" class="btn-sec" aria-label="Back to registrations">Back</button>
+  <h1 id="regFormTitle" tabindex="-1">Register</h1>
+  <div id="regFormRules" class="panel" style="margin:8px 0;padding:12px;font-size:14px;line-height:1.45;white-space:pre-wrap"></div>
+  <div id="regFormBody"></div>
+  <p id="regFormStatus" role="status" style="margin:8px 0;font-weight:700;color:var(--muted)"></p>
+  <button type="button" id="btnRegFormSubmit" class="btn-ok btn-block" style="margin-top:12px">Submit registration</button>
+</section>
+
+<!-- Host: form detail + records -->
+<section id="screenRegHost" class="wrap panel hidden" role="region" aria-labelledby="regHostTitle">
+  <button type="button" id="btnRegHostBack" class="btn-sec" aria-label="Back to registrations">Back</button>
+  <h1 id="regHostTitle" tabindex="-1">Registration</h1>
+  <div class="btn-stack" style="margin:10px 0">
+    <button type="button" id="btnRegViewForm" class="btn-sec btn-block">View / edit form</button>
+    <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block">Delete registration</button>
+    <button type="button" id="btnRegStartAuction" class="btn-ok btn-block">Start auction from records</button>
+  </div>
+  <h2 style="font-size:1.05rem;margin:16px 0 8px">Registration records</h2>
+  <label for="regSearch" class="sr-only">Search registrations</label>
+  <input id="regSearch" type="search" placeholder="Search…" autocomplete="off" style="width:100%;min-height:48px;margin:0 0 10px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
+  <p id="regRecordsCount" style="font-weight:700;margin:0 0 8px" role="status"></p>
+  <div id="regRecordsList" class="hub-list" aria-label="Registered players" style="max-height:55vh;overflow-y:auto"></div>
 </section>
 
 <section id="screenWizard" class="wrap panel hidden" role="region" aria-labelledby="wizTitle">
@@ -1993,46 +2039,43 @@ function queueClearSpeech(){
 /** Announce current player at most once per index+name; works for host, owners, and viewers.
  *  force=true: host pressed Next player — always speak + player SFX once (ignore gap/quiet races). */
 function announceNowPlayer(idx, name, total, liveData, force){
-  // Prefer explicit live snapshot (viewers); fall back to host state T
+  // Host, owners, and viewers — same path for "Now auctioning" + player.mp3
   const D = liveData || window._lastWatchData || T || null;
   if(!D) return;
   if(D.paused) return;
+  const pkey = 'pl|'+idx+'|'+(name||'');
   if(!force){
     // Manual Next player: no speech/SFX until host presses Next
     if(D.awaitNextPlayer) return;
     if(D.bid && (D.bid.phase==='await_next' || D.bid.phase==='intermission')) return;
     if(D.intermissionUntil && D.intermissionUntil > Date.now()) return;
     if(window._sayPlayerKey === '__in_gap__' || window._gapPendingPlayer) return;
-    // isAwaitingNextPlayer uses T — only apply when we have host state
     if(T && typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
-    // Manual mode: only announce after host presses Next player
     if((D.playerAdvance==='manual' || (T && T.playerAdvance==='manual')) && !window._allowNextPlayerAnnounce){
       return;
     }
-    const pkey = 'pl|'+idx+'|'+(name||'');
     if(window._sayPlayerKey === pkey) return;
-    window._sayPlayerKey = pkey;
   } else {
-    // Forced (Next player): clear gap gates so sound + line always fire once
     window._gapPendingPlayer = false;
     window._allowNextPlayerAnnounce = true;
-    window._sayPlayerKey = null;
-    window._playerSfxForGap = false;
-    const pkey = 'pl|'+idx+'|'+(name||'');
-    window._sayPlayerKey = pkey;
   }
-  window._allowNextPlayerAnnounce=false;
-  // Drop older queued player lines so commentary cannot loop old names
-  _speechQueue = (_speechQueue||[]).filter(function(x){ return x.category !== 'player'; });
-  // Player cue sound (always on force; otherwise if not already played for this gap)
-  if(force || !window._playerSfxForGap){
-    window._playerSfxForGap = true;
-    try{ unlockSfx(); playSfx('player'); }catch(e){}
-  }
+  window._sayPlayerKey = pkey;
+  window._allowNextPlayerAnnounce = false;
+  // Drop older queued player lines
+  try{ _speechQueue = (_speechQueue||[]).filter(function(x){ return x.category !== 'player'; }); }catch(e){}
+  // Always play player cue for every new player (owners/viewers were skipping after quiet join)
+  window._playerSfxForGap = true;
+  try{ unlockSfx(); playSfx('player'); }catch(e){}
   const n = (total!=null ? total : ((D.players||[]).length||0));
   const line = 'Now auctioning '+(name||'player')+', number '+(idx+1)+' of '+n;
-  // sayEvent already routes to TTS or aria-live — no second announce (avoids dead double text)
+  // Force category so ttsPref.player false still gets aria-live when TTS off
   sayEvent(line, 'player');
+  // If TTS category muted, still announce for SR users
+  try{
+    if(typeof ttsPref!=='undefined' && ttsPref.on && ttsPref.player===false){
+      announce(line, false);
+    }
+  }catch(e){}
 }
 
 
@@ -3081,11 +3124,14 @@ function playSfx(name) {
       }
       a.pause();
       try { a.currentTime = 0; } catch (e1) {}
+      try { a.playbackRate = 1; } catch (e2) {}
       a.volume = Math.min(1, Math.max(0, sfxVolume));
-      if (name === 'timer') timerAudio = a;
+      if (name === 'timer') {
+        timerAudio = a;
+        try { a.playbackRate = 1; } catch (e3) {}
+      }
       const p = a.play();
       if (p && p.catch) p.catch(() => {
-        // Retry next candidate if play fails (404)
         if (sfxResolvedUrl[name]) delete sfxResolvedUrl[name];
         delete sfxCache[name];
       });
@@ -3546,7 +3592,7 @@ function showScreen(id){
     }
   }catch(e){}
 
-  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction']
+  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenRegWizard','screenRegForm','screenRegHost']
     .forEach(s=>{
       const el=$(s); if(!el) return;
       const on = (s===id);
@@ -3952,6 +3998,8 @@ function enterHome(){
     // Create / Manage only when admin actions visible
     if($('btnCreate')) $('btnCreate').classList.toggle('hidden', !allow);
     if($('btnMyAuctions')) $('btnMyAuctions').classList.toggle('hidden', !allow);
+    if($('hubRegsAdmin')) $('hubRegsAdmin').classList.toggle('hidden', !allow);
+    if($('btnCreateReg')) $('btnCreateReg').classList.toggle('hidden', !allow);
   }catch(e){}
   try{ switchHubTab('live'); }catch(e){}
 }
@@ -4315,9 +4363,10 @@ async function refreshAdminOrgLists(){
 /* ===== Main hub tabs (Live / Past / More) — Cric360 Live layout ===== */
 function switchHubTab(which){
   which = (which||'live').toLowerCase();
-  if(which!=='live' && which!=='past' && which!=='more') which='live';
-  const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), more:$('hubPaneMore') };
-  const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), more:$('hubTabMore') };
+  if(which!=='live' && which!=='past' && which!=='more' && which!=='regs' && which!=='registrations') which='live';
+  if(which==='registrations') which='regs';
+  const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), regs:$('hubPaneRegs'), more:$('hubPaneMore') };
+  const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), regs:$('hubTabRegs'), more:$('hubTabMore') };
   Object.keys(panes).forEach(function(k){
     const on = k===which;
     if(panes[k]){
@@ -4329,7 +4378,6 @@ function switchHubTab(which){
       tabs[k].setAttribute('aria-selected', on?'true':'false');
     }
   });
-  // Hide "my auctions" sub-list when leaving manage view on Live
   if(which!=='live'){
     try{
       const ml=$('hubMyList'); if(ml){ ml.classList.add('hidden'); ml.innerHTML=''; }
@@ -4340,6 +4388,8 @@ function switchHubTab(which){
     openAuctionList('live');
   } else if(which==='past'){
     openAuctionList('ended');
+  } else if(which==='regs'){
+    try{ loadRegistrationsHub(); }catch(e){ console.warn(e); }
   } else if(which==='more'){
     try{
       if($('hubMoreHint')){
@@ -4351,6 +4401,7 @@ function switchHubTab(which){
 }
 if($('hubTabLive')) $('hubTabLive').onclick=function(){ switchHubTab('live'); };
 if($('hubTabPast')) $('hubTabPast').onclick=function(){ switchHubTab('past'); };
+if($('hubTabRegs')) $('hubTabRegs').onclick=function(){ switchHubTab('regs'); };
 if($('hubTabMore')) $('hubTabMore').onclick=function(){ switchHubTab('more'); };
 if($('btnListBack')) $('btnListBack').onclick=function(){ enterHome(); };
 if($('btnHubSignOut')){
@@ -4539,7 +4590,8 @@ if(data.lastAlert && data.lastAlert.at){
         const pl=data.players||[];
         while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
         if(idx<pl.length){
-          // Speech only here — focus is handled once inside renderAuction
+          // Host + owners + viewers: same announce path
+          window._playerSfxForGap=false;
           announceNowPlayer(idx, pl[idx].name, pl.length, data);
         }
       }
@@ -5218,6 +5270,7 @@ function processLiveSpeech(data, opts){
       if(idx<pl.length){
         window._gapPendingPlayer=false;
         if(window._sayPlayerKey==='__in_gap__') window._sayPlayerKey=null;
+        window._playerSfxForGap=false;
         announceNowPlayer(idx, pl[idx].name, pl.length, data);
       }
     }
@@ -5567,6 +5620,632 @@ function setupBgmPlay(kind){
   }, 200);
 }
 
+
+/* ========== REGISTRATIONS ========== */
+let regWiz = null; // { id?, step, title, startDate, endDate, rulesText, fields:[] }
+let regFormCurrent = null;
+let regHostForm = null;
+let regEntriesCache = [];
+
+function regFieldTypes(){
+  return [
+    { id:'text', label:'Edit box' },
+    { id:'number', label:'Number only' },
+    { id:'yesno', label:'Yes or No' },
+    { id:'gender', label:'Gender' },
+    { id:'checkbox', label:'Checkbox (multi)' }
+  ];
+}
+function newRegFieldId(){
+  return 'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+}
+function openRegWizard(existing){
+  regWiz = existing ? {
+    id: existing.id,
+    step: 0,
+    title: existing.title||'',
+    startDate: existing.startDate||'',
+    endDate: existing.endDate||'',
+    rulesText: existing.rulesText||'',
+    fields: (existing.fields||[]).map(function(f){ return Object.assign({}, f, { options: (f.options||[]).slice() }); }),
+    status: existing.status||'open'
+  } : {
+    id: null, step: 0, title:'', startDate:'', endDate:'', rulesText:'', fields:[], status:'open'
+  };
+  showScreen('screenRegWizard');
+  renderRegWizard();
+  try{ focusEl($('regWizTitle')); }catch(e){}
+}
+function renderRegWizard(){
+  if(!regWiz) return;
+  var step = regWiz.step||0;
+  if($('regWizProgress')) $('regWizProgress').textContent = 'Step '+(step+1)+' of 2';
+  if($('regWizTitle')) $('regWizTitle').textContent = regWiz.id ? 'Edit registration' : 'Create registration';
+  var body = $('regWizBody');
+  var nav = $('regWizNav');
+  if(!body||!nav) return;
+  nav.innerHTML = '';
+  if(step===0){
+    body.innerHTML =
+      '<label for="regTitle">Tournament name</label>'+
+      '<input id="regTitle" type="text" value="'+escHtml(regWiz.title)+'" autocomplete="off" />'+
+      '<label for="regStart">Start date</label>'+
+      '<input id="regStart" type="date" value="'+escHtml(regWiz.startDate)+'" />'+
+      '<label for="regEnd">End date</label>'+
+      '<input id="regEnd" type="date" value="'+escHtml(regWiz.endDate)+'" />'+
+      '<label for="regRules">Tournament rules / info</label>'+
+      '<textarea id="regRules" rows="6" style="width:100%;min-height:120px;font-size:16px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text)">'+escHtml(regWiz.rulesText)+'</textarea>';
+    var next = document.createElement('button');
+    next.type='button'; next.className='btn-ok'; next.textContent='Next — form fields';
+    next.onclick=function(){
+      regWiz.title = ($('regTitle')&&$('regTitle').value||'').trim();
+      regWiz.startDate = ($('regStart')&&$('regStart').value)||'';
+      regWiz.endDate = ($('regEnd')&&$('regEnd').value)||'';
+      regWiz.rulesText = ($('regRules')&&$('regRules').value)||'';
+      if(!regWiz.title){ alert('Enter tournament name'); return; }
+      regWiz.step = 1;
+      renderRegWizard();
+      try{ focusEl($('regWizTitle')); }catch(e){}
+    };
+    nav.appendChild(next);
+  } else {
+    // Step 2: fields
+    var h = '<p style="color:var(--muted);font-size:14px;margin:0 0 10px">Add fields. Mark each as mandatory or optional.</p>';
+    h += '<div id="regFieldsList"></div>';
+    h += '<button type="button" id="btnRegAddField" class="btn-sec btn-block" style="margin-top:12px">Add field</button>';
+    h += '<div id="regFieldEditor" class="panel hidden" style="margin-top:12px;padding:12px"></div>';
+    body.innerHTML = h;
+    paintRegFieldsList();
+    if($('btnRegAddField')) $('btnRegAddField').onclick=function(){ openRegFieldEditor(null); };
+    var back = document.createElement('button');
+    back.type='button'; back.className='btn-sec'; back.textContent='Back';
+    back.onclick=function(){
+      regWiz.step=0; renderRegWizard();
+    };
+    var save = document.createElement('button');
+    save.type='button'; save.className='btn-ok'; save.textContent='Save & publish';
+    save.onclick=function(){ saveRegForm(); };
+    nav.appendChild(back);
+    nav.appendChild(save);
+  }
+}
+function paintRegFieldsList(){
+  var box = $('regFieldsList');
+  if(!box||!regWiz) return;
+  if(!regWiz.fields.length){
+    box.innerHTML = '<p style="color:var(--muted)">No fields yet. Tap Add field.</p>';
+    return;
+  }
+  var h = '<ul class="plain" role="list">';
+  regWiz.fields.forEach(function(f, i){
+    var typeLab = (regFieldTypes().find(function(t){ return t.id===f.type; })||{}).label || f.type;
+    var mand = f.required ? 'Mandatory' : 'Optional';
+    h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)" role="listitem">'+
+      '<strong>'+escHtml(f.title||'Field')+'</strong>'+
+      '<br><span style="color:var(--muted);font-size:13px">'+escHtml(typeLab)+' · '+mand+'</span>'+
+      '<div class="row" style="margin-top:8px;gap:8px">'+
+      '<button type="button" class="btn-sec" data-edit="'+i+'">Edit</button>'+
+      '<button type="button" class="btn-danger" data-del="'+i+'">Remove</button></div></li>';
+  });
+  h += '</ul>';
+  box.innerHTML = h;
+  box.querySelectorAll('[data-edit]').forEach(function(btn){
+    btn.onclick=function(){ openRegFieldEditor(parseInt(btn.getAttribute('data-edit'),10)); };
+  });
+  box.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.onclick=function(){
+      var i = parseInt(btn.getAttribute('data-del'),10);
+      regWiz.fields.splice(i,1);
+      paintRegFieldsList();
+    };
+  });
+}
+function openRegFieldEditor(index){
+  var ed = $('regFieldEditor');
+  if(!ed||!regWiz) return;
+  var f = (index!=null && regWiz.fields[index]) ? Object.assign({}, regWiz.fields[index], { options:(regWiz.fields[index].options||[]).slice() }) : {
+    id: newRegFieldId(), title:'', type:'text', required:true, options:[]
+  };
+  var optsHtml = '';
+  if(f.type==='checkbox'){
+    optsHtml = '<div id="regOptBox"><label>Options</label>';
+    (f.options||[]).forEach(function(o, oi){
+      optsHtml += '<div class="row" style="gap:6px;margin:6px 0"><input type="text" class="regOptIn" data-oi="'+oi+'" value="'+escHtml(o)+'" style="flex:1" /><button type="button" class="btn-danger regOptDel" data-oi="'+oi+'">Remove</button></div>';
+    });
+    optsHtml += '<button type="button" id="btnRegAddOpt" class="btn-sec btn-block" style="margin-top:8px">Add option</button></div>';
+  }
+  var typeOpts = regFieldTypes().map(function(t){
+    return '<option value="'+t.id+'"'+(f.type===t.id?' selected':'')+'>'+t.label+'</option>';
+  }).join('');
+  ed.classList.remove('hidden');
+  ed.innerHTML =
+    '<h2 style="font-size:1rem;margin:0 0 10px" tabindex="-1" id="regFieldEdH">'+(index!=null?'Edit field':'New field')+'</h2>'+
+    '<label for="regFieldTitle">Field title</label>'+
+    '<input id="regFieldTitle" type="text" value="'+escHtml(f.title)+'" autocomplete="off" />'+
+    '<label for="regFieldType">Input type</label>'+
+    '<select id="regFieldType">'+typeOpts+'</select>'+
+    '<label style="display:flex;gap:10px;align-items:center;min-height:48px;margin-top:8px">'+
+    '<input type="checkbox" id="regFieldReq" '+(f.required?'checked':'')+' /> Mandatory field</label>'+
+    optsHtml+
+    '<div class="row" style="margin-top:12px;gap:8px">'+
+    '<button type="button" id="btnRegFieldSave" class="btn-ok">Save field</button>'+
+    '<button type="button" id="btnRegFieldCancel" class="btn-sec">Cancel</button></div>';
+  try{ focusEl($('regFieldEdH')||$('regFieldTitle')); }catch(e){}
+  function refreshOptsFromType(){
+    var t = $('regFieldType').value;
+    f.type = t;
+    if(t==='yesno'){ f.options = ['Yes','No']; }
+    else if(t==='gender'){ f.options = ['Male','Female','Trans']; }
+    else if(t==='checkbox' && !(f.options&&f.options.length)){ f.options = []; }
+    // re-open editor to refresh options UI
+    var title = ($('regFieldTitle')&&$('regFieldTitle').value)||'';
+    var req = !!( $('regFieldReq')&&$('regFieldReq').checked );
+    f.title = title; f.required = req;
+    openRegFieldEditor(index);
+    // restore after reopen - need set field state on regWiz temp
+  }
+  // Simpler: on type change, rebuild options section only
+  if($('regFieldType')){
+    $('regFieldType').onchange=function(){
+      var t = $('regFieldType').value;
+      f.title = ($('regFieldTitle')&&$('regFieldTitle').value)||'';
+      f.required = !!( $('regFieldReq')&&$('regFieldReq').checked );
+      f.type = t;
+      if(t==='yesno') f.options = ['Yes','No'];
+      else if(t==='gender') f.options = ['Male','Female','Trans'];
+      else if(t!=='checkbox') f.options = [];
+      // store temp and re-call
+      window._regFieldDraft = f;
+      window._regFieldDraftIndex = index;
+      openRegFieldEditorFromDraft();
+    };
+  }
+  if($('btnRegAddOpt')){
+    $('btnRegAddOpt').onclick=function(){
+      f.options = f.options||[];
+      f.options.push('');
+      f.title = ($('regFieldTitle')&&$('regFieldTitle').value)||'';
+      f.required = !!( $('regFieldReq')&&$('regFieldReq').checked );
+      f.type = 'checkbox';
+      window._regFieldDraft = f;
+      window._regFieldDraftIndex = index;
+      openRegFieldEditorFromDraft();
+    };
+  }
+  ed.querySelectorAll('.regOptDel').forEach(function(btn){
+    btn.onclick=function(){
+      var oi = parseInt(btn.getAttribute('data-oi'),10);
+      f.options.splice(oi,1);
+      f.title = ($('regFieldTitle')&&$('regFieldTitle').value)||'';
+      f.required = !!( $('regFieldReq')&&$('regFieldReq').checked );
+      window._regFieldDraft = f;
+      window._regFieldDraftIndex = index;
+      openRegFieldEditorFromDraft();
+    };
+  });
+  if($('btnRegFieldCancel')) $('btnRegFieldCancel').onclick=function(){ ed.classList.add('hidden'); ed.innerHTML=''; };
+  if($('btnRegFieldSave')) $('btnRegFieldSave').onclick=function(){
+    var title = ($('regFieldTitle')&&$('regFieldTitle').value||'').trim();
+    if(!title){ alert('Enter field title'); return; }
+    var type = $('regFieldType').value;
+    var required = !!( $('regFieldReq')&&$('regFieldReq').checked );
+    var options = [];
+    if(type==='yesno') options = ['Yes','No'];
+    else if(type==='gender') options = ['Male','Female','Trans'];
+    else if(type==='checkbox'){
+      ed.querySelectorAll('.regOptIn').forEach(function(inp){
+        var v = (inp.value||'').trim();
+        if(v) options.push(v);
+      });
+      if(!options.length){ alert('Add at least one option for checkbox'); return; }
+    }
+    var field = { id: f.id||newRegFieldId(), title: title, type: type, required: required, options: options };
+    if(index!=null && index>=0) regWiz.fields[index] = field;
+    else regWiz.fields.push(field);
+    ed.classList.add('hidden'); ed.innerHTML='';
+    paintRegFieldsList();
+    try{ announce('Field saved: '+title); }catch(e){}
+  };
+}
+function openRegFieldEditorFromDraft(){
+  var f = window._regFieldDraft;
+  var index = window._regFieldDraftIndex;
+  if(!f) return;
+  // inject into openRegFieldEditor by temporarily putting on fields
+  if(index!=null && index>=0){
+    regWiz.fields[index] = f;
+    openRegFieldEditor(index);
+  } else {
+    // temp push
+    regWiz.fields.push(f);
+    openRegFieldEditor(regWiz.fields.length-1);
+    regWiz.fields.pop();
+    // problem: edit saves to index that was popped
+    // Better approach: store draft index as -1 for new
+  }
+}
+// Fix openRegFieldEditorFromDraft properly
+openRegFieldEditorFromDraft = function(){
+  var f = window._regFieldDraft;
+  var index = window._regFieldDraftIndex;
+  if(index!=null && index>=0){
+    regWiz.fields[index] = f;
+    openRegFieldEditor(index);
+  } else {
+    // Use dedicated draft path: set index to fields.length as phantom
+    var phantom = regWiz.fields.length;
+    regWiz.fields.push(f);
+    openRegFieldEditor(phantom);
+    // When cancel/save - save handles index; if cancel remove phantom
+    var ed = $('regFieldEditor');
+    var cancel = $('btnRegFieldCancel');
+    if(cancel){
+      var prev = cancel.onclick;
+      cancel.onclick=function(){
+        if(regWiz.fields[phantom]===f) regWiz.fields.splice(phantom,1);
+        ed.classList.add('hidden'); ed.innerHTML='';
+      };
+    }
+  }
+};
+
+async function saveRegForm(){
+  if(!user||!db){ alert('Not signed in'); return; }
+  if(!regWiz||!regWiz.title){ alert('Tournament name required'); return; }
+  if(!regWiz.fields||!regWiz.fields.length){ alert('Add at least one field'); return; }
+  // Ensure a name-like field exists (first text field)
+  var payload = {
+    title: regWiz.title,
+    startDate: regWiz.startDate||'',
+    endDate: regWiz.endDate||'',
+    rulesText: regWiz.rulesText||'',
+    fields: regWiz.fields,
+    status: 'open',
+    ownerId: user.uid,
+    ownerEmail: user.email||'',
+    ownerName: user.displayName||'',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    notifyAt: Date.now()
+  };
+  try{
+    if(regWiz.id){
+      await db.collection('registrationForms').doc(regWiz.id).set(payload, { merge:true });
+    } else {
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      var ref = await db.collection('registrationForms').add(payload);
+      regWiz.id = ref.id;
+    }
+    try{ announce('Registration published for '+regWiz.title); }catch(e){}
+    alert('Registration saved and open for users.');
+    enterHome();
+    switchHubTab('regs');
+  }catch(e){ safeAlert(e); }
+}
+
+async function loadRegistrationsHub(){
+  var list = $('hubRegsList');
+  if(!list||!db) return;
+  list.innerHTML = '<p class="hub-empty">Loading…</p>';
+  try{
+    if($('hubRegsAdmin')) $('hubRegsAdmin').classList.toggle('hidden', !canCreate());
+    var snap = await db.collection('registrationForms').orderBy('updatedAt','desc').limit(40).get();
+    var items = [];
+    snap.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data())); });
+    // Fallback if orderBy fails (no index) — already in try
+    paintRegsHubList(items);
+    // In-app alert for newly opened forms
+    try{
+      var seen = {};
+      try{ seen = JSON.parse(safeStorageGet('at_reg_seen')||'{}')||{}; }catch(e){}
+      var newest = items.filter(function(it){ return it.status==='open' && it.notifyAt && !seen[it.id]; })[0];
+      if(newest && $('hubRegsAlert')){
+        $('hubRegsAlert').classList.remove('hidden');
+        $('hubRegsAlert').textContent = 'Registrations opened for '+ (newest.title||'a tournament');
+        seen[newest.id] = 1;
+        try{ safeStorageSet('at_reg_seen', JSON.stringify(seen)); }catch(e){}
+      } else if($('hubRegsAlert')){
+        $('hubRegsAlert').classList.add('hidden');
+      }
+    }catch(e){}
+  }catch(e){
+    // no index: get all without order
+    try{
+      var snap2 = await db.collection('registrationForms').limit(40).get();
+      var items2 = [];
+      snap2.forEach(function(doc){ items2.push(Object.assign({id:doc.id}, doc.data())); });
+      items2.sort(function(a,b){ return (b.updatedAt&&b.updatedAt.toMillis?b.updatedAt.toMillis():0)-(a.updatedAt&&a.updatedAt.toMillis?a.updatedAt.toMillis():0); });
+      paintRegsHubList(items2);
+    }catch(e2){
+      list.innerHTML = '<p class="hub-empty">Could not load registrations. '+friendlyError(e2)+'</p>';
+    }
+  }
+}
+function paintRegsHubList(items){
+  var list = $('hubRegsList');
+  if(!list) return;
+  if(!items.length){
+    list.innerHTML = '<p class="hub-empty">'+(canCreate()?'No registrations yet. Create one.':'No open registrations right now.')+'</p>';
+    return;
+  }
+  var h = '';
+  items.forEach(function(it){
+    var isOwner = user && it.ownerId===user.uid;
+    var isOpen = it.status==='open';
+    var dates = [it.startDate, it.endDate].filter(Boolean).join(' → ');
+    var label = (it.title||'Tournament')+(dates?' · '+dates:'')+(isOpen?'':' · closed');
+    if(isOwner || canCreate() && isOwner){
+      h += '<button type="button" class="list-btn reg-host-item" data-id="'+it.id+'" aria-label="'+escHtml(label)+', manage">'+(escHtml(it.title||'Tournament'))+
+        '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'No dates')+' · Manage</span></button>';
+    } else if(isOpen){
+      h += '<button type="button" class="list-btn reg-user-item" data-id="'+it.id+'" aria-label="Register for '+escHtml(it.title||'')+'">'+(escHtml(it.title||'Tournament'))+
+        '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'')+' · Register</span></button>';
+    } else {
+      h += '<div class="list-btn" style="opacity:.7" aria-label="'+escHtml(label)+'">'+escHtml(it.title||'')+'<br><span style="font-size:13px;color:var(--muted)">Closed</span></div>';
+    }
+  });
+  list.innerHTML = h;
+  list.querySelectorAll('.reg-host-item').forEach(function(btn){
+    btn.onclick=function(){ openRegHost(btn.getAttribute('data-id')); };
+  });
+  list.querySelectorAll('.reg-user-item').forEach(function(btn){
+    btn.onclick=function(){ openRegFormForUser(btn.getAttribute('data-id')); };
+  });
+  try{ focusEl(list.querySelector('.list-btn')||$('hubTabRegs')); }catch(e){}
+}
+
+async function openRegFormForUser(formId){
+  if(!db||!user) return;
+  try{
+    var doc = await db.collection('registrationForms').doc(formId).get();
+    if(!doc.exists){ alert('Registration not found'); return; }
+    var data = doc.data();
+    if(data.status!=='open'){ alert('This registration is closed'); return; }
+    // One response per account
+    var existing = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
+    if(existing.exists){
+      alert('You have already registered for this tournament with this account.');
+      return;
+    }
+    regFormCurrent = Object.assign({id:formId}, data);
+    showScreen('screenRegForm');
+    if($('regFormTitle')) $('regFormTitle').textContent = data.title||'Register';
+    if($('regFormRules')){
+      $('regFormRules').textContent = data.rulesText||'';
+      $('regFormRules').classList.toggle('hidden', !(data.rulesText||'').trim());
+    }
+    if($('regFormStatus')) $('regFormStatus').textContent = '';
+    paintUserRegForm(data.fields||[]);
+    try{ focusEl($('regFormTitle')); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+function paintUserRegForm(fields){
+  var body = $('regFormBody');
+  if(!body) return;
+  var h = '';
+  fields.forEach(function(f){
+    var req = f.required ? ' required' : '';
+    var reqLab = f.required ? ' (required)' : ' (optional)';
+    var fid = 'regA_'+f.id;
+    h += '<div class="reg-field" style="margin:0 0 14px" data-fid="'+f.id+'">';
+    if(f.type==='text'){
+      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label>'+
+        '<input id="'+fid+'" type="text" autocomplete="off"'+req+' />';
+    } else if(f.type==='number'){
+      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label>'+
+        '<input id="'+fid+'" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"'+req+' />';
+    } else if(f.type==='yesno' || f.type==='gender'){
+      var opts = f.options||(f.type==='gender'?['Male','Female','Trans']:['Yes','No']);
+      h += '<fieldset style="border:1px solid var(--border);border-radius:12px;padding:10px 12px"><legend style="font-weight:700">'+escHtml(f.title)+reqLab+'</legend>';
+      opts.forEach(function(o, oi){
+        var oid = fid+'_'+oi;
+        h += '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="radio" name="'+fid+'" id="'+oid+'" value="'+escHtml(o)+'" /> '+escHtml(o)+'</label>';
+      });
+      h += '</fieldset>';
+    } else if(f.type==='checkbox'){
+      h += '<fieldset style="border:1px solid var(--border);border-radius:12px;padding:10px 12px"><legend style="font-weight:700">'+escHtml(f.title)+reqLab+'</legend>';
+      (f.options||[]).forEach(function(o, oi){
+        var oid = fid+'_'+oi;
+        h += '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="'+oid+'" value="'+escHtml(o)+'" class="regCb" data-fid="'+f.id+'" /> '+escHtml(o)+'</label>';
+      });
+      h += '</fieldset>';
+    }
+    h += '</div>';
+  });
+  body.innerHTML = h;
+  // number-only filter
+  fields.forEach(function(f){
+    if(f.type!=='number') return;
+    var el = $('regA_'+f.id);
+    if(!el) return;
+    el.oninput=function(){ el.value = String(el.value||'').replace(/[^0-9]/g,''); };
+  });
+}
+async function submitUserRegForm(){
+  if(!regFormCurrent||!user||!db) return;
+  var fields = regFormCurrent.fields||[];
+  var answers = {};
+  for(var i=0;i<fields.length;i++){
+    var f = fields[i];
+    var fid = 'regA_'+f.id;
+    var val = null;
+    if(f.type==='text' || f.type==='number'){
+      val = ($('regA_'+f.id)&&$('regA_'+f.id).value||'').trim();
+      if(f.required && !val){ alert('Please fill: '+f.title); try{ focusEl($('regA_'+f.id)); }catch(e){} return; }
+    } else if(f.type==='yesno' || f.type==='gender'){
+      var sel = document.querySelector('input[name="'+fid+'"]:checked');
+      val = sel ? sel.value : '';
+      if(f.required && !val){ alert('Please choose: '+f.title); return; }
+    } else if(f.type==='checkbox'){
+      var picked = [];
+      document.querySelectorAll('.regCb[data-fid="'+f.id+'"]:checked').forEach(function(cb){ picked.push(cb.value); });
+      val = picked;
+      if(f.required && !picked.length){ alert('Please select at least one option: '+f.title); return; }
+    }
+    answers[f.id] = val;
+  }
+  // One per account: doc id = uid
+  var entry = {
+    uid: user.uid,
+    email: user.email||'',
+    displayName: user.displayName||'',
+    answers: answers,
+    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    var ref = db.collection('registrationForms').doc(regFormCurrent.id).collection('entries').doc(user.uid);
+    var exists = await ref.get();
+    if(exists.exists){ alert('You have already registered for this tournament with this account.'); return; }
+    await ref.set(entry);
+    if($('regFormStatus')) $('regFormStatus').textContent = 'Registered successfully.';
+    try{ announce('Registered for '+(regFormCurrent.title||'tournament')); }catch(e){}
+    alert('Registration submitted.');
+    enterHome();
+    switchHubTab('regs');
+  }catch(e){ safeAlert(e); }
+}
+
+async function openRegHost(formId){
+  if(!db) return;
+  try{
+    var doc = await db.collection('registrationForms').doc(formId).get();
+    if(!doc.exists){ alert('Not found'); return; }
+    regHostForm = Object.assign({id:formId}, doc.data());
+    showScreen('screenRegHost');
+    if($('regHostTitle')) $('regHostTitle').textContent = regHostForm.title||'Registration';
+    if($('regSearch')) $('regSearch').value = '';
+    await loadRegEntries(formId);
+    try{ focusEl($('regHostTitle')); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+async function loadRegEntries(formId){
+  var list = $('regRecordsList');
+  if(!list) return;
+  list.innerHTML = '<p class="hub-empty">Loading records…</p>';
+  try{
+    var snap = await db.collection('registrationForms').doc(formId).collection('entries').get();
+    regEntriesCache = [];
+    snap.forEach(function(doc){ regEntriesCache.push(Object.assign({id:doc.id}, doc.data())); });
+    // sort by submittedAt desc
+    regEntriesCache.sort(function(a,b){
+      var am = a.submittedAt&&a.submittedAt.toMillis?a.submittedAt.toMillis():0;
+      var bm = b.submittedAt&&b.submittedAt.toMillis?b.submittedAt.toMillis():0;
+      return bm-am;
+    });
+    paintRegEntries(regEntriesCache);
+  }catch(e){
+    list.innerHTML = '<p class="hub-empty">'+friendlyError(e)+'</p>';
+  }
+}
+function paintRegEntries(entries){
+  var q = (($('regSearch')&&$('regSearch').value)||'').trim().toLowerCase();
+  var filtered = entries;
+  if(q){
+    filtered = entries.filter(function(en){
+      var blob = JSON.stringify(en).toLowerCase();
+      return blob.indexOf(q)>=0;
+    });
+  }
+  if($('regRecordsCount')) $('regRecordsCount').textContent = filtered.length+' of '+entries.length+' records';
+  var list = $('regRecordsList');
+  if(!list) return;
+  if(!filtered.length){
+    list.innerHTML = '<p class="hub-empty">No records.</p>';
+    return;
+  }
+  var fields = (regHostForm&&regHostForm.fields)||[];
+  var nameField = fields.find(function(f){ return f.type==='text'; }) || fields[0];
+  var h = '';
+  filtered.forEach(function(en){
+    var name = '';
+    if(nameField && en.answers) name = en.answers[nameField.id];
+    if(Array.isArray(name)) name = name.join(', ');
+    name = name || en.displayName || en.email || 'Entry';
+    var sub = en.email||'';
+    h += '<button type="button" class="list-btn reg-entry-btn" data-id="'+en.id+'" aria-label="'+escHtml(String(name))+', '+escHtml(sub)+'">'+
+      escHtml(String(name))+'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span></button>';
+  });
+  list.innerHTML = h;
+  list.querySelectorAll('.reg-entry-btn').forEach(function(btn){
+    btn.onclick=function(){
+      var en = regEntriesCache.find(function(x){ return x.id===btn.getAttribute('data-id'); });
+      if(!en) return;
+      var lines = [];
+      ((regHostForm&&regHostForm.fields)||[]).forEach(function(f){
+        var v = en.answers && en.answers[f.id];
+        if(Array.isArray(v)) v = v.join(', ');
+        lines.push(f.title+': '+(v!=null&&v!==''?v:'—'));
+      });
+      alert(lines.join('\n')+'\n\n'+(en.email||''));
+    };
+  });
+}
+function entriesToPlayers(entries, form){
+  var fields = (form&&form.fields)||[];
+  var nameF = fields.find(function(f){ return /name/i.test(f.title||'') && f.type==='text'; }) || fields.find(function(f){ return f.type==='text'; });
+  return entries.map(function(en, i){
+    var nm = '';
+    if(nameF && en.answers) nm = en.answers[nameF.id];
+    if(Array.isArray(nm)) nm = nm.join(' ');
+    nm = String(nm||en.displayName||en.email||('Player '+(i+1))).trim();
+    return {
+      serial: String(i+1),
+      name: nm,
+      gamerId: en.email||'',
+      state: '',
+      sold: false,
+      unsold: false,
+      status: 'available',
+      regEntryId: en.id||en.uid
+    };
+  });
+}
+async function startAuctionFromReg(){
+  if(!regHostForm||!regEntriesCache.length){ alert('No registration records to import'); return; }
+  window._regImportPlayers = entriesToPlayers(regEntriesCache, regHostForm);
+  window._regImportAuto = true;
+  // Start normal create wizard
+  stopAssignLive && stopAssignLive();
+  stopWait && stopWait();
+  if($('btnCreate')){
+    // mimic btnCreate
+    try{
+      step = 0;
+      wiz = { name: regHostForm.title||'', teamCount:'', purse:'', minP:'', maxP:'', teamNames:[], mode:'physical', rules:{}, playerAdvance:'auto', intermissionSec:5 };
+      showScreen('screenWizard');
+      if(typeof renderWizard==='function') renderWizard();
+      try{ focusEl($('wizTitle')); }catch(e){}
+      try{ announce('Starting auction setup. Registration players will import at the players step.'); }catch(e){}
+    }catch(e){ safeAlert(e); }
+  }
+}
+
+function wireRegistrationsUi(){
+  if($('btnCreateReg')) $('btnCreateReg').onclick=function(){ openRegWizard(null); };
+  if($('btnRegWizBack')) $('btnRegWizBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
+  if($('btnRegFormBack')) $('btnRegFormBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
+  if($('btnRegHostBack')) $('btnRegHostBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
+  if($('btnRegFormSubmit')) $('btnRegFormSubmit').onclick=function(){ submitUserRegForm(); };
+  if($('btnRegViewForm')) $('btnRegViewForm').onclick=function(){
+    if(!regHostForm) return;
+    openRegWizard(regHostForm);
+  };
+  if($('btnRegDeleteForm')) $('btnRegDeleteForm').onclick=function(){
+    if(!regHostForm) return;
+    ask('Delete registration?','This removes the form. Existing entries may remain until cleaned up.', async function(){
+      try{
+        await db.collection('registrationForms').doc(regHostForm.id).delete();
+        enterHome(); switchHubTab('regs');
+      }catch(e){ safeAlert(e); }
+    });
+  };
+  if($('btnRegStartAuction')) $('btnRegStartAuction').onclick=function(){ startAuctionFromReg(); };
+  if($('regSearch')){
+    $('regSearch').oninput=function(){ paintRegEntries(regEntriesCache||[]); };
+  }
+}
+try{ wireRegistrationsUi(); }catch(e){ console.warn('wireRegistrationsUi', e); }
+
+
 $('btnCreate').onclick=async()=>{ stopAssignLive(); stopWait();
   await refreshProfile();
   if(!canCreate()){ alert('You need organiser permission.'); return; }
@@ -5656,8 +6335,27 @@ function renderWizard(){
     $('rCustomOn').onchange=()=>$('rCustomBox').classList.toggle('hidden', !$('rCustomOn').checked);
   }
   else if((step===6 && wiz.mode!=='virtual') || (step===7 && wiz.mode==='virtual')){
-    body.innerHTML='<label for="wFile">Players file (CSV or Excel)</label><input id="wFile" type="file" accept=".csv,.xlsx,.xls" /><div id="wHeaders" class="hidden"></div><div id="wImportMsg"></div>';
+    var regNote = (window._regImportPlayers && window._regImportPlayers.length)
+      ? ('<p id="wRegImportNote" role="status" style="margin:0 0 12px;padding:12px;border-radius:12px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);font-weight:700">Registration records: '+window._regImportPlayers.length+' players ready. Tap Import registration players below, or upload a file instead.</p><button type="button" id="btnImportFromReg" class="btn-ok btn-block" style="margin-bottom:12px">Import registration players ('+window._regImportPlayers.length+')</button>')
+      : '';
+    body.innerHTML=regNote+'<label for="wFile">Players file (CSV or Excel)</label><input id="wFile" type="file" accept=".csv,.xlsx,.xls" /><div id="wHeaders" class="hidden"></div><div id="wImportMsg"></div>';
     $('wFile').onchange=onFile;
+    if($('btnImportFromReg')){
+      $('btnImportFromReg').onclick=function(){
+        if(!window._regImportPlayers || !window._regImportPlayers.length){ alert('No registration players'); return; }
+        if(!T){ alert('Finish earlier steps first'); return; }
+        T.players = window._regImportPlayers.slice();
+        var msg = $('wImportMsg');
+        if(msg) msg.innerHTML = '<p role="status" style="font-weight:700;color:var(--ok,#10b981)">Registration records: '+T.players.length+' players imported successfully to auction room.</p>';
+        try{ announce('Registration records: '+T.players.length+' players imported successfully to auction room.'); }catch(e){}
+        try{ focusEl(msg||$('wImportMsg')); }catch(e){}
+      };
+      // Auto-import if came from Start auction
+      if(window._regImportAuto){
+        window._regImportAuto = false;
+        setTimeout(function(){ try{ $('btnImportFromReg').click(); }catch(e){} }, 200);
+      }
+    }
   }
   else if(step===7 && wiz.mode!=='virtual'){
     body.innerHTML='<p>Optional co-organisers (squad helpers). Share the invite link. Approve helpers below before go live.</p>'+
@@ -6505,16 +7203,26 @@ function syncVoiceCallUi(data){
   if(vc.status === 'ended'){
     closeVoiceRingModal();
     closeLateJoinModal();
-    // Play end tone ONCE per ended call (keyed by vc.at). Do not reset — snapshots must not replay.
+    // End tone ONLY when transitioning into ended from a live/ringing call — never on resume/pause snapshots
+    var prevSt = window._vcLastStatus || '';
+    window._vcLastStatus = 'ended';
     var endKey = 'vcend|' + (vc.at || 0) + '|' + (vc.hostUid || '');
-    if(window._voiceEndKey !== endKey){
+    var shouldEndTone = (prevSt === 'live' || prevSt === 'ringing') && window._voiceEndKey !== endKey;
+    if(shouldEndTone){
       window._voiceEndKey = endKey;
       try{ playCallSfx('end'); }catch(e){}
+    } else {
+      // Already ended (or resume after pause) — mark key so we never replay
+      window._voiceEndKey = endKey;
     }
     if(window._lkRoom){
       leaveVoiceCall(true);
     }
     return;
+  }
+  // Track active call status for transition detection
+  if(vc.status === 'live' || vc.status === 'ringing'){
+    window._vcLastStatus = vc.status;
   }
   if(!isAuctionHostUser() && ownerMode && user){
     const t = (vc.targets && vc.targets[user.uid]) || null;
@@ -7254,18 +7962,18 @@ async function hostResumeAndReopen(){
       }, { merge: true });
     }
   }catch(e){ safeAlert(e); return; }
-  // Resume is a user gesture — force unlock and play welcome
+  // Resume is a user gesture — unlock + welcome only (never call-end tone)
   try{
-    sfxUnlocked = false;
     unlockSfx();
-    if(sfxOn !== false && SFX_FILES && SFX_FILES.welcome){
-      const a = new Audio(SFX_FILES.welcome);
-      a.volume = Math.min(1, Math.max(0, sfxVolume != null ? sfxVolume : 0.75));
-      a.play().catch(function(){ try{ playSfx('welcome'); }catch(e2){} });
-    } else {
-      playSfx('welcome');
+    playSfx('welcome');
+  }catch(e){}
+  // Keep voice end key so stale voiceCall.status=ended cannot replay end.mp3
+  try{
+    if(T && T.voiceCall && T.voiceCall.status==='ended'){
+      window._vcLastStatus = 'ended';
+      window._voiceEndKey = 'vcend|' + (T.voiceCall.at || 0) + '|' + (T.voiceCall.hostUid || '');
     }
-  }catch(e){ try{ playSfx('welcome'); }catch(e3){} }
+  }catch(e){}
   sayEvent('Host has resumed the bidding.', 'host', false, { priority:'p0' });
   renderAuction({ focusBid: true });
 }
@@ -8047,18 +8755,30 @@ function startTimerLoop(){
     const maxSec=(T.rules&&T.rules.contestSeconds)||30;
     let sec=Math.ceil(msLeft/1000);
     if(sec>maxSec) sec=maxSec;
-    // From 12s: timer sound once. At 10s: long vibration. No spoken 10…1 countdown.
-    if(sec===12 && T.bid && !T.bid._sfxTimer12){
-      T.bid._sfxTimer12=true;
-      playSfx('timer');
-      showTimerBanner('12s');
+    // From 12s: timer sound ONCE per lot at normal speed (window key survives bid object replace)
+    if(sec===12 && T.bid){
+      var t12k = 't12|'+(T.bid.playerIndex)+'|'+(T.bid.timerEndsAt||'');
+      if(window._timer12Key !== t12k){
+        window._timer12Key = t12k;
+        T.bid._sfxTimer12 = true;
+        try{ stopTimerSfx(); }catch(e){}
+        playSfx('timer');
+        showTimerBanner('12s');
+      }
     }
-    if(sec===10 && T.bid && !T.bid._vibTimer10){
-      T.bid._vibTimer10=true;
-      try{ vibrateHeartbeat(); }catch(e){}
-      showTimerBanner('10s');
+    if(sec===10 && T.bid){
+      var t10k = 't10|'+(T.bid.playerIndex)+'|'+(T.bid.timerEndsAt||'');
+      if(window._timer10Key !== t10k){
+        window._timer10Key = t10k;
+        T.bid._vibTimer10 = true;
+        try{ vibrateHeartbeat(); }catch(e){}
+        showTimerBanner('10s');
+      }
     }
-    if(sec>12 && T.bid){ T.bid._sfxTimer12=false; T.bid._vibTimer10=false; T.bid._sfxTimer10=false; }
+    if(sec>12 && T.bid){
+      // Allow a future lot to play again (key includes timerEndsAt so new lots are unique)
+      T.bid._sfxTimer12=false; T.bid._vibTimer10=false; T.bid._sfxTimer10=false;
+    }
     // No TTS countdown for 10, 9, 8… (sound + vibration only)
     window._countdownSec=null;
     // All clients: local lock when timer ends (before host write arrives)

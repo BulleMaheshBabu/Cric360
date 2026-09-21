@@ -1725,7 +1725,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <button type="button" id="btnRegViewForm" class="btn-sec btn-block">Edit / view registration form</button>
     <button type="button" id="btnRegShare" class="btn-ok btn-block">Share registration link</button>
     <button type="button" id="btnRegCopyLink" class="btn-sec btn-block">Copy registration link</button>
-    <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block">Delete registration form</button>
+    <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block">Delete tournament</button>
     <button type="button" id="btnRegOpenRecords" class="btn-ok btn-block">Registration records</button>
     <button type="button" id="btnRegStartAuction" class="btn-ok btn-block">Start auction</button>
   </div>
@@ -6041,20 +6041,8 @@ async function loadRegistrationsHub(){
     snap.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data())); });
     // Fallback if orderBy fails (no index) — already in try
     paintRegsHubList(items);
-    // In-app alert for newly opened forms
-    try{
-      var seen = {};
-      try{ seen = JSON.parse(safeStorageGet('at_reg_seen')||'{}')||{}; }catch(e){}
-      var newest = items.filter(function(it){ return it.status==='open' && it.notifyAt && !seen[it.id]; })[0];
-      if(newest && $('hubRegsAlert')){
-        $('hubRegsAlert').classList.remove('hidden');
-        $('hubRegsAlert').textContent = 'Registrations opened for '+ (newest.title||'a tournament');
-        seen[newest.id] = 1;
-        try{ safeStorageSet('at_reg_seen', JSON.stringify(seen)); }catch(e){}
-      } else if($('hubRegsAlert')){
-        $('hubRegsAlert').classList.add('hidden');
-      }
-    }catch(e){}
+    // Never show sticky "registrations opened" dead text
+    try{ if($('hubRegsAlert')){ $('hubRegsAlert').classList.add('hidden'); $('hubRegsAlert').textContent=''; } }catch(e){}
   }catch(e){
     // no index: get all without order
     try{
@@ -6167,7 +6155,6 @@ async function openRegFormForUser(formId, isEdit){
     if(!isEdit && data.status !== 'open'){ alert('This registration is closed'); return; }
     var existingSnap = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
     if(!isEdit && existingSnap.exists){
-      // Switch to edit mode
       isEdit = true;
     }
     regFormCurrent = Object.assign({id: formId}, data);
@@ -6177,37 +6164,114 @@ async function openRegFormForUser(formId, isEdit){
       $('regFormRules').textContent = data.rulesText||'';
       $('regFormRules').classList.toggle('hidden', !(data.rulesText||'').trim());
     }
-    if($('regFormStatus')) $('regFormStatus').textContent = isEdit ? 'Update your details and save.' : '';
     if($('btnRegFormSubmit')) $('btnRegFormSubmit').textContent = isEdit ? 'Save changes' : 'Submit registration';
+    if($('regFormStatus')) $('regFormStatus').textContent = isEdit ? 'Loading your saved registration…' : 'Preparing form…';
     paintUserRegForm(data.fields||[]);
-    if(isEdit && existingSnap.exists){
-      fillUserRegForm(existingSnap.data());
-    } else {
-      try{ autoFillFromRegPref(data.fields||[]); }catch(e){}
-    }
     window._regFormIsEdit = !!isEdit;
-    try{ focusEl($('regFormTitle')); }catch(e){}
+
+    if(isEdit && existingSnap.exists){
+      // Fill saved entry after DOM paint
+      setTimeout(function(){
+        fillUserRegForm(existingSnap.data());
+        try{ wireRegShowIf(data.fields||[]); }catch(e){}
+        if($('regFormStatus')) $('regFormStatus').textContent = 'Your saved details are shown below. Update and save if needed.';
+        try{ announce('Your registration details loaded'); }catch(e){}
+        try{ focusEl($('regFormTitle')); }catch(e){}
+      }, 80);
+      return;
+    }
+
+    // New apply — offer preference if available
+    var pref = null;
+    try{
+      // refresh profile if needed
+      if((!profile || !profile.regProfile) && user){
+        var us = await db.collection('users').doc(user.uid).get();
+        if(us.exists){
+          profile = Object.assign(profile||{}, us.data());
+        }
+      }
+      pref = getRegPrefAnswers();
+    }catch(e){}
+
+    if(pref && Object.keys(pref).length){
+      ask(
+        'Matching preference found',
+        'A saved preference "'+( (profile.regProfile && profile.regProfile.title) || 'Preference one' )+'" was found. Do you want to proceed with that record?',
+        function(){
+          // Yes — load with progress
+          if($('regFormStatus')) $('regFormStatus').textContent = 'Loading preference… please wait.';
+          setTimeout(function(){
+            autoFillFromRegPref(data.fields||[]);
+            try{ wireRegShowIf(data.fields||[]); }catch(e){}
+            var summary = summarizeFilledFields(data.fields||[]);
+            if($('regFormStatus')) $('regFormStatus').textContent = 'Preference applied. Review the fields below.';
+            alert('Preference loaded.\n\nFilled fields:\n'+summary+'\n\nCheck every field, then submit.');
+            try{ announce('Preference applied to the form'); }catch(e){}
+            try{ focusEl($('regFormTitle')); }catch(e){}
+          }, 200);
+        },
+        {
+          yesLabel: 'Yes, use preference',
+          noLabel: 'No, fill manually',
+          onNo: function(){
+            if($('regFormStatus')) $('regFormStatus').textContent = 'Fill the form manually.';
+            try{ focusEl($('regFormTitle')); }catch(e){}
+          }
+        }
+      );
+    } else {
+      if($('regFormStatus')) $('regFormStatus').textContent = 'Fill the form and submit.';
+      try{ focusEl($('regFormTitle')); }catch(e){}
+    }
   }catch(e){ safeAlert(e); }
 }
 
+function summarizeFilledFields(fields){
+  var lines = [];
+  (fields||[]).forEach(function(f){
+    var fid = 'regA_'+f.id;
+    var val = '';
+    if(f.type==='text'||f.type==='number'){
+      val = ($('regA_'+f.id)&&$('regA_'+f.id).value)||'';
+    } else if(f.type==='yesno'||f.type==='gender'||f.type==='radio'){
+      var sel = document.querySelector('input[name="'+fid+'"]:checked');
+      val = sel ? sel.value : '';
+    } else if(f.type==='checkbox'){
+      var picked = [];
+      document.querySelectorAll('.regCb[data-fid="'+f.id+'"]:checked').forEach(function(cb){ picked.push(cb.value); });
+      val = picked.join(', ');
+    }
+    if(val) lines.push('• '+(f.title||f.id)+': '+val);
+  });
+  return lines.length ? lines.join('\n') : '(no values detected)';
+}
+
+
 function fillUserRegForm(entry){
-  if(!entry || !entry.answers || !regFormCurrent) return;
-  var fields = regFormCurrent.fields||[];
+  if(!entry) return;
+  var answers = entry.answers || entry || {};
+  var fields = (regFormCurrent && regFormCurrent.fields) || window._regPrefFields || [];
   fields.forEach(function(f){
-    var val = entry.answers[f.id];
+    var val = answers[f.id];
+    if(val==null || val==='') val = answers[regFieldKey(f.title)];
+    if(val==null) return;
     var fid = 'regA_'+f.id;
     if(f.type==='text' || f.type==='number'){
-      if($('regA_'+f.id)) $('regA_'+f.id).value = (val!=null ? String(val) : '');
+      var el = $('regA_'+f.id);
+      if(el) el.value = Array.isArray(val) ? val.join(', ') : String(val);
     } else if(f.type==='yesno' || f.type==='gender' || f.type==='radio'){
-      var radios = document.querySelectorAll('input[name="'+fid+'"]');
-      radios.forEach(function(r){ r.checked = (r.value === String(val)); });
+      document.querySelectorAll('input[name="'+fid+'"]').forEach(function(r){
+        r.checked = (String(r.value) === String(val));
+      });
     } else if(f.type==='checkbox'){
-      var arr = Array.isArray(val) ? val : [];
+      var arr = Array.isArray(val) ? val : [val];
       document.querySelectorAll('.regCb[data-fid="'+f.id+'"]').forEach(function(cb){
         cb.checked = arr.indexOf(cb.value) >= 0;
       });
     }
   });
+  try{ wireRegShowIf(fields); }catch(e){}
 }
 
 async function openRegHost(formId){
@@ -6369,7 +6433,13 @@ async function openRegPublicList(){
     });
     paintRegPublicList();
   }catch(e){
-    if(list) list.innerHTML = '<p class="hub-empty">Could not load list.</p>';
+    console.warn('openRegPublicList', e);
+    var msg = (e && (e.code||e.message)) || '';
+    if(/permission|insufficient/i.test(String(msg))){
+      if(list) list.innerHTML = '<p class="hub-empty">Unable to load the public list. Ask the host to update app permissions, or try again after the next update.</p>';
+    } else {
+      if(list) list.innerHTML = '<p class="hub-empty">Could not load list. '+(typeof friendlyError==='function'?friendlyError(e):'')+'</p>';
+    }
   }
   try{ focusEl($('regPublicTitle')); }catch(e){}
 }
@@ -6517,16 +6587,16 @@ async function submitUserRegForm(){
     }
     if(f.type==='text' || f.type==='number'){
       val = ($('regA_'+f.id)&&$('regA_'+f.id).value||'').trim();
-      if(f.required && !val){ alert('Please fill: '+f.title); try{ focusEl($('regA_'+f.id)); }catch(e){} return; }
+      if(f.required && !val){ alert('Please fill the "'+f.title+'" field and try again.'); try{ focusEl($('regA_'+f.id)); }catch(e){} return; }
     } else if(f.type==='yesno' || f.type==='gender' || f.type==='radio'){
       var sel = document.querySelector('input[name="'+fid+'"]:checked');
       val = sel ? sel.value : '';
-      if(f.required && !val){ alert('Please choose: '+f.title); return; }
+      if(f.required && !val){ alert('Please choose an option for "'+f.title+'" and try again.'); return; }
     } else if(f.type==='checkbox'){
       var picked = [];
       document.querySelectorAll('.regCb[data-fid="'+f.id+'"]:checked').forEach(function(cb){ picked.push(cb.value); });
       val = picked;
-      if(f.required && !picked.length){ alert('Please select at least one option: '+f.title); return; }
+      if(f.required && !picked.length){ alert('Please select at least one option for "'+f.title+'" and try again.'); return; }
     }
     answers[f.id] = val;
   }
@@ -6661,7 +6731,7 @@ function openRegPrefPanel(){
     regFormCurrent = prev;
     try{ wireRegShowIf(fields); }catch(e){}
   }
-  if($('regPrefStatus')) $('regPrefStatus').textContent = pref ? 'Loaded saved preference.' : 'No preference saved yet.';
+  if($('regPrefStatus')) $('regPrefStatus').textContent = pref ? ('Loaded: '+((profile.regProfile&&profile.regProfile.title)||'Preference one')+' — edit and save if needed.') : 'No preference saved yet. Fill and save as Preference one.';
 }
 function paintRegPrefForm(fields){
   var body = $('regPrefFormBody');
@@ -6741,14 +6811,49 @@ async function saveRegPrefFromPanel(){
     answers[regFieldKey(f.title)] = val;
   }
   try{
+    var prefDoc = {
+      title: 'Preference one',
+      answers: answers,
+      updatedAt: Date.now()
+    };
     await db.collection('users').doc(user.uid).set({
-      regProfile: { answers: answers, updatedAt: Date.now() }
+      regProfile: prefDoc
     }, { merge: true });
-    if(profile) profile.regProfile = { answers: answers, updatedAt: Date.now() };
-    if($('regPrefStatus')) $('regPrefStatus').textContent = 'Preference saved.';
-    try{ announce('Registration preference saved'); }catch(e){}
-    alert('Preference saved. Apply on tournaments will auto-fill these fields.');
+    if(profile) profile.regProfile = prefDoc;
+    if($('regPrefStatus')) $('regPrefStatus').textContent = 'Preference one saved. You can edit it any time from Settings.';
+    try{ announce('Preference one saved'); }catch(e){}
+    alert('Preference one saved.\n\nYou can edit it later from Settings → Registrations preference.\nWhen you apply for a tournament, you can load these details automatically.');
   }catch(e){ safeAlert(e); }
+}
+
+
+async function deleteRegTournamentFully(formId){
+  if(!db || !formId) return;
+  // Delete all entries first (batch in chunks of 400)
+  var snap = await db.collection('registrationForms').doc(formId).collection('entries').get();
+  var batch = db.batch();
+  var n = 0;
+  snap.forEach(function(doc){
+    batch.delete(doc.ref);
+    n++;
+    if(n >= 400){
+      // commit mid-way not async easy — use sequential batches
+    }
+  });
+  // Simple path: delete in one batch if <=400, else sequential
+  if(snap.size <= 400){
+    snap.forEach(function(doc){ batch.delete(doc.ref); });
+    if(snap.size) await batch.commit();
+  } else {
+    var docs = [];
+    snap.forEach(function(doc){ docs.push(doc); });
+    for(var i=0;i<docs.length;i+=400){
+      var b = db.batch();
+      docs.slice(i, i+400).forEach(function(doc){ b.delete(doc.ref); });
+      await b.commit();
+    }
+  }
+  await db.collection('registrationForms').doc(formId).delete();
 }
 
 function wireRegistrationsUi(){
@@ -6780,12 +6885,21 @@ function wireRegistrationsUi(){
   if($('btnRegOpenRecords')) $('btnRegOpenRecords').onclick=function(){ openRegRecordsScreen(); };
   if($('btnRegDeleteForm')) $('btnRegDeleteForm').onclick=function(){
     if(!regHostForm) return;
-    ask('Delete registration?','This removes the form. Existing entries may remain until cleaned up.', async function(){
-      try{
-        await db.collection('registrationForms').doc(regHostForm.id).delete();
-        enterHome(); switchHubTab('regs');
-      }catch(e){ safeAlert(e); }
-    });
+    var tname = regHostForm.title || 'this tournament';
+    ask(
+      'Delete tournament?',
+      'Are you sure you want to delete "'+tname+'"? Users will no longer be able to register. All registered player data will be permanently deleted. This cannot be undone.',
+      async function(){
+        try{
+          await deleteRegTournamentFully(regHostForm.id);
+          regHostForm = null;
+          regEntriesCache = [];
+          try{ announce('Tournament registration deleted'); }catch(e){}
+          enterHome(); switchHubTab('regs');
+        }catch(e){ safeAlert(e); }
+      },
+      { yesLabel: 'Yes, delete forever', noLabel: 'Cancel' }
+    );
   };
   if($('btnRegStartAuction')) $('btnRegStartAuction').onclick=function(){ startAuctionFromReg(); };
   if($('btnRegUserViewList')) $('btnRegUserViewList').onclick=function(){ openRegPublicList(); };

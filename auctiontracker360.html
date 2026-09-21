@@ -1273,8 +1273,8 @@ body.light #screenWatch .watch-top{
 }
 /* More tab — Search top-right, lists flush */
 #screenAuction .tools-head{
-  display:flex;align-items:center;justify-content:flex-end;
-  margin:0 0 8px!important;padding:0!important;min-height:40px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:0 0 8px!important;padding:0!important;min-height:44px;
 }
 #screenAuction .tools-search-btn{
   min-height:40px!important;padding:8px 14px!important;
@@ -1446,6 +1446,36 @@ body.phys-mode #aucCallMid,
 body.phys-mode #btnCallMute,
 body.phys-mode #btnCallExit,
 body.phys-mode #btnCallHostOpts{ display:none!important; }
+
+#screenAuction .tools-head{
+  display:flex!important;align-items:center;justify-content:space-between;gap:8px;
+  margin:0 0 8px!important;padding:0!important;min-height:44px;flex-wrap:wrap;
+}
+#screenAuction .tools-head-spacer{flex:1 1 auto;min-width:4px}
+#screenAuction .tools-owners-btn,
+#screenAuction .tools-search-btn,
+#screenAuction .tools-settings-btn{
+  min-height:44px!important;padding:8px 12px!important;
+  font-size:13px!important;font-weight:700!important;border-radius:12px!important;
+}
+/* Auction toolbar only Message | Call mid | Call — no Settings/Teams/Leave auction */
+#screenAuction #btnTeamsTop,
+#screenAuction #btnAucQuickSet.auc-toolbar #btnAucQuickSet,
+#screenAuction #btnHomeAuc{display:none!important;visibility:hidden!important;pointer-events:none!important}
+/* Direct touch: ensure bid buttons receive touches */
+#bidRegion, #bidRegion .bidRaise, #bidRegion button{
+  pointer-events:auto!important;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:rgba(14,165,233,0.25);
+  position:relative;z-index:5;
+}
+#screenAuction .auc-player-line, #screenAuction #pTimer, #screenAuction #aucStats{
+  pointer-events:auto;position:relative;z-index:2;
+}
+/* Kill ghost leave / online overlays intercepting touch */
+#onlinePanelTop[aria-hidden="true"],
+#btnHomeAuc,
+body .leave-auction-ghost{display:none!important;pointer-events:none!important;height:0!important;overflow:hidden!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -1668,15 +1698,13 @@ body.phys-mode #btnCallHostOpts{ display:none!important; }
           <button type="button" id="btnAucEndCall" class="btn-danger hidden" aria-label="End or leave call">Leave</button>
         </div>
         <div class="auc-tb-right">
-          <button type="button" id="btnTeamsTop" class="btn-sec hidden" aria-label="Teams online or away">Teams</button>
           <button type="button" id="btnAucCall" class="btn-ok hidden" aria-label="Voice call">Call</button>
-          <button type="button" id="btnAucQuickSet" class="btn-sec" aria-label="Quick settings">Settings</button>
         </div>
       </div>
       <div class="auc-center" id="aucCenterTitle" aria-hidden="true" hidden>Auction</div>
     </div>
     <div id="lkAudioSink" class="sr-only" aria-hidden="true"></div>
-    <div id="onlinePanelTop" class="hidden" style="margin:4px 0 8px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>
+    <div id="onlinePanelTop" class="hidden" aria-hidden="true" style="display:none!important"></div>
     <div id="msgOverlay" class="msg-overlay hidden" role="presentation">
     <div id="msgPanel" class="msg-panel" role="dialog" aria-modal="true" aria-labelledby="msgPanelTitle" aria-hidden="true">
       <button type="button" id="btnMsgCloseTop" class="btn-sec" style="width:100%;margin:0 0 10px;min-height:44px" aria-label="Close message box">Close</button>
@@ -1708,7 +1736,6 @@ body.phys-mode #btnCallHostOpts{ display:none!important; }
       <div id="aucPlayer" role="region" aria-label="Current player and timer"></div>
       <div class="auc-home-row" id="aucHostFooter">
         <button type="button" id="btnEndAuction" class="btn-sec">End this auction</button>
-        <button type="button" id="btnHomeAuc" class="btn-sec" aria-label="Leave auction">Leave auction</button>
       </div>
     </div>
     <div id="tabSquads" class="panel hidden" role="region" aria-labelledby="sqTitle">
@@ -1755,8 +1782,12 @@ body.phys-mode #btnCallHostOpts{ display:none!important; }
     <div id="tabTools" class="panel hidden" role="region" aria-labelledby="toolsTitle">
       <div class="tools-head">
         <h1 id="toolsTitle" class="sr-only" tabindex="-1">More</h1>
-        <button type="button" id="btnSearchPlayer" class="btn-sec tools-search-btn" aria-label="Search player">Search player</button>
+        <button type="button" id="btnOwnersMore" class="btn-sec tools-owners-btn" aria-label="Owners list">Owners</button>
+        <span class="tools-head-spacer" aria-hidden="true"></span>
+        <button type="button" id="btnSearchPlayer" class="btn-sec tools-search-btn" aria-label="Search player">Search</button>
+        <button type="button" id="btnAucQuickSet" class="btn-sec tools-settings-btn" aria-label="Quick settings">Settings</button>
       </div>
+      <div id="ownersMorePanel" class="hidden" role="region" aria-label="Owners list" style="margin:0 0 10px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>
       <div id="moreStats" class="stats hidden" role="group" aria-label="Auction statistics"></div>
       <div id="toolsMenuWrap">
         <div id="toolsMenu" class="squad-grid" role="navigation" aria-label="Player lists">
@@ -3231,27 +3262,31 @@ function dismissKeyboard(){
 function focusBidArea(){
   if(window._modalOpen || isConfirmOpen()) return;
   if(typeof isSquadDialogOpen==='function' && isSquadDialogOpen()) return;
+  if(document.body.classList.contains('chat-open')) return;
   dismissKeyboard();
   const region = $('bidRegion');
-  // Prefer first enabled raise button (easiest path to bid for SR users)
-  let first = document.querySelector('button.bidRaise:not([disabled])');
-  if(!first && region){
-    first = region.querySelector(
-      'button.bidRaise:not([disabled]), button#btnQuitLot, button.btn-ok:not([disabled]), button.btn-sec:not([disabled]), button.btn-danger:not([disabled])'
-    );
+  // Always first raise / open-bid button for direct touch + TalkBack
+  let first = null;
+  if(region){
+    first = region.querySelector('button.bidRaise:not([disabled])');
   }
+  if(!first) first = document.querySelector('#bidRegion button.bidRaise:not([disabled])');
   if(!first && region){
-    first = region.querySelector('[role="status"]');
+    first = region.querySelector('button.btn-ok:not([disabled]), button#btnOpenCustomBid');
   }
   if(!first){
     const pc = $('playerCard') || $('pName');
     if(pc) focusEl(pc);
     return;
   }
-  // Ensure button is focusable for TalkBack / VoiceOver
-  if(!first.hasAttribute('tabindex')) first.setAttribute('tabindex','0');
-  focusEl(first);
-  try{ first.scrollIntoView({ block:'nearest', behavior:'smooth' }); }catch(e){}
+  try{ first.setAttribute('tabindex','0'); }catch(e){}
+  // Double rAF so DOM from re-render is ready before focus (TalkBack + touch)
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      try{ focusEl(first); }catch(e){}
+      try{ first.scrollIntoView({ block:'center', behavior:'auto' }); }catch(e){}
+    });
+  });
 }
 
 function focusEl(el){
@@ -4652,21 +4687,8 @@ if(data.lastAlert && data.lastAlert.at){
       window._unsoldN = data.players.filter(p=>p.unsold).length;
     }
 
-    // Presence: owner left room
-    if(data.owners && data.presence){
-      const now=Date.now();
-      window._ownerOnlineState = window._ownerOnlineState || {};
-      data.owners.forEach(o=>{
-        if(!o||!o.uid) return;
-        const p=data.presence[o.uid];
-        const online=p && p.lastSeen && (now-p.lastSeen)<20000;
-        const prev=window._ownerOnlineState[o.uid];
-        if(prev===true && online===false && onLiveScreen){
-          sayEvent((o.teamName||o.displayName||'A team')+' left the room.', 'host');
-        }
-        window._ownerOnlineState[o.uid]=online;
-      });
-    }
+    // Presence left-room announcements removed (no online tracking)
+
 
     // New franchise owner join request (host on assign / setup)
     if(data.pendingOwners && Array.isArray(data.pendingOwners)){
@@ -4792,22 +4814,9 @@ function startAuctionLive(id){
     console.error('auction live snapshot', err);
     showAppError('Lost connection to live auction. '+friendlyError(err));
   });
-  // Presence heartbeat for owners / host
-  if(window._presenceTimer) clearInterval(window._presenceTimer);
+  // Presence heartbeat disabled — owners list is static (joined + team only), less Firestore load
+  if(window._presenceTimer){ clearInterval(window._presenceTimer); window._presenceTimer=null; }
   ensureIntermissionTicker();
-  window._presenceTimer=setInterval(()=>{
-    if(!user||!id||!db) return;
-    const onAuc=$('screenAuction') && !$('screenAuction').classList.contains('hidden');
-    const onWatch=$('screenWatch') && !$('screenWatch').classList.contains('hidden');
-    if(!onAuc && !onWatch) return;
-    const payload={ lastSeen: Date.now(), email:user.email||'', name:user.displayName||'', teamId: myTeamId||null };
-    const upd={};
-    upd['presence.'+user.uid]=payload;
-    db.collection('auctions').doc(id).update(upd).catch(err=>{
-      // fallback merge if update blocked
-      db.collection('auctions').doc(id).set({ presence: { [user.uid]: payload } }, { merge: true }).catch(()=>{});
-    });
-  }, 5000);
 }
 
 function stopPresence(){
@@ -4980,15 +4989,53 @@ function switchWatchTab(which){
 function buildWatchMoreShell(sold, unsold, pending, total){
   sold=sold!=null?sold:'—'; unsold=unsold!=null?unsold:'—';
   pending=pending!=null?pending:'—'; total=total!=null?total:'—';
-  // No body commentary button, no redundant "Player lists" heading — tab + top-right button cover it
   return ''+
+    '<div class="tools-head" style="display:flex;gap:8px;margin:0 0 10px;align-items:center">'+
+    '<button type="button" id="btnOwnersMoreWatch" class="btn-sec" aria-label="Owners list">Owners</button>'+
+    '<span style="flex:1" aria-hidden="true"></span>'+
+    '<button type="button" id="btnWatchMoreSettings" class="btn-sec" aria-label="Quick settings">Settings</button>'+
+    '</div>'+
+    '<div id="ownersMorePanelWatch" class="hidden" role="region" aria-label="Owners list" style="margin:0 0 10px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel)"></div>'+
     '<button type="button" class="list-btn wListKind" data-k="sold" aria-label="Sold players, '+sold+'">Sold — '+sold+'</button>'+
     '<button type="button" class="list-btn wListKind" data-k="unsold" aria-label="Unsold players, '+unsold+'">Unsold — '+unsold+'</button>'+
     '<button type="button" class="list-btn wListKind" data-k="remaining" aria-label="Remaining players, '+pending+'">Remaining — '+pending+'</button>'+
     '<button type="button" class="list-btn wListKind" data-k="total" aria-label="Total players, '+total+'">Total — '+total+'</button>';
 }
 function wireWatchMoreShell(){
-  // list buttons wired by renderWatch / caller
+  try{
+    if($('btnOwnersMoreWatch')){
+      $('btnOwnersMoreWatch').onclick = function(){
+        // Temporarily use watch panel id via ownersMorePanel
+        var panel = $('ownersMorePanelWatch');
+        if(!panel || !window._lastWatchData) return;
+        var owners = window._lastWatchData.owners || [];
+        if(!panel.classList.contains('hidden') && panel.innerHTML){
+          panel.classList.add('hidden'); panel.innerHTML=''; return;
+        }
+        var h = '<div class="row" style="justify-content:space-between"><h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners</h3>'+
+          '<button type="button" id="btnCloseOnlineW" class="btn-sec">Close</button></div>';
+        if(!owners.length) h += '<p style="color:var(--muted)">No owners listed.</p>';
+        else {
+          h += '<ul class="plain" role="list">';
+          owners.forEach(function(o){
+            var nm = o.displayName || o.email || 'Owner';
+            var team = o.teamName || '—';
+            h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)"><strong>'+String(nm).replace(/</g,'')+'</strong><br><span style="color:var(--muted)">Team: '+String(team).replace(/</g,'')+'</span></li>';
+          });
+          h += '</ul>';
+        }
+        panel.innerHTML = h;
+        panel.classList.remove('hidden');
+        try{ focusEl($('onlineH')); }catch(e){}
+        if($('btnCloseOnlineW')) $('btnCloseOnlineW').onclick = function(){ panel.classList.add('hidden'); panel.innerHTML=''; };
+      };
+    }
+    if($('btnWatchMoreSettings')){
+      $('btnWatchMoreSettings').onclick = function(){
+        try{ openWatchCommentary(); }catch(e){}
+      };
+    }
+  }catch(e){}
 }
 function openWatchCommentary(){
   try{ unlockSfx(); }catch(e){}
@@ -7360,7 +7407,7 @@ function switchTab(which){
       foot.classList.toggle('hidden', !show);
       if(show) foot.removeAttribute('inert');
       else foot.setAttribute('inert','');
-      // Leave auction must never be found by SR on Squads / Insights / More
+      // Leave auction removed — keep inactive tabs inert
       foot.querySelectorAll('button').forEach(function(b){
         if(show){
           b.removeAttribute('tabindex');
@@ -7478,6 +7525,7 @@ function switchTab(which){
 $('tabBtnAuction').onclick=()=>switchTab('auction');
 $('tabBtnSquads').onclick=()=>switchTab('squads');
 $('tabBtnInsights').onclick=()=>switchTab('insights');
+$('tabBtnTools').addEventListener('click',function(){ try{ wireMoreOwnersAndSettings(); }catch(e){} });
 $('tabBtnTools').onclick=()=>switchTab('tools');
 
 function isMsgPanelOpen(){
@@ -7826,10 +7874,8 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
 
   // Host Teams control lives in top bar beside Quick settings
   let hostBtns='';
-  if($('btnTeamsTop')){
-    $('btnTeamsTop').classList.toggle('hidden', !isHost || !isVirtual());
-    if(isHost) $('btnTeamsTop').onclick=()=>showOnlineOwners();
-  }
+  if($('btnTeamsTop')){ $('btnTeamsTop').classList.add('hidden'); $('btnTeamsTop').setAttribute('aria-hidden','true'); }
+
 
   const maxSec=rules.contestSeconds||30;
   const msLeft=Math.max(0,(b.timerEndsAt||0)-Date.now());
@@ -7846,9 +7892,9 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     '<div class="auc-player-line player-stage" id="playerCard">'+
     '<p style="margin:0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase" aria-hidden="true">NOW AUCTIONING</p>'+
     '<h2 class="player-name" id="pName" tabindex="-1">'+playerSpoken+'</h2>'+
-    '<p class="'+leadCls+'" id="leadLine">'+leadText+'</p>'+
     '</div>'+
     '<p class="timer-box" id="pTimer" role="timer" aria-label="Time remaining '+sec+' seconds"><span aria-hidden="true">'+sec+'s</span><span class="sr-only">Time remaining '+sec+' seconds</span></p>'+
+    '<p class="'+leadCls+'" id="leadLine" aria-live="off">'+leadText+'</p>'+
     '<div id="bidRegion" class="'+(ownerMode && canRaise ? 'bid-grid-owner' : '')+'" role="group" aria-label="Bidding actions">'+
     raiseBtns+chat+
     '</div>'+
@@ -7877,23 +7923,15 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
       }, 220);
     }
   } else if(opts.focusBid && !window._modalOpen && !isUiLocked()){
-    // Explicit request (after own bid) — still once
-    const fk2='refocus|'+idx+'|'+(b.price||'')+'|'+(b.leaderTeamId||'');
-    if(window._bidRefocusKey!==fk2){
-      window._bidRefocusKey=fk2;
-      setTimeout(function(){
-        if(isUiLocked()) return;
-        dismissKeyboard();
-        focusBidArea();
-      }, 180);
-    }
+    // After every successful bid / UI refresh — first raise button
+    setTimeout(function(){
+      if(isUiLocked() || window._modalOpen) return;
+      dismissKeyboard();
+      focusBidArea();
+    }, 180);
   }
   const q=$('btnQuitLot'); if(q) q.onclick=()=>doQuit();
-  if($('btnTeamsTop')){
-    const showTeams = !!(isHost && isVirtual());
-    $('btnTeamsTop').classList.toggle('hidden', !showTeams);
-    if(showTeams) $('btnTeamsTop').onclick=()=>showOnlineOwners();
-  }
+  if($('btnTeamsTop')){ $('btnTeamsTop').classList.add('hidden'); }
   if($('btnEndAuction')) $('btnEndAuction').classList.toggle('hidden', !isHost);
 }
 
@@ -7929,42 +7967,48 @@ function recentLineHtml(recent){
 }
 
 function showOnlineOwners(){
-  // Prefer top panel beside Quick settings (host)
-  const panel=$('onlinePanelTop') || $('onlinePanel');
+  // Owners list only on More tab — joined owners + team (no live presence / less Firebase)
+  const panel = $('ownersMorePanel') || $('onlinePanelTop') || $('onlinePanel');
   if(!panel) return;
   if(!panel.classList.contains('hidden') && panel.innerHTML){
     panel.classList.add('hidden');
     panel.innerHTML='';
-    focusEl($('btnTeamsTop')||$('btnOnlineOwners'));
+    try{ focusEl($('btnOwnersMore')); }catch(e){}
     return;
   }
-  const owners=T.owners||[];
-  const pres=window._lastPresence||T.presence||{};
-  const now=Date.now();
-  let onlineN=0, awayN=0;
-  owners.forEach(o=>{
-    const p=pres[o.uid];
-    if(p && p.lastSeen && (now-p.lastSeen)<20000) onlineN++; else awayN++;
-  });
-  let h='<div class="row" style="justify-content:space-between"><h3 id="onlineH" tabindex="-1" style="margin:0">Teams online</h3>'+
-    '<button type="button" id="btnCloseOnline" class="btn-sec">Close</button></div>'+
-    '<p style="font-weight:700">Online: '+onlineN+' · Away: '+awayN+'</p>';
-  if(!owners.length) h+='<p style="color:var(--muted)">No owners assigned.</p>';
-  owners.forEach(o=>{
-    const p=pres[o.uid];
-    const online=p && p.lastSeen && (now-p.lastSeen)<20000;
-    const ago=p&&p.lastSeen?Math.round((now-p.lastSeen)/1000)+'s ago':'no signal';
-    h+='<div style="padding:8px 0;border-bottom:1px solid var(--border)"><strong>'+(o.displayName||o.email||'')+'</strong><br>'+
-      '<span style="color:var(--muted)">'+(o.email||'')+'</span><br>Team: <strong>'+(o.teamName||'—')+'</strong><br>'+
-      (online?'<span class="badge sold">Online</span>':'<span class="badge unsold">Away ('+ago+')</span>')+'</div>';
-  });
-  h+='<button type="button" id="btnRefreshOnline" class="btn-sec btn-block" style="margin-top:10px">Refresh list</button>';
-  panel.innerHTML=h;
+  const owners = (T && T.owners) || [];
+  let h = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px">'+
+    '<h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners</h3>'+
+    '<button type="button" id="btnCloseOnline" class="btn-sec" aria-label="Close owners list">Close</button></div>';
+  if(!owners.length){
+    h += '<p style="color:var(--muted);margin:10px 0 0">No owners joined yet.</p>';
+  } else {
+    h += '<ul class="plain" style="margin:10px 0 0" role="list">';
+    owners.forEach(function(o){
+      var nm = (o.displayName || o.email || 'Owner');
+      var team = o.teamName || ((T.teams||[]).find(function(t){ return t.id===o.teamId; })||{}).name || '—';
+      h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)" role="listitem">'+
+        '<strong>'+String(nm).replace(/</g,'')+'</strong>'+
+        '<br><span style="color:var(--muted)">Team: '+String(team).replace(/</g,'')+'</span></li>';
+    });
+    h += '</ul>';
+  }
+  panel.innerHTML = h;
   panel.classList.remove('hidden');
-  focusEl($('onlineH'));
-  $('btnCloseOnline').onclick=()=>{ panel.classList.add('hidden'); panel.innerHTML=''; focusEl($('btnTeamsTop')||$('btnOnlineOwners')); };
-  $('btnRefreshOnline').onclick=()=>{ panel.classList.add('hidden'); showOnlineOwners(); };
+  panel.removeAttribute('aria-hidden');
+  try{ focusEl($('onlineH') || $('btnCloseOnline')); }catch(e){}
+  if($('btnCloseOnline')) $('btnCloseOnline').onclick = function(){
+    panel.classList.add('hidden'); panel.innerHTML='';
+    try{ focusEl($('btnOwnersMore')); }catch(e){}
+  };
 }
+function wireMoreOwnersAndSettings(){
+  try{
+    if($('btnOwnersMore')) $('btnOwnersMore').onclick = function(){ showOnlineOwners(); };
+  }catch(e){}
+}
+try{ wireMoreOwnersAndSettings(); }catch(e){}
+
 
 function meetButtonHtml(){
   const url=(T && T.meetLink) ? String(T.meetLink).trim() : '';
@@ -8271,15 +8315,13 @@ async function doRaise(targetPrice, inc, isUltimate){
         window._sfxSkipBid=true;
         playSfx('bid');
       }
-      // After bid: focus bidding region status (You are leading), never keep input focus
+      // After bid: always land on first raise button for next bid (direct touch + SR)
       setTimeout(function(){
         dismissKeyboard();
-        try{
-          const leadMsg = $('bidRegion') && $('bidRegion').querySelector('[role="status"]');
-          if(leadMsg) focusEl(leadMsg);
-          else focusBidArea();
-        }catch(e2){}
-      }, 100);
+        window._bidRefocusKey = null;
+        window._bidFocusKey = null;
+        try{ focusBidArea(); }catch(e2){}
+      }, 160);
     }
   }catch(e){
     const msg = friendlyError(e);
@@ -9824,19 +9866,10 @@ function wireAucQuickSettings(){
 wireAucQuickSettings();
 wireRoomMessage();
 
-$('btnHomeAuc').onclick=async()=>{
-  if(T && user && T.ownerId===user.uid && T.status==='live' && isVirtual()){
-    ask('Take a break?','Owners will see that the host is on break and bidding will pause.', async()=>{
-      T.paused=true;
-      try{ await cloudSave(false); }catch(e){ safeAlert(e); }
-      stopAuctionLive(); stopTimer(); helperMode=false; ownerMode=false;
-      // Keep T null via enterHome
-      enterHome();
-    });
-    return;
-  }
-  stopAuctionLive(); stopTimer(); helperMode=false; ownerMode=false; enterHome();
-};
+/* Leave auction removed — use browser back / home from hub only */
+if($('btnHomeAuc')){
+  try{ $('btnHomeAuc').remove(); }catch(e){}
+}
 
 if($('btnMyAuctions')) $('btnMyAuctions').onclick=async function(){
   // Stay on Live tab — show manage list above live list

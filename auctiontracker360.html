@@ -9622,17 +9622,18 @@ function canUseRoomMessage(){
 }
 
 function showMsgFab(){
+  var fab = $('btnMsgFab');
+  if(!fab) return;
   try{
     if(typeof isPhysical==='function' && isPhysical()){
-      var fab=$('btnMsgFab'); if(fab){ fab.classList.add('hidden'); fab.setAttribute('aria-hidden','true'); }
+      fab.classList.add('hidden');
+      fab.setAttribute('aria-hidden','true');
       return;
     }
   }catch(e){}
-
-  const fab=$('btnMsgFab');
-  if(!fab) return;
-  const show=canUseRoomMessage() && T && T.status==='live';
+  var show = canUseRoomMessage() && T && T.status==='live';
   fab.classList.toggle('hidden', !show);
+  if(show) fab.removeAttribute('aria-hidden');
   fab.style.pointerEvents = show ? 'auto' : '';
   fab.style.zIndex = show ? '60' : '';
 }

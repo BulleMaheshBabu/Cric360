@@ -1373,6 +1373,79 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
 #tabSquads h1{margin:4px 0 8px;font-size:1.15rem}
 #tabTools h1{margin:4px 0 8px;font-size:1.15rem}
 
+
+/* Owner bid layout: 6 buttons per row, compact, single-screen */
+#bidRegion.bid-grid-owner{
+  display:grid;
+  grid-template-columns:repeat(6, minmax(0, 1fr));
+  gap:6px;
+  margin:6px 0 0;
+  align-items:stretch;
+}
+#bidRegion.bid-grid-owner .bidRaise,
+#bidRegion.bid-grid-owner #btnQuitLot,
+#bidRegion.bid-grid-owner #btnOpenCustomBid{
+  min-height:48px;
+  min-width:0;
+  padding:8px 4px;
+  font-size:13px;
+  font-weight:800;
+  border-radius:12px;
+  margin:0;
+  width:100%;
+}
+#bidRegion.bid-grid-owner .bidRaise-open,
+#bidRegion .bidRaise-open{
+  grid-column:1 / -1;
+  min-height:56px;
+  font-size:18px;
+  border-radius:16px;
+  letter-spacing:.02em;
+}
+#bidRegion.bid-grid-owner #btnQuitLot{ grid-column:1 / -1; }
+#bidRegion.bid-grid-owner #btnOpenCustomBid{ grid-column:1 / -1; }
+#bidRegion.bid-grid-owner .bid-status-msg{ grid-column:1 / -1; margin:0; }
+/* Sticky stats under toolbar — focusable */
+.auc-stats-sticky{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:6px;
+  margin:0 0 8px;
+  padding:0;
+}
+.auc-stats-sticky button.stat-btn{
+  min-height:44px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.08);
+  background:var(--card, #131a29);
+  color:var(--text);
+  font-weight:700;
+  font-size:12px;
+  padding:6px 4px;
+  text-align:center;
+  box-shadow:0 2px 10px rgba(0,0,0,0.25);
+}
+.auc-stats-sticky button.stat-btn strong{ display:block; font-size:16px; font-weight:800; margin-top:2px; }
+.auc-stats-sticky button.stat-btn:active{ transform:scale(0.97); }
+/* Custom bid: keep sticky header + player + timer visible; hide keys + tabbar */
+body.chat-open .tabbar{ display:none!important; }
+body.chat-open #bidRegion{ display:none!important; }
+body.chat-open .auc-topbar,
+body.chat-open #aucStats,
+body.chat-open #playerCard,
+body.chat-open #pTimer{ display:block!important; visibility:visible!important; }
+body.chat-open #pTimer{ position:sticky; top:52px; z-index:50; }
+body.chat-open #playerCard{ position:sticky; top:0; z-index:51; background:var(--bg, #0b0f19); padding-bottom:4px; }
+/* Physical: hide comms chrome via class */
+body.phys-mode #btnMsgFab,
+body.phys-mode #btnAucCall,
+body.phys-mode #btnAucMute,
+body.phys-mode #btnAucEndCall,
+body.phys-mode #btnTeamsTop,
+body.phys-mode #aucCallMid,
+body.phys-mode #btnCallMute,
+body.phys-mode #btnCallExit,
+body.phys-mode #btnCallHostOpts{ display:none!important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -1459,7 +1532,7 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
       <button type="button" id="btnWatchCommentary" class="btn-sec hidden" aria-label="Enable commentary and sounds" style="margin-left:auto;min-height:40px;border-radius:12px;font-weight:700;font-size:13px;padding:0 12px">Commentary</button>
       <button type="button" id="btnWatchCall" class="btn-ok hidden" aria-label="Voice call" style="min-height:40px">Call</button>
     </div>
-    <div id="watchStats" class="stats" aria-hidden="true"></div>
+    <div id="watchStats" class="stats" role="group" aria-label="Auction statistics"></div>
     <div id="watchPaneLive" class="watch-pane"><div id="watchPlayer"></div></div>
     <div id="watchPaneSquads" class="watch-pane hidden"></div>
     <div id="watchPaneInsights" class="watch-pane hidden"></div>
@@ -1631,7 +1704,7 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
     </div>
 
     <div id="tabAuction" class="panel" role="region" aria-labelledby="aucCenterTitle">
-      <div id="aucStats" class="stats" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
+      <div id="aucStats" class="stats" role="group" aria-label="Auction statistics"></div>
       <div id="aucPlayer" role="region" aria-label="Current player and timer"></div>
       <div class="auc-home-row" id="aucHostFooter">
         <button type="button" id="btnEndAuction" class="btn-sec">End this auction</button>
@@ -1684,7 +1757,7 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
         <h1 id="toolsTitle" class="sr-only" tabindex="-1">More</h1>
         <button type="button" id="btnSearchPlayer" class="btn-sec tools-search-btn" aria-label="Search player">Search player</button>
       </div>
-      <div id="moreStats" class="stats hidden" role="group" aria-label="Auction statistics" aria-hidden="true"></div>
+      <div id="moreStats" class="stats hidden" role="group" aria-label="Auction statistics"></div>
       <div id="toolsMenuWrap">
         <div id="toolsMenu" class="squad-grid" role="navigation" aria-label="Player lists">
           <button type="button" class="list-btn" data-list="sold" id="btnListSold">Sold — list</button>
@@ -1886,33 +1959,44 @@ function queueClearSpeech(){
   try{ if(typeof ttsStop==='function') ttsStop(); }catch(e){}
 }
 
-/** Announce current player at most once per index+name; works for host, owners, and viewers */
-function announceNowPlayer(idx, name, total, liveData){
+/** Announce current player at most once per index+name; works for host, owners, and viewers.
+ *  force=true: host pressed Next player — always speak + player SFX once (ignore gap/quiet races). */
+function announceNowPlayer(idx, name, total, liveData, force){
   // Prefer explicit live snapshot (viewers); fall back to host state T
   const D = liveData || window._lastWatchData || T || null;
   if(!D) return;
   if(D.paused) return;
-  // Manual Next player: no speech/SFX until host presses Next
-  if(D.awaitNextPlayer) return;
-  if(D.bid && (D.bid.phase==='await_next' || D.bid.phase==='intermission')) return;
-  if(D.intermissionUntil && D.intermissionUntil > Date.now()) return;
-  if(window._sayPlayerKey === '__in_gap__' || window._gapPendingPlayer) return;
-  // isAwaitingNextPlayer uses T — only apply when we have host state
-  if(T && typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
-  // Manual mode: only announce after host presses Next player
-  if((D.playerAdvance==='manual' || (T && T.playerAdvance==='manual')) && !window._allowNextPlayerAnnounce){
-    return;
+  if(!force){
+    // Manual Next player: no speech/SFX until host presses Next
+    if(D.awaitNextPlayer) return;
+    if(D.bid && (D.bid.phase==='await_next' || D.bid.phase==='intermission')) return;
+    if(D.intermissionUntil && D.intermissionUntil > Date.now()) return;
+    if(window._sayPlayerKey === '__in_gap__' || window._gapPendingPlayer) return;
+    // isAwaitingNextPlayer uses T — only apply when we have host state
+    if(T && typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
+    // Manual mode: only announce after host presses Next player
+    if((D.playerAdvance==='manual' || (T && T.playerAdvance==='manual')) && !window._allowNextPlayerAnnounce){
+      return;
+    }
+    const pkey = 'pl|'+idx+'|'+(name||'');
+    if(window._sayPlayerKey === pkey) return;
+    window._sayPlayerKey = pkey;
+  } else {
+    // Forced (Next player): clear gap gates so sound + line always fire once
+    window._gapPendingPlayer = false;
+    window._allowNextPlayerAnnounce = true;
+    window._sayPlayerKey = null;
+    window._playerSfxForGap = false;
+    const pkey = 'pl|'+idx+'|'+(name||'');
+    window._sayPlayerKey = pkey;
   }
-  const pkey = 'pl|'+idx+'|'+(name||'');
-  if(window._sayPlayerKey === pkey) return;
-  window._sayPlayerKey = pkey;
   window._allowNextPlayerAnnounce=false;
   // Drop older queued player lines so commentary cannot loop old names
   _speechQueue = (_speechQueue||[]).filter(function(x){ return x.category !== 'player'; });
-  // If gap was skipped or sound not yet played, play player cue now
-  if(!window._playerSfxForGap){
+  // Player cue sound (always on force; otherwise if not already played for this gap)
+  if(force || !window._playerSfxForGap){
     window._playerSfxForGap = true;
-    try{ playSfx('player'); }catch(e){}
+    try{ unlockSfx(); playSfx('player'); }catch(e){}
   }
   const n = (total!=null ? total : ((D.players||[]).length||0));
   const line = 'Now auctioning '+(name||'player')+', number '+(idx+1)+' of '+n;
@@ -3368,6 +3452,8 @@ function isSquadDialogOpen(){
   return false;
 }
 function isUiLocked(){
+  try{ if(document.body.classList.contains('chat-open')) return true; }catch(e){}
+
   if(window._modalOpen || (typeof isConfirmOpen==='function' && isConfirmOpen())) return true;
   if(typeof isMsgPanelOpen==='function' && isMsgPanelOpen()) return true;
   if(typeof isSoldFormOpen==='function' && isSoldFormOpen()) return true;
@@ -3455,6 +3541,26 @@ function canCreate(){
   return !!profile.isOrganiser;
 }
 function isVirtual(){ return T && T.mode==='virtual'; }
+
+
+function wireStatButtons(){
+  try{
+    if($('statSold')) $('statSold').onclick=function(){ try{ switchWatchTab && switchWatchTab('lists'); }catch(e){} try{ if(typeof openPlayerList==='function') openPlayerList('sold'); else if($('btnListSold')) $('btnListSold').click(); else if($('tabBtnTools')){ $('tabBtnTools').click(); setTimeout(function(){ if($('btnListSold')) $('btnListSold').click(); }, 80); } }catch(e){} };
+    if($('statUnsold')) $('statUnsold').onclick=function(){ try{ if($('tabBtnTools')){ $('tabBtnTools').click(); setTimeout(function(){ if($('btnListUnsold')) $('btnListUnsold').click(); }, 80); } }catch(e){} };
+    if($('statRemaining')) $('statRemaining').onclick=function(){ try{ if($('tabBtnTools')){ $('tabBtnTools').click(); setTimeout(function(){ if($('btnListRemaining')) $('btnListRemaining').click(); }, 80); } }catch(e){} };
+  }catch(e){}
+}
+
+function buildFocusableStatsHtml(sold, unsold, pending, total){
+  // Focusable stats for TalkBack — under toolbar / home-style panel
+  return '<div class="auc-stats-sticky" role="group" aria-label="Auction statistics">'+
+    '<button type="button" class="stat-btn" id="statSold" aria-label="Sold '+sold+'">Sold<strong>'+sold+'</strong></button>'+
+    '<button type="button" class="stat-btn" id="statUnsold" aria-label="Unsold '+unsold+'">Unsold<strong>'+unsold+'</strong></button>'+
+    '<button type="button" class="stat-btn" id="statRemaining" aria-label="Remaining '+pending+'">Remaining<strong>'+pending+'</strong></button>'+
+    '</div>';
+}
+
+function isPhysical(){ return T && T.mode==='physical'; }
 
 try{
   firebase.initializeApp(firebaseConfig);
@@ -4514,7 +4620,7 @@ if(data.lastAlert && data.lastAlert.at){
       if(window._lastQuitKey!==qk && onLiveScreen){
         window._lastQuitKey=qk;
         const q=data.bid.lastQuit;
-        sayEvent((q.teamName||'A team')+' quit from bidding for '+(q.playerName||'the player')+'.', 'bid');
+        sayEvent((q.teamName||'A team')+' quits from bidding to '+(q.playerName||'the player')+'.', 'bid');
       }
     }
 
@@ -5084,7 +5190,7 @@ function renderWatch(data){
   if($('watchStats') && window._watchStatsKey!==statsKey){
     window._watchStatsKey=statsKey;
     $('watchStats').innerHTML=
-      '<div class="stats-4" aria-hidden="true">'+
+      '<div class="stats-4">'+
       '<span class="stat">Sold<br><strong>'+sold+'</strong></span>'+
       '<span class="stat">Unsold<br><strong>'+unsold+'</strong></span>'+
       '<span class="stat">Pending<br><strong>'+pending+'</strong></span>'+
@@ -5178,7 +5284,7 @@ function renderWatch(data){
     }
     let timer='—';
     if(data.mode==='virtual'){
-      if(bid.phase==='await_host') timer='Waiting for host';
+      if(bid.phase==='await_host') timer='Waiting for host decision';
       else if(bid.timerEndsAt){
         const sec=Math.max(0, Math.ceil((bid.timerEndsAt-Date.now())/1000));
         timer=sec+'s';
@@ -5199,7 +5305,7 @@ function renderWatch(data){
         (data.mode==='virtual'?'<p class="'+leadCls+'" id="wLead" aria-hidden="true">'+leadShow+'</p>':'')+
         '<span class="sr-only">'+spoken+'</span>'+
         '</div>'+
-        (data.mode==='virtual'?'<p class="timer-box" id="wTimer" aria-hidden="true">'+timer+'</p>':'')+
+        (data.mode==='virtual'?'<p class="timer-box" id="wTimer" role="status" aria-live="off">'+timer+'</p>':'')+
         recentLineHtml(recent)+
         aiInsightHtml(data);
     } else {
@@ -5976,6 +6082,16 @@ function onAuctionLiveScreen(){
   return !!( $('screenAuction') && !$('screenAuction').classList.contains('hidden') );
 }
 function updateNavCallBtn(){
+  try{
+    if(typeof isPhysical==='function' && isPhysical()){
+      ['btnAucCall','btnAucMute','btnAucEndCall','btnTeamsTop','btnCallMute','btnCallExit','btnCallHostOpts'].forEach(function(id){
+        var el=$(id); if(!el) return;
+        el.classList.add('hidden'); el.setAttribute('aria-hidden','true');
+      });
+      return;
+    }
+  }catch(e){}
+
   const show = canUseVoiceCall() && onAuctionLiveScreen();
   const inCall = !!(window._lkRoom);
   const b = $('btnAucCall');
@@ -6262,9 +6378,12 @@ async function ringVoiceOwners(onlyUids){
   }catch(e){ safeAlert(e); }
 }
 async function endVoiceCallForAll(){
-  try{ playCallSfx('end'); }catch(e){}
   if(!isAuctionHostUser() || !T) return;
-  T.voiceCall = { status: 'ended', at: Date.now(), hostUid: user && user.uid };
+  var endAt = Date.now();
+  T.voiceCall = { status: 'ended', at: endAt, hostUid: user && user.uid };
+  // Mark key before save so snapshot does not double-play; play once here for host
+  window._voiceEndKey = 'vcend|' + endAt + '|' + (user && user.uid || '');
+  try{ playCallSfx('end'); }catch(e){}
   try{ await cloudSave(false); }catch(e){}
   await leaveVoiceCall(true);
   closeVoiceHostModal();
@@ -6339,18 +6458,14 @@ function syncVoiceCallUi(data){
   if(vc.status === 'ended'){
     closeVoiceRingModal();
     closeLateJoinModal();
-    if(window._lkRoom){
-      // Play end tone for everyone still in the call (once)
-      if(!window._endSfxPlayed){
-        window._endSfxPlayed = true;
-        try{ playCallSfx('end'); }catch(e){}
-        setTimeout(function(){ window._endSfxPlayed = false; }, 3000);
-      }
-      leaveVoiceCall(true);
-    } else if(!window._endSfxPlayed && (isAuctionHostUser() || ownerMode)){
-      window._endSfxPlayed = true;
+    // Play end tone ONCE per ended call (keyed by vc.at). Do not reset — snapshots must not replay.
+    var endKey = 'vcend|' + (vc.at || 0) + '|' + (vc.hostUid || '');
+    if(window._voiceEndKey !== endKey){
+      window._voiceEndKey = endKey;
       try{ playCallSfx('end'); }catch(e){}
-      setTimeout(function(){ window._endSfxPlayed = false; }, 3000);
+    }
+    if(window._lkRoom){
+      leaveVoiceCall(true);
     }
     return;
   }
@@ -7376,6 +7491,11 @@ function isSoldFormOpen(){
 }
 
 function renderAuction(opts){
+  try{
+    document.body.classList.toggle('phys-mode', !!(T && T.mode==='physical'));
+    document.body.classList.toggle('virt-mode', !!(T && T.mode==='virtual'));
+  }catch(e){}
+
   opts=opts||{};
   if(!T) return;
   try{ showMsgFab(); }catch(e){}
@@ -7385,12 +7505,11 @@ function renderAuction(opts){
   const pl=T.players||[];
   const sold=pl.filter(p=>p.sold).length, unsold=pl.filter(p=>p.unsold).length;
   if($('aucStats')){
-    setHtml('aucStats',
-      '<div class="stats-4" aria-hidden="true">'+
-      '<span class="stat">Sold<br><strong>'+sold+'</strong></span>'+
-      '<span class="stat">Unsold<br><strong>'+unsold+'</strong></span>'+
-      '<span class="stat">Pending<br><strong>'+(pl.length-sold-unsold)+'</strong></span>'+
-      '<span class="stat">Total<br><strong>'+pl.length+'</strong></span></div>');
+    var pendingP = pl.length-sold-unsold;
+    setHtml('aucStats', (typeof buildFocusableStatsHtml==='function')
+      ? buildFocusableStatsHtml(sold, unsold, pendingP, pl.length)
+      : ('<div class="stats-4"><span class="stat">Sold<br><strong>'+sold+'</strong></span></div>'));
+    try{ $('aucStats').removeAttribute('aria-hidden'); }catch(e){}
   }
 
   // Keep center title as tournament name only (not lead price / brand)
@@ -7484,7 +7603,7 @@ function renderAuction(opts){
     '<div id="soldForm" class="hidden panel" style="margin-top:8px"></div>'+
     (recentLineHtml(recent)||'');
   // Do not re-announce on every redraw — only when key is new (quiet join seeds key)
-  if(!window._liveJoinQuiet) announceNowPlayer(idx, p.name, pl.length);
+  if(!opts.skipAnnounce && !window._liveJoinQuiet) announceNowPlayer(idx, p.name, pl.length);
   if(!opts.skipFocus && !window._soldFormOpen && !window._modalOpen && !isUiLocked()){
     const fk='physfocus|'+idx+'|'+(p.name||'');
     if(window._bidFocusKey!==fk){
@@ -7623,7 +7742,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
       '<h2 class="player-name" id="pName" tabindex="-1">'+playerSpoken+'</h2>'+
       '<p class="'+leadCls+'">'+lead+'</p>'+
       '</div>'+
-      '<p class="timer-box warn" role="status">Waiting for host</p>'+
+      '<p class="timer-box warn" role="status">Waiting for host decision</p>'+
       (isHost?'<div id="hostDecisionMount"></div>':'')+
       recentLineHtml(recent);
     if(isHost) showHostTimerDecision(!!b.leaderTeamId);
@@ -7643,53 +7762,63 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     const statsKey=sold+'|'+unsold+'|'+pending+'|'+pl.length;
     if(window._statsKey!==statsKey){
       window._statsKey=statsKey;
-      const html='<div class="stats-4" aria-hidden="true">'+
-        '<span class="stat">Sold<br><strong>'+sold+'</strong></span>'+
-        '<span class="stat">Unsold<br><strong>'+unsold+'</strong></span>'+
-        '<span class="stat">Pending<br><strong>'+pending+'</strong></span>'+
-        '<span class="stat">Total<br><strong>'+pl.length+'</strong></span></div>';
+      const html = (typeof buildFocusableStatsHtml==='function')
+        ? buildFocusableStatsHtml(sold, unsold, pending, pl.length)
+        : ('<div class="stats-4"><span class="stat">Sold<br><strong>'+sold+'</strong></span></div>');
       setHtml('aucStats', html);
       setHtml('moreStats', html);
+      try{
+        if($('aucStats')){ $('aucStats').removeAttribute('aria-hidden'); $('aucStats').setAttribute('aria-label','Auction statistics'); }
+        if($('moreStats')){ $('moreStats').removeAttribute('aria-hidden'); }
+        if(typeof wireStatButtons==='function') wireStatButtons();
+      }catch(e){}
     }
   }catch(e){}
 
-  // Bid buttons — up to 4 per row (hidden when squad at maximum)
+  // Bid buttons — opening as launch key; then up to 6 raises in one row (single screen)
   let raiseBtns='';
   if(squadFull){
     const mx = getTeamMax(myTeamObj) || (myTeamObj.players||[]).length;
-    raiseBtns='<p class="lead-line" style="grid-column:1/-1" role="status" tabindex="-1" id="squadReadyMsg">'+
+    raiseBtns='<p class="lead-line bid-status-msg" role="status" tabindex="-1" id="squadReadyMsg">'+
       'Your squad is ready. Maximum '+mx+' players filled. Enjoy the auction as a viewer.</p>';
   } else if(canRaise){
     if(!b.leaderTeamId){
       const base=rules.basePrice||0;
-      raiseBtns+='<button type="button" class="btn-ok bidRaise" data-target="'+base+'" data-inc="0" aria-label="Place opening bid at '+base+'">Open '+base+'</button>';
+      raiseBtns+='<button type="button" class="btn-ok bidRaise bidRaise-open" data-target="'+base+'" data-inc="0" aria-label="Place opening bid at '+base+'">Open bid '+base+'</button>';
     } else {
       const minInc=rules.minRaise||10;
       const minT=b.price+minInc;
       const maxInc=rules.maxRaise||minInc*10;
-      raiseBtns+='<button type="button" class="btn-ok bidRaise" data-inc="'+minInc+'" data-target="'+minT+'" aria-label="Increase by '+minInc+' to '+minT+'">+'+minInc+'</button>';
+      // Collect up to 6 raise amounts: min + custom (unique, sorted)
+      var raiseSet = [];
+      raiseSet.push(minInc);
       if(rules.customOn && rules.customBids){
-        rules.customBids.forEach(inc=>{
-          if(inc>=minInc && inc<=maxInc){
-            const t=b.price+inc;
-            raiseBtns+='<button type="button" class="btn-sec bidRaise" data-inc="'+inc+'" data-target="'+t+'" aria-label="Increase by '+inc+' to '+t+'">+'+inc+'</button>';
-          }
+        rules.customBids.forEach(function(inc){
+          inc = Number(inc);
+          if(inc>=minInc && inc<=maxInc && raiseSet.indexOf(inc)<0) raiseSet.push(inc);
         });
       }
+      raiseSet.sort(function(a,b){ return a-b; });
+      raiseSet = raiseSet.slice(0, 6);
+      raiseSet.forEach(function(inc, i){
+        const t = b.price + inc;
+        const cls = (i===0) ? 'btn-ok bidRaise' : 'btn-sec bidRaise';
+        raiseBtns+='<button type="button" class="'+cls+'" data-inc="'+inc+'" data-target="'+t+'" aria-label="Increase by '+inc+' to '+t+'">+'+inc+'</button>';
+      });
       raiseBtns+='<button type="button" class="btn-danger" id="btnQuitLot" aria-label="Quit this player">Quit</button>';
     }
   } else if(ownerMode){
-    if(b.leaderTeamId===myTeamId) raiseBtns='<p class="lead-line" style="grid-column:1/-1" role="status">You are leading</p>';
-    else if(myStatusOut(b)) raiseBtns='<p style="grid-column:1/-1" role="status">You cannot bid on this player</p>';
+    if(b.leaderTeamId===myTeamId) raiseBtns='<p class="lead-line bid-status-msg" role="status">You are leading</p>';
+    else if(myStatusOut(b)) raiseBtns='<p class="bid-status-msg" role="status">You cannot bid on this player</p>';
   }
 
-  // Custom/ultimate bid — open chat composer (WhatsApp style, hides tab bar)
+  // Ultimate / custom bid — composer only (keyboard + send); hides keys + tab bar
   let chat='';
   if(ownerMode && rules.ultimateOn && canRaise && b.leaderTeamId){
     const need = (Number(b.price)||0) + 1;
     const stepNeed = Math.ceil(need/5)*5;
     chat=
-      '<button type="button" id="btnOpenCustomBid" class="btn-sec btn-block" style="margin-top:12px;grid-column:1/-1" aria-label="Custom bid">Custom bid</button>'+
+      '<button type="button" id="btnOpenCustomBid" class="btn-sec" aria-label="Ultimate bid, opens keyboard">Ultimate bid</button>'+
       '<p id="ultStatus" class="sr-only" role="status" aria-live="polite"></p>';
     window._ultStepNeed = stepNeed;
     window._ultLead = b.price||0;
@@ -7720,7 +7849,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     '<p class="'+leadCls+'" id="leadLine">'+leadText+'</p>'+
     '</div>'+
     '<p class="timer-box" id="pTimer" role="timer" aria-label="Time remaining '+sec+' seconds"><span aria-hidden="true">'+sec+'s</span><span class="sr-only">Time remaining '+sec+' seconds</span></p>'+
-    '<div id="bidRegion" role="group" aria-label="Bidding actions">'+
+    '<div id="bidRegion" class="'+(ownerMode && canRaise ? 'bid-grid-owner' : '')+'" role="group" aria-label="Bidding actions">'+
     raiseBtns+chat+
     '</div>'+
     hostBtns+
@@ -7731,6 +7860,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   box.querySelectorAll('.bidRaise').forEach(btn=>{
     btn.onclick=()=> doRaise(parseInt(btn.getAttribute('data-target'),10), parseInt(btn.getAttribute('data-inc')||'0',10), false);
   });
+  if($('btnQuitLot')) $('btnQuitLot').onclick=function(){ doQuit(); };
   wireUltimateBid(b, rules);
 
   // Focus once per player only (avoid double: player + bidding region)
@@ -7860,7 +7990,7 @@ function startTimerLoop(){
     }
     const el=$('pTimer');
     if(T.bid.phase==='await_host'){
-      if(el){ el.textContent='Waiting for host'; el.className='timer-box warn'; }
+      if(el){ el.textContent='Waiting for host decision'; el.className='timer-box warn'; }
       return;
     }
     if(!T.bid.timerEndsAt){
@@ -7890,7 +8020,7 @@ function startTimerLoop(){
     // All clients: local lock when timer ends (before host write arrives)
     if(T.bid.phase==='contest' && T.bid.timerEndsAt && Date.now()>=T.bid.timerEndsAt){
       T.bid.phase='await_host';
-      if(el){ el.textContent='Waiting for host'; el.className='timer-box warn'; }
+      if(el){ el.textContent='Waiting for host decision'; el.className='timer-box warn'; }
       if(window._localAwait!== (T.bid.playerIndex+'|'+T.bid.timerEndsAt)){
         window._localAwait=T.bid.playerIndex+'|'+T.bid.timerEndsAt;
         // Soft UI refresh without focus steal
@@ -7973,6 +8103,7 @@ function showHostTimerDecision(hasLeader){
 function closeChatComposer(){
   window._chatComposerOpen=false;
   document.body.classList.remove('chat-open');
+  window._skipSnapshotFocus = false;
   const c=$('chatComposer');
   if(c){ c.classList.add('hidden'); c.innerHTML=''; }
 }
@@ -8195,7 +8326,7 @@ async function doQuit(){
       });
       const pn=(T.players&&T.players[T.meta.currentIndex]&&T.players[T.meta.currentIndex].name)||'this player';
       const tn=(T.teams.find(t=>t.id===myTeamId)||{}).name||'Your team';
-      sayEvent(tn+' quit from bidding for '+pn+'.', 'bid');
+      sayEvent(tn+' quits from bidding to '+pn+'.', 'bid');
     }catch(e){ safeAlert(e); }
   });
 }
@@ -8386,10 +8517,13 @@ async function hostAdvanceNextPlayer(){
       T.bid.playerIndex=idx;
       T.bid.timerEndsAt=null;
     }
+    // Announce + player SFX immediately (force) before save — snapshot must not silence this
+    try{
+      window._liveJoinQuiet = false;
+      announceNowPlayer(idx, pl[idx].name, pl.length, T, true);
+    }catch(e){ console.warn('next player announce', e); }
     try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
-    // Single announce + sound only when host opens next player
-    announceNowPlayer(idx, pl[idx].name, pl.length, data);
-    renderAuction({ focusBid:true, force:true });
+    renderAuction({ focusBid:true, force:true, skipAnnounce:true });
   }finally{
     window._advancingNext=false;
   }
@@ -9488,6 +9622,13 @@ function canUseRoomMessage(){
 }
 
 function showMsgFab(){
+  try{
+    if(typeof isPhysical==='function' && isPhysical()){
+      var fab=$('btnMsgFab'); if(fab){ fab.classList.add('hidden'); fab.setAttribute('aria-hidden','true'); }
+      return;
+    }
+  }catch(e){}
+
   const fab=$('btnMsgFab');
   if(!fab) return;
   const show=canUseRoomMessage() && T && T.status==='live';

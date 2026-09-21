@@ -1611,6 +1611,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <button type="button" class="menu-item" id="btnSetCommentary">Commentary</button>
     <button type="button" class="menu-item" id="btnSetSounds">Sounds</button>
     <button type="button" class="menu-item hidden" id="btnSetAdmin">Permissions</button>
+    <button type="button" class="menu-item" id="btnSetRegPref">Registrations preference</button>
     <button type="button" class="menu-item" id="btnSetAbout">About</button>
   </div>
 
@@ -1676,6 +1677,13 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     </div>
   </div>
 
+  <div id="panelRegPref" class="set-panel hidden" aria-label="Registrations preference">
+    <p class="set-status" id="regPrefHint">Save your details once. Apply on tournaments will auto-fill these fields.</p>
+    <div id="regPrefFormBody"></div>
+    <p id="regPrefStatus" class="set-status" role="status"></p>
+    <button type="button" id="btnRegPrefSave" class="btn-ok btn-block">Save preference</button>
+  </div>
+
   <div id="panelAbout" class="set-panel hidden" aria-label="About">
     <ul class="set-about">
       <li><strong>Developer:</strong> <a href="https://grok.x.ai" target="_blank" rel="noopener noreferrer">Grok</a></li>
@@ -1712,17 +1720,57 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <section id="screenRegHost" class="wrap panel hidden" role="region" aria-labelledby="regHostTitle">
   <button type="button" id="btnRegHostBack" class="btn-sec" aria-label="Back to registrations">Back</button>
   <h1 id="regHostTitle" tabindex="-1">Registration</h1>
+  <p id="regHostMeta" style="color:var(--muted);font-size:14px;margin:4px 0 12px"></p>
   <div class="btn-stack" style="margin:10px 0">
-    <button type="button" id="btnRegViewForm" class="btn-sec btn-block">View / edit form</button>
-    <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block">Delete registration</button>
-    <button type="button" id="btnRegStartAuction" class="btn-ok btn-block">Start auction from records</button>
+    <button type="button" id="btnRegViewForm" class="btn-sec btn-block">Edit / view registration form</button>
+    <button type="button" id="btnRegShare" class="btn-ok btn-block">Share registration link</button>
+    <button type="button" id="btnRegCopyLink" class="btn-sec btn-block">Copy registration link</button>
+    <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block">Delete registration form</button>
+    <button type="button" id="btnRegOpenRecords" class="btn-ok btn-block">Registration records</button>
+    <button type="button" id="btnRegStartAuction" class="btn-ok btn-block">Start auction</button>
   </div>
-  <h2 style="font-size:1.05rem;margin:16px 0 8px">Registration records</h2>
-  <label for="regSearch" class="sr-only">Search registrations</label>
-  <input id="regSearch" type="search" placeholder="Search…" autocomplete="off" style="width:100%;min-height:48px;margin:0 0 10px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
-  <p id="regRecordsCount" style="font-weight:700;margin:0 0 8px" role="status"></p>
-  <div id="regRecordsList" class="hub-list" aria-label="Registered players" style="max-height:55vh;overflow-y:auto"></div>
 </section>
+
+<section id="screenRegRecords" class="wrap panel hidden" role="region" aria-labelledby="regRecordsTitle">
+  <button type="button" id="btnRegRecordsBack" class="btn-sec" aria-label="Back to tournament">Back</button>
+  <h1 id="regRecordsTitle" tabindex="-1">Registration records</h1>
+  <label for="regSearch" class="sr-only">Search registrations</label>
+  <input id="regSearch" type="search" placeholder="Search name or email…" autocomplete="off" style="width:100%;min-height:48px;margin:8px 0 10px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
+  <p id="regRecordsCount" style="font-weight:700;margin:0 0 8px" role="status"></p>
+  <div id="regRecordsList" class="hub-list" aria-label="Registered players" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+  <button type="button" id="btnRegLoadMore" class="btn-sec btn-block hidden" style="margin-top:10px">Load more</button>
+</section>
+
+<section id="screenRegUserTour" class="wrap panel hidden" role="region" aria-labelledby="regUserTourTitle">
+  <button type="button" id="btnRegUserTourBack" class="btn-sec" aria-label="Back to registrations">Back</button>
+  <h1 id="regUserTourTitle" tabindex="-1">Tournament</h1>
+  <p id="regUserTourMeta" style="color:var(--muted);font-size:14px;margin:4px 0 12px"></p>
+  <div id="regUserTourRules" class="panel" style="margin:0 0 12px;padding:12px;font-size:14px;line-height:1.45;white-space:pre-wrap"></div>
+  <div class="btn-stack">
+    <button type="button" id="btnRegUserViewList" class="btn-sec btn-block">View registrations</button>
+    <button type="button" id="btnRegUserApply" class="btn-ok btn-block">Apply for auction</button>
+    <button type="button" id="btnRegUserShare" class="btn-sec btn-block">Share this registration</button>
+  </div>
+</section>
+
+<section id="screenRegPublicList" class="wrap panel hidden" role="region" aria-labelledby="regPublicTitle">
+  <button type="button" id="btnRegPublicBack" class="btn-sec" aria-label="Back to tournament">Back</button>
+  <h1 id="regPublicTitle" tabindex="-1">Registered players</h1>
+  <label for="regPublicSearch" class="sr-only">Search</label>
+  <input id="regPublicSearch" type="search" placeholder="Search name or email…" autocomplete="off" style="width:100%;min-height:48px;margin:8px 0 10px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
+  <p id="regPublicCount" style="font-weight:700;margin:0 0 8px" role="status"></p>
+  <div id="regPublicList" class="hub-list" aria-label="Registered players" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+  <button type="button" id="btnRegPublicMore" class="btn-sec btn-block hidden" style="margin-top:10px">Load more</button>
+</section>
+
+<div id="regDetailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="regDetailTitle">
+  <div class="modal-box" style="max-height:80vh;overflow-y:auto">
+    <h2 id="regDetailTitle" tabindex="-1" style="margin-top:0">Player details</h2>
+    <div id="regDetailBody" style="margin:8px 0 14px"></div>
+    <button type="button" id="btnRegDetailClose" class="btn-ok btn-block">Close</button>
+  </div>
+</div>
+
 
 <section id="screenWizard" class="wrap panel hidden" role="region" aria-labelledby="wizTitle">
   <p class="progress" id="wizProgress">Step 1</p>
@@ -3592,7 +3640,7 @@ function showScreen(id){
     }
   }catch(e){}
 
-  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenRegWizard','screenRegForm','screenRegHost']
+  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList']
     .forEach(s=>{
       const el=$(s); if(!el) return;
       const on = (s===id);
@@ -4022,6 +4070,15 @@ auth.onAuthStateChanged(async u=>{
   if(!u){
     user=null; profile=null;
     showScreen('screenAuth');
+    try{
+      if(window._regDeepLink && $('authTitle')){
+        const hint = $('authRegHint');
+        if(hint){
+          hint.classList.remove('hidden');
+          hint.textContent = 'Sign in to open the registration form shared with you.';
+        }
+      }
+    }catch(e){}
     focusEl($('authTitle'));
     return;
   }
@@ -4036,6 +4093,12 @@ auth.onAuthStateChanged(async u=>{
       const wid=window._watchDeepLink; window._watchDeepLink=null;
       try{ history.replaceState({},'',location.pathname);}catch(e){}
       if(typeof openAuction==='function') await openAuction(wid);
+    }catch(e){ safeAlert(e); }
+  } else if(window._regDeepLink){
+    try{
+      const rid=window._regDeepLink; window._regDeepLink=null;
+      try{ history.replaceState({},'',location.pathname);}catch(e){}
+      if(typeof handleRegDeepLink==='function') await handleRegDeepLink(rid);
     }catch(e){ safeAlert(e); }
   }
   try{
@@ -4064,7 +4127,8 @@ try{
   const q=new URLSearchParams(location.search);
   joinAuctionId=q.get('join')||null;
   window._watchDeepLink=q.get('watch')||null;
-}catch(e){ joinAuctionId=null; window._watchDeepLink=null; }
+  window._regDeepLink=q.get('reg')||q.get('registration')||null;
+}catch(e){ joinAuctionId=null; window._watchDeepLink=null; window._regDeepLink=null; }
 
 async function handleJoinInvite(){
   if(!joinAuctionId||!user||!db) return;
@@ -4214,7 +4278,7 @@ $('btnLogout').onclick=()=>{ if(!confirm('Are you sure you want to sign out from
 window._settingsPanel='menu';
 function showSettingsPanel(which){
   const menu=$('settingsMenu');
-  const panels=['panelProfile','panelCommentary','panelSounds','panelAbout','panelAdmin'];
+  const panels=['panelProfile','panelCommentary','panelSounds','panelRegPref','panelAbout','panelAdmin'];
   which=which||'menu';
   window._settingsPanel=which;
   panels.forEach(id=>{ const el=$(id); if(el) el.classList.add('hidden'); });
@@ -4225,7 +4289,7 @@ function showSettingsPanel(which){
     return;
   }
   if(menu) menu.classList.add('hidden');
-  const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', about:'panelAbout', admin:'panelAdmin' };
+  const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', regpref:'panelRegPref', about:'panelAbout', admin:'panelAdmin' };
   const id=map[which];
   if($(id)){
     $(id).classList.remove('hidden');
@@ -4273,6 +4337,7 @@ document.addEventListener('click', function(ev){
   if(t.id==='btnSetProfile') showSettingsPanel('profile');
   if(t.id==='btnSetCommentary'){ showSettingsPanel('commentary'); try{wireTtsSettings();}catch(e){} }
   if(t.id==='btnSetSounds'){ showSettingsPanel('sounds'); try{wireSfxSettings();}catch(e){} }
+  if(t.id==='btnSetRegPref'){ showSettingsPanel('regpref'); try{ openRegPrefPanel(); }catch(e){} }
   if(t.id==='btnSetAbout') showSettingsPanel('about');
   if(t.id==='btnSetAdmin'){ showSettingsPanel('admin'); }
   if(t.classList&&t.classList.contains('btnSetBackMenu')) showSettingsPanel('menu');
@@ -5633,12 +5698,36 @@ function regFieldTypes(){
     { id:'number', label:'Number only' },
     { id:'yesno', label:'Yes or No' },
     { id:'gender', label:'Gender' },
+    { id:'radio', label:'Single choice' },
     { id:'checkbox', label:'Checkbox (multi)' }
   ];
 }
 function newRegFieldId(){
   return 'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 }
+
+function defaultRegTemplateFields(){
+  return [
+    { id:'f_name', title:'Name', type:'text', required:true, options:[] },
+    { id:'f_mobile', title:'Mobile number', type:'number', required:true, options:[] },
+    { id:'f_wa_same', title:'Is WhatsApp number same as mobile number?', type:'yesno', required:true, options:['Yes','No'] },
+    { id:'f_whatsapp', title:'WhatsApp number', type:'number', required:true, options:[], showIf:{ fieldId:'f_wa_same', equals:'No' } },
+    { id:'f_gender', title:'Gender', type:'gender', required:true, options:['Male','Female','Trans'] },
+    { id:'f_age', title:'Age', type:'radio', required:false, options:['10+','20+','30+','40+','50 and above'] },
+    { id:'f_gamer', title:'Gamer ID', type:'text', required:true, options:[] },
+    { id:'f_sub', title:'Subscription type', type:'radio', required:true, options:['Star','Gemstone','Star verified','Gemstone verified'] },
+    { id:'f_address', title:'Address', type:'text', required:true, options:[] },
+    { id:'f_village', title:'Village', type:'text', required:false, options:[] },
+    { id:'f_town', title:'Town / City', type:'text', required:true, options:[] },
+    { id:'f_state', title:'State', type:'text', required:true, options:[] },
+    { id:'f_pincode', title:'Pincode', type:'number', required:true, options:[] },
+    { id:'f_terms', title:'I agree to the terms and conditions', type:'yesno', required:true, options:['Yes','No'] }
+  ];
+}
+function regFieldKey(title){
+  return String(title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+
 function openRegWizard(existing){
   regWiz = existing ? {
     id: existing.id,
@@ -5647,10 +5736,12 @@ function openRegWizard(existing){
     startDate: existing.startDate||'',
     endDate: existing.endDate||'',
     rulesText: existing.rulesText||'',
-    fields: (existing.fields||[]).map(function(f){ return Object.assign({}, f, { options: (f.options||[]).slice() }); }),
+    fields: (existing.fields||[]).map(function(f){ return Object.assign({}, f, { options: (f.options||[]).slice(), showIf: f.showIf||null }); }),
     status: existing.status||'open'
   } : {
-    id: null, step: 0, title:'', startDate:'', endDate:'', rulesText:'', fields:[], status:'open'
+    id: null, step: 0, title:'', startDate:'', endDate:'', rulesText:'',
+    fields: defaultRegTemplateFields(),
+    status:'open'
   };
   showScreen('screenRegWizard');
   renderRegWizard();
@@ -5690,7 +5781,7 @@ function renderRegWizard(){
     nav.appendChild(next);
   } else {
     // Step 2: fields
-    var h = '<p style="color:var(--muted);font-size:14px;margin:0 0 10px">Add fields. Mark each as mandatory or optional.</p>';
+    var h = '<p style="color:var(--muted);font-size:14px;margin:0 0 10px">Default cricket form is loaded. Edit, remove, or tap <strong>Add field below</strong> next to any field.</p>';
     h += '<div id="regFieldsList"></div>';
     h += '<button type="button" id="btnRegAddField" class="btn-sec btn-block" style="margin-top:12px">Add field</button>';
     h += '<div id="regFieldEditor" class="panel hidden" style="margin-top:12px;padding:12px"></div>';
@@ -5716,21 +5807,31 @@ function paintRegFieldsList(){
     box.innerHTML = '<p style="color:var(--muted)">No fields yet. Tap Add field.</p>';
     return;
   }
+  var typeLabs = regFieldTypes().concat([{id:'radio',label:'Single choice'}]);
   var h = '<ul class="plain" role="list">';
   regWiz.fields.forEach(function(f, i){
-    var typeLab = (regFieldTypes().find(function(t){ return t.id===f.type; })||{}).label || f.type;
+    var typeLab = (typeLabs.find(function(t){ return t.id===f.type; })||{}).label || f.type;
     var mand = f.required ? 'Mandatory' : 'Optional';
+    var cond = (f.showIf && f.showIf.fieldId) ? ' · Shows if previous answer is No' : '';
     h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)" role="listitem">'+
       '<strong>'+escHtml(f.title||'Field')+'</strong>'+
-      '<br><span style="color:var(--muted);font-size:13px">'+escHtml(typeLab)+' · '+mand+'</span>'+
-      '<div class="row" style="margin-top:8px;gap:8px">'+
+      '<br><span style="color:var(--muted);font-size:13px">'+escHtml(typeLab)+' · '+mand+cond+'</span>'+
+      '<div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">'+
       '<button type="button" class="btn-sec" data-edit="'+i+'">Edit</button>'+
+      '<button type="button" class="btn-sec" data-addafter="'+i+'">Add field below</button>'+
       '<button type="button" class="btn-danger" data-del="'+i+'">Remove</button></div></li>';
   });
   h += '</ul>';
   box.innerHTML = h;
   box.querySelectorAll('[data-edit]').forEach(function(btn){
     btn.onclick=function(){ openRegFieldEditor(parseInt(btn.getAttribute('data-edit'),10)); };
+  });
+  box.querySelectorAll('[data-addafter]').forEach(function(btn){
+    btn.onclick=function(){
+      var i = parseInt(btn.getAttribute('data-addafter'),10);
+      window._regInsertAfter = i;
+      openRegFieldEditor(null);
+    };
   });
   box.querySelectorAll('[data-del]').forEach(function(btn){
     btn.onclick=function(){
@@ -5840,8 +5941,15 @@ function openRegFieldEditor(index){
       if(!options.length){ alert('Add at least one option for checkbox'); return; }
     }
     var field = { id: f.id||newRegFieldId(), title: title, type: type, required: required, options: options };
-    if(index!=null && index>=0) regWiz.fields[index] = field;
-    else regWiz.fields.push(field);
+    if(f.showIf) field.showIf = f.showIf;
+    if(index!=null && index>=0){
+      regWiz.fields[index] = field;
+    } else if(window._regInsertAfter!=null && window._regInsertAfter>=0){
+      regWiz.fields.splice(window._regInsertAfter+1, 0, field);
+      window._regInsertAfter = null;
+    } else {
+      regWiz.fields.push(field);
+    }
     ed.classList.add('hidden'); ed.innerHTML='';
     paintRegFieldsList();
     try{ announce('Field saved: '+title); }catch(e){}
@@ -5960,6 +6068,17 @@ async function loadRegistrationsHub(){
     }
   }
 }
+function isRegHostOrAdmin(form){
+  if(!user) return false;
+  try{
+    if(typeof isSuperAdminEmail==='function' && isSuperAdminEmail()) return true;
+  }catch(e){}
+  var em = (user.email||'').toLowerCase();
+  if(em === 'maheshdhoni7633@gmail.com' || em === 'cricthreesixty@gmail.com') return true;
+  if(form && form.ownerId && form.ownerId === user.uid) return true;
+  return false;
+}
+
 function paintRegsHubList(items){
   var list = $('hubRegsList');
   if(!list) return;
@@ -5969,55 +6088,333 @@ function paintRegsHubList(items){
   }
   var h = '';
   items.forEach(function(it){
-    var isOwner = user && it.ownerId===user.uid;
-    var isOpen = it.status==='open';
+    var isOwner = user && it.ownerId === user.uid;
+    var isOpen = it.status === 'open';
     var dates = [it.startDate, it.endDate].filter(Boolean).join(' → ');
-    var label = (it.title||'Tournament')+(dates?' · '+dates:'')+(isOpen?'':' · closed');
-    if(isOwner || canCreate() && isOwner){
-      h += '<button type="button" class="list-btn reg-host-item" data-id="'+it.id+'" aria-label="'+escHtml(label)+', manage">'+(escHtml(it.title||'Tournament'))+
-        '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'No dates')+' · Manage</span></button>';
+    var canManage = isRegHostOrAdmin(it);
+    if(canManage){
+      h += '<button type="button" class="list-btn reg-host-item" data-id="'+it.id+'" aria-label="'+escHtml(it.title||'Tournament')+', manage">'
+        +escHtml(it.title||'Tournament')
+        +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'No dates')+(isOpen?' · Open':' · Closed')+' · Manage</span></button>';
     } else if(isOpen){
-      h += '<button type="button" class="list-btn reg-user-item" data-id="'+it.id+'" aria-label="Register for '+escHtml(it.title||'')+'">'+(escHtml(it.title||'Tournament'))+
-        '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'')+' · Register</span></button>';
+      h += '<button type="button" class="list-btn reg-user-item" data-id="'+it.id+'" aria-label="'+escHtml(it.title||'Tournament')+'">'
+        +escHtml(it.title||'Tournament')
+        +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'')+' · Open</span></button>';
     } else {
-      h += '<div class="list-btn" style="opacity:.7" aria-label="'+escHtml(label)+'">'+escHtml(it.title||'')+'<br><span style="font-size:13px;color:var(--muted)">Closed</span></div>';
+      h += '<div class="list-btn" style="opacity:.7">'+escHtml(it.title||'')
+        +'<br><span style="font-size:13px;color:var(--muted)">Closed</span></div>';
     }
   });
   list.innerHTML = h;
   list.querySelectorAll('.reg-host-item').forEach(function(btn){
-    btn.onclick=function(){ openRegHost(btn.getAttribute('data-id')); };
+    btn.onclick = function(){ openRegHost(btn.getAttribute('data-id')); };
   });
   list.querySelectorAll('.reg-user-item').forEach(function(btn){
-    btn.onclick=function(){ openRegFormForUser(btn.getAttribute('data-id')); };
+    btn.onclick = function(){ openRegUserTour(btn.getAttribute('data-id')); };
   });
   try{ focusEl(list.querySelector('.list-btn')||$('hubTabRegs')); }catch(e){}
 }
 
-async function openRegFormForUser(formId){
-  if(!db||!user) return;
+async function openRegUserTour(formId){
+  if(!db || !user) return;
+  try{
+    var doc = await db.collection('registrationForms').doc(formId).get();
+    if(!doc.exists){ alert('Registration not found'); return; }
+    var data = Object.assign({id: formId}, doc.data());
+    regFormCurrent = data;
+    showScreen('screenRegUserTour');
+    if($('regUserTourTitle')) $('regUserTourTitle').textContent = data.title || 'Tournament';
+    var dates = [data.startDate, data.endDate].filter(Boolean).join(' → ');
+    if($('regUserTourMeta')) $('regUserTourMeta').textContent = dates || '';
+    if($('regUserTourRules')){
+      $('regUserTourRules').textContent = data.rulesText || '';
+      $('regUserTourRules').classList.toggle('hidden', !(data.rulesText||'').trim());
+    }
+    // Apply vs Edit
+    var applied = false;
+    try{
+      var existing = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
+      applied = existing.exists;
+    }catch(e){}
+    var applyBtn = $('btnRegUserApply');
+    if(applyBtn){
+      if(data.status !== 'open' && !applied){
+        applyBtn.disabled = true;
+        applyBtn.textContent = 'Registration closed';
+        applyBtn.onclick = null;
+      } else if(applied){
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Edit my registration';
+        applyBtn.className = 'btn-sec btn-block';
+        applyBtn.onclick = function(){ openRegFormForUser(formId, true); };
+      } else {
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Apply for auction';
+        applyBtn.className = 'btn-ok btn-block';
+        applyBtn.onclick = function(){ openRegFormForUser(formId, false); };
+      }
+    }
+    try{ focusEl($('regUserTourTitle')); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+
+async function openRegFormForUser(formId, isEdit){
+  if(!db || !user) return;
   try{
     var doc = await db.collection('registrationForms').doc(formId).get();
     if(!doc.exists){ alert('Registration not found'); return; }
     var data = doc.data();
-    if(data.status!=='open'){ alert('This registration is closed'); return; }
-    // One response per account
-    var existing = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
-    if(existing.exists){
-      alert('You have already registered for this tournament with this account.');
-      return;
+    if(!isEdit && data.status !== 'open'){ alert('This registration is closed'); return; }
+    var existingSnap = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
+    if(!isEdit && existingSnap.exists){
+      // Switch to edit mode
+      isEdit = true;
     }
-    regFormCurrent = Object.assign({id:formId}, data);
+    regFormCurrent = Object.assign({id: formId}, data);
     showScreen('screenRegForm');
-    if($('regFormTitle')) $('regFormTitle').textContent = data.title||'Register';
+    if($('regFormTitle')) $('regFormTitle').textContent = isEdit ? ('Edit — '+(data.title||'Register')) : (data.title||'Register');
     if($('regFormRules')){
       $('regFormRules').textContent = data.rulesText||'';
       $('regFormRules').classList.toggle('hidden', !(data.rulesText||'').trim());
     }
-    if($('regFormStatus')) $('regFormStatus').textContent = '';
+    if($('regFormStatus')) $('regFormStatus').textContent = isEdit ? 'Update your details and save.' : '';
+    if($('btnRegFormSubmit')) $('btnRegFormSubmit').textContent = isEdit ? 'Save changes' : 'Submit registration';
     paintUserRegForm(data.fields||[]);
+    if(isEdit && existingSnap.exists){
+      fillUserRegForm(existingSnap.data());
+    } else {
+      try{ autoFillFromRegPref(data.fields||[]); }catch(e){}
+    }
+    window._regFormIsEdit = !!isEdit;
     try{ focusEl($('regFormTitle')); }catch(e){}
   }catch(e){ safeAlert(e); }
 }
+
+function fillUserRegForm(entry){
+  if(!entry || !entry.answers || !regFormCurrent) return;
+  var fields = regFormCurrent.fields||[];
+  fields.forEach(function(f){
+    var val = entry.answers[f.id];
+    var fid = 'regA_'+f.id;
+    if(f.type==='text' || f.type==='number'){
+      if($('regA_'+f.id)) $('regA_'+f.id).value = (val!=null ? String(val) : '');
+    } else if(f.type==='yesno' || f.type==='gender' || f.type==='radio'){
+      var radios = document.querySelectorAll('input[name="'+fid+'"]');
+      radios.forEach(function(r){ r.checked = (r.value === String(val)); });
+    } else if(f.type==='checkbox'){
+      var arr = Array.isArray(val) ? val : [];
+      document.querySelectorAll('.regCb[data-fid="'+f.id+'"]').forEach(function(cb){
+        cb.checked = arr.indexOf(cb.value) >= 0;
+      });
+    }
+  });
+}
+
+async function openRegHost(formId){
+  if(!db) return;
+  try{
+    var doc = await db.collection('registrationForms').doc(formId).get();
+    if(!doc.exists){ alert('Not found'); return; }
+    regHostForm = Object.assign({id: formId}, doc.data());
+    showScreen('screenRegHost');
+    if($('regHostTitle')) $('regHostTitle').textContent = regHostForm.title||'Registration';
+    var dates = [regHostForm.startDate, regHostForm.endDate].filter(Boolean).join(' → ');
+    if($('regHostMeta')) $('regHostMeta').textContent = (dates||'')+(regHostForm.status==='open'?' · Open':' · Closed');
+    try{ focusEl($('regHostTitle')); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+
+async function openRegRecordsScreen(){
+  if(!regHostForm) return;
+  showScreen('screenRegRecords');
+  if($('regRecordsTitle')) $('regRecordsTitle').textContent = (regHostForm.title||'')+' — Records';
+  if($('regSearch')) $('regSearch').value = '';
+  window._regEntriesPage = 0;
+  await loadRegEntries(regHostForm.id);
+  try{ focusEl($('regRecordsTitle')); }catch(e){}
+}
+
+async function loadRegEntries(formId){
+  var list = $('regRecordsList');
+  if(!list) return;
+  list.innerHTML = '<p class="hub-empty">Loading records…</p>';
+  try{
+    var snap = await db.collection('registrationForms').doc(formId).collection('entries').get();
+    regEntriesCache = [];
+    snap.forEach(function(doc){ regEntriesCache.push(Object.assign({id:doc.id}, doc.data())); });
+    regEntriesCache.sort(function(a,b){
+      var am = a.submittedAt&&a.submittedAt.toMillis?a.submittedAt.toMillis():0;
+      var bm = b.submittedAt&&b.submittedAt.toMillis?b.submittedAt.toMillis():0;
+      return bm-am;
+    });
+    window._regEntriesPage = 0;
+    paintRegEntriesPaged();
+  }catch(e){
+    list.innerHTML = '<p class="hub-empty">'+(typeof friendlyError==='function'?friendlyError(e):String(e))+'</p>';
+  }
+}
+
+var REG_PAGE_SIZE = 30;
+
+function paintRegEntriesPaged(){
+  var entries = regEntriesCache||[];
+  var q = (($('regSearch')&&$('regSearch').value)||'').trim().toLowerCase();
+  var filtered = entries;
+  if(q){
+    filtered = entries.filter(function(en){
+      var name = entryDisplayName(en);
+      var blob = (name+' '+(en.email||'')+' '+JSON.stringify(en.answers||{})).toLowerCase();
+      return blob.indexOf(q)>=0;
+    });
+  }
+  var page = window._regEntriesPage||0;
+  var slice = filtered.slice(0, (page+1)*REG_PAGE_SIZE);
+  if($('regRecordsCount')) $('regRecordsCount').textContent = 'Showing '+slice.length+' of '+filtered.length+' records';
+  var list = $('regRecordsList');
+  if(!list) return;
+  if(!slice.length){
+    list.innerHTML = '<p class="hub-empty">No records.</p>';
+    if($('btnRegLoadMore')) $('btnRegLoadMore').classList.add('hidden');
+    return;
+  }
+  var h = '';
+  slice.forEach(function(en){
+    var name = entryDisplayName(en);
+    var sub = en.email||'';
+    h += '<button type="button" class="list-btn reg-entry-btn" data-id="'+en.id+'" aria-label="'+escHtml(String(name))+', '+escHtml(sub)+'">'
+      +escHtml(String(name))+'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span></button>';
+  });
+  list.innerHTML = h;
+  list.querySelectorAll('.reg-entry-btn').forEach(function(btn){
+    btn.onclick = function(){ showRegEntryDetail(btn.getAttribute('data-id'), true); };
+  });
+  if($('btnRegLoadMore')){
+    var more = slice.length < filtered.length;
+    $('btnRegLoadMore').classList.toggle('hidden', !more);
+    $('btnRegLoadMore').onclick = function(){
+      window._regEntriesPage = (window._regEntriesPage||0)+1;
+      paintRegEntriesPaged();
+    };
+  }
+}
+
+function entryDisplayName(en){
+  if(!en) return 'Entry';
+  var fields = (regHostForm&&regHostForm.fields)||(regFormCurrent&&regFormCurrent.fields)||[];
+  var nameF = fields.find(function(f){ return /name/i.test(f.title||'') && f.type==='text'; })
+    || fields.find(function(f){ return f.type==='text'; });
+  var nm = '';
+  if(nameF && en.answers) nm = en.answers[nameF.id];
+  if(Array.isArray(nm)) nm = nm.join(' ');
+  return String(nm||en.displayName||en.email||'Entry').trim();
+}
+
+function showRegEntryDetail(entryId, fullDetail){
+  var en = (regEntriesCache||[]).find(function(x){ return x.id===entryId; });
+  if(!en) return;
+  var canFull = fullDetail && isRegHostOrAdmin(regHostForm||regFormCurrent);
+  var body = $('regDetailBody');
+  var title = $('regDetailTitle');
+  if(title) title.textContent = entryDisplayName(en);
+  if(!body) return;
+  if(!canFull){
+    // Public: name + email only
+    body.innerHTML =
+      '<div class="panel" style="padding:12px;margin:0 0 8px"><strong>Name</strong><br>'+escHtml(entryDisplayName(en))+'</div>'
+      +'<div class="panel" style="padding:12px;margin:0"><strong>Email</strong><br>'+escHtml(en.email||'—')+'</div>';
+  } else {
+    var fields = (regHostForm&&regHostForm.fields)||[];
+    var h = '';
+    fields.forEach(function(f){
+      var v = en.answers && en.answers[f.id];
+      if(Array.isArray(v)) v = v.join(', ');
+      if(v==null || v==='') v = '—';
+      h += '<div class="panel" style="padding:12px;margin:0 0 8px"><strong>'+escHtml(f.title||'Field')+'</strong><br>'+escHtml(String(v))+'</div>';
+    });
+    h += '<div class="panel" style="padding:12px;margin:0"><strong>Account email</strong><br>'+escHtml(en.email||'—')+'</div>';
+    body.innerHTML = h;
+  }
+  var m = $('regDetailModal');
+  if(m){
+    m.classList.remove('hidden');
+    m.setAttribute('aria-hidden','false');
+  }
+  try{ focusEl($('regDetailTitle')||$('btnRegDetailClose')); }catch(e){}
+}
+
+function closeRegDetailModal(){
+  var m = $('regDetailModal');
+  if(m){
+    m.classList.add('hidden');
+    m.setAttribute('aria-hidden','true');
+  }
+}
+
+async function openRegPublicList(){
+  if(!regFormCurrent||!db) return;
+  showScreen('screenRegPublicList');
+  if($('regPublicTitle')) $('regPublicTitle').textContent = (regFormCurrent.title||'')+' — Registered';
+  if($('regPublicSearch')) $('regPublicSearch').value = '';
+  window._regPublicPage = 0;
+  var list = $('regPublicList');
+  if(list) list.innerHTML = '<p class="hub-empty">Loading…</p>';
+  try{
+    var snap = await db.collection('registrationForms').doc(regFormCurrent.id).collection('entries').get();
+    regEntriesCache = [];
+    snap.forEach(function(doc){ regEntriesCache.push(Object.assign({id:doc.id}, doc.data())); });
+    regEntriesCache.sort(function(a,b){
+      var am = a.submittedAt&&a.submittedAt.toMillis?a.submittedAt.toMillis():0;
+      var bm = b.submittedAt&&b.submittedAt.toMillis?b.submittedAt.toMillis():0;
+      return bm-am;
+    });
+    paintRegPublicList();
+  }catch(e){
+    if(list) list.innerHTML = '<p class="hub-empty">Could not load list.</p>';
+  }
+  try{ focusEl($('regPublicTitle')); }catch(e){}
+}
+
+function paintRegPublicList(){
+  var entries = regEntriesCache||[];
+  var q = (($('regPublicSearch')&&$('regPublicSearch').value)||'').trim().toLowerCase();
+  var filtered = entries;
+  if(q){
+    filtered = entries.filter(function(en){
+      var blob = (entryDisplayName(en)+' '+(en.email||'')).toLowerCase();
+      return blob.indexOf(q)>=0;
+    });
+  }
+  var page = window._regPublicPage||0;
+  var slice = filtered.slice(0, (page+1)*REG_PAGE_SIZE);
+  if($('regPublicCount')) $('regPublicCount').textContent = 'Showing '+slice.length+' of '+filtered.length;
+  var list = $('regPublicList');
+  if(!list) return;
+  if(!slice.length){
+    list.innerHTML = '<p class="hub-empty">No registrations yet.</p>';
+    if($('btnRegPublicMore')) $('btnRegPublicMore').classList.add('hidden');
+    return;
+  }
+  var h = '';
+  slice.forEach(function(en){
+    var name = entryDisplayName(en);
+    var sub = en.email||'';
+    h += '<button type="button" class="list-btn" data-id="'+en.id+'" aria-label="'+escHtml(name)+', '+escHtml(sub)+'">'
+      +escHtml(name)+'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span></button>';
+  });
+  list.innerHTML = h;
+  list.querySelectorAll('.list-btn[data-id]').forEach(function(btn){
+    btn.onclick = function(){ showRegEntryDetail(btn.getAttribute('data-id'), false); };
+  });
+  if($('btnRegPublicMore')){
+    var more = slice.length < filtered.length;
+    $('btnRegPublicMore').classList.toggle('hidden', !more);
+    $('btnRegPublicMore').onclick = function(){
+      window._regPublicPage = (window._regPublicPage||0)+1;
+      paintRegPublicList();
+    };
+  }
+}
+
 function paintUserRegForm(fields){
   var body = $('regFormBody');
   if(!body) return;
@@ -6026,15 +6423,21 @@ function paintUserRegForm(fields){
     var req = f.required ? ' required' : '';
     var reqLab = f.required ? ' (required)' : ' (optional)';
     var fid = 'regA_'+f.id;
-    h += '<div class="reg-field" style="margin:0 0 14px" data-fid="'+f.id+'">';
+    var showAttr = '';
+    if(f.showIf && f.showIf.fieldId){
+      showAttr = ' data-showif="'+f.showIf.fieldId+'" data-showeq="'+escHtml(f.showIf.equals||'No')+'"';
+    }
+    h += '<div class="reg-field" style="margin:0 0 14px" data-fid="'+f.id+'"'+showAttr+'>';
     if(f.type==='text'){
-      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label>'+
-        '<input id="'+fid+'" type="text" autocomplete="off"'+req+' />';
+      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label>'
+        +'<input id="'+fid+'" type="text" autocomplete="off"'+req+' />';
     } else if(f.type==='number'){
-      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label>'+
-        '<input id="'+fid+'" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"'+req+' />';
-    } else if(f.type==='yesno' || f.type==='gender'){
-      var opts = f.options||(f.type==='gender'?['Male','Female','Trans']:['Yes','No']);
+      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label>'
+        +'<input id="'+fid+'" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"'+req+' />';
+    } else if(f.type==='yesno' || f.type==='gender' || f.type==='radio'){
+      var opts = f.options||[];
+      if(f.type==='yesno' && !opts.length) opts = ['Yes','No'];
+      if(f.type==='gender' && !opts.length) opts = ['Male','Female','Trans'];
       h += '<fieldset style="border:1px solid var(--border);border-radius:12px;padding:10px 12px"><legend style="font-weight:700">'+escHtml(f.title)+reqLab+'</legend>';
       opts.forEach(function(o, oi){
         var oid = fid+'_'+oi;
@@ -6052,14 +6455,39 @@ function paintUserRegForm(fields){
     h += '</div>';
   });
   body.innerHTML = h;
-  // number-only filter
   fields.forEach(function(f){
     if(f.type!=='number') return;
     var el = $('regA_'+f.id);
     if(!el) return;
-    el.oninput=function(){ el.value = String(el.value||'').replace(/[^0-9]/g,''); };
+    el.oninput = function(){ el.value = String(el.value||'').replace(/[^0-9]/g,''); };
   });
+  wireRegShowIf(fields);
 }
+
+function wireRegShowIf(fields){
+  function applyShowIf(){
+    fields.forEach(function(f){
+      if(!f.showIf || !f.showIf.fieldId) return;
+      var wrap = document.querySelector('.reg-field[data-fid="'+f.id+'"]');
+      if(!wrap) return;
+      var fid = 'regA_'+f.showIf.fieldId;
+      var sel = document.querySelector('input[name="'+fid+'"]:checked');
+      var val = sel ? sel.value : '';
+      var show = (val === (f.showIf.equals||'No'));
+      wrap.style.display = show ? '' : 'none';
+      wrap.setAttribute('aria-hidden', show ? 'false' : 'true');
+    });
+  }
+  fields.forEach(function(f){
+    if(f.type!=='yesno' && f.type!=='gender' && f.type!=='radio') return;
+    var fid = 'regA_'+f.id;
+    document.querySelectorAll('input[name="'+fid+'"]').forEach(function(r){
+      r.addEventListener('change', applyShowIf);
+    });
+  });
+  applyShowIf();
+}
+
 async function submitUserRegForm(){
   if(!regFormCurrent||!user||!db) return;
   var fields = regFormCurrent.fields||[];
@@ -6068,10 +6496,29 @@ async function submitUserRegForm(){
     var f = fields[i];
     var fid = 'regA_'+f.id;
     var val = null;
+    // Conditional field not visible → skip required + copy mobile if WhatsApp same
+    if(f.showIf && f.showIf.fieldId){
+      var ctrl = document.querySelector('input[name="regA_'+f.showIf.fieldId+'"]:checked');
+      var cv = ctrl ? ctrl.value : '';
+      if(cv !== (f.showIf.equals||'No')){
+        // Special: WhatsApp same as mobile
+        if(f.id==='f_whatsapp' || /whatsapp/i.test(f.title||'')){
+          var mob = ($('regA_f_mobile')&&$('regA_f_mobile').value)||'';
+          if(!mob){
+            var mobF = fields.find(function(x){ return /mobile/i.test(x.title||''); });
+            if(mobF && $('regA_'+mobF.id)) mob = $('regA_'+mobF.id).value||'';
+          }
+          answers[f.id] = String(mob||'').trim();
+        } else {
+          answers[f.id] = '';
+        }
+        continue;
+      }
+    }
     if(f.type==='text' || f.type==='number'){
       val = ($('regA_'+f.id)&&$('regA_'+f.id).value||'').trim();
       if(f.required && !val){ alert('Please fill: '+f.title); try{ focusEl($('regA_'+f.id)); }catch(e){} return; }
-    } else if(f.type==='yesno' || f.type==='gender'){
+    } else if(f.type==='yesno' || f.type==='gender' || f.type==='radio'){
       var sel = document.querySelector('input[name="'+fid+'"]:checked');
       val = sel ? sel.value : '';
       if(f.required && !val){ alert('Please choose: '+f.title); return; }
@@ -6083,102 +6530,34 @@ async function submitUserRegForm(){
     }
     answers[f.id] = val;
   }
-  // One per account: doc id = uid
   var entry = {
     uid: user.uid,
     email: user.email||'',
     displayName: user.displayName||'',
     answers: answers,
-    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   try{
     var ref = db.collection('registrationForms').doc(regFormCurrent.id).collection('entries').doc(user.uid);
     var exists = await ref.get();
-    if(exists.exists){ alert('You have already registered for this tournament with this account.'); return; }
-    await ref.set(entry);
-    if($('regFormStatus')) $('regFormStatus').textContent = 'Registered successfully.';
-    try{ announce('Registered for '+(regFormCurrent.title||'tournament')); }catch(e){}
-    alert('Registration submitted.');
-    enterHome();
-    switchHubTab('regs');
+    if(exists.exists && !window._regFormIsEdit){
+      // Allow overwrite only via Edit path
+      await ref.set(entry, { merge: true });
+    } else if(exists.exists && window._regFormIsEdit){
+      await ref.set(entry, { merge: true });
+    } else if(!exists.exists){
+      await ref.set(entry);
+    } else {
+      await ref.set(entry, { merge: true });
+    }
+    if($('regFormStatus')) $('regFormStatus').textContent = window._regFormIsEdit ? 'Changes saved.' : 'Registered successfully.';
+    try{ announce(window._regFormIsEdit ? 'Registration updated' : ('Registered for '+(regFormCurrent.title||'tournament'))); }catch(e){}
+    alert(window._regFormIsEdit ? 'Changes saved.' : 'Registration submitted.');
+    openRegUserTour(regFormCurrent.id);
   }catch(e){ safeAlert(e); }
 }
 
-async function openRegHost(formId){
-  if(!db) return;
-  try{
-    var doc = await db.collection('registrationForms').doc(formId).get();
-    if(!doc.exists){ alert('Not found'); return; }
-    regHostForm = Object.assign({id:formId}, doc.data());
-    showScreen('screenRegHost');
-    if($('regHostTitle')) $('regHostTitle').textContent = regHostForm.title||'Registration';
-    if($('regSearch')) $('regSearch').value = '';
-    await loadRegEntries(formId);
-    try{ focusEl($('regHostTitle')); }catch(e){}
-  }catch(e){ safeAlert(e); }
-}
-async function loadRegEntries(formId){
-  var list = $('regRecordsList');
-  if(!list) return;
-  list.innerHTML = '<p class="hub-empty">Loading records…</p>';
-  try{
-    var snap = await db.collection('registrationForms').doc(formId).collection('entries').get();
-    regEntriesCache = [];
-    snap.forEach(function(doc){ regEntriesCache.push(Object.assign({id:doc.id}, doc.data())); });
-    // sort by submittedAt desc
-    regEntriesCache.sort(function(a,b){
-      var am = a.submittedAt&&a.submittedAt.toMillis?a.submittedAt.toMillis():0;
-      var bm = b.submittedAt&&b.submittedAt.toMillis?b.submittedAt.toMillis():0;
-      return bm-am;
-    });
-    paintRegEntries(regEntriesCache);
-  }catch(e){
-    list.innerHTML = '<p class="hub-empty">'+friendlyError(e)+'</p>';
-  }
-}
-function paintRegEntries(entries){
-  var q = (($('regSearch')&&$('regSearch').value)||'').trim().toLowerCase();
-  var filtered = entries;
-  if(q){
-    filtered = entries.filter(function(en){
-      var blob = JSON.stringify(en).toLowerCase();
-      return blob.indexOf(q)>=0;
-    });
-  }
-  if($('regRecordsCount')) $('regRecordsCount').textContent = filtered.length+' of '+entries.length+' records';
-  var list = $('regRecordsList');
-  if(!list) return;
-  if(!filtered.length){
-    list.innerHTML = '<p class="hub-empty">No records.</p>';
-    return;
-  }
-  var fields = (regHostForm&&regHostForm.fields)||[];
-  var nameField = fields.find(function(f){ return f.type==='text'; }) || fields[0];
-  var h = '';
-  filtered.forEach(function(en){
-    var name = '';
-    if(nameField && en.answers) name = en.answers[nameField.id];
-    if(Array.isArray(name)) name = name.join(', ');
-    name = name || en.displayName || en.email || 'Entry';
-    var sub = en.email||'';
-    h += '<button type="button" class="list-btn reg-entry-btn" data-id="'+en.id+'" aria-label="'+escHtml(String(name))+', '+escHtml(sub)+'">'+
-      escHtml(String(name))+'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span></button>';
-  });
-  list.innerHTML = h;
-  list.querySelectorAll('.reg-entry-btn').forEach(function(btn){
-    btn.onclick=function(){
-      var en = regEntriesCache.find(function(x){ return x.id===btn.getAttribute('data-id'); });
-      if(!en) return;
-      var lines = [];
-      ((regHostForm&&regHostForm.fields)||[]).forEach(function(f){
-        var v = en.answers && en.answers[f.id];
-        if(Array.isArray(v)) v = v.join(', ');
-        lines.push(f.title+': '+(v!=null&&v!==''?v:'—'));
-      });
-      alert(lines.join('\n')+'\n\n'+(en.email||''));
-    };
-  });
-}
 function entriesToPlayers(entries, form){
   var fields = (form&&form.fields)||[];
   var nameF = fields.find(function(f){ return /name/i.test(f.title||'') && f.type==='text'; }) || fields.find(function(f){ return f.type==='text'; });
@@ -6199,36 +6578,206 @@ function entriesToPlayers(entries, form){
     };
   });
 }
+
 async function startAuctionFromReg(){
-  if(!regHostForm||!regEntriesCache.length){ alert('No registration records to import'); return; }
+  if(!regHostForm){ alert('No tournament selected'); return; }
+  if(!regEntriesCache || !regEntriesCache.length){
+    // load first
+    try{
+      var snap = await db.collection('registrationForms').doc(regHostForm.id).collection('entries').get();
+      regEntriesCache = [];
+      snap.forEach(function(doc){ regEntriesCache.push(Object.assign({id:doc.id}, doc.data())); });
+    }catch(e){ safeAlert(e); return; }
+  }
+  if(!regEntriesCache.length){ alert('No registration records to import'); return; }
   window._regImportPlayers = entriesToPlayers(regEntriesCache, regHostForm);
   window._regImportAuto = true;
-  // Start normal create wizard
-  stopAssignLive && stopAssignLive();
-  stopWait && stopWait();
-  if($('btnCreate')){
-    // mimic btnCreate
-    try{
-      step = 0;
-      wiz = { name: regHostForm.title||'', teamCount:'', purse:'', minP:'', maxP:'', teamNames:[], mode:'physical', rules:{}, playerAdvance:'auto', intermissionSec:5 };
-      showScreen('screenWizard');
-      if(typeof renderWizard==='function') renderWizard();
-      try{ focusEl($('wizTitle')); }catch(e){}
-      try{ announce('Starting auction setup. Registration players will import at the players step.'); }catch(e){}
-    }catch(e){ safeAlert(e); }
+  try{ if(typeof stopAssignLive==='function') stopAssignLive(); }catch(e){}
+  try{ if(typeof stopWait==='function') stopWait(); }catch(e){}
+  try{
+    step = 0;
+    wiz = { name: regHostForm.title||'', teamCount:'', purse:'', minP:'', maxP:'', teamNames:[], mode:'physical', rules:{}, playerAdvance:'auto', intermissionSec:5 };
+    showScreen('screenWizard');
+    if(typeof renderWizard==='function') renderWizard();
+    try{ focusEl($('wizTitle')); }catch(e){}
+    try{ announce('Starting auction setup. Registration players will import at the players step.'); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+
+
+function getRegPrefAnswers(){
+  try{
+    if(profile && profile.regProfile && profile.regProfile.answers) return profile.regProfile.answers;
+  }catch(e){}
+  return null;
+}
+function autoFillFromRegPref(fields){
+  var pref = getRegPrefAnswers();
+  if(!pref || !fields) return;
+  // Map by field id first, then by normalized title
+  var byTitle = {};
+  Object.keys(pref).forEach(function(k){
+    byTitle[regFieldKey(k)] = pref[k];
+  });
+  fields.forEach(function(f){
+    var val = pref[f.id];
+    if(val==null || val===''){
+      // try title key
+      val = pref[regFieldKey(f.title)];
+      if(val==null) val = byTitle[regFieldKey(f.title)];
+    }
+    if(val==null || val==='') return;
+    var fid = 'regA_'+f.id;
+    if(f.type==='text' || f.type==='number'){
+      if($('regA_'+f.id)) $('regA_'+f.id).value = Array.isArray(val)?val.join(', '):String(val);
+    } else if(f.type==='yesno' || f.type==='gender' || f.type==='radio'){
+      document.querySelectorAll('input[name="'+fid+'"]').forEach(function(r){
+        r.checked = (r.value === String(val));
+      });
+    } else if(f.type==='checkbox'){
+      var arr = Array.isArray(val) ? val : [val];
+      document.querySelectorAll('.regCb[data-fid="'+f.id+'"]').forEach(function(cb){
+        cb.checked = arr.indexOf(cb.value) >= 0;
+      });
+    }
+  });
+  try{ wireRegShowIf(fields); }catch(e){}
+}
+function openRegPrefPanel(){
+  var fields = defaultRegTemplateFields().filter(function(f){
+    // terms not needed in preference
+    return f.id !== 'f_terms';
+  });
+  window._regPrefFields = fields;
+  paintRegPrefForm(fields);
+  var pref = getRegPrefAnswers();
+  if(pref){
+    // temporary regFormCurrent for fill
+    var prev = regFormCurrent;
+    regFormCurrent = { fields: fields };
+    // map answers: pref may be keyed by id
+    fillUserRegForm({ answers: pref });
+    // fill into regPrefFormBody fields - fillUserRegForm uses regA_ ids which paintRegPrefForm also uses
+    regFormCurrent = prev;
+    try{ wireRegShowIf(fields); }catch(e){}
   }
+  if($('regPrefStatus')) $('regPrefStatus').textContent = pref ? 'Loaded saved preference.' : 'No preference saved yet.';
+}
+function paintRegPrefForm(fields){
+  var body = $('regPrefFormBody');
+  if(!body) return;
+  // reuse same markup as paintUserRegForm but into regPrefFormBody
+  var prevBody = body.id;
+  // inline paint
+  var h = '';
+  fields.forEach(function(f){
+    var reqLab = f.required ? ' (required)' : ' (optional)';
+    var fid = 'regA_'+f.id;
+    var showAttr = '';
+    if(f.showIf && f.showIf.fieldId){
+      showAttr = ' data-showif="'+f.showIf.fieldId+'" data-showeq="'+escHtml(f.showIf.equals||'No')+'"';
+    }
+    h += '<div class="reg-field" style="margin:0 0 14px" data-fid="'+f.id+'"'+showAttr+'>';
+    if(f.type==='text'){
+      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label><input id="'+fid+'" type="text" autocomplete="off" />';
+    } else if(f.type==='number'){
+      h += '<label for="'+fid+'">'+escHtml(f.title)+reqLab+'</label><input id="'+fid+'" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />';
+    } else if(f.type==='yesno' || f.type==='gender' || f.type==='radio'){
+      var opts = f.options||[];
+      if(f.type==='yesno' && !opts.length) opts = ['Yes','No'];
+      if(f.type==='gender' && !opts.length) opts = ['Male','Female','Trans'];
+      h += '<fieldset style="border:1px solid var(--border);border-radius:12px;padding:10px 12px"><legend style="font-weight:700">'+escHtml(f.title)+reqLab+'</legend>';
+      opts.forEach(function(o, oi){
+        h += '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="radio" name="'+fid+'" id="'+fid+'_'+oi+'" value="'+escHtml(o)+'" /> '+escHtml(o)+'</label>';
+      });
+      h += '</fieldset>';
+    } else if(f.type==='checkbox'){
+      h += '<fieldset style="border:1px solid var(--border);border-radius:12px;padding:10px 12px"><legend style="font-weight:700">'+escHtml(f.title)+reqLab+'</legend>';
+      (f.options||[]).forEach(function(o, oi){
+        h += '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="'+fid+'_'+oi+'" value="'+escHtml(o)+'" class="regCb" data-fid="'+f.id+'" /> '+escHtml(o)+'</label>';
+      });
+      h += '</fieldset>';
+    }
+    h += '</div>';
+  });
+  body.innerHTML = h;
+  fields.forEach(function(f){
+    if(f.type!=='number') return;
+    var el = $('regA_'+f.id);
+    if(el) el.oninput = function(){ el.value = String(el.value||'').replace(/[^0-9]/g,''); };
+  });
+  wireRegShowIf(fields);
+}
+async function saveRegPrefFromPanel(){
+  if(!user||!db) return;
+  var fields = window._regPrefFields || defaultRegTemplateFields().filter(function(f){ return f.id!=='f_terms'; });
+  var answers = {};
+  for(var i=0;i<fields.length;i++){
+    var f = fields[i];
+    var fid = 'regA_'+f.id;
+    if(f.showIf && f.showIf.fieldId){
+      var ctrl = document.querySelector('input[name="regA_'+f.showIf.fieldId+'"]:checked');
+      var cv = ctrl ? ctrl.value : '';
+      if(cv !== (f.showIf.equals||'No')){
+        if(f.id==='f_whatsapp' || /whatsapp/i.test(f.title||'')){
+          var mob = ($('regA_f_mobile')&&$('regA_f_mobile').value)||'';
+          answers[f.id] = String(mob||'').trim();
+        } else answers[f.id] = '';
+        answers[regFieldKey(f.title)] = answers[f.id];
+        continue;
+      }
+    }
+    var val = null;
+    if(f.type==='text'||f.type==='number'){
+      val = ($('regA_'+f.id)&&$('regA_'+f.id).value||'').trim();
+    } else if(f.type==='yesno'||f.type==='gender'||f.type==='radio'){
+      var sel = document.querySelector('input[name="'+fid+'"]:checked');
+      val = sel ? sel.value : '';
+    } else if(f.type==='checkbox'){
+      val = [];
+      document.querySelectorAll('.regCb[data-fid="'+f.id+'"]:checked').forEach(function(cb){ val.push(cb.value); });
+    }
+    answers[f.id] = val;
+    answers[regFieldKey(f.title)] = val;
+  }
+  try{
+    await db.collection('users').doc(user.uid).set({
+      regProfile: { answers: answers, updatedAt: Date.now() }
+    }, { merge: true });
+    if(profile) profile.regProfile = { answers: answers, updatedAt: Date.now() };
+    if($('regPrefStatus')) $('regPrefStatus').textContent = 'Preference saved.';
+    try{ announce('Registration preference saved'); }catch(e){}
+    alert('Preference saved. Apply on tournaments will auto-fill these fields.');
+  }catch(e){ safeAlert(e); }
 }
 
 function wireRegistrationsUi(){
   if($('btnCreateReg')) $('btnCreateReg').onclick=function(){ openRegWizard(null); };
+  if($('btnRegPrefSave')) $('btnRegPrefSave').onclick=function(){ saveRegPrefFromPanel(); };
   if($('btnRegWizBack')) $('btnRegWizBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
-  if($('btnRegFormBack')) $('btnRegFormBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
+  if($('btnRegFormBack')) $('btnRegFormBack').onclick=function(){
+    if(regFormCurrent) openRegUserTour(regFormCurrent.id);
+    else { enterHome(); switchHubTab('regs'); }
+  };
   if($('btnRegHostBack')) $('btnRegHostBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
+  if($('btnRegRecordsBack')) $('btnRegRecordsBack').onclick=function(){
+    if(regHostForm) openRegHost(regHostForm.id);
+    else { enterHome(); switchHubTab('regs'); }
+  };
+  if($('btnRegUserTourBack')) $('btnRegUserTourBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
+  if($('btnRegPublicBack')) $('btnRegPublicBack').onclick=function(){
+    if(regFormCurrent) openRegUserTour(regFormCurrent.id);
+    else { enterHome(); switchHubTab('regs'); }
+  };
   if($('btnRegFormSubmit')) $('btnRegFormSubmit').onclick=function(){ submitUserRegForm(); };
   if($('btnRegViewForm')) $('btnRegViewForm').onclick=function(){
     if(!regHostForm) return;
     openRegWizard(regHostForm);
   };
+  if($('btnRegShare')) $('btnRegShare').onclick=function(){ shareRegForm(regHostForm); };
+  if($('btnRegCopyLink')) $('btnRegCopyLink').onclick=function(){ copyRegLink(regHostForm); };
+  if($('btnRegUserShare')) $('btnRegUserShare').onclick=function(){ shareRegForm(regFormCurrent); };
+  if($('btnRegOpenRecords')) $('btnRegOpenRecords').onclick=function(){ openRegRecordsScreen(); };
   if($('btnRegDeleteForm')) $('btnRegDeleteForm').onclick=function(){
     if(!regHostForm) return;
     ask('Delete registration?','This removes the form. Existing entries may remain until cleaned up.', async function(){
@@ -6239,11 +6788,23 @@ function wireRegistrationsUi(){
     });
   };
   if($('btnRegStartAuction')) $('btnRegStartAuction').onclick=function(){ startAuctionFromReg(); };
+  if($('btnRegUserViewList')) $('btnRegUserViewList').onclick=function(){ openRegPublicList(); };
   if($('regSearch')){
-    $('regSearch').oninput=function(){ paintRegEntries(regEntriesCache||[]); };
+    $('regSearch').oninput=function(){ window._regEntriesPage=0; paintRegEntriesPaged(); };
+  }
+  if($('regPublicSearch')){
+    $('regPublicSearch').oninput=function(){ window._regPublicPage=0; paintRegPublicList(); };
+  }
+  if($('btnRegDetailClose')) $('btnRegDetailClose').onclick=function(){ closeRegDetailModal(); };
+  var rdm = $('regDetailModal');
+  if(rdm){
+    rdm.addEventListener('click', function(ev){
+      if(ev.target === rdm) closeRegDetailModal();
+    });
   }
 }
 try{ wireRegistrationsUi(); }catch(e){ console.warn('wireRegistrationsUi', e); }
+
 
 
 $('btnCreate').onclick=async()=>{ stopAssignLive(); stopWait();
@@ -6614,10 +7175,107 @@ function joinShareUrl(id){
   const aid = id || auctionId || '';
   return appOriginPath() + (aid ? ('?join=' + encodeURIComponent(aid)) : '');
 }
+function regShareUrl(formId){
+  const id = formId || (regHostForm && regHostForm.id) || (regFormCurrent && regFormCurrent.id) || '';
+  return appOriginPath() + (id ? ('?reg=' + encodeURIComponent(id)) : '');
+}
+function buildRegShareText(form){
+  form = form || regHostForm || regFormCurrent || {};
+  const name = form.title || 'Tournament registration';
+  const start = form.startDate || '';
+  const end = form.endDate || '';
+  let dates = '';
+  if(start && end) dates = 'Starts '+start+' · Ends '+end;
+  else if(start) dates = 'Starts '+start;
+  else if(end) dates = 'Ends '+end;
+  const url = regShareUrl(form.id);
+  const lines = [
+    'Registrations open for '+name+' on Auction Tracker 360.',
+    dates,
+    'Tap the link to register (sign in with Google if needed):',
+    url
+  ].filter(Boolean);
+  return {
+    title: name + ' — Register on Auction Tracker 360',
+    text: lines.join('\n'),
+    url: url
+  };
+}
+async function shareRegForm(form){
+  form = form || regHostForm || regFormCurrent;
+  if(!form || !form.id){ alert('No registration to share'); return; }
+  const p = buildRegShareText(form);
+  try{ applyShareMeta('reg', form); }catch(e){}
+  try{
+    if(navigator.share){
+      await navigator.share({ title: p.title, text: p.text, url: p.url });
+      try{ announce('Share sheet opened'); }catch(e){}
+      return;
+    }
+  }catch(e){
+    if(e && e.name === 'AbortError') return;
+  }
+  // Fallback: copy full text
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(p.text);
+      alert('Share text copied. Paste it into any app.');
+      return;
+    }
+  }catch(e){}
+  prompt('Copy this registration link:', p.url);
+}
+async function copyRegLink(form){
+  form = form || regHostForm || regFormCurrent;
+  if(!form || !form.id){ alert('No registration to share'); return; }
+  const p = buildRegShareText(form);
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(p.text);
+      try{ announce('Registration link copied'); }catch(e){}
+      alert('Copied:\n\n'+p.text);
+      return;
+    }
+  }catch(e){}
+  prompt('Copy this text:', p.text);
+}
+async function handleRegDeepLink(formId){
+  if(!formId || !user || !db) return;
+  try{
+    const doc = await db.collection('registrationForms').doc(formId).get();
+    if(!doc.exists){
+      alert('This registration link is invalid or the form was removed.');
+      return;
+    }
+    const data = Object.assign({id: formId}, doc.data());
+    // Host/admin managing own form → host screen; others → user tournament then apply if open
+    if(typeof isRegHostOrAdmin==='function' && isRegHostOrAdmin(data)){
+      await openRegHost(formId);
+      return;
+    }
+    if(data.status !== 'open'){
+      alert('Registrations for '+(data.title||'this tournament')+' are closed.');
+      await openRegUserTour(formId);
+      return;
+    }
+    // Open tournament page; if not yet applied, go straight to form
+    const existing = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
+    if(existing.exists){
+      await openRegUserTour(formId);
+    } else {
+      await openRegFormForUser(formId, false);
+    }
+  }catch(e){ safeAlert(e); }
+}
+
 /** Share copy + OG text by role */
 function buildSharePreview(kind, data, opts){
   opts = opts || {};
   data = data || T || {};
+  if(kind === 'reg'){
+    const p = buildRegShareText(data);
+    return { title: p.title, text: p.text, url: p.url, description: p.text };
+  }
   const titleA = (data.title || 'Auction').trim();
   const host = hostDisplayName(data);
   const hostEmail = (data.ownerEmail || '').trim();

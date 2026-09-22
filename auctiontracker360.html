@@ -4779,9 +4779,10 @@ async function openAuctionList(kind){
     body.innerHTML='';
     items.forEach(it=>{
       const btn=document.createElement('button'); btn.type='button'; btn.className='list-btn';
-      const sold=(it.players||[]).filter(p=>p.sold).length;
-      const unsold=(it.players||[]).filter(p=>p.unsold).length;
-      const left=(it.players||[]).filter(p=>!p.sold&&!p.unsold).length;
+      // Option 2: prefer count fields when roster is in subcollection
+      const sold = (it.soldCount != null) ? it.soldCount : (it.players||[]).filter(p=>p.sold).length;
+      const unsold = (it.unsoldCount != null) ? it.unsoldCount : (it.players||[]).filter(p=>p.unsold).length;
+      const left = (it.remainingCount != null) ? it.remainingCount : (it.players||[]).filter(p=>!p.sold&&!p.unsold).length;
       const mode=it.mode==='virtual'?'Virtual · ':((it.mode||'physical')==='physical'?'Physical · ':'');
       const st=it.status==='setup'?'Setup · ':'';
       const sub=kind==='ended'
@@ -4805,10 +4806,21 @@ function applyAuctionData(data){
   const keepLocalSquad = !!(window._squadBusy || window._priceEditOpen || window._modalOpen);
   const localTeams = keepLocalSquad && T ? T.teams : null;
   const localPlayers = keepLocalSquad && T ? T.players : null;
+  // Option 2: roster may live in subcollection — never wipe in-memory players with empty data.players
+  let nextPlayers;
+  if(localPlayers != null){
+    nextPlayers = localPlayers;
+  } else if(Array.isArray(data.players) && data.players.length){
+    nextPlayers = data.players;
+  } else if(T && Array.isArray(T.players) && T.players.length){
+    nextPlayers = T.players; // keep cached roster across live snapshots
+  } else {
+    nextPlayers = data.players || [];
+  }
   T={
     title:data.title, mode:data.mode||'physical', status:data.status||'live',
     teams: (localTeams != null ? localTeams : (data.teams||[])),
-    players: (localPlayers != null ? localPlayers : (data.players||[])),
+    players: nextPlayers,
     meta:data.meta||{currentIndex:0},
     activeColumns:data.activeColumns||activeCols, rules:data.rules||null,
     bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
@@ -4821,7 +4833,10 @@ function applyAuctionData(data){
     voiceCall: data.voiceCall || null,
     intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
     playerAdvance: data.playerAdvance==='manual'?'manual':'auto',
-    awaitNextPlayer: !!data.awaitNextPlayer
+    awaitNextPlayer: !!data.awaitNextPlayer,
+    playersStorage: data.playersStorage || (Array.isArray(data.players) && data.players.length ? 'embedded' : 'subcollection'),
+    playersCount: data.playersCount != null ? data.playersCount : (nextPlayers.length || 0),
+    currentPlayer: data.currentPlayer || null
   };
   helperMode=!!(user && data.ownerId!==user.uid && (data.coOrganiserIds||[]).includes(user.uid));
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
@@ -5203,10 +5218,14 @@ async function openAuction(id){
   const isHelper=user&&(data.coOrganiserIds||[]).includes(user.uid);
   const isTeamOwner=user&&(data.owners||[]).some(o=>o.uid===user.uid&&o.teamId);
   if((isOwner||isHelper||isTeamOwner) && (data.status==='live'||data.status==='setup')){
-    resumeAuction(id,data);
+    await resumeAuction(id,data);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
     return;
   }
+  // Option 2: seed T and load roster before watch UI
+  auctionId = id;
+  applyAuctionData(data);
+  try{ await ensurePlayersLoaded(id, data); }catch(e){ console.warn('ensurePlayersLoaded watch', e); }
   showScreen('screenWatch');
   try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: false }); }catch(e){}
   window._liveJoinQuiet=true;
@@ -5247,13 +5266,15 @@ async function openAuction(id){
   });
 }
 
-function resumeAuction(id, data){
+async function resumeAuction(id, data){
   auctionId=id;
   // Seed without replaying sold/player commentary from last session
   window._liveJoinQuiet=true;
   try{ queueClearSpeech(); }catch(e){}
   try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
   applyAuctionData(data);
+  // Option 2: load roster from subcollection if not embedded
+  try{ await ensurePlayersLoaded(id, data); }catch(e){ console.warn('ensurePlayersLoaded', e); }
   showScreen('screenAuction');
   startAuctionLive(id);
   if(ownerMode && isVirtual()) switchTab('auction');
@@ -5273,7 +5294,7 @@ function resumeAuction(id, data){
     if(dead){
       ask('Refresh timer?','This player still has an expired or locked timer from earlier. Start a fresh timer so owners can bid?', async()=>{
         reopenCurrentLotTimer(true);
-        try{ await cloudSave(false); }catch(e){ safeAlert(e); return; }
+        try{ await saveLivePartial({ bid: T.bid, paused: false, intermissionUntil: null }, false); }catch(e){ safeAlert(e); return; }
         queueClearSpeech();
         try{ ttsStop(); }catch(e){}
         window._sayAwait=null;
@@ -7917,41 +7938,220 @@ function doImport(){
   announce('Imported '+T.players.length+' players');
 }
 
+/* ===== Option 2: Pure Firestore smart modeling =====
+ * Live auction doc stays small (bid, meta, teams summary, status…).
+ * Full roster lives in auctions/{id}/players/{playerId}.
+ * Legacy auctions with players[] on the main doc still work (compat read).
+ */
+function playerDocId(p, index){
+  if(p && p.id) return String(p.id);
+  if(p && p.serial) return 's'+String(p.serial).replace(/[^\w-]/g,'_').slice(0,40);
+  return 'p'+String(index);
+}
+function playersSubCol(aid){
+  return db.collection('auctions').doc(aid).collection('players');
+}
+/** Build slim live payload — no full players[] (roster is in subcollection). */
+function buildLivePayload(opts){
+  opts = opts || {};
+  const hostId = T.ownerId || (user && user.uid) || '';
+  const hostEmail = T.ownerEmail || (user && hostId===user.uid ? (user.email||'') : '') || '';
+  const hostName = T.ownerName || (user && hostId===user.uid ? (user.displayName||'') : '') || '';
+  const players = T.players || [];
+  const payload = {
+    title: T.title,
+    mode: T.mode || 'physical',
+    ownerId: hostId,
+    ownerEmail: hostEmail,
+    ownerName: hostName,
+    status: T.status || 'setup',
+    teams: T.teams || [],
+    meta: T.meta || { currentIndex: 0 },
+    activeColumns: T.activeColumns || activeCols,
+    rules: T.rules || null,
+    bid: T.bid || null,
+    owners: T.owners || [],
+    pendingOwners: T.pendingOwners || [],
+    pendingCoOrganisers: T.pendingCoOrganisers || [],
+    coOrganiserIds: T.coOrganiserIds || [],
+    coOrganiserEmails: T.coOrganiserEmails || [],
+    meetLink: T.meetLink || '',
+    paused: !!T.paused,
+    alertRules: T.alertRules || null,
+    lastResult: T.lastResult || null,
+    lastAlert: T.lastAlert || null,
+    aiInsight: T.aiInsight || null,
+    aiInsights: Array.isArray(T.aiInsights) ? T.aiInsights : [],
+    voiceCall: T.voiceCall || null,
+    intermissionSec: T.intermissionSec || 5,
+    intermissionUntil: T.intermissionUntil || null,
+    playerAdvance: T.playerAdvance === 'manual' ? 'manual' : 'auto',
+    awaitNextPlayer: !!T.awaitNextPlayer,
+    // Roster metadata only — full list in subcollection
+    playersStorage: 'subcollection',
+    playersCount: players.length,
+    soldCount: players.filter(function(x){ return x && x.sold; }).length,
+    unsoldCount: players.filter(function(x){ return x && x.unsold; }).length,
+    remainingCount: players.filter(function(x){ return x && !x.sold && !x.unsold; }).length,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(T.presence) payload.presence = T.presence;
+  // Optional: keep a tiny current-player denormalized for viewers before roster loads
+  try{
+    const idx = (T.meta && T.meta.currentIndex) || 0;
+    const cp = players[idx];
+    if(cp){
+      payload.currentPlayer = {
+        index: idx,
+        name: cp.name || '',
+        serial: cp.serial || '',
+        gamerId: cp.gamerId || '',
+        state: cp.state || '',
+        sold: !!cp.sold,
+        unsold: !!cp.unsold
+      };
+    } else {
+      payload.currentPlayer = null;
+    }
+  }catch(e){ payload.currentPlayer = null; }
+  // Legacy embed only when explicitly requested (small setups / migration)
+  if(opts.embedPlayers){
+    payload.players = players;
+  }
+  return payload;
+}
+/** Write full roster to auctions/{id}/players (batches of 400). */
+async function syncPlayersSubcollection(aid, players){
+  if(!db || !aid || !Array.isArray(players)) return;
+  const col = playersSubCol(aid);
+  for(let i = 0; i < players.length; i += 400){
+    const batch = db.batch();
+    const slice = players.slice(i, i + 400);
+    slice.forEach(function(p, j){
+      const idx = i + j;
+      const id = playerDocId(p, idx);
+      if(p && !p.id) p.id = id;
+      const data = Object.assign({}, p, {
+        id: id,
+        index: idx,
+        updatedAt: Date.now()
+      });
+      batch.set(col.doc(id), data, { merge: true });
+    });
+    await batch.commit();
+  }
+}
+/** Load roster from subcollection into sorted array (by index). No composite index required. */
+async function loadPlayersFromSubcollection(aid){
+  if(!db || !aid) return [];
+  const snap = await playersSubCol(aid).get();
+  const list = [];
+  snap.forEach(function(doc){
+    const d = doc.data() || {};
+    d.id = d.id || doc.id;
+    list.push(d);
+  });
+  list.sort(function(a, b){ return (a.index||0) - (b.index||0); });
+  return list;
+}
+/** Ensure T.players is populated (subcollection or legacy array). */
+async function ensurePlayersLoaded(aid, data){
+  data = data || {};
+  if(T && Array.isArray(T.players) && T.players.length) return T.players;
+  // Legacy: players embedded on main doc
+  if(Array.isArray(data.players) && data.players.length){
+    if(T) T.players = data.players;
+    return data.players;
+  }
+  if(data.playersStorage === 'subcollection' || (data.playersCount > 0 && !(data.players && data.players.length))){
+    try{
+      const list = await loadPlayersFromSubcollection(aid);
+      if(T) T.players = list;
+      return list;
+    }catch(e){
+      console.warn('loadPlayersFromSubcollection', e);
+      return (T && T.players) || [];
+    }
+  }
+  return (T && T.players) || data.players || [];
+}
+/** Update one player doc after sold/unsold (best-effort; live doc is source for counts). */
+async function savePlayerDoc(aid, p, index){
+  if(!db || !aid || !p) return;
+  const id = playerDocId(p, index);
+  p.id = id;
+  try{
+    await playersSubCol(aid).doc(id).set(Object.assign({}, p, {
+      id: id,
+      index: index,
+      updatedAt: Date.now()
+    }), { merge: true });
+  }catch(e){
+    console.warn('savePlayerDoc', e);
+  }
+}
+/** Partial live save — bid / pause / meta only (no roster rewrite). */
+async function saveLivePartial(fields, silent){
+  if(!db || !auctionId){
+    if(!silent) showAppError('Cannot save: auction not ready.');
+    return;
+  }
+  const patch = Object.assign({}, fields || {}, {
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  let lastErr = null;
+  for(let attempt = 0; attempt < 3; attempt++){
+    try{
+      await db.collection('auctions').doc(auctionId).set(patch, { merge: true });
+      clearAppError();
+      return;
+    }catch(e){
+      lastErr = e;
+      if(attempt < 2 && isFirebaseRetryable(e)){
+        await new Promise(function(r){ setTimeout(r, 400 * (attempt + 1)); });
+        continue;
+      }
+      break;
+    }
+  }
+  if(!silent) safeAlert(lastErr);
+  throw lastErr;
+}
+
 async function cloudSave(silent){
   if(!T||!db||!user){
     if(!silent) showAppError('Cannot save: not signed in or auction not ready.');
     return;
   }
-  // Never steal host identity — helpers/owners must not overwrite ownerId
-  const hostId = T.ownerId || user.uid;
-  const hostEmail = T.ownerEmail || (hostId===user.uid ? (user.email||'') : '');
-  const hostName = T.ownerName || (hostId===user.uid ? (user.displayName||'') : '');
-  const payload={
-    title:T.title, mode:T.mode||'physical', ownerId:hostId, ownerEmail:hostEmail, ownerName:hostName,
-    status:T.status||'setup', teams:T.teams||[], players:T.players||[], meta:T.meta||{currentIndex:0},
-    activeColumns:T.activeColumns||activeCols, rules:T.rules||null, bid:T.bid||null,
-    owners:T.owners||[], pendingOwners:T.pendingOwners||[],
-    pendingCoOrganisers:T.pendingCoOrganisers||[], coOrganiserIds:T.coOrganiserIds||[], coOrganiserEmails:T.coOrganiserEmails||[],
-    meetLink:T.meetLink||'', paused:!!T.paused, alertRules:T.alertRules||null, lastResult:T.lastResult||null, lastAlert:T.lastAlert||null,
-    aiInsight:T.aiInsight||null, aiInsights:Array.isArray(T.aiInsights)?T.aiInsights:[],
-    voiceCall:T.voiceCall||null,
-    intermissionSec:T.intermissionSec||5, intermissionUntil:T.intermissionUntil||null,
-    playerAdvance: T.playerAdvance==='manual'?'manual':'auto',
-    awaitNextPlayer: !!T.awaitNextPlayer,
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-  };
-  // Do not wipe presence from host saves
-  if(T.presence) payload.presence=T.presence;
+  // Slim live payload (Option 2) — roster goes to subcollection
+  const payload = buildLivePayload({ embedPlayers: false });
   let lastErr = null;
   for(let attempt=0; attempt<3; attempt++){
     try{
-      if(auctionId) await db.collection('auctions').doc(auctionId).set(payload,{merge:true});
-      else { const ref=await db.collection('auctions').add(payload); auctionId=ref.id; }
+      if(auctionId){
+        await db.collection('auctions').doc(auctionId).set(payload,{merge:true});
+      } else {
+        const ref=await db.collection('auctions').add(payload);
+        auctionId=ref.id;
+      }
+      // Sync full roster to subcollection (batched)
+      if(Array.isArray(T.players) && T.players.length){
+        try{ await syncPlayersSubcollection(auctionId, T.players); }catch(pe){
+          console.warn('syncPlayersSubcollection', pe);
+          // Fallback: embed players on main doc so auction is not empty
+          try{
+            await db.collection('auctions').doc(auctionId).set({
+              players: T.players,
+              playersStorage: 'embedded',
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+          }catch(e2){ console.warn('embed fallback', e2); }
+        }
+      }
       clearAppError();
       return;
     }catch(e){
       lastErr = e;
-      // Brief backoff on retryable Firebase errors
       if(attempt<2 && isFirebaseRetryable(e)){
         await new Promise(r=>setTimeout(r, 400*(attempt+1)));
         continue;
@@ -9437,14 +9637,11 @@ async function hostResumeAndReopen(){
   window._lastPausedFlag = true; // so owner snapshot sees pause→resume flip
   try{
     // Explicit pause clear so owners never stay on "waiting for host"
-    await cloudSave(false);
-    if(auctionId && db){
-      await db.collection('auctions').doc(auctionId).set({
-        paused: false,
-        bid: T.bid || null,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-    }
+    await saveLivePartial({
+      paused: false,
+      bid: T.bid || null,
+      intermissionUntil: T.intermissionUntil || null
+    }, false);
   }catch(e){ safeAlert(e); return; }
   // Resume is a user gesture — unlock + welcome only (never call-end tone)
   try{
@@ -10566,8 +10763,13 @@ async function doQuit(){
           bid.activeTeamIds=[bid.leaderTeamId];
         }
         const tname=((snap.data().teams)||[]).find(t=>t.id===myTeamId);
+        const curI = (snap.data().meta||{}).currentIndex||0;
+        const liveP = (snap.data().currentPlayer && snap.data().currentPlayer.name)
+          || (((snap.data().players)||[])[curI]||{}).name
+          || ((T && T.players && T.players[curI]) ? T.players[curI].name : '')
+          || 'player';
         bid.lastQuit={ teamId:myTeamId, teamName:(tname&&tname.name)||'A team', at:Date.now(),
-          playerName:(((snap.data().players)||[])[(snap.data().meta||{}).currentIndex||0]||{}).name||'player' };
+          playerName: liveP };
         tx.update(ref,{bid, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
       });
       const pn=(T.players&&T.players[T.meta.currentIndex]&&T.players[T.meta.currentIndex].name)||'this player';
@@ -10591,7 +10793,7 @@ async function hostExtend(){
   window._sayAwait=null;
   // Mark extend spoken so snapshot does not repeat for host
   if(T.bid.extendAt) window._lastExtendSpoken = T.bid.extendAt;
-  try{ await cloudSave(true); }catch(e){ safeAlert(e); return; }
+  try{ await saveLivePartial({ bid: T.bid, intermissionUntil: null }, true); }catch(e){ safeAlert(e); return; }
   sayEvent(style==='two' ? 'Time extended. Other teams may bid.' : 'Time extended.', 'host', false, { priority:'p0' });
   renderAuction({ skipFocus: true });
 }
@@ -10964,7 +11166,45 @@ async function afterLotSequence(resultLine, alertLine){
   // Start gap; speech for sold/alert comes once from live snapshot for all roles
   if(T && T.lastResult && !T.lastResult.at) T.lastResult.at = Date.now();
   beginIntermission();
-  try{ await cloudSave(false); }catch(e){}
+  // Option 2: partial live save + single player doc (not full roster rewrite)
+  try{
+    const players = T.players || [];
+    const idx = Math.max(0, ((T.meta && T.meta.currentIndex) || 1) - 1);
+    // currentIndex already advanced past sold player
+    const soldIdx = idx;
+    const p = players[soldIdx];
+    if(auctionId && p){
+      try{ await savePlayerDoc(auctionId, p, soldIdx); }catch(e){}
+    }
+    const livePatch = {
+      teams: T.teams || [],
+      meta: T.meta || { currentIndex: 0 },
+      bid: T.bid || null,
+      lastResult: T.lastResult || null,
+      lastAlert: T.lastAlert || null,
+      intermissionUntil: T.intermissionUntil || null,
+      awaitNextPlayer: !!T.awaitNextPlayer,
+      playersStorage: 'subcollection',
+      playersCount: players.length,
+      soldCount: players.filter(function(x){ return x && x.sold; }).length,
+      unsoldCount: players.filter(function(x){ return x && x.unsold; }).length,
+      remainingCount: players.filter(function(x){ return x && !x.sold && !x.unsold; }).length
+    };
+    try{
+      const cidx = (T.meta && T.meta.currentIndex) || 0;
+      const cp = players[cidx];
+      if(cp){
+        livePatch.currentPlayer = {
+          index: cidx, name: cp.name||'', serial: cp.serial||'', gamerId: cp.gamerId||'',
+          state: cp.state||'', sold: !!cp.sold, unsold: !!cp.unsold
+        };
+      }
+    }catch(e){}
+    await saveLivePartial(livePatch, false);
+  }catch(e){
+    // Fallback to full save if partial fails
+    try{ await cloudSave(false); }catch(e2){}
+  }
 }
 
 async function finalizeSold(teamId, price){

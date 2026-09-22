@@ -7198,12 +7198,15 @@ async function sendManualNotification(){
     var fn = firebase.app().functions('asia-south1').httpsCallable('sendManualNotification');
     var res = await fn({ title: 'Cric360', body: body, link: location.origin + '/' });
     var d = (res && res.data) || {};
-    if(d.ok){
-      alert('Sent to users. Success: ' + (d.success || 0) + (d.failure ? (', failed: ' + d.failure) : ''));
+    var msg = 'Devices found: ' + (d.tokenCount != null ? d.tokenCount : '?') +
+      '\nDelivered: ' + (d.success || 0) +
+      '\nFailed: ' + (d.failure || 0);
+    if(d.ok && (d.success || 0) > 0){
+      alert('Notification sent.\n' + msg);
       if(ta){ ta.value = ''; }
       if($('manualNotifCount')) $('manualNotifCount').textContent = '0 / 120';
     } else {
-      alert(d.error || 'Send failed');
+      alert((d.error || 'Not delivered.') + '\n' + msg);
     }
   }catch(e){
     alert('Send failed: ' + ((e && e.message) || e));

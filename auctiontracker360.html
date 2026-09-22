@@ -7019,12 +7019,10 @@ async function enableNotifications(){
       return;
     }
     fcmCurrentToken = token;
-    var update = {};
-    update['fcmTokens.' + token] = {
-      platform: /Android/i.test(navigator.userAgent) ? 'android' : 'web',
-      updatedAt: Date.now()
-    };
-    update.notifyPrefs = {
+    // FCM tokens contain ":" — never use dotted paths like fcmTokens.token:xxx
+    // Read-merge-write the whole map instead
+    var platform = /Android/i.test(navigator.userAgent) ? 'android' : 'web';
+    var prefs = {
       regLive: true,
       regDeadline: true,
       auctionLive: true,
@@ -7038,10 +7036,24 @@ async function enableNotifications(){
       manual: true
     };
     try{
-      await db.collection('users').doc(user.uid).set(update, {merge: true});
+      var uref = db.collection('users').doc(user.uid);
+      var usnap = await uref.get();
+      var prev = (usnap.exists && usnap.data() && usnap.data().fcmTokens) || {};
+      if(typeof prev !== 'object' || Array.isArray(prev)) prev = {};
+      // also support legacy array
+      var map = {};
+      Object.keys(prev).forEach(function(k){ map[k] = prev[k]; });
+      map[token] = { platform: platform, updatedAt: Date.now() };
+      // Keep a simple list for server (no special chars issues)
+      var list = Object.keys(map);
+      await uref.set({
+        fcmTokens: map,
+        fcmTokenList: list,
+        notifyPrefs: prefs
+      }, { merge: true });
     }catch(fsErr){
       console.error('fcm token save', fsErr);
-      throw new Error('Token created but could not save to account. Check Firestore rules for users. ' + String((fsErr && fsErr.message) || fsErr));
+      throw new Error('Token created but could not save to account. ' + String((fsErr && fsErr.message) || fsErr));
     }
     try{ safeStorageSet('at_notif_on','1'); }catch(e){}
     refreshNotifPanel();

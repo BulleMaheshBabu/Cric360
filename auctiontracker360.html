@@ -3850,14 +3850,32 @@ window.addEventListener('popstate', function(ev){
     const onHome = $('screenHome') && !$('screenHome').classList.contains('hidden');
     const onAuth = $('screenAuth') && !$('screenAuth').classList.contains('hidden');
     const onBoot = $('screenBoot') && !$('screenBoot').classList.contains('hidden');
+    const onAuction = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
+    const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
+    const onWait = $('screenWait') && !$('screenWait').classList.contains('hidden');
+    const onWelcome = $('screenWelcome') && !$('screenWelcome').classList.contains('hidden');
     // From Tracker home / auth → tool selection (hub)
     if(onHome || onAuth || onBoot){
       window.location.href = 'index.html';
       return;
     }
+    // Live / watch / wait / welcome: system Back always leaves room → home (never wizard/assign)
+    if(onAuction || onWatch || onWait || onWelcome){
+      try{ stopAuctionLive(); }catch(e){}
+      try{ if(watchUnsub){ watchUnsub(); watchUnsub=null; } }catch(e){}
+      try{ stopWait(); }catch(e){}
+      try{ stopWatchTimer(); }catch(e){}
+      enterHome();
+      return;
+    }
     // Prefer history.state when present (one step back in our stack)
     const st = (ev && ev.state) || null;
     if(st && st.screen){
+      // Never reopen wizard / assign from history after leaving it
+      if(st.screen === 'screenWizard'){
+        enterHome();
+        return;
+      }
       // Settings panel step: restore panel without leaving settings screen
       if(st.screen === 'screenSettings'){
         window._skipHistoryPush = true;
@@ -3869,8 +3887,7 @@ window.addEventListener('popstate', function(ev){
         }catch(e){}
         return;
       }
-      // Known app screens — restore exactly (matches in-app Back one step)
-      const known = ['screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
+      const known = ['screenHome','screenList','screenSettings','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
       if(known.indexOf(st.screen) >= 0){
         window._skipHistoryPush = true;
         if(st.screen === 'screenHome'){
@@ -3878,6 +3895,11 @@ window.addEventListener('popstate', function(ev){
         } else {
           showScreen(st.screen, { skipPush: true });
         }
+        return;
+      }
+      // screenAuction / screenWatch / screenWait in history → home
+      if(st.screen === 'screenAuction' || st.screen === 'screenWatch' || st.screen === 'screenWait' || st.screen === 'screenWelcome'){
+        enterHome();
         return;
       }
     }
@@ -4155,8 +4177,13 @@ async function restoreNavAfterRefresh(){
       return;
     }
     if((scr === 'screenAuction' || scr === 'screenWatch' || scr === 'screenWait' || scr === 'screenWelcome') && nav.auctionId){
-      if(typeof openAuction === 'function'){
-        await openAuction(nav.auctionId);
+      try{
+        // Re-open same auction; openAuction routes setup owners to waiting room
+        if(typeof openAuction === 'function'){
+          await openAuction(nav.auctionId);
+        }
+      }catch(e){
+        console.warn('restore openAuction', e);
       }
       return;
     }
@@ -4214,6 +4241,7 @@ function enterHome(){
   stopAuctionLive();
   stopWait();
   stopTimer();
+  try{ stopWatchTimer(); }catch(e){}
   stopAssignLive();
   try{ stopPhysHelperLive(); }catch(e){}
   if(watchUnsub){ try{watchUnsub();}catch(e){} watchUnsub=null; }
@@ -4402,24 +4430,25 @@ function renderWaitingRoom(id, data){
   const meOwner = owners.find(o=>o.uid===user.uid);
   const mePending = pending.some(p=>p.uid===user.uid);
 
-  // Auction already live and I have a team → welcome then enter
-  if(data.status==='live' && meOwner && meOwner.teamId){
+  // ONLY when host has pressed Go live (status=live) — never show first player during setup
+  if(String(data.status||'')==='live' && meOwner && meOwner.teamId){
     stopWait();
     showWelcomeThenAuction(id, data, meOwner);
     return;
   }
 
   if(meOwner && meOwner.teamId){
+    // Approved but auction still in setup — stay on waiting room
     $('waitStatus').textContent = 'You are approved';
-    $('waitHint').textContent = '';
+    $('waitHint').textContent = 'Waiting for the host to press Go live.';
     $('waitTeam').classList.remove('hidden');
     $('waitTeam').innerHTML = '<p style="margin:0;font-size:13px;font-weight:700;color:var(--muted)">YOUR TEAM</p>'+
       '<p class="player-name" style="font-size:1.4rem" id="waitTeamName" tabindex="-1">'+(meOwner.teamName||meOwner.teamId)+'</p>'+
-      '<p style="color:var(--muted)">Waiting for the host to begin the auction.</p>';
+      '<p style="color:var(--muted)">Do not leave this screen. You will enter automatically when the auction starts.</p>';
     focusEl($('waitTeamName'));
-    announce('Assigned to team '+(meOwner.teamName||'')+'. Waiting for auction to begin.');
-    if(window._ttsAssignKey !== (meOwner.teamId||'')){
-      window._ttsAssignKey = meOwner.teamId||'';
+    if(window._ttsAssignKey !== (meOwner.teamId||'')+ '|setup'){
+      window._ttsAssignKey = (meOwner.teamId||'')+ '|setup';
+      announce('Assigned to team '+(meOwner.teamName||'')+'. Waiting for host to begin the auction.');
       sayEvent('You are assigned to '+(meOwner.teamName||'your team')+'. Waiting for the host to begin the auction.', 'wait');
     }
   } else if(mePending || data.mode==='virtual'){
@@ -4798,6 +4827,41 @@ async function openAuctionList(kind){
 
 function stopAuctionLive(){ if(auctionLiveUnsub){ try{auctionLiveUnsub();}catch(e){} auctionLiveUnsub=null; } stopPresence(); }
 function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
+/** Viewer/owner watch timer — local 1s tick so UI does not jump (40→10) waiting for Firestore */
+var watchTimerInterval=null;
+function stopWatchTimer(){
+  if(watchTimerInterval){ clearInterval(watchTimerInterval); watchTimerInterval=null; }
+}
+function startWatchTimerTick(){
+  stopWatchTimer();
+  watchTimerInterval=setInterval(function(){
+    try{
+      var data = window._lastWatchData || (T ? {
+        mode: T.mode, bid: T.bid, rules: T.rules, paused: T.paused, status: T.status
+      } : null);
+      if(!data || data.mode!=='virtual' || data.paused || data.status==='ended') return;
+      var bid = data.bid || (T && T.bid) || {};
+      var el = $('wTimer') || $('pTimer');
+      if(!el) return;
+      if(bid.phase==='await_host'){
+        el.textContent = 'Waiting for host decision';
+        el.className = 'timer-box warn';
+        return;
+      }
+      if(bid.phase==='contest' && bid.timerEndsAt){
+        if(typeof updateTimerDisplay==='function'){
+          updateTimerDisplay(el, bid.timerEndsAt, bid.phase);
+        } else {
+          var sec = Math.max(0, Math.ceil((bid.timerEndsAt - Date.now())/1000));
+          var maxSec = (data.rules && data.rules.contestSeconds) || (T && T.rules && T.rules.contestSeconds) || 30;
+          if(sec>maxSec) sec=maxSec;
+          el.textContent = sec+'s';
+          el.className = 'timer-box'+(sec<=5?' end':sec<=10?' warn':'');
+        }
+      }
+    }catch(e){}
+  }, 250);
+}
 
 function applyAuctionData(data){
   if(data.presence) window._lastPresence=data.presence;
@@ -4836,8 +4900,31 @@ function applyAuctionData(data){
     awaitNextPlayer: !!data.awaitNextPlayer,
     playersStorage: data.playersStorage || (Array.isArray(data.players) && data.players.length ? 'embedded' : 'subcollection'),
     playersCount: data.playersCount != null ? data.playersCount : (nextPlayers.length || 0),
+    soldCount: data.soldCount != null ? data.soldCount : null,
+    unsoldCount: data.unsoldCount != null ? data.unsoldCount : null,
+    remainingCount: data.remainingCount != null ? data.remainingCount : null,
     currentPlayer: data.currentPlayer || null
   };
+  // Keep in-memory player sold flags in sync with lastResult (stats + lists stay fresh)
+  try{
+    if(T.lastResult && T.lastResult.name && Array.isArray(T.players) && T.players.length){
+      const lr = T.lastResult;
+      for(var pi=0; pi<T.players.length; pi++){
+        var pp = T.players[pi];
+        if(!pp || !pp.name) continue;
+        if(String(pp.name)===String(lr.name) && !pp.sold && !pp.unsold){
+          if(lr.sold){
+            pp.sold=true; pp.unsold=false; pp.status='sold';
+            pp.soldTeam=lr.team||''; pp.soldPrice=lr.price; pp.price=lr.price;
+          } else {
+            pp.unsold=true; pp.sold=false; pp.status='unsold';
+          }
+          T.players[pi]=pp;
+          break;
+        }
+      }
+    }
+  }catch(e){}
   helperMode=!!(user && data.ownerId!==user.uid && (data.coOrganiserIds||[]).includes(user.uid));
   const ow=(data.owners||[]).find(o=>o.uid===user.uid);
   ownerMode=!!(user && data.mode==='virtual' && ow && ow.teamId);
@@ -5143,6 +5230,8 @@ if(data.lastAlert && data.lastAlert.at){
       if(tel && bid.timerEndsAt && bid.phase==='contest') updateTimerDisplay(tel, bid.timerEndsAt, bid.phase);
       return;
     }
+    // Force stats refresh when counts / lastResult change
+    try{ window._statsKey = null; window._watchStatsKey = null; }catch(e){}
     window._aucSig=sig;
     window._localAwait=null;
     window._sayAwait=null;
@@ -5260,6 +5349,7 @@ async function openAuction(id){
   try{ loadSfxPref(); unlockSfx(); }catch(e){}
   // Start gap ticker so viewers leave "waiting" when time ends (no extra Firestore write needed)
   ensureIntermissionTicker();
+  startWatchTimerTick();
   switchWatchTab('live');
   focusEl($('watchTitle'));
   // Commentary enable lives only in More tab (not on Live/Squads/Insights)
@@ -5306,12 +5396,19 @@ async function resumeAuction(id, data){
   applyAuctionData(data);
   // Option 2: load roster from subcollection if not embedded
   try{ await ensurePlayersLoaded(id, data); }catch(e){ console.warn('ensurePlayersLoaded', e); }
-  showScreen('screenAuction');
+  // Back stack: live replaces prior wizard/wait so system Back goes Home
+  try{
+    history.replaceState({ screen: 'screenHome' }, '', location.pathname + location.search);
+    history.pushState({ screen: 'screenAuction', auctionId: id }, '', location.pathname + location.search);
+    window._skipHistoryPush = true;
+  }catch(e){}
+  showScreen('screenAuction', { skipPush: true });
   startAuctionLive(id);
+  startWatchTimerTick();
   if(ownerMode && isVirtual()) switchTab('auction');
   else if(helperMode) switchTab('squads');
   else switchTab('auction');
-  renderAuction();
+  renderAuction({ force: true });
   try{ updateNavCallBtn(); }catch(e){}
   const isHost = user && data.ownerId === user.uid;
   if(data.paused && isHost){
@@ -9689,7 +9786,8 @@ async function goLive(){
     if(!auctionId){ alert('Could not save auction'); return; }
     // Collapse wizard history so Android Back / Alt+Left goes Home — not Invite/Assign
     try{
-      history.replaceState({ screen: 'screenAuction' }, '', location.pathname + location.search);
+      history.replaceState({ screen: 'screenHome' }, '', location.pathname + location.search);
+      history.pushState({ screen: 'screenAuction', auctionId: auctionId }, '', location.pathname + location.search);
       window._skipHistoryPush = true;
     }catch(e){}
     unlockSfx();
@@ -9697,6 +9795,7 @@ async function goLive(){
     sayEvent('Welcome to '+(T.title||'the auction')+'. You are live.', 'wait');
     showScreen('screenAuction', { skipPush: true });
     startAuctionLive(auctionId);
+    startWatchTimerTick();
     switchTab('auction');
     renderAuction({ force: true });
   }catch(e){ safeAlert(e); }

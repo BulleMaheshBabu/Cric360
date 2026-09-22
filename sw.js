@@ -1,5 +1,5 @@
-/* Cric360 Service Worker – bump CACHE on every release */
-const CACHE = 'cric360-v2';
+/* Cric360 Service Worker – includes FCM push. Bump CACHE on every release */
+const CACHE = 'cric360-v3-fcm';
 const APP_SHELL = [
   './',
   './index.html',
@@ -46,7 +46,6 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // HTML always try network first so updates show quickly
   if (url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
     event.respondWith(
       fetch(req).then(function (res) {
@@ -72,6 +71,53 @@ self.addEventListener('fetch', function (event) {
         return res;
       }).catch(function () { return cached; });
       return cached || net;
+    })
+  );
+});
+
+/* ===== Firebase Cloud Messaging (same SW as PWA) ===== */
+try {
+  importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+  firebase.initializeApp({
+    apiKey: 'AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30',
+    authDomain: 'auctiontracker360.firebaseapp.com',
+    projectId: 'auctiontracker360',
+    storageBucket: 'auctiontracker360.firebasestorage.app',
+    messagingSenderId: '1035286573847',
+    appId: '1:1035286573847:web:3cc9d7df3617f6fb787d52'
+  });
+  const messaging = firebase.messaging();
+  messaging.onBackgroundMessage(function (payload) {
+    const n = (payload && payload.notification) || {};
+    const d = (payload && payload.data) || {};
+    const title = n.title || d.title || 'Cric360';
+    const options = {
+      body: n.body || d.body || '',
+      data: d,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png'
+    };
+    return self.registration.showNotification(title, options);
+  });
+} catch (e) {
+  console.warn('FCM SW init', e);
+}
+
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  const d = (event.notification && event.notification.data) || {};
+  const link = d.link || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if (c.url && 'focus' in c) {
+          try { if (c.navigate) c.navigate(link); } catch (e) {}
+          return c.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(link);
     })
   );
 });

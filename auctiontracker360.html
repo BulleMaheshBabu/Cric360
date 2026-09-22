@@ -6934,11 +6934,7 @@ async function deleteRegTournamentFully(formId){
 function refreshNotifPanel(){
   var st = $('notifStatus');
   var chk = $('chkNotifToggle');
-  var on = false;
-  try{
-    on = (typeof Notification !== 'undefined' && Notification.permission === 'granted' && !!fcmCurrentToken)
-      || !!safeStorageGet('at_notif_on');
-  }catch(e){}
+  var on = !!(fcmCurrentToken && typeof Notification !== 'undefined' && Notification.permission === 'granted');
   if(st) st.textContent = on ? 'Notifications on' : 'Allow notifications';
   if(chk) chk.checked = !!on;
   if($('btnTestNotif')) $('btnTestNotif').classList.toggle('hidden', !on);
@@ -7041,7 +7037,12 @@ async function enableNotifications(){
       cricAuctionLive: true,
       manual: true
     };
-    await db.collection('users').doc(user.uid).set(update, {merge: true});
+    try{
+      await db.collection('users').doc(user.uid).set(update, {merge: true});
+    }catch(fsErr){
+      console.error('fcm token save', fsErr);
+      throw new Error('Token created but could not save to account. Check Firestore rules for users. ' + String((fsErr && fsErr.message) || fsErr));
+    }
     try{ safeStorageSet('at_notif_on','1'); }catch(e){}
     refreshNotifPanel();
     try{ if(typeof announce==='function') announce('Notifications on'); }catch(e){}
@@ -7063,12 +7064,10 @@ async function enableNotifications(){
 async function sendTestNotification(){
   if(!user){ alert('Sign in first.'); return; }
   try{
-    // Ensure SW + token exist on this device before calling server
+    // Always re-register token on this device so Firestore has it
+    await enableNotifications();
     if(!fcmCurrentToken){
-      try{ await enableNotifications(); }catch(e){}
-    }
-    if(!fcmCurrentToken){
-      alert('No token on this device. Turn notifications off and on again after uploading sw.js.');
+      alert('Could not register this device. Turn the toggle off, then on, and allow permission.');
       return;
     }
     var fn = firebase.app().functions('asia-south1').httpsCallable('sendTestPush');
@@ -7077,13 +7076,13 @@ async function sendTestNotification(){
     if(d.ok){
       alert('Test sent. Check notification shade. Success: ' + (d.success || 0));
     } else {
-      alert(d.error || 'Test failed. Enable notifications first.');
+      alert(d.error || 'Test failed.');
     }
   }catch(e){
     var msg = (e && e.message) || String(e);
     if(e && e.code) msg = e.code + ': ' + msg;
     if(/Service Worker|PushManager|subscribe/i.test(msg)){
-      alert('Service Worker not active. Upload sw.js to site root, close all tabs, reopen, enable notifications, then test.');
+      alert('Service Worker not active. Close all tabs of this site, open again, enable notifications, then test.');
     } else {
       alert('Test failed: ' + msg);
     }

@@ -3676,11 +3676,32 @@ async function withErrorHandling(label, fn, opts){
   }
 }
 
-function showScreen(id){
+/** When true, showScreen will not push a new history entry (used by popstate restore). */
+window._skipHistoryPush = false;
+window._currentScreenId = 'screenBoot';
+
+function showScreen(id, opts){
+  opts = opts || {};
+  const skipPush = !!(opts.skipPush || window._skipHistoryPush);
+  window._skipHistoryPush = false;
   try{
-    if(id && id!=='screenAuth'){
+    if(id && id!=='screenAuth' && id!=='screenBoot' && !skipPush){
       const st = history.state;
-      if(!st || st.screen!==id) history.pushState({ screen: id }, '', location.pathname + location.search);
+      if(!st || st.screen!==id){
+        history.pushState({ screen: id, settingsPanel: (id==='screenSettings' ? (window._settingsPanel||'menu') : null) }, '', location.pathname + location.search);
+      }
+    }
+  }catch(e){}
+  window._currentScreenId = id || window._currentScreenId;
+  // Persist for refresh — stay on same screen after reload
+  try{
+    if(id && id!=='screenBoot' && id!=='screenAuth'){
+      const persist = { screen: id, at: Date.now() };
+      if(id==='screenSettings') persist.settingsPanel = window._settingsPanel || 'menu';
+      if((id==='screenAuction' || id==='screenWatch' || id==='screenWait' || id==='screenWelcome') && typeof auctionId!=='undefined' && auctionId){
+        persist.auctionId = auctionId;
+      }
+      sessionStorage.setItem('at_nav_restore', JSON.stringify(persist));
     }
   }catch(e){}
   // Keep top-nav usable for Call on auction/watch. Only hide brand/account chrome from SR.
@@ -3720,6 +3741,56 @@ function showScreen(id){
     }
   }catch(e){}
   if(id!=='screenAuction' && id!=='screenWatch') stopTimer();
+}
+
+/** Apply one step of in-app back (same logic as our Back buttons). */
+function applyAppBackStep(){
+  try{
+    // Settings: panel → menu → home
+    if($('screenSettings') && !$('screenSettings').classList.contains('hidden')){
+      if(window._settingsPanel && window._settingsPanel!=='menu'){
+        showSettingsPanel('menu');
+        return true;
+      }
+      enterHome();
+      try{ switchHubTab('more'); }catch(e){}
+      return true;
+    }
+    // Auction / watch / wait / welcome / list / wizard → home
+    if($('screenAuction') && !$('screenAuction').classList.contains('hidden')){
+      try{ stopAuctionLive(); }catch(e){}
+      enterHome(); return true;
+    }
+    if($('screenWatch') && !$('screenWatch').classList.contains('hidden')){
+      try{ if(watchUnsub){ watchUnsub(); watchUnsub=null; } }catch(e){}
+      enterHome(); return true;
+    }
+    if($('screenWait') && !$('screenWait').classList.contains('hidden')){
+      try{ stopWait(); }catch(e){}
+      enterHome(); return true;
+    }
+    if($('screenWelcome') && !$('screenWelcome').classList.contains('hidden')){
+      enterHome(); return true;
+    }
+    if($('screenList') && !$('screenList').classList.contains('hidden')){
+      enterHome(); return true;
+    }
+    if($('screenWizard') && !$('screenWizard').classList.contains('hidden')){
+      enterHome(); return true;
+    }
+    // Registration screens → home + regs tab
+    if(($('screenRegWizard') && !$('screenRegWizard').classList.contains('hidden')) ||
+       ($('screenRegForm') && !$('screenRegForm').classList.contains('hidden')) ||
+       ($('screenRegHost') && !$('screenRegHost').classList.contains('hidden')) ||
+       ($('screenRegRecords') && !$('screenRegRecords').classList.contains('hidden')) ||
+       ($('screenRegUserTour') && !$('screenRegUserTour').classList.contains('hidden')) ||
+       ($('screenRegPublicList') && !$('screenRegPublicList').classList.contains('hidden'))){
+      enterHome();
+      try{ switchHubTab('regs'); }catch(e){}
+      return true;
+    }
+  }catch(e){}
+  return false;
 }
 function isSuperAdmin(){
   const em=(user&&user.email||'').toLowerCase();
@@ -3784,28 +3855,34 @@ window.addEventListener('popstate', function(ev){
       window.location.href = 'index.html';
       return;
     }
-    // From any inner Tracker screen → Tracker home first
-    if($('screenAuction') && !$('screenAuction').classList.contains('hidden')){
-      enterHome(); return;
+    // Prefer history.state when present (one step back in our stack)
+    const st = (ev && ev.state) || null;
+    if(st && st.screen){
+      // Settings panel step: restore panel without leaving settings screen
+      if(st.screen === 'screenSettings'){
+        window._skipHistoryPush = true;
+        showScreen('screenSettings', { skipPush: true });
+        try{
+          if(typeof showSettingsPanel === 'function'){
+            showSettingsPanel(st.settingsPanel || 'menu');
+          }
+        }catch(e){}
+        return;
+      }
+      // Known app screens — restore exactly (matches in-app Back one step)
+      const known = ['screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
+      if(known.indexOf(st.screen) >= 0){
+        window._skipHistoryPush = true;
+        if(st.screen === 'screenHome'){
+          enterHome();
+        } else {
+          showScreen(st.screen, { skipPush: true });
+        }
+        return;
+      }
     }
-    if($('screenWatch') && !$('screenWatch').classList.contains('hidden')){
-      enterHome(); return;
-    }
-    if($('screenSettings') && !$('screenSettings').classList.contains('hidden')){
-      enterHome(); return;
-    }
-    if($('screenList') && !$('screenList').classList.contains('hidden')){
-      enterHome(); return;
-    }
-    if($('screenWizard') && !$('screenWizard').classList.contains('hidden')){
-      enterHome(); return;
-    }
-    if($('screenWait') && !$('screenWait').classList.contains('hidden')){
-      enterHome(); return;
-    }
-    if($('screenWelcome') && !$('screenWelcome').classList.contains('hidden')){
-      enterHome(); return;
-    }
+    // Fallback: same behaviour as in-app Back button (one step)
+    if(applyAppBackStep()) return;
     window.location.href = 'index.html';
   }catch(e){
     try{ window.location.href = 'index.html'; }catch(e2){}
@@ -4047,6 +4124,56 @@ async function loadProfile(u){
 }
 async function refreshProfile(){ if(user) profile=await loadProfile(user); return profile; }
 
+/** After full page refresh, reopen last screen so user does not always land on home. */
+async function restoreNavAfterRefresh(){
+  var raw = null;
+  try{ raw = sessionStorage.getItem('at_nav_restore'); }catch(e){}
+  if(!raw) return;
+  var nav = null;
+  try{ nav = JSON.parse(raw); }catch(e){ return; }
+  if(!nav || !nav.screen) return;
+  // Ignore stale restores older than 2 hours
+  if(nav.at && (Date.now() - nav.at) > 2 * 60 * 60 * 1000){
+    try{ sessionStorage.removeItem('at_nav_restore'); }catch(e){}
+    return;
+  }
+  var scr = nav.screen;
+  if(scr === 'screenHome' || scr === 'screenBoot' || scr === 'screenAuth') return;
+  try{
+    if(scr === 'screenSettings'){
+      showScreen('screenSettings');
+      if(typeof showSettingsPanel === 'function'){
+        showSettingsPanel(nav.settingsPanel || 'menu');
+      }
+      return;
+    }
+    if(scr === 'screenList'){
+      try{
+        if($('btnMyAuctions')) $('btnMyAuctions').click();
+        else showScreen('screenList');
+      }catch(e){ showScreen('screenList'); }
+      return;
+    }
+    if((scr === 'screenAuction' || scr === 'screenWatch' || scr === 'screenWait' || scr === 'screenWelcome') && nav.auctionId){
+      if(typeof openAuction === 'function'){
+        await openAuction(nav.auctionId);
+      }
+      return;
+    }
+    if(scr === 'screenWizard'){
+      showScreen('screenWizard');
+      return;
+    }
+    // Generic restore for other static screens
+    var known = ['screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
+    if(known.indexOf(scr) >= 0){
+      showScreen(scr);
+    }
+  }catch(e){
+    console.warn('restoreNavAfterRefresh', e);
+  }
+}
+
 function enterHome(){
   try{ restoreFcmTokenIfGranted(); }catch(e){}
 
@@ -4169,6 +4296,9 @@ auth.onAuthStateChanged(async u=>{
       try{ history.replaceState({},'',location.pathname);}catch(e){}
       if(typeof handleRegDeepLink==='function') await handleRegDeepLink(rid);
     }catch(e){ safeAlert(e); }
+  } else {
+    // Refresh restore: stay on last screen instead of always landing on home
+    try{ await restoreNavAfterRefresh(); }catch(e){ console.warn('restoreNav', e); }
   }
   try{
     profileUnsub=db.collection('users').doc(u.uid).onSnapshot(snap=>{
@@ -4349,23 +4479,37 @@ function showSettingsPanel(which){
   const menu=$('settingsMenu');
   const panels=['panelProfile','panelCommentary','panelSounds','panelRegPref','panelNotifications','panelAbout','panelAdmin'];
   which=which||'menu';
+  const prev = window._settingsPanel;
   window._settingsPanel=which;
-  panels.forEach(id=>{ const el=$(id); if(el) el.classList.add('hidden'); });
+  // Push history step so system Back closes panel → menu (same as app Back)
+  try{
+    if(which!=='menu' && prev!==which){
+      history.pushState({ screen: 'screenSettings', settingsPanel: which }, '', location.pathname + location.search);
+    } else if(which==='menu' && prev && prev!=='menu'){
+      // Going back to menu from panel — update state without extra push if already popped
+      try{ history.replaceState({ screen: 'screenSettings', settingsPanel: 'menu' }, '', location.pathname + location.search); }catch(e2){}
+    }
+  }catch(e){}
+  panels.forEach(id=>{ const el=$(id); if(el){ el.classList.add('hidden'); el.setAttribute('aria-hidden','true'); el.setAttribute('inert',''); } });
   if(which==='menu'){
-    if(menu) menu.classList.remove('hidden');
+    if(menu){ menu.classList.remove('hidden'); menu.removeAttribute('inert'); menu.setAttribute('aria-hidden','false'); }
     if($('btnSetBack')) $('btnSetBack').setAttribute('aria-label','Back to home');
     focusEl($('btnSetProfile')||$('btnSetBack')||$('setTitle'));
+    try{ sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenSettings', settingsPanel:'menu', at:Date.now() })); }catch(e){}
     return;
   }
-  if(menu) menu.classList.add('hidden');
+  if(menu){ menu.classList.add('hidden'); menu.setAttribute('aria-hidden','true'); menu.setAttribute('inert',''); }
   const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', regpref:'panelRegPref', notifications: 'panelNotifications', about:'panelAbout', admin:'panelAdmin' };
   const id=map[which];
   if($(id)){
     $(id).classList.remove('hidden');
+    $(id).removeAttribute('inert');
+    $(id).setAttribute('aria-hidden','false');
     if($('btnSetBack')) $('btnSetBack').setAttribute('aria-label','Back to settings');
     const focusTarget=$(id).querySelector('input,select,button')||$('btnSetBack');
     focusEl(focusTarget);
   }
+  try{ sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenSettings', settingsPanel: which, at:Date.now() })); }catch(e){}
 }
 if($('btnSetBack')) $('btnSetBack').onclick=function(){
   if(window._settingsPanel && window._settingsPanel!=='menu'){
@@ -7073,8 +7217,8 @@ async function restoreFcmTokenIfGranted(){
     if(typeof Notification === 'undefined') return false;
     if(Notification.permission !== 'granted') return false;
     if(fcmCurrentToken){ refreshNotifPanel(); return true; }
-    // Re-run enable path without prompting (permission already granted)
-    await enableNotifications();
+    // Re-run enable path silently (permission already granted) — no SR announcement
+    await enableNotifications({ silent: true });
     refreshNotifPanel();
     return !!fcmCurrentToken;
   }catch(e){
@@ -7135,40 +7279,49 @@ function wireFcmForegroundHandler(){
         var d = (payload && payload.data) || {};
         var title = n.title || d.title || 'Cric360';
         var body = n.body || d.body || d.message || 'New update';
-        // App is open — system may not show banner; show one ourselves
-        if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
-          try{
-            var note = new Notification(title, {
-              body: body,
-              icon: '/icon-192.png',
-              tag: (d.type || 'cric360-fg') + '-' + String(Date.now()),
-              data: d
-            });
-            note.onclick = function(){
-              try{ window.focus(); }catch(e){}
-              try{ note.close(); }catch(e){}
-              if(d && d.link){
-                try{ location.href = d.link; }catch(e){}
-              }
-            };
-          }catch(ne){
-            // Some WebViews block Notification constructor — fall back
-            try{ alert(title + '\n' + body); }catch(e){}
-          }
-        } else {
-          try{ alert(title + '\n' + body); }catch(e){}
+        var options = {
+          body: body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: (d.type || 'cric360-fg') + '-' + String(Date.now()),
+          data: d,
+          renotify: true,
+          requireInteraction: false
+        };
+        // Prefer Service Worker notification so it looks like a real system banner
+        // (avoids alert/dialog on Android WebView / focused PWA). No alert fallback.
+        function showViaSw(){
+          if(!('serviceWorker' in navigator)) return Promise.reject(new Error('no SW'));
+          return navigator.serviceWorker.ready.then(function(reg){
+            return reg.showNotification(title, options);
+          });
         }
-        try{ if(typeof announce === 'function') announce(title + '. ' + body); }catch(e){}
+        showViaSw().catch(function(){
+          try{
+            if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+              var note = new Notification(title, options);
+              note.onclick = function(){
+                try{ window.focus(); }catch(e){}
+                try{ note.close(); }catch(e){}
+                if(d && d.link){ try{ location.href = d.link; }catch(e){} }
+              };
+            }
+          }catch(ne){}
+        });
+        // Soft live-region only — do not assertive-spam screen readers
+        try{ if(typeof announce === 'function') announce(title + '. ' + body, true); }catch(e){}
       }catch(e){ console.warn('onMessage handler', e); }
     });
     fcmMessaging._atOnMessageWired = true;
   }catch(e){ console.warn('wireFcmForegroundHandler', e); }
 }
 
-async function enableNotifications(){
-  if(!user || !db){ alert('Sign in first.'); return; }
+async function enableNotifications(opts){
+  opts = opts || {};
+  var silent = !!opts.silent;
+  if(!user || !db){ if(!silent) alert('Sign in first.'); return; }
   if(typeof Notification === 'undefined'){
-    alert('Notifications are not supported on this browser.');
+    if(!silent) alert('Notifications are not supported on this browser.');
     return;
   }
   if(!fcmMessaging){
@@ -7179,17 +7332,20 @@ async function enableNotifications(){
     }catch(e){}
   }
   if(!fcmMessaging){
-    alert('Push messaging is not available on this device.');
+    if(!silent) alert('Push messaging is not available on this device.');
     return;
   }
   try{ wireFcmForegroundHandler(); }catch(e){}
   try{
-    if($('notifStatus')) $('notifStatus').textContent = 'Requesting permission…';
-    var perm = await Notification.requestPermission();
+    if(!silent && $('notifStatus')) $('notifStatus').textContent = 'Requesting permission…';
+    var perm = Notification.permission;
+    if(perm !== 'granted'){
+      perm = await Notification.requestPermission();
+    }
     if(perm !== 'granted'){
       if($('notifStatus')) $('notifStatus').textContent = 'Allow notifications';
       try{ if($('chkNotifToggle')) $('chkNotifToggle').checked = false; }catch(e){}
-      alert('Permission denied.');
+      if(!silent) alert('Permission denied.');
       return;
     }
     var reg = await ensurePushServiceWorker();
@@ -7198,7 +7354,7 @@ async function enableNotifications(){
       serviceWorkerRegistration: reg
     });
     if(!token){
-      alert('Could not get notification token. Try again.');
+      if(!silent) alert('Could not get notification token. Try again.');
       try{ if($('chkNotifToggle')) $('chkNotifToggle').checked = false; }catch(e){}
       return;
     }
@@ -7241,7 +7397,10 @@ async function enableNotifications(){
     }
     try{ safeStorageSet('at_notif_on','1'); }catch(e){}
     refreshNotifPanel();
-    try{ if(typeof announce==='function') announce('Notifications on'); }catch(e){}
+    // Only announce when user explicitly enabled — never on silent restore (stops SR dead text)
+    if(!silent){
+      try{ if(typeof announce==='function') announce('Notifications on', true); }catch(e){}
+    }
   }catch(e){
     console.error(e);
     try{ safeStorageSet('at_notif_on',''); }catch(x){}

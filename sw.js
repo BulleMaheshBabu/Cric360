@@ -1,5 +1,5 @@
 /* Cric360 Service Worker – includes FCM push. Bump CACHE on every release */
-const CACHE = 'cric360-v38';
+const CACHE = 'cric360-v39';
 const APP_SHELL = [
   './',
   './index.html',
@@ -95,13 +95,14 @@ try {
     const body = n.body || d.body || d.message || 'New update';
     const options = {
       body: body,
-      data: d,
+      data: Object.assign({}, d, { title: title, body: body }),
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       tag: (d.type || 'cric360') + '-' + String(Date.now()),
       renotify: true,
       requireInteraction: false
     };
+    // Always show — do not rely on browser auto-display of notification payload
     return self.registration.showNotification(title, options);
   });
 } catch (e) {

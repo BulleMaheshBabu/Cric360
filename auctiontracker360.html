@@ -1518,26 +1518,33 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 
   <!-- LIVE tab: organisers get Create + Manage; everyone sees live list (no extra heading) -->
   <div id="hubPaneLive" role="tabpanel" aria-labelledby="hubTabLive">
+    <div class="hub-subtabs" role="tablist" aria-label="Auction lists" style="display:flex;gap:8px;margin:0 0 10px">
+      <button type="button" role="tab" id="hubSubLive" class="btn-ok" aria-selected="true" style="flex:1">Live</button>
+      <button type="button" role="tab" id="hubSubPast" class="btn-sec" aria-selected="false" style="flex:1">Past</button>
+    </div>
     <div id="hubAdminActions" class="hub-admin hidden">
       <button type="button" id="btnCreate" class="btn-ok">Create auction</button>
       <button type="button" id="btnMyAuctions" class="btn-sec">Manage my auctions</button>
     </div>
     <div id="hubMyList" class="hub-list hidden" aria-label="My auctions"></div>
     <div id="hubLiveList" class="hub-list" aria-label="Live auctions"></div>
+    <div id="hubPastList" class="hub-list hidden" aria-label="Past auctions"></div>
   </div>
 
-  <!-- PAST tab: ended auctions only -->
-  <div id="hubPanePast" class="hidden" role="tabpanel" aria-labelledby="hubTabPast">
-    <div id="hubPastList" class="hub-list" aria-label="Past auctions"></div>
-  </div>
+  <div id="hubPanePast" class="hidden" role="tabpanel" aria-labelledby="hubTabPast" hidden></div>
 
   <!-- REGISTRATIONS tab -->
   <div id="hubPaneRegs" class="hidden" role="tabpanel" aria-labelledby="hubTabRegs">
+    <div class="hub-subtabs" role="tablist" aria-label="Registration lists" style="display:flex;gap:8px;margin:0 0 10px">
+      <button type="button" role="tab" id="hubSubRegLive" class="btn-ok" aria-selected="true" style="flex:1">Live registrations</button>
+      <button type="button" role="tab" id="hubSubRegApplied" class="btn-sec" aria-selected="false" style="flex:1">Applied</button>
+    </div>
     <div id="hubRegsAdmin" class="hub-admin hidden" style="margin-bottom:10px">
       <button type="button" id="btnCreateReg" class="btn-ok btn-block">Create registration</button>
     </div>
-    <div id="hubRegsAlert" class="hidden" role="status" style="margin:0 0 10px;padding:10px 12px;border-radius:12px;background:rgba(14,165,233,.12);border:1px solid rgba(14,165,233,.35);font-weight:700"></div>
-    <div id="hubRegsList" class="hub-list" aria-label="Registrations"></div>
+    <div id="hubRegsAlert" class="hidden" role="status"></div>
+    <div id="hubRegsList" class="hub-list" aria-label="Live registrations"></div>
+    <div id="hubRegsAppliedList" class="hub-list hidden" aria-label="Applied registrations"></div>
   </div>
 
   <!-- MORE tab: settings & account -->
@@ -1551,8 +1558,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 </section>
 
 <nav class="hub-tabbar hidden" id="hubTabbar" role="tablist" aria-label="Main tabs">
-  <button type="button" role="tab" id="hubTabLive" class="active" aria-selected="true">Live</button>
-  <button type="button" role="tab" id="hubTabPast" aria-selected="false">Past</button>
+  <button type="button" role="tab" id="hubTabLive" class="active" aria-selected="true">Auctions</button>
   <button type="button" role="tab" id="hubTabRegs" aria-selected="false">Registrations</button>
   <button type="button" role="tab" id="hubTabMore" aria-selected="false">More</button>
 </nav>
@@ -1686,10 +1692,11 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   </div>
 
     <div id="panelNotifications" class="set-panel hidden" aria-label="Notifications">
-    <p class="set-status" id="notifStatus">Push alerts for registrations, live auctions, and match updates.</p>
-    <button type="button" id="btnEnableNotif" class="btn-ok btn-block">Enable notifications</button>
-    <button type="button" id="btnTestNotif" class="btn-sec btn-block" style="margin-top:8px">Send test notification</button>
-    <p class="set-status" id="notifHint" style="margin-top:10px;font-size:13px">Works on Android Chrome and the installed app. Allow permission when asked.</p>
+    <label class="set-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 4px">
+      <span id="notifStatus" style="font-weight:700">Allow notifications</span>
+      <input type="checkbox" id="chkNotifToggle" style="width:22px;height:22px" aria-labelledby="notifStatus" />
+    </label>
+    <button type="button" id="btnTestNotif" class="btn-sec btn-block hidden" style="margin-top:12px">Send test notification</button>
   </div>
 
 <div id="panelAbout" class="set-panel hidden" aria-label="About">
@@ -1726,16 +1733,25 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 
 <!-- Host: form detail + records -->
 <section id="screenRegHost" class="wrap panel hidden" role="region" aria-labelledby="regHostTitle">
-  <button type="button" id="btnRegHostBack" class="btn-sec" aria-label="Back to registrations">Back</button>
-  <h1 id="regHostTitle" tabindex="-1">Registration</h1>
-  <p id="regHostMeta" style="color:var(--muted);font-size:14px;margin:4px 0 12px"></p>
-  <div class="btn-stack" style="margin:10px 0">
-    <button type="button" id="btnRegViewForm" class="btn-sec btn-block">Edit / view registration form</button>
-    <button type="button" id="btnRegShare" class="btn-ok btn-block">Share registration link</button>
-    <button type="button" id="btnRegCopyLink" class="btn-sec btn-block">Copy registration link</button>
-    <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block">Delete tournament</button>
-    <button type="button" id="btnRegOpenRecords" class="btn-ok btn-block">Registration records</button>
-    <button type="button" id="btnRegStartAuction" class="btn-ok btn-block">Start auction</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px">
+    <button type="button" id="btnRegHostBack" class="btn-sec" aria-label="Back">Back</button>
+    <button type="button" id="btnRegHostMore" class="btn-sec" aria-label="More options" aria-haspopup="true">More</button>
+  </div>
+  <h1 id="regHostTitle" tabindex="-1" style="text-align:center;margin:8px 0">Registration</h1>
+  <p id="regHostMeta" style="color:var(--muted);font-size:14px;margin:4px 0 20px;text-align:center"></p>
+  <div class="hub-more-grid" style="max-width:320px;margin:24px auto;display:flex;flex-direction:column;gap:14px">
+    <button type="button" id="btnRegOpenRecords" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">View registrations</button>
+    <button type="button" id="btnRegStartAuction" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Start auction</button>
+  </div>
+  <div id="regHostMoreMenu" class="hidden" role="menu" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center">
+    <div class="panel" style="width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:16px;margin:0" role="document">
+      <button type="button" id="btnRegViewForm" class="btn-sec btn-block" role="menuitem">Edit registration form</button>
+      <button type="button" id="btnRegViewFormOnly" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">View registration form</button>
+      <button type="button" id="btnRegShare" class="btn-ok btn-block" role="menuitem" style="margin-top:8px">Share</button>
+      <button type="button" id="btnRegCopyLink" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Copy link</button>
+      <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block" role="menuitem" style="margin-top:8px">Delete tournament</button>
+      <button type="button" id="btnRegHostMoreClose" class="btn-sec btn-block" style="margin-top:12px">Close</button>
+    </div>
   </div>
 </section>
 
@@ -4449,6 +4465,12 @@ function switchHubTab(which){
   which = (which||'live').toLowerCase();
   if(which!=='live' && which!=='past' && which!=='more' && which!=='regs' && which!=='registrations') which='live';
   if(which==='registrations') which='regs';
+  // Past is now a sub-tab under Auctions
+  if(which==='past'){
+    which='live';
+    window._hubAucSub='past';
+    setTimeout(function(){ if($('hubSubPast')) $('hubSubPast').click(); }, 0);
+  }
   const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), regs:$('hubPaneRegs'), more:$('hubPaneMore') };
   const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), regs:$('hubTabRegs'), more:$('hubTabMore') };
   Object.keys(panes).forEach(function(k){
@@ -4487,6 +4509,38 @@ if($('hubTabLive')) $('hubTabLive').onclick=function(){ switchHubTab('live'); };
 if($('hubTabPast')) $('hubTabPast').onclick=function(){ switchHubTab('past'); };
 if($('hubTabRegs')) $('hubTabRegs').onclick=function(){ switchHubTab('regs'); };
 if($('hubTabMore')) $('hubTabMore').onclick=function(){ switchHubTab('more'); };
+if($('hubSubLive')) $('hubSubLive').onclick=function(){
+  window._hubAucSub='live';
+  if($('hubLiveList')) $('hubLiveList').classList.remove('hidden');
+  if($('hubPastList')) $('hubPastList').classList.add('hidden');
+  if($('hubSubLive')){ $('hubSubLive').className='btn-ok'; $('hubSubLive').setAttribute('aria-selected','true'); }
+  if($('hubSubPast')){ $('hubSubPast').className='btn-sec'; $('hubSubPast').setAttribute('aria-selected','false'); }
+  try{ loadHubLists(); }catch(e){}
+};
+if($('hubSubPast')) $('hubSubPast').onclick=function(){
+  window._hubAucSub='past';
+  if($('hubLiveList')) $('hubLiveList').classList.add('hidden');
+  if($('hubPastList')) $('hubPastList').classList.remove('hidden');
+  if($('hubSubPast')){ $('hubSubPast').className='btn-ok'; $('hubSubPast').setAttribute('aria-selected','true'); }
+  if($('hubSubLive')){ $('hubSubLive').className='btn-sec'; $('hubSubLive').setAttribute('aria-selected','false'); }
+  try{ loadHubLists(); }catch(e){}
+};
+if($('hubSubRegLive')) $('hubSubRegLive').onclick=function(){
+  window._hubRegSub='live';
+  if($('hubRegsList')) $('hubRegsList').classList.remove('hidden');
+  if($('hubRegsAppliedList')) $('hubRegsAppliedList').classList.add('hidden');
+  if($('hubSubRegLive')){ $('hubSubRegLive').className='btn-ok'; $('hubSubRegLive').setAttribute('aria-selected','true'); }
+  if($('hubSubRegApplied')){ $('hubSubRegApplied').className='btn-sec'; $('hubSubRegApplied').setAttribute('aria-selected','false'); }
+  try{ loadRegistrationsHub(); }catch(e){}
+};
+if($('hubSubRegApplied')) $('hubSubRegApplied').onclick=function(){
+  window._hubRegSub='applied';
+  if($('hubRegsList')) $('hubRegsList').classList.add('hidden');
+  if($('hubRegsAppliedList')) $('hubRegsAppliedList').classList.remove('hidden');
+  if($('hubSubRegApplied')){ $('hubSubRegApplied').className='btn-ok'; $('hubSubRegApplied').setAttribute('aria-selected','true'); }
+  if($('hubSubRegLive')){ $('hubSubRegLive').className='btn-sec'; $('hubSubRegLive').setAttribute('aria-selected','false'); }
+  try{ loadAppliedRegistrations(); }catch(e){}
+};
 if($('btnListBack')) $('btnListBack').onclick=function(){ enterHome(); };
 if($('btnHubSignOut')){
   $('btnHubSignOut').onclick=function(){
@@ -6879,21 +6933,31 @@ async function deleteRegTournamentFully(formId){
 /* ===== FCM client ===== */
 function refreshNotifPanel(){
   var st = $('notifStatus');
-  if(!st) return;
-  if(typeof Notification === 'undefined'){
-    st.textContent = 'This browser does not support notifications.';
-    return;
-  }
-  var perm = Notification.permission;
-  if(perm === 'granted'){
-    st.textContent = fcmCurrentToken
-      ? 'Notifications enabled on this device.'
-      : 'Permission granted — tap Enable to register this device.';
-  } else if(perm === 'denied'){
-    st.textContent = 'Notifications blocked. Allow them in browser / app settings, then try again.';
-  } else {
-    st.textContent = 'Notifications are off. Tap Enable to receive auction and match alerts.';
-  }
+  var chk = $('chkNotifToggle');
+  var on = false;
+  try{
+    on = (typeof Notification !== 'undefined' && Notification.permission === 'granted' && !!fcmCurrentToken)
+      || !!safeStorageGet('at_notif_on');
+  }catch(e){}
+  if(st) st.textContent = on ? 'Notifications on' : 'Allow notifications';
+  if(chk) chk.checked = !!on;
+  if($('btnTestNotif')) $('btnTestNotif').classList.toggle('hidden', !on);
+}
+
+async function disableNotifications(){
+  try{
+    if(fcmMessaging && fcmCurrentToken){
+      try{ await fcmMessaging.deleteToken(); }catch(e){}
+    }
+    if(user && db && fcmCurrentToken){
+      var del = {};
+      del['fcmTokens.' + fcmCurrentToken] = firebase.firestore.FieldValue.delete();
+      try{ await db.collection('users').doc(user.uid).update(del); }catch(e){}
+    }
+  }catch(e){}
+  fcmCurrentToken = null;
+  try{ safeStorageSet('at_notif_on',''); }catch(e){}
+  refreshNotifPanel();
 }
 
 async function enableNotifications(){
@@ -6959,9 +7023,9 @@ async function enableNotifications(){
       manual: true
     };
     await db.collection('users').doc(user.uid).set(update, {merge: true});
-    if($('notifStatus')) $('notifStatus').textContent = 'Notifications enabled on this device.';
-    try{ if(typeof announce==='function') announce('Notifications enabled'); }catch(e){}
-    alert('Notifications enabled. You will get alerts for registrations, auctions, and matches.');
+    try{ safeStorageSet('at_notif_on','1'); }catch(e){}
+    refreshNotifPanel();
+    try{ if(typeof announce==='function') announce('Notifications on'); }catch(e){}
   }catch(e){
     console.error(e);
     if($('notifStatus')) $('notifStatus').textContent = 'Could not enable notifications.';
@@ -6982,15 +7046,78 @@ async function sendTestNotification(){
       alert(d.error || 'Test failed. Enable notifications first.');
     }
   }catch(e){
-    if(typeof safeAlert==='function') safeAlert(e);
-    else alert(String((e && e.message) || e));
+    var msg = (e && e.message) || String(e);
+    if(e && e.code) msg = e.code + ': ' + msg;
+    alert('Test failed: ' + msg);
   }
 }
 
 try{
-  if($('btnEnableNotif')) $('btnEnableNotif').onclick = function(){ enableNotifications(); };
+  if($('chkNotifToggle')) $('chkNotifToggle').onchange = function(){
+    if(this.checked) enableNotifications();
+    else disableNotifications();
+  };
   if($('btnTestNotif')) $('btnTestNotif').onclick = function(){ sendTestNotification(); };
+  if($('btnRegHostMore')) $('btnRegHostMore').onclick = function(){
+    var m=$('regHostMoreMenu'); if(m){ m.classList.remove('hidden'); m.style.display='flex'; }
+  };
+  if($('btnRegHostMoreClose')) $('btnRegHostMoreClose').onclick = function(){
+    var m=$('regHostMoreMenu'); if(m){ m.classList.add('hidden'); m.style.display=''; }
+  };
+  if($('regHostMoreMenu')) $('regHostMoreMenu').addEventListener('click', function(ev){
+    if(ev.target===this){ this.classList.add('hidden'); this.style.display=''; }
+  });
+  if($('btnRegViewFormOnly')) $('btnRegViewFormOnly').onclick = function(){
+    if(!regHostForm) return;
+    openRegWizard(regHostForm);
+  };
 }catch(e){}
+
+async function loadAppliedRegistrations(){
+  var list = $('hubRegsAppliedList');
+  if(!list || !db || !user) return;
+  list.innerHTML = '<p class="hub-empty">Loading…</p>';
+  try{
+    var snap = await db.collection('registrationForms').where('status','==','open').limit(40).get();
+    var items = [];
+    var checks = [];
+    snap.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data())); });
+    for(var i=0;i<items.length;i++){
+      var ent = await db.collection('registrationForms').doc(items[i].id).collection('entries').doc(user.uid).get();
+      if(ent.exists) checks.push(items[i]);
+    }
+    if(!checks.length){
+      list.innerHTML = '<p class="hub-empty">No applied registrations yet.</p>';
+      return;
+    }
+    var h = '';
+    checks.forEach(function(it){
+      h += '<button type="button" class="list-btn reg-user-item" data-id="'+it.id+'">'+escHtml(it.title||'Tournament')+'</button>';
+    });
+    list.innerHTML = h;
+    list.querySelectorAll('.reg-user-item').forEach(function(btn){
+      btn.onclick = function(){ openRegUserTour(btn.getAttribute('data-id')); };
+    });
+  }catch(e){
+    list.innerHTML = '<p class="hub-empty">Could not load.</p>';
+  }
+}
+
+function maybeAskNotifPrompt(){
+  try{
+    if(safeStorageGet('at_notif_asked')) return;
+    if(typeof Notification !== 'undefined' && Notification.permission === 'granted' && fcmCurrentToken) return;
+    ask('Notifications', 'Notify you about registrations and auctions?', function(){
+      try{ safeStorageSet('at_notif_asked','1'); }catch(e){}
+      enableNotifications();
+    }, {
+      yesLabel: 'Allow',
+      noLabel: 'Decline',
+      onNo: function(){ try{ safeStorageSet('at_notif_asked','1'); }catch(e){} }
+    });
+  }catch(e){}
+}
+
 
 
 function wireRegistrationsUi(){

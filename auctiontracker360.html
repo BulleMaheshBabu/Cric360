@@ -3759,6 +3759,7 @@ try{
   try{
     if(firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported()){
       fcmMessaging = firebase.messaging();
+      try{ wireFcmForegroundHandler(); }catch(e){ console.warn('FCM onMessage', e); }
     }
   }catch(e){ console.warn("FCM init", e); }
   // Same domain as hub → reuse Google session (no second login when already signed in)
@@ -4047,6 +4048,8 @@ async function loadProfile(u){
 async function refreshProfile(){ if(user) profile=await loadProfile(user); return profile; }
 
 function enterHome(){
+  try{ restoreFcmTokenIfGranted(); }catch(e){}
+
   try{ applyShareMeta('home'); }catch(e){}
 
   // Account name only in Settings — hide from top bar on all other screens
@@ -4404,7 +4407,7 @@ document.addEventListener('click', function(ev){
   if(t.id==='btnSetCommentary'){ showSettingsPanel('commentary'); try{wireTtsSettings();}catch(e){} }
   if(t.id==='btnSetSounds'){ showSettingsPanel('sounds'); try{wireSfxSettings();}catch(e){} }
   if(t.id==='btnSetRegPref'){ showSettingsPanel('regpref'); try{ openRegPrefPanel(); }catch(e){} }
-  if(t.id==='btnSetNotifications'){ showSettingsPanel('notifications'); try{ refreshNotifPanel(); }catch(e){} }
+  if(t.id==='btnSetNotifications'){ showSettingsPanel('notifications'); try{ refreshNotifPanel(); restoreFcmTokenIfGranted(); }catch(e){} }
   if(t.id==='btnSetAbout') showSettingsPanel('about');
   if(t.id==='btnSetAdmin'){ showSettingsPanel('admin'); }
   if(t.classList&&t.classList.contains('btnSetBackMenu')) showSettingsPanel('menu');
@@ -7046,12 +7049,39 @@ async function deleteRegTournamentFully(formId){
 function refreshNotifPanel(){
   var st = $('notifStatus');
   var chk = $('chkNotifToggle');
-  var on = !!(fcmCurrentToken && typeof Notification !== 'undefined' && Notification.permission === 'granted');
-  if(st) st.textContent = on ? 'Notifications on' : 'Allow notifications';
-  if(chk) chk.checked = !!on;
-  if($('btnTestNotif')) $('btnTestNotif').classList.toggle('hidden', !on);
+  var perm = (typeof Notification !== 'undefined') ? Notification.permission : 'default';
+  var on = !!(fcmCurrentToken && perm === 'granted');
+  // If permission granted but token not in memory yet, show intermediate state
+  if(!on && perm === 'granted'){
+    if(st) st.textContent = 'Notifications allowed — restoring…';
+    if(chk) chk.checked = true;
+    if($('btnTestNotif')) $('btnTestNotif').classList.add('hidden');
+  } else {
+    if(st) st.textContent = on ? 'Notifications on' : 'Allow notifications';
+    if(chk) chk.checked = !!on;
+    if($('btnTestNotif')) $('btnTestNotif').classList.toggle('hidden', !on);
+  }
   var man = $('manualNotifBox');
   if(man) man.classList.toggle('hidden', !isSuperAdmin());
+}
+
+/** After page reload / app update: permission may still be granted but token is only in memory.
+ *  Silently re-fetch token and save so user does not have to toggle again. */
+async function restoreFcmTokenIfGranted(){
+  try{
+    if(!user || !db) return false;
+    if(typeof Notification === 'undefined') return false;
+    if(Notification.permission !== 'granted') return false;
+    if(fcmCurrentToken){ refreshNotifPanel(); return true; }
+    // Re-run enable path without prompting (permission already granted)
+    await enableNotifications();
+    refreshNotifPanel();
+    return !!fcmCurrentToken;
+  }catch(e){
+    console.warn('restoreFcmTokenIfGranted', e);
+    refreshNotifPanel();
+    return false;
+  }
 }
 
 async function disableNotifications(){
@@ -7096,6 +7126,45 @@ async function ensurePushServiceWorker(){
   return reg;
 }
 
+function wireFcmForegroundHandler(){
+  if(!fcmMessaging || fcmMessaging._atOnMessageWired) return;
+  try{
+    fcmMessaging.onMessage(function(payload){
+      try{
+        var n = (payload && payload.notification) || {};
+        var d = (payload && payload.data) || {};
+        var title = n.title || d.title || 'Cric360';
+        var body = n.body || d.body || d.message || 'New update';
+        // App is open — system may not show banner; show one ourselves
+        if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+          try{
+            var note = new Notification(title, {
+              body: body,
+              icon: '/icon-192.png',
+              tag: (d.type || 'cric360-fg') + '-' + String(Date.now()),
+              data: d
+            });
+            note.onclick = function(){
+              try{ window.focus(); }catch(e){}
+              try{ note.close(); }catch(e){}
+              if(d && d.link){
+                try{ location.href = d.link; }catch(e){}
+              }
+            };
+          }catch(ne){
+            // Some WebViews block Notification constructor — fall back
+            try{ alert(title + '\n' + body); }catch(e){}
+          }
+        } else {
+          try{ alert(title + '\n' + body); }catch(e){}
+        }
+        try{ if(typeof announce === 'function') announce(title + '. ' + body); }catch(e){}
+      }catch(e){ console.warn('onMessage handler', e); }
+    });
+    fcmMessaging._atOnMessageWired = true;
+  }catch(e){ console.warn('wireFcmForegroundHandler', e); }
+}
+
 async function enableNotifications(){
   if(!user || !db){ alert('Sign in first.'); return; }
   if(typeof Notification === 'undefined'){
@@ -7113,6 +7182,7 @@ async function enableNotifications(){
     alert('Push messaging is not available on this device.');
     return;
   }
+  try{ wireFcmForegroundHandler(); }catch(e){}
   try{
     if($('notifStatus')) $('notifStatus').textContent = 'Requesting permission…';
     var perm = await Notification.requestPermission();

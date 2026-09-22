@@ -1612,6 +1612,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <button type="button" class="menu-item" id="btnSetSounds">Sounds</button>
     <button type="button" class="menu-item hidden" id="btnSetAdmin">Permissions</button>
     <button type="button" class="menu-item" id="btnSetRegPref">Registrations preference</button>
+    <button type="button" class="menu-item" id="btnSetNotifications">Notifications</button>
     <button type="button" class="menu-item" id="btnSetAbout">About</button>
   </div>
 
@@ -1684,7 +1685,14 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <button type="button" id="btnRegPrefSave" class="btn-ok btn-block">Save preference</button>
   </div>
 
-  <div id="panelAbout" class="set-panel hidden" aria-label="About">
+    <div id="panelNotifications" class="set-panel hidden" aria-label="Notifications">
+    <p class="set-status" id="notifStatus">Push alerts for registrations, live auctions, and match updates.</p>
+    <button type="button" id="btnEnableNotif" class="btn-ok btn-block">Enable notifications</button>
+    <button type="button" id="btnTestNotif" class="btn-sec btn-block" style="margin-top:8px">Send test notification</button>
+    <p class="set-status" id="notifHint" style="margin-top:10px;font-size:13px">Works on Android Chrome and the installed app. Allow permission when asked.</p>
+  </div>
+
+<div id="panelAbout" class="set-panel hidden" aria-label="About">
     <ul class="set-about">
       <li><strong>Developer:</strong> <a href="https://grok.x.ai" target="_blank" rel="noopener noreferrer">Grok</a></li>
       <li><strong>Owner:</strong> Bulle Mahesh Babu</li>
@@ -1997,6 +2005,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30",
@@ -2009,6 +2018,10 @@ const firebaseConfig = {
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
 const ADMIN_NOTIFY_EMAIL = "maheshdhoni7633@gmail.com";
+/** Web Push VAPID public key (Firebase Cloud Messaging) */
+const FCM_VAPID_KEY = "BEwQKcaPvunimOioBjc5SyDoXXIxNl5d_8bEw9zXh3bbcCnNnsoHZupf0-32xivMKC4g96XhytywSd549PTOv3k";
+let fcmMessaging = null;
+let fcmCurrentToken = null;
 
 let auth, db, user=null, profile=null, profileUnsub=null;
 let T=null, auctionId=null, step=0, wiz={};
@@ -3695,6 +3708,11 @@ try{
   firebase.initializeApp(firebaseConfig);
   auth=firebase.auth();
   db=firebase.firestore();
+  try{
+    if(firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported()){
+      fcmMessaging = firebase.messaging();
+    }
+  }catch(e){ console.warn("FCM init", e); }
   // Same domain as hub → reuse Google session (no second login when already signed in)
   try{
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
@@ -4278,7 +4296,7 @@ $('btnLogout').onclick=()=>{ if(!confirm('Are you sure you want to sign out from
 window._settingsPanel='menu';
 function showSettingsPanel(which){
   const menu=$('settingsMenu');
-  const panels=['panelProfile','panelCommentary','panelSounds','panelRegPref','panelAbout','panelAdmin'];
+  const panels=['panelProfile','panelCommentary','panelSounds','panelRegPref','panelNotifications','panelAbout','panelAdmin'];
   which=which||'menu';
   window._settingsPanel=which;
   panels.forEach(id=>{ const el=$(id); if(el) el.classList.add('hidden'); });
@@ -4289,7 +4307,7 @@ function showSettingsPanel(which){
     return;
   }
   if(menu) menu.classList.add('hidden');
-  const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', regpref:'panelRegPref', about:'panelAbout', admin:'panelAdmin' };
+  const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', regpref:'panelRegPref', notifications: 'panelNotifications', about:'panelAbout', admin:'panelAdmin' };
   const id=map[which];
   if($(id)){
     $(id).classList.remove('hidden');
@@ -4338,6 +4356,7 @@ document.addEventListener('click', function(ev){
   if(t.id==='btnSetCommentary'){ showSettingsPanel('commentary'); try{wireTtsSettings();}catch(e){} }
   if(t.id==='btnSetSounds'){ showSettingsPanel('sounds'); try{wireSfxSettings();}catch(e){} }
   if(t.id==='btnSetRegPref'){ showSettingsPanel('regpref'); try{ openRegPrefPanel(); }catch(e){} }
+  if(t.id==='btnSetNotifications'){ showSettingsPanel('notifications'); try{ refreshNotifPanel(); }catch(e){} }
   if(t.id==='btnSetAbout') showSettingsPanel('about');
   if(t.id==='btnSetAdmin'){ showSettingsPanel('admin'); }
   if(t.classList&&t.classList.contains('btnSetBackMenu')) showSettingsPanel('menu');
@@ -6855,6 +6874,124 @@ async function deleteRegTournamentFully(formId){
   }
   await db.collection('registrationForms').doc(formId).delete();
 }
+
+
+/* ===== FCM client ===== */
+function refreshNotifPanel(){
+  var st = $('notifStatus');
+  if(!st) return;
+  if(typeof Notification === 'undefined'){
+    st.textContent = 'This browser does not support notifications.';
+    return;
+  }
+  var perm = Notification.permission;
+  if(perm === 'granted'){
+    st.textContent = fcmCurrentToken
+      ? 'Notifications enabled on this device.'
+      : 'Permission granted — tap Enable to register this device.';
+  } else if(perm === 'denied'){
+    st.textContent = 'Notifications blocked. Allow them in browser / app settings, then try again.';
+  } else {
+    st.textContent = 'Notifications are off. Tap Enable to receive auction and match alerts.';
+  }
+}
+
+async function enableNotifications(){
+  if(!user || !db){ alert('Sign in first.'); return; }
+  if(typeof Notification === 'undefined'){
+    alert('Notifications are not supported on this browser.');
+    return;
+  }
+  if(!fcmMessaging){
+    try{
+      if(firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported()){
+        fcmMessaging = firebase.messaging();
+      }
+    }catch(e){}
+  }
+  if(!fcmMessaging){
+    alert('Push messaging is not available on this device.');
+    return;
+  }
+  try{
+    if($('notifStatus')) $('notifStatus').textContent = 'Requesting permission…';
+    var perm = await Notification.requestPermission();
+    if(perm !== 'granted'){
+      if($('notifStatus')) $('notifStatus').textContent = 'Permission not granted.';
+      alert('You need to allow notifications to receive alerts.');
+      return;
+    }
+    var reg = null;
+    try{
+      reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      await navigator.serviceWorker.ready;
+    }catch(e1){
+      try{
+        reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
+      }catch(e2){ console.warn('SW register', e2); }
+    }
+    var token = await fcmMessaging.getToken({
+      vapidKey: FCM_VAPID_KEY,
+      serviceWorkerRegistration: reg || undefined
+    });
+    if(!token){
+      alert('Could not get notification token. Try again.');
+      return;
+    }
+    fcmCurrentToken = token;
+    var update = {};
+    update['fcmTokens.' + token] = {
+      platform: /Android/i.test(navigator.userAgent) ? 'android' : 'web',
+      updatedAt: Date.now()
+    };
+    update.notifyPrefs = {
+      regLive: true,
+      regDeadline: true,
+      auctionLive: true,
+      auctionProgress: true,
+      aiPublished: true,
+      auctionPause: true,
+      matchLive: true,
+      matchOvers: true,
+      matchResult: true,
+      cricAuctionLive: true,
+      manual: true
+    };
+    await db.collection('users').doc(user.uid).set(update, {merge: true});
+    if($('notifStatus')) $('notifStatus').textContent = 'Notifications enabled on this device.';
+    try{ if(typeof announce==='function') announce('Notifications enabled'); }catch(e){}
+    alert('Notifications enabled. You will get alerts for registrations, auctions, and matches.');
+  }catch(e){
+    console.error(e);
+    if($('notifStatus')) $('notifStatus').textContent = 'Could not enable notifications.';
+    if(typeof safeAlert==='function') safeAlert(e);
+    else alert(String((e && e.message) || e));
+  }
+}
+
+async function sendTestNotification(){
+  if(!user){ alert('Sign in first.'); return; }
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('sendTestPush');
+    var res = await fn({});
+    var d = (res && res.data) || {};
+    if(d.ok){
+      alert('Test sent. Check your notification shade. Success: ' + (d.success || 0));
+    } else {
+      alert(d.error || 'Test failed. Enable notifications first.');
+    }
+  }catch(e){
+    if(typeof safeAlert==='function') safeAlert(e);
+    else alert(String((e && e.message) || e));
+  }
+}
+
+try{
+  if($('btnEnableNotif')) $('btnEnableNotif').onclick = function(){ enableNotifications(); };
+  if($('btnTestNotif')) $('btnTestNotif').onclick = function(){ sendTestNotification(); };
+}catch(e){}
+
 
 function wireRegistrationsUi(){
   if($('btnCreateReg')) $('btnCreateReg').onclick=function(){ openRegWizard(null); };

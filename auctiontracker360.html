@@ -1697,6 +1697,13 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       <input type="checkbox" id="chkNotifToggle" style="width:22px;height:22px" aria-labelledby="notifStatus" />
     </label>
     <button type="button" id="btnTestNotif" class="btn-sec btn-block hidden" style="margin-top:12px">Send test notification</button>
+    <div id="manualNotifBox" class="hidden" style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">
+      <p style="margin:0 0 8px;font-weight:700">Send alert to everyone</p>
+      <label for="manualNotifBody" class="sr-only">Notification text</label>
+      <textarea id="manualNotifBody" maxlength="120" rows="3" placeholder="Type message (max 120 characters)" style="width:100%;min-height:88px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px;resize:vertical"></textarea>
+      <p id="manualNotifCount" style="margin:6px 0 10px;font-size:13px;color:var(--muted)">0 / 120</p>
+      <button type="button" id="btnSendManualNotif" class="btn-ok btn-block">Send notification</button>
+    </div>
   </div>
 
 <div id="panelAbout" class="set-panel hidden" aria-label="About">
@@ -1745,9 +1752,10 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   </div>
   <div id="regHostMoreMenu" class="hidden" role="menu" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center">
     <div class="panel" style="width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:16px;margin:0" role="document">
-      <button type="button" id="btnRegViewForm" class="btn-sec btn-block" role="menuitem">Edit registration form</button>
+      <button type="button" id="btnRegModifyRules" class="btn-ok btn-block" role="menuitem">Modify rules</button>
+      <button type="button" id="btnRegViewForm" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Edit registration form</button>
       <button type="button" id="btnRegViewFormOnly" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">View registration form</button>
-      <button type="button" id="btnRegShare" class="btn-ok btn-block" role="menuitem" style="margin-top:8px">Share</button>
+      <button type="button" id="btnRegShare" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Share</button>
       <button type="button" id="btnRegCopyLink" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Copy link</button>
       <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block" role="menuitem" style="margin-top:8px">Delete tournament</button>
       <button type="button" id="btnRegHostMoreClose" class="btn-sec btn-block" style="margin-top:12px">Close</button>
@@ -1766,16 +1774,40 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 </section>
 
 <section id="screenRegUserTour" class="wrap panel hidden" role="region" aria-labelledby="regUserTourTitle">
-  <button type="button" id="btnRegUserTourBack" class="btn-sec" aria-label="Back to registrations">Back</button>
-  <h1 id="regUserTourTitle" tabindex="-1">Tournament</h1>
-  <p id="regUserTourMeta" style="color:var(--muted);font-size:14px;margin:4px 0 12px"></p>
-  <div id="regUserTourRules" class="panel" style="margin:0 0 12px;padding:12px;font-size:14px;line-height:1.45;white-space:pre-wrap"></div>
-  <div class="btn-stack">
-    <button type="button" id="btnRegUserViewList" class="btn-sec btn-block">View registrations</button>
-    <button type="button" id="btnRegUserApply" class="btn-ok btn-block">Apply for auction</button>
-    <button type="button" id="btnRegUserShare" class="btn-sec btn-block">Share this registration</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px">
+    <button type="button" id="btnRegUserTourBack" class="btn-sec" aria-label="Back to registrations">Back</button>
+    <button type="button" id="btnRegUserMore" class="btn-sec" aria-label="More options" aria-haspopup="true">More</button>
+  </div>
+  <h1 id="regUserTourTitle" tabindex="-1" style="text-align:center;margin:8px 0">Tournament</h1>
+  <p id="regUserTourMeta" style="color:var(--muted);font-size:14px;margin:4px 0 20px;text-align:center"></p>
+  <div class="hub-more-grid" style="max-width:320px;margin:24px auto;display:flex;flex-direction:column;gap:14px">
+    <button type="button" id="btnRegUserViewList" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">View registrations</button>
+    <button type="button" id="btnRegUserApply" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Apply for auction</button>
+  </div>
+  <div id="regUserMoreMenu" class="hidden" role="menu" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center">
+    <div class="panel" style="width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:16px;margin:0" role="document">
+      <button type="button" id="btnRegUserViewRules" class="btn-ok btn-block" role="menuitem">View rules</button>
+      <button type="button" id="btnRegUserEditEntry" class="btn-sec btn-block hidden" role="menuitem" style="margin-top:8px">Edit my registration</button>
+      <button type="button" id="btnRegUserShare" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Share registration</button>
+      <button type="button" id="btnRegUserCopyLink" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Copy link</button>
+      <button type="button" id="btnRegUserMoreClose" class="btn-sec btn-block" style="margin-top:12px">Close</button>
+    </div>
   </div>
 </section>
+
+<!-- Rules view / edit modal -->
+<div id="regRulesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="regRulesModalTitle">
+  <div class="modal-box" style="max-height:80vh;overflow-y:auto">
+    <h2 id="regRulesModalTitle" tabindex="-1" style="margin-top:0">Rules</h2>
+    <div id="regRulesViewBody" style="margin:8px 0 14px;white-space:pre-wrap;font-size:15px;line-height:1.5"></div>
+    <div id="regRulesEditWrap" class="hidden">
+      <label for="regRulesEditText" class="sr-only">Edit rules</label>
+      <textarea id="regRulesEditText" rows="10" style="width:100%;min-height:180px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px;line-height:1.45"></textarea>
+      <button type="button" id="btnRegRulesSave" class="btn-ok btn-block" style="margin-top:12px">Save rules</button>
+    </div>
+    <button type="button" id="btnRegRulesClose" class="btn-sec btn-block" style="margin-top:8px">Close</button>
+  </div>
+</div>
 
 <section id="screenRegPublicList" class="wrap panel hidden" role="region" aria-labelledby="regPublicTitle">
   <button type="button" id="btnRegPublicBack" class="btn-sec" aria-label="Back to tournament">Back</button>
@@ -6113,7 +6145,7 @@ async function loadRegistrationsHub(){
     var items = [];
     snap.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data())); });
     // Fallback if orderBy fails (no index) — already in try
-    paintRegsHubList(items);
+    await paintRegsHubList(items);
     // Never show sticky "registrations opened" dead text
     try{ if($('hubRegsAlert')){ $('hubRegsAlert').classList.add('hidden'); $('hubRegsAlert').textContent=''; } }catch(e){}
   }catch(e){
@@ -6123,7 +6155,7 @@ async function loadRegistrationsHub(){
       var items2 = [];
       snap2.forEach(function(doc){ items2.push(Object.assign({id:doc.id}, doc.data())); });
       items2.sort(function(a,b){ return (b.updatedAt&&b.updatedAt.toMillis?b.updatedAt.toMillis():0)-(a.updatedAt&&a.updatedAt.toMillis?a.updatedAt.toMillis():0); });
-      paintRegsHubList(items2);
+      await paintRegsHubList(items2);
     }catch(e2){
       list.innerHTML = '<p class="hub-empty">Could not load registrations. '+friendlyError(e2)+'</p>';
     }
@@ -6140,16 +6172,33 @@ function isRegHostOrAdmin(form){
   return false;
 }
 
-function paintRegsHubList(items){
+async function paintRegsHubList(items){
   var list = $('hubRegsList');
   if(!list) return;
-  if(!items.length){
+  // Hide tournaments the current user already applied to (they appear only under Applied)
+  var appliedIds = {};
+  if(user && db && items.length){
+    try{
+      await Promise.all(items.map(async function(it){
+        if(isRegHostOrAdmin(it)) return;
+        try{
+          var e = await db.collection('registrationForms').doc(it.id).collection('entries').doc(user.uid).get();
+          if(e.exists) appliedIds[it.id] = true;
+        }catch(err){}
+      }));
+    }catch(e){}
+  }
+  var visible = items.filter(function(it){
+    if(isRegHostOrAdmin(it)) return true;
+    if(appliedIds[it.id]) return false;
+    return it.status === 'open';
+  });
+  if(!visible.length){
     list.innerHTML = '<p class="hub-empty">'+(canCreate()?'No registrations yet. Create one.':'No open registrations right now.')+'</p>';
     return;
   }
   var h = '';
-  items.forEach(function(it){
-    var isOwner = user && it.ownerId === user.uid;
+  visible.forEach(function(it){
     var isOpen = it.status === 'open';
     var dates = [it.startDate, it.endDate].filter(Boolean).join(' → ');
     var canManage = isRegHostOrAdmin(it);
@@ -6157,13 +6206,10 @@ function paintRegsHubList(items){
       h += '<button type="button" class="list-btn reg-host-item" data-id="'+it.id+'" aria-label="'+escHtml(it.title||'Tournament')+', manage">'
         +escHtml(it.title||'Tournament')
         +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'No dates')+(isOpen?' · Open':' · Closed')+' · Manage</span></button>';
-    } else if(isOpen){
+    } else {
       h += '<button type="button" class="list-btn reg-user-item" data-id="'+it.id+'" aria-label="'+escHtml(it.title||'Tournament')+'">'
         +escHtml(it.title||'Tournament')
         +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'')+' · Open</span></button>';
-    } else {
-      h += '<div class="list-btn" style="opacity:.7">'+escHtml(it.title||'')
-        +'<br><span style="font-size:13px;color:var(--muted)">Closed</span></div>';
     }
   });
   list.innerHTML = h;
@@ -6187,11 +6233,7 @@ async function openRegUserTour(formId){
     if($('regUserTourTitle')) $('regUserTourTitle').textContent = data.title || 'Tournament';
     var dates = [data.startDate, data.endDate].filter(Boolean).join(' → ');
     if($('regUserTourMeta')) $('regUserTourMeta').textContent = dates || '';
-    if($('regUserTourRules')){
-      $('regUserTourRules').textContent = data.rulesText || '';
-      $('regUserTourRules').classList.toggle('hidden', !(data.rulesText||'').trim());
-    }
-    // Apply vs Edit
+    // Apply vs Edit on center launch button
     var applied = false;
     try{
       var existing = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
@@ -6199,14 +6241,17 @@ async function openRegUserTour(formId){
     }catch(e){}
     var applyBtn = $('btnRegUserApply');
     if(applyBtn){
+      applyBtn.style.minHeight = '56px';
+      applyBtn.style.fontSize = '1.05rem';
       if(data.status !== 'open' && !applied){
         applyBtn.disabled = true;
         applyBtn.textContent = 'Registration closed';
+        applyBtn.className = 'btn-sec btn-block';
         applyBtn.onclick = null;
       } else if(applied){
         applyBtn.disabled = false;
         applyBtn.textContent = 'Edit my registration';
-        applyBtn.className = 'btn-sec btn-block';
+        applyBtn.className = 'btn-ok btn-block';
         applyBtn.onclick = function(){ openRegFormForUser(formId, true); };
       } else {
         applyBtn.disabled = false;
@@ -6215,7 +6260,74 @@ async function openRegUserTour(formId){
         applyBtn.onclick = function(){ openRegFormForUser(formId, false); };
       }
     }
+    // More menu: Edit entry only if applied
+    var editEntry = $('btnRegUserEditEntry');
+    if(editEntry){
+      if(applied){
+        editEntry.classList.remove('hidden');
+        editEntry.onclick = function(){
+          closeRegUserMore();
+          openRegFormForUser(formId, true);
+        };
+      } else {
+        editEntry.classList.add('hidden');
+        editEntry.onclick = null;
+      }
+    }
     try{ focusEl($('regUserTourTitle')); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+
+function closeRegUserMore(){
+  var m = $('regUserMoreMenu');
+  if(m){ m.classList.add('hidden'); m.style.display = ''; }
+}
+function closeRegHostMore(){
+  var m = $('regHostMoreMenu');
+  if(m){ m.classList.add('hidden'); m.style.display = ''; }
+}
+function openRegRulesModal(opts){
+  opts = opts || {};
+  var modal = $('regRulesModal');
+  if(!modal) return;
+  var title = $('regRulesModalTitle');
+  var view = $('regRulesViewBody');
+  var editWrap = $('regRulesEditWrap');
+  var editTa = $('regRulesEditText');
+  var text = (opts.text || '').trim();
+  if(opts.edit){
+    if(title) title.textContent = 'Modify rules';
+    if(view){ view.classList.add('hidden'); view.textContent = ''; }
+    if(editWrap) editWrap.classList.remove('hidden');
+    if(editTa) editTa.value = text;
+  } else {
+    if(title) title.textContent = 'Rules';
+    if(editWrap) editWrap.classList.add('hidden');
+    if(view){
+      view.classList.remove('hidden');
+      view.textContent = text || 'No rules published for this tournament.';
+    }
+  }
+  modal.classList.remove('hidden');
+  try{ focusEl(title || $('btnRegRulesClose')); }catch(e){}
+}
+function closeRegRulesModal(){
+  var modal = $('regRulesModal');
+  if(modal) modal.classList.add('hidden');
+}
+async function saveRegRulesFromModal(){
+  if(!regHostForm || !db) return;
+  var ta = $('regRulesEditText');
+  var text = ta ? ta.value : '';
+  try{
+    await db.collection('registrationForms').doc(regHostForm.id).set({
+      rulesText: text,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    regHostForm.rulesText = text;
+    closeRegRulesModal();
+    try{ announce('Rules updated'); }catch(e){}
+    alert('Rules saved.');
   }catch(e){ safeAlert(e); }
 }
 
@@ -6938,6 +7050,8 @@ function refreshNotifPanel(){
   if(st) st.textContent = on ? 'Notifications on' : 'Allow notifications';
   if(chk) chk.checked = !!on;
   if($('btnTestNotif')) $('btnTestNotif').classList.toggle('hidden', !on);
+  var man = $('manualNotifBox');
+  if(man) man.classList.toggle('hidden', !isSuperAdmin());
 }
 
 async function disableNotifications(){
@@ -7073,6 +7187,29 @@ async function enableNotifications(){
   }
 }
 
+async function sendManualNotification(){
+  if(!user){ alert('Sign in first.'); return; }
+  if(!isSuperAdmin()){ alert('Super admin only.'); return; }
+  var ta = $('manualNotifBody');
+  var body = (ta && ta.value || '').trim();
+  if(!body){ alert('Type a message first.'); return; }
+  if(body.length > 120){ alert('Max 120 characters.'); return; }
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('sendManualNotification');
+    var res = await fn({ title: 'Cric360', body: body, link: location.origin + '/' });
+    var d = (res && res.data) || {};
+    if(d.ok){
+      alert('Sent to users. Success: ' + (d.success || 0) + (d.failure ? (', failed: ' + d.failure) : ''));
+      if(ta){ ta.value = ''; }
+      if($('manualNotifCount')) $('manualNotifCount').textContent = '0 / 120';
+    } else {
+      alert(d.error || 'Send failed');
+    }
+  }catch(e){
+    alert('Send failed: ' + ((e && e.message) || e));
+  }
+}
+
 async function sendTestNotification(){
   if(!user){ alert('Sign in first.'); return; }
   try{
@@ -7107,14 +7244,44 @@ try{
     else disableNotifications();
   };
   if($('btnTestNotif')) $('btnTestNotif').onclick = function(){ sendTestNotification(); };
+  if($('manualNotifBody')){
+    $('manualNotifBody').oninput = function(){
+      var n = (this.value || '').length;
+      if($('manualNotifCount')) $('manualNotifCount').textContent = n + ' / 120';
+    };
+  }
+  if($('btnSendManualNotif')) $('btnSendManualNotif').onclick = function(){ sendManualNotification(); };
   if($('btnRegHostMore')) $('btnRegHostMore').onclick = function(){
     var m=$('regHostMoreMenu'); if(m){ m.classList.remove('hidden'); m.style.display='flex'; }
   };
-  if($('btnRegHostMoreClose')) $('btnRegHostMoreClose').onclick = function(){
-    var m=$('regHostMoreMenu'); if(m){ m.classList.add('hidden'); m.style.display=''; }
-  };
+  if($('btnRegHostMoreClose')) $('btnRegHostMoreClose').onclick = function(){ closeRegHostMore(); };
   if($('regHostMoreMenu')) $('regHostMoreMenu').addEventListener('click', function(ev){
-    if(ev.target===this){ this.classList.add('hidden'); this.style.display=''; }
+    if(ev.target===this) closeRegHostMore();
+  });
+  if($('btnRegModifyRules')) $('btnRegModifyRules').onclick = function(){
+    closeRegHostMore();
+    if(!regHostForm) return;
+    openRegRulesModal({ edit: true, text: regHostForm.rulesText || '' });
+  };
+  if($('btnRegUserMore')) $('btnRegUserMore').onclick = function(){
+    var m=$('regUserMoreMenu'); if(m){ m.classList.remove('hidden'); m.style.display='flex'; }
+  };
+  if($('btnRegUserMoreClose')) $('btnRegUserMoreClose').onclick = function(){ closeRegUserMore(); };
+  if($('regUserMoreMenu')) $('regUserMoreMenu').addEventListener('click', function(ev){
+    if(ev.target===this) closeRegUserMore();
+  });
+  if($('btnRegUserViewRules')) $('btnRegUserViewRules').onclick = function(){
+    closeRegUserMore();
+    openRegRulesModal({ edit: false, text: (regFormCurrent && regFormCurrent.rulesText) || '' });
+  };
+  if($('btnRegUserCopyLink')) $('btnRegUserCopyLink').onclick = function(){
+    closeRegUserMore();
+    copyRegLink(regFormCurrent);
+  };
+  if($('btnRegRulesClose')) $('btnRegRulesClose').onclick = function(){ closeRegRulesModal(); };
+  if($('btnRegRulesSave')) $('btnRegRulesSave').onclick = function(){ saveRegRulesFromModal(); };
+  if($('regRulesModal')) $('regRulesModal').addEventListener('click', function(ev){
+    if(ev.target===this) closeRegRulesModal();
   });
   if($('btnRegViewFormOnly')) $('btnRegViewFormOnly').onclick = function(){
     if(!regHostForm) return;
@@ -7194,7 +7361,7 @@ function wireRegistrationsUi(){
   };
   if($('btnRegShare')) $('btnRegShare').onclick=function(){ shareRegForm(regHostForm); };
   if($('btnRegCopyLink')) $('btnRegCopyLink').onclick=function(){ copyRegLink(regHostForm); };
-  if($('btnRegUserShare')) $('btnRegUserShare').onclick=function(){ shareRegForm(regFormCurrent); };
+  if($('btnRegUserShare')) $('btnRegUserShare').onclick=function(){ closeRegUserMore(); shareRegForm(regFormCurrent); };
   if($('btnRegOpenRecords')) $('btnRegOpenRecords').onclick=function(){ openRegRecordsScreen(); };
   if($('btnRegDeleteForm')) $('btnRegDeleteForm').onclick=function(){
     if(!regHostForm) return;

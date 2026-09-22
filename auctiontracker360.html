@@ -7976,6 +7976,9 @@ function wizardNext(){
     wiz.teamNames=[]; for(let i=0;i<wiz.teamCount;i++) wiz.teamNames.push(($('tn'+i).value.trim())||('Team '+(i+1)));
     T={ title:wiz.name, mode:'physical', status:'setup', teams:wiz.teamNames.map((nm,i)=>({id:'t'+i,name:nm,purse:wiz.purse,remaining:wiz.purse,players:[],minPlayers:wiz.minP,maxPlayers:wiz.maxP,maxReached:false})),
       players:[], meta:{currentIndex:0}, activeColumns:activeCols, rules:null, bid:null, owners:[], pendingOwners:[], pendingCoOrganisers:[], coOrganiserIds:[], meetLink:'',
+      ownerId: (user && user.uid) || '',
+      ownerEmail: (user && user.email) || '',
+      ownerName: (user && user.displayName) || '',
       alertRules: wiz.alertRules||{ minPlayers:true, maxPlayers:true, customCounts:[], purse:true, fired:{} },
       intermissionSec: wiz.intermissionSec||5,
       playerAdvance: wiz.playerAdvance==='manual'?'manual':'auto',
@@ -8132,14 +8135,15 @@ function buildLivePayload(opts){
   // Legacy embed only when explicitly requested (small setups / migration)
   if(opts.embedPlayers){
     payload.players = players;
-  } else {
-    // Clear leftover embedded roster so main doc stays small (Option 2)
+  } else if(opts.clearEmbeddedPlayers){
+    // Only on UPDATE of existing doc — never on first create (delete breaks add())
     try{
       payload.players = firebase.firestore.FieldValue.delete();
     }catch(e){
       payload.players = [];
     }
   }
+  // else: omit players field on create so draft can be written cleanly
   return payload;
 }
 /** Write full roster to auctions/{id}/players (batches of 400). */
@@ -8245,15 +8249,26 @@ async function cloudSave(silent){
     if(!silent) showAppError('Cannot save: not signed in or auction not ready.');
     return;
   }
+  // Ensure owner fields before first create (rules require ownerId == auth.uid)
+  if(!T.ownerId) T.ownerId = user.uid;
+  if(!T.ownerEmail) T.ownerEmail = user.email || '';
+  if(!T.ownerName) T.ownerName = user.displayName || '';
+
   // Slim live payload (Option 2) — roster goes to subcollection
-  const payload = buildLivePayload({ embedPlayers: false });
+  // clearEmbeddedPlayers only when updating an existing doc
+  const payload = buildLivePayload({
+    embedPlayers: false,
+    clearEmbeddedPlayers: !!auctionId
+  });
   let lastErr = null;
   for(let attempt=0; attempt<3; attempt++){
     try{
       if(auctionId){
         await db.collection('auctions').doc(auctionId).set(payload,{merge:true});
       } else {
-        const ref=await db.collection('auctions').add(payload);
+        // First create: never send FieldValue.delete() — breaks document add
+        const createPayload = buildLivePayload({ embedPlayers: false, clearEmbeddedPlayers: false });
+        const ref=await db.collection('auctions').add(createPayload);
         auctionId=ref.id;
       }
       // Sync full roster to subcollection (batched)
@@ -8274,6 +8289,7 @@ async function cloudSave(silent){
       return;
     }catch(e){
       lastErr = e;
+      console.error('cloudSave', e && e.code, e && e.message);
       if(attempt<2 && isFirebaseRetryable(e)){
         await new Promise(r=>setTimeout(r, 400*(attempt+1)));
         continue;
@@ -9529,9 +9545,28 @@ function paintPhysicalHelpers(box){
 async function renderVirtualAssign(body){
   stopAssignLive();
   T.status='setup';
-  try{ await cloudSave(true); }catch(e){}
+  if(!T.ownerId && user) T.ownerId = user.uid;
+  if(!T.ownerEmail && user) T.ownerEmail = user.email || '';
+  if(!T.ownerName && user) T.ownerName = user.displayName || '';
+  var saveErr = null;
+  try{ await cloudSave(false); }catch(e){ saveErr = e; }
   if(!auctionId){
-    body.innerHTML='<p>Could not create draft auction. Check connection and rules.</p>';
+    var detail = '';
+    try{
+      detail = (saveErr && (saveErr.code || saveErr.message)) ? String(saveErr.code||'')+' '+String(saveErr.message||'') : '';
+    }catch(e2){}
+    if(/permission|PERMISSION/i.test(detail)){
+      body.innerHTML='<p><strong>Could not create draft auction.</strong></p>'+
+        '<p>Permission denied. Your account may not be marked as organiser. Ask a super admin to approve you, or check Firestore rules.</p>'+
+        '<p style="color:var(--muted);font-size:13px">'+detail.replace(/</g,'')+'</p>';
+    } else if(/network|unavailable|offline/i.test(detail)){
+      body.innerHTML='<p><strong>Could not create draft auction.</strong></p>'+
+        '<p>Network problem. Check internet and try again.</p>';
+    } else {
+      body.innerHTML='<p><strong>Could not create draft auction.</strong></p>'+
+        '<p>Check connection and that you are signed in as an organiser.</p>'+
+        (detail ? '<p style="color:var(--muted);font-size:13px">'+detail.replace(/</g,'')+'</p>' : '');
+    }
     return;
   }
   const url=inviteUrl();

@@ -1,5 +1,5 @@
 /* Cric360 Service Worker – includes FCM push. Bump CACHE on every release */
-const CACHE = 'cric360-v39';
+const CACHE = 'cric360-v40-round1';
 const APP_SHELL = [
   './',
   './index.html',

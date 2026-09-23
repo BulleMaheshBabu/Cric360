@@ -4061,9 +4061,9 @@ document.addEventListener('change', function(ev){
     try{ announceCheckboxState(t); }catch(e){}
   }
 }, true);
-// Escape closes confirm
+// Escape = No (runs onNo / reShow so host decision panel comes back)
 document.addEventListener('keydown', function(ev){
-  if(ev.key==='Escape' && isConfirmOpen()){ closeConfirm(); }
+  if(ev.key==='Escape' && isConfirmOpen()){ closeConfirm(true); }
 });
 
 /* ===== Silent auction hotkeys (no UI hints) ===== */
@@ -5085,11 +5085,12 @@ function startWatchTimerTick(){
 
 function applyAuctionData(data){
   if(data.presence) window._lastPresence=data.presence;
-  // While host is editing squads (price / add / remove), do NOT replace local teams/players
-  // from a mid-flight snapshot — that was wiping the new price before Save finished.
-  const keepLocalSquad = !!(window._squadBusy || window._priceEditOpen || window._modalOpen);
+  // While host is editing squads OR mid sold/unsold write, do NOT replace local teams/players/bid/meta
+  // from a mid-flight snapshot — that wiped prices and decision state before Save finished.
+  const keepLocalSquad = !!(window._squadBusy || window._priceEditOpen || window._modalOpen || window._lotBusy);
   const localTeams = keepLocalSquad && T ? T.teams : null;
   const localPlayers = keepLocalSquad && T ? T.players : null;
+  const keepLotLocal = !!window._lotBusy && T;
   // Option 2: roster may live in subcollection — never wipe in-memory players with empty data.players
   let nextPlayers;
   if(localPlayers != null){
@@ -5101,13 +5102,21 @@ function applyAuctionData(data){
   } else {
     nextPlayers = data.players || [];
   }
+  // Preserve local bid/meta during host lot write so await_host decision cannot be clobbered
+  var nextMeta = (keepLotLocal && T.meta) ? T.meta : (data.meta||{currentIndex:0});
+  var nextBid = (keepLotLocal && T.bid) ? T.bid : (data.bid||null);
+  // If remote already advanced past local await_host with a decided lastResult, prefer remote
+  if(keepLotLocal && data.bid && data.bid.phase && data.bid.phase!=='await_host' && T.bid && T.bid.phase==='await_host'){
+    // Host still deciding locally — keep local bid
+    nextBid = T.bid;
+  }
   T={
     title:data.title, mode:data.mode||'physical', status:data.status||'live',
     teams: (localTeams != null ? localTeams : (data.teams||[])),
     players: nextPlayers,
-    meta:data.meta||{currentIndex:0},
+    meta: nextMeta,
     activeColumns:data.activeColumns||activeCols, rules:data.rules||null,
-    bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
+    bid: nextBid, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
     pendingCoOrganisers:data.pendingCoOrganisers||[], coOrganiserIds:data.coOrganiserIds||[],
     ownerId:data.ownerId, ownerEmail:data.ownerEmail||'', ownerName:data.ownerName||'',
     meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused,
@@ -5119,13 +5128,14 @@ function applyAuctionData(data){
       }
       return ar;
     })(),
-    lastResult:data.lastResult||null, lastAlert:data.lastAlert||null,
+    lastResult: keepLotLocal && T && T.lastResult ? T.lastResult : (data.lastResult||null),
+    lastAlert:data.lastAlert||null,
     aiInsights: Array.isArray(data.aiInsights) ? data.aiInsights : [],
     aiInsight: data.aiInsight || null,
     voiceCall: data.voiceCall || null,
     intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
     playerAdvance: data.playerAdvance==='manual'?'manual':'auto',
-    awaitNextPlayer: !!data.awaitNextPlayer,
+    awaitNextPlayer: keepLotLocal && T ? !!T.awaitNextPlayer : !!data.awaitNextPlayer,
     playersStorage: data.playersStorage || (Array.isArray(data.players) && data.players.length ? 'embedded' : 'subcollection'),
     playersCount: data.playersCount != null ? data.playersCount : (nextPlayers.length || 0),
     soldCount: data.soldCount != null ? data.soldCount : null,
@@ -5133,22 +5143,60 @@ function applyAuctionData(data){
     remainingCount: data.remainingCount != null ? data.remainingCount : null,
     currentPlayer: data.currentPlayer || null
   };
-  // Keep in-memory player sold flags in sync with lastResult (stats + lists stay fresh)
+  // Keep in-memory player sold flags in sync with lastResult (prefer index/id over name)
   try{
-    if(T.lastResult && T.lastResult.name && Array.isArray(T.players) && T.players.length){
+    if(T.lastResult && Array.isArray(T.players) && T.players.length){
       const lr = T.lastResult;
-      for(var pi=0; pi<T.players.length; pi++){
-        var pp = T.players[pi];
-        if(!pp || !pp.name) continue;
-        if(String(pp.name)===String(lr.name) && !pp.sold && !pp.unsold){
+      var matched = false;
+      // 1) Explicit playerIndex from host write
+      if(lr.playerIndex != null && T.players[lr.playerIndex]){
+        var pp0 = T.players[lr.playerIndex];
+        if(pp0 && !pp0.sold && !pp0.unsold){
           if(lr.sold){
-            pp.sold=true; pp.unsold=false; pp.status='sold';
-            pp.soldTeam=lr.team||''; pp.soldPrice=lr.price; pp.price=lr.price;
+            pp0.sold=true; pp0.unsold=false; pp0.status='sold';
+            pp0.soldTeam=lr.team||''; pp0.soldPrice=lr.price; pp0.price=lr.price;
           } else {
-            pp.unsold=true; pp.sold=false; pp.status='unsold';
+            pp0.unsold=true; pp0.sold=false; pp0.status='unsold';
           }
-          T.players[pi]=pp;
-          break;
+          T.players[lr.playerIndex]=pp0;
+          matched = true;
+        }
+      }
+      // 2) Stable id
+      if(!matched && lr.playerId){
+        for(var pi=0; pi<T.players.length; pi++){
+          var pp = T.players[pi];
+          if(!pp) continue;
+          if(String(pp.id||'')===String(lr.playerId) && !pp.sold && !pp.unsold){
+            if(lr.sold){
+              pp.sold=true; pp.unsold=false; pp.status='sold';
+              pp.soldTeam=lr.team||''; pp.soldPrice=lr.price; pp.price=lr.price;
+            } else {
+              pp.unsold=true; pp.sold=false; pp.status='unsold';
+            }
+            T.players[pi]=pp;
+            matched = true;
+            break;
+          }
+        }
+      }
+      // 3) Fallback name only if unique match
+      if(!matched && lr.name){
+        var nameHits = [];
+        for(var pj=0; pj<T.players.length; pj++){
+          var pq = T.players[pj];
+          if(pq && String(pq.name)===String(lr.name) && !pq.sold && !pq.unsold) nameHits.push(pj);
+        }
+        if(nameHits.length===1){
+          var pk = nameHits[0];
+          var pr = T.players[pk];
+          if(lr.sold){
+            pr.sold=true; pr.unsold=false; pr.status='sold';
+            pr.soldTeam=lr.team||''; pr.soldPrice=lr.price; pr.price=lr.price;
+          } else {
+            pr.unsold=true; pr.sold=false; pr.status='unsold';
+          }
+          T.players[pk]=pr;
         }
       }
     }
@@ -10882,10 +10930,13 @@ function startTimerLoop(){
     const el=$('pTimer');
     if(T.bid.phase==='await_host'){
       if(el){ el.textContent='Waiting for host decision'; el.className='timer-box warn'; }
-      // Keep decision buttons alive every tick (recreate if DOM was wiped)
+      // Keep decision buttons alive every tick (recreate if wiped or detached)
       try{
         if(user && T.ownerId===user.uid && !window._lotBusy && !window._modalOpen){
-          if(!$('decExtend') && !$('decUnsold')){
+          var needPanel = !$('decExtend') || !$('decUnsold') || !$('hostDecisionPanel') ||
+            !document.body.contains($('hostDecisionPanel'));
+          if(needPanel){
+            window._hostDecKey = null;
             showHostTimerDecision(!!T.bid.leaderTeamId);
           }
         }
@@ -11770,7 +11821,7 @@ async function finalizeSold(teamId, price){
     p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
     T.players[idx]=p;
     T.meta.currentIndex = advanceIndexPast(idx);
-    T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
+    T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now(), playerIndex: idx, playerId: p.id||null };
     let alertLine='';
     try{ alertLine=checkTeamAlerts(team)||''; }catch(e){}
     const resultLine=(p.name||'Player')+' sold to '+team.name+' for '+price;
@@ -11804,7 +11855,7 @@ async function finalizeUnsold(){
     try{ playSfx('unsold'); }catch(e){}
     p.unsold=true; p.sold=false; p.status='unsold'; p.soldTeam=''; p.soldTeamId=''; p.soldPrice=null; p.team=''; p.price=null;
     T.players[idx]=p;
-    T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now() };
+    T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now(), playerIndex: idx, playerId: p.id||null };
     T.meta.currentIndex = advanceIndexPast(idx);
     const more=T.meta.currentIndex<T.players.length;
     if(more) T.bid=makeBidStateForPlayer(T.meta.currentIndex, true);
@@ -11884,7 +11935,7 @@ function openSoldForm(idx){
     const maxP=getTeamMax(team);
     if(maxP>0 && team.players.length>=maxP) team.maxReached=true;
     p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price; T.players[idx]=p;
-    T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
+    T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now(), playerIndex: idx, playerId: p.id||null };
     T.meta.currentIndex=idx+1;
     let alertLine='';
     try{ alertLine=checkTeamAlerts(team)||''; }catch(e){}

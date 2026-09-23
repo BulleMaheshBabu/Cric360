@@ -4371,9 +4371,22 @@ async function handleJoinInvite(){
     if(data.mode==='virtual'){
       const pending=data.pendingOwners||[];
       const owners=data.owners||[];
-      const already = pending.some(p=>p.uid===user.uid) || owners.some(o=>o.uid===user.uid);
+      // Already approved owner (even if they open invite link again)
+      const asOwner = owners.find(function(o){ return o.uid===user.uid && o.teamId; });
+      if(asOwner){
+        try{ history.replaceState({},'',location.pathname);}catch(e){}
+        joinAuctionId=null;
+        if(String(data.status||'')==='live'){
+          await resumeAuction(id, data);
+        } else {
+          enterWaitingRoom(id);
+        }
+        return;
+      }
+      const already = pending.some(function(p){ return p.uid===user.uid; }) || owners.some(function(o){ return o.uid===user.uid; });
       if(!already){
-        pending.push({uid:user.uid,email:user.email||'',displayName:user.displayName||'',at:Date.now()});
+        // viaInvite marks this as a real join-request for the host (manual openers are viewers only)
+        pending.push({uid:user.uid,email:user.email||'',displayName:user.displayName||'',at:Date.now(), viaInvite:true});
         await ref.set({pendingOwners:pending},{merge:true});
       }
       try{ history.replaceState({},'',location.pathname);}catch(e){}
@@ -4402,7 +4415,12 @@ function stopWait(){
 function enterWaitingRoom(id){
   stopWait();
   auctionId = id;
-  showScreen('screenWait');
+  try{
+    history.replaceState({ screen: 'screenHome' }, '', location.pathname + location.search);
+    history.pushState({ screen: 'screenWait', auctionId: id }, '', location.pathname + location.search);
+    window._skipHistoryPush = true;
+  }catch(e){}
+  showScreen('screenWait', { skipPush: true });
   try{ if(typeof setupBgmPlay==='function') setupBgmPlay('waiting'); }catch(e){}
   $('waitStatus').textContent = 'Connecting…';
   $('waitTeam').classList.add('hidden');
@@ -4410,6 +4428,9 @@ function enterWaitingRoom(id){
   $('waitHint').textContent = 'Stay on this screen. You will move automatically when the host starts the auction.';
   focusEl($('waitTitle'));
   announce('Waiting room. Waiting for host approval.');
+  try{
+    sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenWait', auctionId:id, at:Date.now() }));
+  }catch(e){}
 
   waitUnsub = db.collection('auctions').doc(id).onSnapshot(doc=>{
     if(!doc.exists){
@@ -4420,6 +4441,47 @@ function enterWaitingRoom(id){
     renderWaitingRoom(id, data);
   }, err=>{
     $('waitStatus').textContent = 'Connection error: '+(err.message||err);
+  });
+}
+
+/** Viewer view while auction is still setup — list of joined/approved owners only (not live player) */
+function showSetupLobby(id, data){
+  stopWait();
+  auctionId = id;
+  try{
+    sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenWait', auctionId:id, at:Date.now() }));
+  }catch(e){}
+  showScreen('screenWait');
+  $('waitStatus').textContent = (data.title || 'Auction')+' — Setup';
+  $('waitHint').textContent = 'Host has not started yet. Approved team owners are listed below. You are watching as a viewer.';
+  $('waitTeam').classList.add('hidden');
+  function paintLobby(d){
+    const owners = (d.owners||[]).filter(function(o){ return o && o.teamId; });
+    let h = '<h2 style="font-size:1rem">Approved team owners</h2>';
+    if(!owners.length){
+      h += '<p style="color:var(--muted)">No teams assigned yet.</p>';
+    } else {
+      owners.forEach(function(o){
+        h += '<div class="panel" style="margin-top:8px;padding:12px">'+
+          '<strong>'+(o.displayName||o.email||'Owner')+'</strong><br>'+
+          '<span class="badge sold">Team: '+(o.teamName||o.teamId)+'</span></div>';
+      });
+    }
+    h += '<p style="margin-top:14px;color:var(--muted);font-size:14px">When the host presses Go live, open this auction again from Live to watch.</p>';
+    if($('waitOwners')) $('waitOwners').innerHTML = h;
+  }
+  paintLobby(data||{});
+  focusEl($('waitTitle'));
+  announce('Auction in setup. Viewing approved owners.');
+  waitUnsub = db.collection('auctions').doc(id).onSnapshot(function(doc){
+    if(!doc.exists) return;
+    const d = doc.data();
+    if(String(d.status||'')==='live'){
+      stopWait();
+      openAuction(id);
+      return;
+    }
+    paintLobby(d);
   });
 }
 
@@ -4890,7 +4952,15 @@ function applyAuctionData(data){
     bid:data.bid||null, owners:data.owners||[], pendingOwners:data.pendingOwners||[],
     pendingCoOrganisers:data.pendingCoOrganisers||[], coOrganiserIds:data.coOrganiserIds||[],
     ownerId:data.ownerId, ownerEmail:data.ownerEmail||'', ownerName:data.ownerName||'',
-    meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused, alertRules:data.alertRules||null,
+    meetLink:data.meetLink||'', presence:data.presence||{}, paused:!!data.paused,
+    alertRules:(function(){
+      var ar = data.alertRules || null;
+      if(ar && typeof ar === 'object'){
+        ar = Object.assign({}, ar);
+        ar.fired = (ar.fired && typeof ar.fired === 'object') ? Object.assign({}, ar.fired) : {};
+      }
+      return ar;
+    })(),
     lastResult:data.lastResult||null, lastAlert:data.lastAlert||null,
     aiInsights: Array.isArray(data.aiInsights) ? data.aiInsights : [],
     aiInsight: data.aiInsight || null,
@@ -4962,15 +5032,6 @@ function applyAuctionData(data){
     const onWait=$('screenWait') && !$('screenWait').classList.contains('hidden');
     const onLiveScreen=onAuction||onWatch||onWait;
 
-    // Quiet join: remember current state without speaking (fixes reopen replay)
-    const quietJoin = !!window._liveJoinQuiet;
-    if(quietJoin){
-      try{
-        if(data.lastResult && data.lastResult.name){
-          const lr=data.lastResult;
-          window._lastResultKey='lr|'+(lr.name||'')+'|'+(lr.sold?'s':'u')+'|'+(lr.price||'')+'|'+(lr.team||'')+'|'+(lr.at||'');
-        }
-        
     try{
       if(data){
         if(T){
@@ -4980,108 +5041,14 @@ function applyAuctionData(data){
         if(typeof renderInsAlbum==='function') renderInsAlbum();
       }
     }catch(e){}
-if(data.lastAlert && data.lastAlert.at){
-          window._lastAlertKey='al|'+data.lastAlert.at;
-        }
-        if(data.mode==='virtual' && data.bid && data.bid.leaderTeamName!=null && data.bid.price!=null){
-          window._lastBidKey=(data.bid.leaderTeamId||'')+'|'+data.bid.price+'|'+(data.bid.playerIndex||0)+'|'+(data.meta&&data.meta.currentIndex);
-        }
-        if(data.players && !data.paused){
-          let idx=(data.meta&&data.meta.currentIndex)||0;
-          const pl=data.players||[];
-          while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
-          if(idx<pl.length){
-            window._sayPlayerKey='pl|'+idx+'|'+(pl[idx].name||'');
-            window._playerSfxForGap=true;
-          }
-        }
-      }catch(e){}
-      window._liveJoinQuiet=false;
-    }
 
-    // Player change — once per player; skip pause / intermission / manual wait / quiet join
-    if(!quietJoin && onLiveScreen && data.players && !data.paused){
-      const inGap = (data.intermissionUntil && data.intermissionUntil > Date.now()) || window._gapPendingPlayer;
-      const bidPhase = data.bid && data.bid.phase;
-      const waitingManual = !!(data.awaitNextPlayer || bidPhase==='await_next' || T.awaitNextPlayer);
-      if(!inGap && !waitingManual && bidPhase!=='intermission' && bidPhase!=='await_next'){
-        let idx=(data.meta&&data.meta.currentIndex)||0;
-        const pl=data.players||[];
-        while(idx<pl.length&&(pl[idx].sold||pl[idx].unsold)) idx++;
-        if(idx<pl.length){
-          // Host + owners + viewers: same announce path
-          window._playerSfxForGap=false;
-          announceNowPlayer(idx, pl[idx].name, pl.length, data);
-        }
+    // ONE central path for host + owners + viewers (bids, sold, alerts, player, pause)
+    // Prevents 3–4x bid / continuous ultimate speech
+    try{
+      if(onLiveScreen && typeof processLiveSpeech==='function'){
+        processLiveSpeech(data, {});
       }
-    }
-    // Squad/purse alerts broadcast
-    if(!quietJoin && onLiveScreen && data.lastAlert && data.lastAlert.at && data.lastAlert.text){
-      const ak='al|'+data.lastAlert.at;
-      if(window._lastAlertKey!==ak){
-        window._lastAlertKey=ak;
-        try{ pulseAlertVibration(); }catch(e){}
-        sayEvent(data.lastAlert.text, null);
-      }
-    }
-
-    // lastResult — once per sale (at stamp); viewers get speech + SFX
-    if(!quietJoin && onLiveScreen && data.lastResult && data.lastResult.name){
-      const lr=data.lastResult;
-      const rk='lr|'+(lr.name||'')+'|'+(lr.sold?'s':'u')+'|'+(lr.price||'')+'|'+(lr.team||'')+'|'+(lr.at||'');
-      if(window._lastResultKey!==rk){
-        window._lastResultKey=rk;
-        try{ unlockSfx(); }catch(e){}
-        if(lr.sold){
-          try{ playSfx('sold'); }catch(e){}
-          sayEvent((lr.name||'Player')+' sold to '+(lr.team||'a team')+' for '+(lr.price||''), 'host');
-        } else {
-          try{ playSfx('unsold'); }catch(e){}
-          sayEvent((lr.name||'Player')+' unsold.', 'host');
-        }
-      }
-    }
-
-    // Bid / lead change
-    if(!quietJoin && data.mode==='virtual' && data.bid && data.bid.leaderTeamName!=null && data.bid.price!=null){
-      const key = (data.bid.leaderTeamId||'')+'|'+data.bid.price+'|'+(data.bid.playerIndex||0)+'|'+(data.meta&&data.meta.currentIndex);
-      if(window._lastBidKey !== key){
-        window._lastBidKey = key;
-        window._countdownSec=null;
-        try{ if(ttsSupported()) speechSynthesis.cancel(); }catch(e){}
-        if(onAuction || onWatch){
-          stopTimerSfx();
-          if(!window._sfxSkipBid){
-            playSfx(data.bid.lastRaiseType==='ultimate' ? 'ultimate' : 'bid');
-          }
-          window._sfxSkipBid=false;
-          sayEvent(data.bid.leaderTeamName+' leads at '+data.bid.price, 'bid', false, { priority:'p0' });
-        }
-      }
-    }
-
-    // Bid phase: waiting for host — ONE announcement per lot only (no extend echo here)
-    if(data.mode==='virtual' && data.bid){
-      const ph=data.bid.phase||'';
-      const awaitKey='await|'+(data.bid.playerIndex)+'|'+(data.meta&&data.meta.currentIndex)+'|'+(data.bid.price||'');
-      if(ph==='await_host'){
-        if(window._sayAwait!==awaitKey && (onAuction||onWatch)){
-          window._sayAwait=awaitKey;
-          sayEvent('Time up. Waiting for host decision.', 'host');
-        }
-      } else if(ph==='contest' && data.bid.extendAt){
-        // Extend announced only once via hostExtend / extendAt key — not here
-        if(window._lastExtendSpoken!==data.bid.extendAt){
-          window._lastExtendSpoken=data.bid.extendAt;
-          if(onAuction||onWatch){
-            sayEvent('Time extended. Other teams may bid.', 'host');
-          }
-        }
-        window._sayAwait=null;
-      } else if(ph!=='await_host'){
-        window._sayAwait=null;
-      }
-    }
+    }catch(e){ console.warn('processLiveSpeech', e); }
 
     // Sync intermission from server
     ensureIntermissionTicker();
@@ -5118,50 +5085,21 @@ if(data.lastAlert && data.lastAlert.at){
 
     // Room message (host / owners)
     try{ handleIncomingRoomMsg(data); }catch(e){}
-    try{ handleIncomingHostTts(data); }catch(e){}
+    // Host TTS is inside processLiveSpeech
 
-    // Team quit — all clients (host, owners, viewers)
-    if(data.mode==='virtual' && data.bid && data.bid.lastQuit && data.bid.lastQuit.at){
-      const qk='quit|'+data.bid.lastQuit.at+'|'+(data.bid.lastQuit.teamId||'');
-      if(window._lastQuitKey!==qk && onLiveScreen){
-        window._lastQuitKey=qk;
-        const q=data.bid.lastQuit;
-        sayEvent((q.teamName||'A team')+' quits from bidding to '+(q.playerName||'the player')+'.', 'bid');
-      }
-    }
+    // Track counts
+    if(data.soldCount != null) window._soldN = data.soldCount;
+    else if(data.players) window._soldN = data.players.filter(p=>p.sold).length;
+    if(data.unsoldCount != null) window._unsoldN = data.unsoldCount;
+    else if(data.players) window._unsoldN = data.players.filter(p=>p.unsold).length;
 
-    // Pause
-    if(data.paused && onLiveScreen){
-      if(window._sayPaused!=='1'){
-        window._sayPaused='1';
-        sayEvent('Bidding paused. Host has taken a break.', 'host');
-      }
-    } else if(!data.paused && window._sayPaused==='1' && onLiveScreen){
-      window._sayPaused=null;
-      // Host resume speech is handled by hostResumeAndReopen for host; others hear once here
-      if(!(user && data.ownerId===user.uid)){
-        sayEvent('Host has resumed the bidding.', 'host');
-      }
-    }
-
-    // Extend speech — single path via extendAt (remove duplicate wording)
-
-    // Ended
+    // Ended — once
     if(data.status==='ended' && onLiveScreen && window._lastEndedId !== (auctionId||'')){
       window._lastEndedId = auctionId||'';
       sayEvent('Auction closed. Bidding is no longer available.', 'host');
     }
 
-    // Track counts only — speech/SFX only from lastResult (no second sold/unsold path)
-    if(data.players){
-      window._soldN = data.players.filter(p=>p.sold).length;
-      window._unsoldN = data.players.filter(p=>p.unsold).length;
-    }
-
-    // Presence left-room announcements removed (no online tracking)
-
-
-    // New franchise owner join request (host on assign / setup)
+    // New franchise owner join request (host on assign / setup) — invite-link only
     if(data.pendingOwners && Array.isArray(data.pendingOwners)){
       const n=data.pendingOwners.length;
       if(window._pendingOwnerCount!=null && n>window._pendingOwnerCount){
@@ -5315,14 +5253,15 @@ async function openAuction(id){
   const data=snap.data();
   const isOwner=user&&data.ownerId===user.uid;
   const isHelper=user&&(data.coOrganiserIds||[]).includes(user.uid);
-  const isTeamOwner=user&&(data.owners||[]).some(o=>o.uid===user.uid&&o.teamId);
-  // Team owners: stay in waiting room until host presses Go live (status=live)
-  if(isTeamOwner && !isOwner && !isHelper && data.status==='setup'){
+  // Approved team owner even if they open list manually (not only invite link)
+  const isTeamOwner=user&&(data.owners||[]).some(function(o){ return o.uid===user.uid && o.teamId; });
+  // Team owners: waiting room until Go live
+  if(isTeamOwner && !isOwner && !isHelper && String(data.status||'')!=='live'){
     enterWaitingRoom(id);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
     return;
   }
-  // Host / helper / team owner only enter live auction UI when live (or host setup tools)
+  // Host / helper on setup or live
   if((isOwner||isHelper) && (data.status==='live'||data.status==='setup')){
     await resumeAuction(id,data);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
@@ -5331,6 +5270,12 @@ async function openAuction(id){
   if(isTeamOwner && data.status==='live'){
     await resumeAuction(id,data);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
+    return;
+  }
+  // Viewers (or manual joiners without team): setup = lobby of approved owners, not live player
+  if(String(data.status||'')==='setup'){
+    showSetupLobby(id, data);
+    try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: false }); }catch(e){}
     return;
   }
   // Option 2: seed T and load roster before watch UI
@@ -5373,9 +5318,7 @@ async function openAuction(id){
         }).catch(function(){ window._watchRosterLoading=false; });
       }
       try{ applyShareMeta('watch', data, { includeHostEmail: false }); }catch(e){}
-      if(data.status!=='ended'){
-        try{ processLiveSpeech(data, { isViewer:true }); }catch(e){ console.warn('processLiveSpeech', e); }
-      }
+      // Speech/SFX: only via processLiveSpeech inside applyAuctionData (no second path)
       try{ renderWatch(data); }catch(e){ console.warn('renderWatch', e); showAppError('Could not refresh live view.'); }
     }catch(e){
       console.error('watch snapshot', e);
@@ -5703,19 +5646,42 @@ function processLiveSpeech(data, opts){
     }
   }
 
-  // Leading bid (virtual) — skip on quiet join
-  if(!window._liveJoinQuiet && data.mode==='virtual' && data.bid && data.bid.leaderTeamName && data.bid.price!=null){
-    const bk='bid|'+(data.bid.playerIndex)+'|'+(data.bid.leaderTeamId)+'|'+(data.bid.price)+'|'+(data.bid.lastRaiseType||'');
+  // Leading bid (virtual) — ONE key for host/owners/viewers (stops 3–4x and continuous ultimate)
+  if(data.mode==='virtual' && data.bid && data.bid.leaderTeamName && data.bid.price!=null){
+    const bk='bid|'+(data.bid.playerIndex)+'|'+(data.bid.leaderTeamId)+'|'+(data.bid.price)+'|'+(data.bid.lastRaiseType||'normal');
     if(window._lastBidKey!==bk){
       window._lastBidKey=bk;
       if(data.bid.leaderTeamId){
         try{ unlockSfx(); }catch(e){}
-        try{ playSfx(data.bid.lastRaiseType==='ultimate'?'ultimate':'bid'); }catch(e){}
+        try{ stopTimerSfx(); }catch(e){}
+        if(!window._sfxSkipBid){
+          try{ playSfx(data.bid.lastRaiseType==='ultimate'?'ultimate':'bid'); }catch(e){}
+        }
+        window._sfxSkipBid=false;
         sayEvent(data.bid.leaderTeamName+' leads at '+data.bid.price, 'bid', false, { priority:'p0' });
       }
     }
-  } else if(window._liveJoinQuiet && data.mode==='virtual' && data.bid){
-    window._lastBidKey='bid|'+(data.bid.playerIndex)+'|'+(data.bid.leaderTeamId)+'|'+(data.bid.price)+'|'+(data.bid.lastRaiseType||'');
+  }
+
+  // Time up / await host — once per lot
+  if(data.mode==='virtual' && data.bid && data.bid.phase==='await_host'){
+    const awaitKey='await|'+(data.bid.playerIndex)+'|'+(data.meta&&data.meta.currentIndex)+'|'+(data.bid.price||'');
+    if(window._sayAwait!==awaitKey){
+      window._sayAwait=awaitKey;
+      sayEvent('Time up. Waiting for host decision.', 'host');
+    }
+  } else if(data.bid && data.bid.phase!=='await_host'){
+    // keep await key until phase changes away
+  }
+
+  // Team quit — once
+  if(data.mode==='virtual' && data.bid && data.bid.lastQuit && data.bid.lastQuit.at){
+    const qk='quit|'+data.bid.lastQuit.at+'|'+(data.bid.lastQuit.teamId||'');
+    if(window._lastQuitKey!==qk){
+      window._lastQuitKey=qk;
+      const q=data.bid.lastQuit;
+      sayEvent((q.teamName||'A team')+' quits from bidding to '+(q.playerName||'the player')+'.', 'bid');
+    }
   }
   // New player after gap — never during manual await_next or quiet join
   // Option 2: use resolved roster (T.players), not empty data.players
@@ -9705,9 +9671,9 @@ function paintAssignList(box){
   if(!pending.length && !owners.length){
     h+='<p style="color:var(--muted)">No owners have joined yet. Share the invite link.</p>';
   }
-  // Show all pending + owners
+  // Only invite-link join requests (viaInvite:true). Manual list openers never appear here.
   const seen={};
-  pending.forEach((p,i)=>{
+  pending.filter(function(p){ return p && p.viaInvite === true; }).forEach((p,i)=>{
     seen[p.uid]=true;
     const assigned=owners.find(o=>o.uid===p.uid);
     h+='<div class="panel" style="margin-top:8px"><strong>'+(p.displayName||p.email||'Owner')+'</strong><br>'+
@@ -10998,17 +10964,15 @@ async function doRaise(targetPrice, inc, isUltimate){
     if(acceptedTeam!=null){
       window._countdownSec=null;
       dismissKeyboard();
-      announce(acceptedTeam+' leads at '+acceptedPrice);
-      if(isUltimate){
-        window._lastBidKey = myTeamId+'|'+acceptedPrice+'|'+(T.meta&&T.meta.currentIndex);
-        window._sfxSkipBid=true;
-        playSfx('ultimate');
-        sayEvent(acceptedTeam+' placed ultimate bid of '+acceptedPrice+' and is leading.', 'bid');
-      } else {
-        window._sfxSkipBid=true;
-        playSfx('bid');
-      }
-      // After bid: always land on first raise button for next bid (direct touch + SR)
+      // Unified key matches processLiveSpeech — snapshot will not replay
+      var _pIdx = (T.bid && T.bid.playerIndex != null) ? T.bid.playerIndex : ((T.meta&&T.meta.currentIndex)||0);
+      window._lastBidKey = 'bid|'+_pIdx+'|'+myTeamId+'|'+acceptedPrice+'|'+(isUltimate?'ultimate':'normal');
+      window._sfxSkipBid = true;
+      try{ unlockSfx(); }catch(e){}
+      try{ stopTimerSfx(); }catch(e){}
+      try{ playSfx(isUltimate ? 'ultimate' : 'bid'); }catch(e){}
+      // Same line everyone hears (once here for bidder; others via processLiveSpeech)
+      sayEvent(acceptedTeam+' leads at '+acceptedPrice, 'bid', false, { priority:'p0' });
       setTimeout(function(){
         dismissKeyboard();
         window._bidRefocusKey = null;
@@ -11103,7 +11067,8 @@ function checkTeamAlerts(team){
   if(!T||!team) return '';
   const ar = T.alertRules || { minPlayers:true, maxPlayers:true, customCounts:[], purse:true, fired:{} };
   T.alertRules = ar;
-  ar.fired = ar.fired || {};
+  // fired must survive reloads — always object
+  if(!ar.fired || typeof ar.fired !== 'object') ar.fired = {};
   if(!Array.isArray(ar.customCounts)) ar.customCounts = [];
   const tid = String(team.id||team.name||'team');
   const count = (team.players||[]).length;
@@ -11120,26 +11085,33 @@ function checkTeamAlerts(team){
     parts.push(msg);
   }
 
-  ar.customCounts.forEach(n=>{
+  // Custom counts: fire only at the exact threshold (not every count above)
+  ar.customCounts.forEach(function(n){
     const num = Number(n);
-    if(num > 0 && count >= num) fireOnce(tid+'|c|'+num, 'has bought '+num+' players');
+    if(num > 0 && count === num) fireOnce(tid+'|c|'+num, 'has bought '+num+' players');
   });
-  if(ar.minPlayers !== false && minP > 0 && count >= minP){
+  // Min: only once when count first reaches min (key is stable)
+  if(ar.minPlayers !== false && minP > 0 && count === minP){
     fireOnce(tid+'|min|'+minP, 'has bought the minimum of '+minP+' players');
+  } else if(ar.minPlayers !== false && minP > 0 && count > minP){
+    // Mark fired if somehow skipped so later sales do not announce min again
+    ar.fired[tid+'|min|'+minP] = true;
   }
-  if(ar.maxPlayers !== false && maxP > 0 && count >= maxP){
+  if(ar.maxPlayers !== false && maxP > 0 && count === maxP){
     fireOnce(tid+'|max|'+maxP, 'has reached the maximum of '+maxP+' players');
     team.maxReached = true;
+  } else if(ar.maxPlayers !== false && maxP > 0 && count >= maxP){
+    ar.fired[tid+'|max|'+maxP] = true;
+    team.maxReached = true;
   }
-  // Only highest purse band crossed
+  // Purse bands: only when first crossing each band
   if(ar.purse !== false && purse > 0){
-    let top = 0;
-    [50,75,90].forEach(th=>{ if(usedPct >= th) top = th; });
-    if(top) fireOnce(tid+'|p|'+top, 'has used '+top+' percent of their purse, remaining '+remaining);
+    [50,75,90].forEach(function(th){
+      if(usedPct >= th) fireOnce(tid+'|p|'+th, 'has used '+th+' percent of their purse, remaining '+remaining);
+    });
   }
 
   if(!parts.length) return '';
-  // Merge into one line
   const line = (team.name||'Team')+' '+parts.join(', and ')+'.';
   T.lastAlert = { text: line, at: Date.now() };
   return line;
@@ -11474,6 +11446,8 @@ async function afterLotSequence(resultLine, alertLine){
       bid: T.bid || null,
       lastResult: T.lastResult || null,
       lastAlert: T.lastAlert || null,
+      // Persist fired keys so min/custom alerts do not repeat every sale
+      alertRules: T.alertRules || null,
       intermissionUntil: T.intermissionUntil || null,
       awaitNextPlayer: !!T.awaitNextPlayer,
       playersStorage: 'subcollection',

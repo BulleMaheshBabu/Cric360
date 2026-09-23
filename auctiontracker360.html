@@ -4481,7 +4481,47 @@ function enterWaitingRoom(id){
   });
 }
 
-/** Viewer view while auction is still setup — list of joined/approved owners only (not live player) */
+/** Host reopens auction still in SETUP — assign room only, never live timer */
+async function enterHostSetupRoom(id, data){
+  stopWait();
+  stopAuctionLive();
+  try{ stopWatchTimer(); }catch(e){}
+  auctionId = id;
+  applyAuctionData(data || {});
+  try{ await ensurePlayersLoaded(id, data); }catch(e){ console.warn('host setup roster', e); }
+  // Keep status setup — do not invent bid/timer
+  if(T){
+    T.status = 'setup';
+    T.bid = null;
+    T.intermissionUntil = null;
+    T.awaitNextPlayer = false;
+  }
+  try{
+    sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenWizard', auctionId:id, at:Date.now() }));
+  }catch(e){}
+  // Re-open wizard assign step UI
+  try{
+    if(typeof wiz !== 'undefined'){
+      wiz = wiz || {};
+      wiz.mode = (data && data.mode) || (T && T.mode) || 'virtual';
+    }
+  }catch(e){}
+  showScreen('screenWizard');
+  var body = $('wizBody');
+  if(!body){
+    // Fallback: waiting-style host panel on wait screen
+    showScreen('screenWait');
+    $('waitStatus').textContent = (data && data.title) || 'Auction setup';
+    $('waitHint').textContent = '';
+    $('waitTeam').classList.add('hidden');
+    body = $('waitOwners');
+  }
+  if(body) await renderVirtualAssign(body);
+  var pc = (T && T.players && T.players.length) || (data && data.playersCount) || 0;
+  try{ announce('Setup. '+(pc||0)+' players. Assign owners then go live.'); }catch(e){}
+}
+
+/** Viewer view while auction is still setup */
 function showSetupLobby(id, data){
   stopWait();
   auctionId = id;
@@ -4489,27 +4529,32 @@ function showSetupLobby(id, data){
     sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenWait', auctionId:id, at:Date.now() }));
   }catch(e){}
   showScreen('screenWait');
-  $('waitStatus').textContent = (data.title || 'Auction')+' — Setup';
-  $('waitHint').textContent = 'Host has not started yet. Approved team owners are listed below. You are watching as a viewer.';
-  $('waitTeam').classList.add('hidden');
+  if($('waitTitle')) $('waitTitle').textContent = (data && data.title) || 'Auction';
+  $('waitStatus').textContent = 'Waiting host to begin the auction.';
+  $('waitHint').textContent = '';
+  $('waitTeam').classList.remove('hidden');
+  $('waitTeam').innerHTML = '<p id="waitRoleLine" tabindex="-1" style="margin:8px 0;font-weight:700">You are a viewer for this auction. Enjoy once it begins.</p>';
   function paintLobby(d){
-    const owners = (d.owners||[]).filter(function(o){ return o && o.teamId; });
-    let h = '<h2 style="font-size:1rem">Approved team owners</h2>';
-    if(!owners.length){
-      h += '<p style="color:var(--muted)">No teams assigned yet.</p>';
-    } else {
+    var h = '<h2 style="font-size:1rem;margin-top:12px">Teams</h2>';
+    var owners = (d.owners||[]).filter(function(o){ return o && o.teamId; });
+    if(owners.length){
       owners.forEach(function(o){
-        h += '<div class="panel" style="margin-top:8px;padding:12px">'+
-          '<strong>'+(o.displayName||o.email||'Owner')+'</strong><br>'+
-          '<span class="badge sold">Team: '+(o.teamName||o.teamId)+'</span></div>';
+        var who = o.displayName||o.email||'Owner';
+        var team = o.teamName||o.teamId;
+        h += '<div class="panel" style="margin-top:6px;padding:10px" aria-label="'+who+' of '+team+' team">'+
+          '<strong>'+who+'</strong> of <strong>'+team+'</strong> team</div>';
       });
+    } else {
+      (d.teams||[]).forEach(function(t){
+        h += '<div class="panel" style="margin-top:6px;padding:10px"><strong>'+(t.name||'Team')+'</strong></div>';
+      });
+      if(!(d.teams||[]).length) h += '<p style="color:var(--muted)">No teams yet.</p>';
     }
-    h += '<p style="margin-top:14px;color:var(--muted);font-size:14px">When the host presses Go live, open this auction again from Live to watch.</p>';
     if($('waitOwners')) $('waitOwners').innerHTML = h;
   }
   paintLobby(data||{});
-  focusEl($('waitTitle'));
-  announce('Auction in setup. Viewing approved owners.');
+  focusEl($('waitRoleLine')||$('waitTitle'));
+  announce('Waiting host to begin. You are a viewer.');
   waitUnsub = db.collection('auctions').doc(id).onSnapshot(function(doc){
     if(!doc.exists) return;
     const d = doc.data();
@@ -4523,66 +4568,65 @@ function showSetupLobby(id, data){
 }
 
 function renderWaitingRoom(id, data){
-  const title = data.title || 'Auction';
   const owners = data.owners || [];
   const pending = data.pendingOwners || [];
-  const meOwner = owners.find(o=>o.uid===user.uid);
-  const mePending = pending.some(p=>p.uid===user.uid);
+  const meOwner = owners.find(function(o){ return o.uid===user.uid; });
+  const mePending = pending.some(function(p){ return p.uid===user.uid; });
 
-  // ONLY when host has pressed Go live (status=live) — never show first player during setup
   if(String(data.status||'')==='live' && meOwner && meOwner.teamId){
     stopWait();
     showWelcomeThenAuction(id, data, meOwner);
     return;
   }
 
+  if($('waitHint')) $('waitHint').textContent = '';
+  if($('waitTitle')) $('waitTitle').textContent = data.title || 'Auction';
+
   if(meOwner && meOwner.teamId){
-    // Approved but auction still in setup — stay on waiting room
-    $('waitStatus').textContent = 'You are approved';
-    $('waitHint').textContent = 'Waiting for the host to press Go live.';
+    // Approved owner
+    $('waitStatus').textContent = 'Waiting host to begin.';
     $('waitTeam').classList.remove('hidden');
-    $('waitTeam').innerHTML = '<p style="margin:0;font-size:13px;font-weight:700;color:var(--muted)">YOUR TEAM</p>'+
-      '<p class="player-name" style="font-size:1.4rem" id="waitTeamName" tabindex="-1">'+(meOwner.teamName||meOwner.teamId)+'</p>'+
-      '<p style="color:var(--muted)">Do not leave this screen. You will enter automatically when the auction starts.</p>';
+    var line = 'You are assigned to team '+(meOwner.teamName||meOwner.teamId);
+    $('waitTeam').innerHTML = '<p id="waitTeamName" class="player-name" tabindex="-1" style="margin:8px 0;font-size:1.25rem">'+line+'</p>';
     focusEl($('waitTeamName'));
-    if(window._ttsAssignKey !== (meOwner.teamId||'')+ '|setup'){
-      window._ttsAssignKey = (meOwner.teamId||'')+ '|setup';
-      announce('Assigned to team '+(meOwner.teamName||'')+'. Waiting for host to begin the auction.');
-      sayEvent('You are assigned to '+(meOwner.teamName||'your team')+'. Waiting for the host to begin the auction.', 'wait');
+    if(window._ttsAssignKey !== (meOwner.teamId||'')+'|setup'){
+      window._ttsAssignKey = (meOwner.teamId||'')+'|setup';
+      announce(line+'. Waiting host to begin.');
+      sayEvent(line+'. Waiting for the host to begin the auction.', 'wait');
     }
-  } else if(mePending || data.mode==='virtual'){
-    $('waitStatus').textContent = 'Waiting for host approval';
+  } else if(mePending){
+    $('waitStatus').textContent = 'Waiting for host approval.';
     $('waitTeam').classList.add('hidden');
-    $('waitHint').textContent = 'Your join request was sent. The host will assign your team. Stay on this screen.';
     if(window._ttsWaitKey !== 'pending'){
       window._ttsWaitKey = 'pending';
       sayEvent('Waiting for host approval and team assignment.', 'wait');
     }
   } else {
-    $('waitStatus').textContent = 'Waiting for the host…';
-    $('waitHint').textContent = '';
+    // Viewer (or not yet assigned)
+    $('waitStatus').textContent = 'Waiting host to begin the auction.';
+    $('waitTeam').classList.remove('hidden');
+    $('waitTeam').innerHTML = '<p id="waitRoleLine" tabindex="-1" style="margin:8px 0;font-weight:700">You are a viewer for this auction. Enjoy once it begins.</p>';
   }
 
-  // List of owners and assignments (visible to people in the room)
-  let h = '<h2 style="font-size:1rem">Team owners</h2>';
-  if(!owners.length && !pending.length){
-    h += '<p style="color:var(--muted)">No other owners yet.</p>';
+  // Single-line list for screen readers: "Name of Team team"
+  var h = '<h2 style="font-size:1rem;margin-top:12px">Teams</h2>';
+  var listed = false;
+  owners.forEach(function(o){
+    if(!o.teamId) return;
+    listed = true;
+    var who = o.displayName||o.email||'Owner';
+    var team = o.teamName||o.teamId;
+    h += '<div class="panel" style="margin-top:6px;padding:10px" aria-label="'+who+' of '+team+' team">'+
+      '<strong>'+who+'</strong> of <strong>'+team+'</strong> team</div>';
+  });
+  if(!listed){
+    (data.teams||[]).forEach(function(t){
+      listed = true;
+      h += '<div class="panel" style="margin-top:6px;padding:10px"><strong>'+(t.name||'Team')+'</strong></div>';
+    });
   }
-  owners.forEach(o=>{
-    h += '<div class="panel" style="margin-top:8px;padding:12px">'+
-      '<strong>'+(o.displayName||o.email||'Owner')+'</strong><br>'+
-      '<span style="color:var(--muted)">'+(o.email||'')+'</span><br>'+
-      (o.teamId ? ('<span class="badge sold">Team: '+(o.teamName||o.teamId)+'</span>') : '<span class="badge">Not assigned</span>')+
-      '</div>';
-  });
-  pending.forEach(p=>{
-    if(owners.some(o=>o.uid===p.uid)) return;
-    h += '<div class="panel" style="margin-top:8px;padding:12px">'+
-      '<strong>'+(p.displayName||p.email||'Owner')+'</strong><br>'+
-      '<span style="color:var(--muted)">'+(p.email||'')+'</span><br>'+
-      '<span class="badge">Waiting for team assignment</span></div>';
-  });
-  $('waitOwners').innerHTML = h;
+  if(!listed) h += '<p style="color:var(--muted)">No teams assigned yet.</p>';
+  if($('waitOwners')) $('waitOwners').innerHTML = h;
 }
 
 function showWelcomeThenAuction(id, data, meOwner){
@@ -4706,31 +4750,50 @@ $('btnSwitchAccount').onclick=async()=>{
 function fourDigit(){ return String(Math.floor(1000+Math.random()*9000)); }
 $('btnRequestOrg').onclick=async()=>{
   try{
+    // Never show the code to the requester — only super admin sees it in Permissions
     const existing=await db.collection('organiserRequests').where('uid','==',user.uid).where('status','==','pending').limit(1).get();
-    let code;
-    if(!existing.empty) code=existing.docs[0].data().code;
-    else {
-      code=fourDigit();
-      await db.collection('organiserRequests').add({uid:user.uid,email:user.email||'',displayName:user.displayName||'',code,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      const sub=encodeURIComponent('Auction organiser request code');
-      const body=encodeURIComponent('Name: '+(user.displayName||'')+'\nEmail: '+(user.email||'')+'\nCode: '+code);
-      window.open('mailto:'+ADMIN_NOTIFY_EMAIL+'?subject='+sub+'&body='+body,'_blank');
+    if(existing.empty){
+      const code=fourDigit();
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+      await db.collection('organiserRequests').add({
+        uid:user.uid,
+        email:user.email||'',
+        displayName:user.displayName||'',
+        code:code,
+        status:'pending',
+        expiresAt: expiresAt,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
     }
-    alert('Request created. Code for admin: '+code);
+    alert('Request sent. Ask the super admin for your 4-digit code (valid 10 minutes), then enter it below.');
     $('enterCodeBox').classList.remove('hidden');
     focusEl($('orgCodeInput'));
   }catch(e){ safeAlert(e); }
 };
 $('btnVerifyCode').onclick=async()=>{
   const code=String($('orgCodeInput').value||'').replace(/\D/g,'').trim();
-  if(code.length!==4){ alert('Enter the 4-digit code'); return; }
+  if(code.length!==4){ alert('Enter the 4-digit code from the super admin'); return; }
   try{
-    const q=await db.collection('organiserRequests').where('code','==',code).where('status','==','pending').limit(5).get();
-    if(q.empty){ alert('Invalid or already used code'); return; }
+    // Query OWN requests only (rules allow this) — do not query by code globally
+    const q=await db.collection('organiserRequests')
+      .where('uid','==',user.uid)
+      .where('status','==','pending')
+      .limit(5)
+      .get();
+    if(q.empty){ alert('No pending request. Tap Request organiser first.'); return; }
     let doc=null;
-    q.forEach(d=>{ if(d.data().uid===user.uid || (d.data().email||'').toLowerCase()===(user.email||'').toLowerCase()) doc=d; });
-    if(!doc){ alert('This code is not for your account.'); return; }
-    await doc.ref.update({status:'approved'});
+    q.forEach(function(d){
+      var data=d.data()||{};
+      if(String(data.code||'')===code) doc=d;
+    });
+    if(!doc){ alert('Code does not match. Ask the super admin for the correct code.'); return; }
+    var data=doc.data()||{};
+    if(data.expiresAt && Date.now() > Number(data.expiresAt)){
+      try{ await doc.ref.update({status:'expired'}); }catch(e){}
+      alert('This code has expired (10 minutes). Request organiser again.');
+      return;
+    }
+    await doc.ref.update({status:'approved', approvedAt: Date.now()});
     await db.collection('users').doc(user.uid).set({isOrganiser:true,orgPaused:false},{merge:true});
     profile=await loadProfile(user);
     alert('You are now an organiser.');
@@ -4740,31 +4803,52 @@ $('btnVerifyCode').onclick=async()=>{
 
 async function refreshAdminOrgLists(){
   const oBox=$('organisersList'), pBox=$('pendingCodes');
+  if(!oBox||!pBox) return;
   oBox.innerHTML='Loading…'; pBox.innerHTML='Loading…';
+  if(!isSuperAdmin()){
+    oBox.innerHTML='<p style="color:var(--muted)">Super admin only.</p>';
+    pBox.innerHTML='';
+    return;
+  }
   try{
     const users=await db.collection('users').where('isOrganiser','==',true).get();
     oBox.innerHTML='';
+    if(users.empty) oBox.innerHTML='<p style="color:var(--muted)">No organisers yet.</p>';
     users.forEach(doc=>{
       const d=doc.data();
+      if(SUPER_ADMIN_EMAILS.includes(String(d.email||'').toLowerCase())) return; // skip listing self as removable
       const div=document.createElement('div'); div.className='panel'; div.style.marginTop='8px';
       div.innerHTML='<strong>'+(d.displayName||d.email)+'</strong><br><span style="color:var(--muted)">'+(d.email||'')+(d.orgPaused?' · Paused':'')+'</span>';
-      const row=document.createElement('div'); row.className='row';
+      const row=document.createElement('div'); row.className='row'; row.style.marginTop='8px';
       const pause=document.createElement('button'); pause.type='button'; pause.className='btn-sec';
       pause.textContent=d.orgPaused?'Resume permission':'Pause permission';
-      pause.onclick=async()=>{ await doc.ref.set({orgPaused:!d.orgPaused},{merge:true}); refreshAdminOrgLists(); };
+      pause.onclick=async()=>{ try{ await doc.ref.set({orgPaused:!d.orgPaused},{merge:true}); refreshAdminOrgLists(); }catch(e){ safeAlert(e); } };
       const rem=document.createElement('button'); rem.type='button'; rem.className='btn-danger'; rem.textContent='Remove permission';
-      rem.onclick=()=>ask('Remove organiser?','Remove access for '+(d.email||'')+'?', async()=>{ await doc.ref.set({isOrganiser:false,orgPaused:false},{merge:true}); refreshAdminOrgLists(); });
+      rem.onclick=()=>ask('Remove organiser?','Remove access for '+(d.email||'')+'?', async()=>{ try{ await doc.ref.set({isOrganiser:false,orgPaused:false},{merge:true}); refreshAdminOrgLists(); }catch(e){ safeAlert(e); } });
       row.appendChild(pause); row.appendChild(rem); div.appendChild(row); oBox.appendChild(div);
     });
     const pend=await db.collection('organiserRequests').where('status','==','pending').get();
-    pBox.innerHTML=pend.empty?'<p style="color:var(--muted)">No pending requests.</p>':'';
-    pend.forEach(doc=>{
-      const d=doc.data();
-      const div=document.createElement('div'); div.className='panel';
-      div.innerHTML='<strong>'+(d.displayName||d.email)+'</strong><br>'+(d.email||'')+'<p style="font-size:1.6rem;font-weight:800;letter-spacing:.15em">'+(d.code||'')+'</p>';
-      pBox.appendChild(div);
-    });
-  }catch(e){ oBox.innerHTML=e.message||'Error'; }
+    pBox.innerHTML='';
+    if(pend.empty){
+      pBox.innerHTML='<p style="color:var(--muted)">No pending requests.</p>';
+    } else {
+      pend.forEach(doc=>{
+        const d=doc.data()||{};
+        const expired = d.expiresAt && Date.now() > Number(d.expiresAt);
+        const div=document.createElement('div'); div.className='panel'; div.style.marginTop='8px';
+        div.innerHTML='<strong>'+(d.displayName||d.email||'User')+'</strong><br>'+
+          '<span style="color:var(--muted)">'+(d.email||'')+'</span>'+
+          (expired
+            ? '<p style="color:var(--danger,#ef4444);font-weight:700">Expired — ask them to request again</p>'
+            : '<p style="font-size:1.6rem;font-weight:800;letter-spacing:.15em;margin:8px 0">'+(d.code||'')+'</p><p style="color:var(--muted);font-size:12px">Share this code (valid 10 min)</p>');
+        pBox.appendChild(div);
+      });
+    }
+  }catch(e){
+    console.error('refreshAdminOrgLists', e);
+    oBox.innerHTML='<p style="color:var(--danger,#ef4444)">Could not load. '+(e.message||e)+'</p><p style="color:var(--muted);font-size:13px">Check Firestore rules allow admin read on users and organiserRequests.</p>';
+    pBox.innerHTML='';
+  }
 }
 
 /* ===== Main hub tabs (Live / Past / More) — Cric360 Live layout ===== */
@@ -5321,27 +5405,34 @@ async function openAuction(id){
   const data=snap.data();
   const isOwner=user&&data.ownerId===user.uid;
   const isHelper=user&&(data.coOrganiserIds||[]).includes(user.uid);
-  // Approved team owner even if they open list manually (not only invite link)
   const isTeamOwner=user&&(data.owners||[]).some(function(o){ return o.uid===user.uid && o.teamId; });
+  const st = String(data.status||'');
+
   // Team owners: waiting room until Go live
-  if(isTeamOwner && !isOwner && !isHelper && String(data.status||'')!=='live'){
+  if(isTeamOwner && !isOwner && !isHelper && st!=='live'){
     enterWaitingRoom(id);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
     return;
   }
-  // Host / helper on setup or live
-  if((isOwner||isHelper) && (data.status==='live'||data.status==='setup')){
+  // Host / helper still in SETUP — never open live timer / first player
+  if((isOwner||isHelper) && st==='setup'){
+    await enterHostSetupRoom(id, data);
+    try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
+    return;
+  }
+  // Host / helper / team owner when LIVE
+  if((isOwner||isHelper) && st==='live'){
     await resumeAuction(id,data);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
     return;
   }
-  if(isTeamOwner && data.status==='live'){
+  if(isTeamOwner && st==='live'){
     await resumeAuction(id,data);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: true }); }catch(e){}
     return;
   }
-  // Viewers (or manual joiners without team): setup = lobby of approved owners, not live player
-  if(String(data.status||'')==='setup'){
+  // Viewers during setup
+  if(st==='setup'){
     showSetupLobby(id, data);
     try{ applyShareMeta('watch', Object.assign({}, data, {id:id}), { includeHostEmail: false }); }catch(e){}
     return;
@@ -8212,9 +8303,9 @@ function doImport(){
  * Legacy auctions with players[] on the main doc still work (compat read).
  */
 function playerDocId(p, index){
-  if(p && p.id) return String(p.id);
-  if(p && p.serial) return 's'+String(p.serial).replace(/[^\w-]/g,'_').slice(0,40);
-  return 'p'+String(index);
+  // Always unique by roster index — serial/gamerId alone caused collisions (300 → ~254)
+  if(p && p.id && /^p\d+$/.test(String(p.id))) return String(p.id);
+  return 'p'+String(index != null ? index : 0);
 }
 function playersSubCol(aid){
   return db.collection('auctions').doc(aid).collection('players');
@@ -8305,8 +8396,9 @@ async function syncPlayersSubcollection(aid, players){
     const slice = players.slice(i, i + 400);
     slice.forEach(function(p, j){
       const idx = i + j;
-      const id = playerDocId(p, idx);
-      if(p && !p.id) p.id = id;
+      // Force unique id by index so 300 rows never collapse to fewer docs
+      const id = 'p'+idx;
+      if(p) p.id = id;
       const data = Object.assign({}, p, {
         id: id,
         index: idx,
@@ -8316,6 +8408,15 @@ async function syncPlayersSubcollection(aid, players){
     });
     await batch.commit();
   }
+  // Keep count on parent doc
+  try{
+    await db.collection('auctions').doc(aid).set({
+      playersCount: players.length,
+      playersStorage: 'subcollection',
+      remainingCount: players.filter(function(x){ return x && !x.sold && !x.unsold; }).length,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }catch(e){}
 }
 /** Load roster from subcollection into sorted array (by index). No composite index required. */
 async function loadPlayersFromSubcollection(aid){
@@ -8333,21 +8434,25 @@ async function loadPlayersFromSubcollection(aid){
 /** Ensure T.players is populated (subcollection or legacy array). */
 async function ensurePlayersLoaded(aid, data){
   data = data || {};
+  var expected = (data.playersCount != null) ? data.playersCount : 0;
+  // Prefer subcollection when flagged or when in-memory count is short
+  var needSub = (data.playersStorage === 'subcollection')
+    || (expected > 0 && (!(T && T.players && T.players.length) || T.players.length < expected));
+  if(needSub && aid){
+    try{
+      const list = await loadPlayersFromSubcollection(aid);
+      if(list && list.length){
+        if(T) T.players = list;
+        return list;
+      }
+    }catch(e){
+      console.warn('loadPlayersFromSubcollection', e);
+    }
+  }
   if(T && Array.isArray(T.players) && T.players.length) return T.players;
-  // Legacy: players embedded on main doc
   if(Array.isArray(data.players) && data.players.length){
     if(T) T.players = data.players;
     return data.players;
-  }
-  if(data.playersStorage === 'subcollection' || (data.playersCount > 0 && !(data.players && data.players.length))){
-    try{
-      const list = await loadPlayersFromSubcollection(aid);
-      if(T) T.players = list;
-      return list;
-    }catch(e){
-      console.warn('loadPlayersFromSubcollection', e);
-      return (T && T.players) || [];
-    }
   }
   return (T && T.players) || data.players || [];
 }
@@ -9719,19 +9824,24 @@ async function renderVirtualAssign(body){
     }
     return;
   }
-  const url=inviteUrl();
+  var pc = (T.players && T.players.length) || 0;
   body.innerHTML=
-    '<p><strong>Invite link</strong> — share with franchise owners</p>'+
-    '<input type="text" readonly value="'+url.replace(/"/g,'&quot;')+'" id="invField" style="width:100%" />'+
-    '<button type="button" id="btnCopyInv" class="btn-sec btn-block">Copy invite link</button>'+
-    '<p style="color:var(--muted);font-size:14px">This list updates live when owners open the link and sign in.</p>'+
-    '<div id="assignLive"></div>';
+    '<p style="margin:0 0 8px;font-weight:700">'+(T.title||'Auction')+' · Setup</p>'+
+    (pc ? '<p style="color:var(--muted);font-size:13px;margin:0 0 12px">'+pc+' players loaded</p>' : '')+
+    '<button type="button" id="btnCopyInv" class="btn-ok btn-block" aria-label="Copy invite link">Copy invite link</button>'+
+    '<div id="assignLive" style="margin-top:14px"></div>';
 
-  $('btnCopyInv').onclick=()=>{
-    try{ shareWithPreview('owner', Object.assign({}, T, {id: auctionId}), { includeHostEmail: true }); }
-    catch(e){
-      const v=($('invUrl')&&$('invUrl').value)||inviteUrl();
-      if(navigator.clipboard) navigator.clipboard.writeText(v).then(()=>alert('Link copied')); else alert(v);
+  $('btnCopyInv').onclick=function(){
+    var v = inviteUrl();
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(v).then(function(){ alert('Invite link copied'); }).catch(function(){ prompt('Copy this link', v); });
+      } else {
+        prompt('Copy this link', v);
+      }
+    }catch(e){
+      try{ shareWithPreview('owner', Object.assign({}, T, {id: auctionId}), { includeHostEmail: true }); }
+      catch(e2){ prompt('Copy this link', v); }
     }
   };
 
@@ -12755,9 +12865,9 @@ if($('btnMyAuctions')) $('btnMyAuctions').onclick=async function(){
       const row=document.createElement('div'); row.className='row';
       const open=document.createElement('button'); open.type='button'; open.className='btn-ok';
       open.textContent=(it.status==='ended')?'View results':'Open';
-      open.onclick=()=>{
-        if(it.status==='ended') openAuction(it.id);
-        else resumeAuction(it.id, it);
+      open.onclick=function(){
+        // Always route through openAuction — setup must NOT open live timer
+        openAuction(it.id);
       };
       const del=document.createElement('button'); del.type='button'; del.className='btn-danger'; del.textContent='Delete';
       del.onclick=()=>ask('Delete?','Delete '+(it.title||'')+'?', async()=>{

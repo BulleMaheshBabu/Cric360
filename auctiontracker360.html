@@ -8180,7 +8180,26 @@ function doImport(){
   names.forEach((hn,idx)=>{ if(/serial|^id$|sno/.test(hn)&&map.serial<0)map.serial=checks[idx]; if(/name|player/.test(hn)&&map.name<0)map.name=checks[idx]; if(/gamer|username|ign/.test(hn)&&map.gamerId<0)map.gamerId=checks[idx]; if(/state|region|city/.test(hn)&&map.state<0)map.state=checks[idx]; });
   if(map.name<0) map.name=checks[0];
   activeCols={serial:map.serial>=0,name:true,gamerId:map.gamerId>=0,state:map.state>=0};
-  T.players=parsedRows.slice(1).map(r=>({serial:map.serial>=0?String(r[map.serial]||''):'',name:map.name>=0?String(r[map.name]||''):'',gamerId:map.gamerId>=0?String(r[map.gamerId]||''):'',state:map.state>=0?String(r[map.state]||''):'',sold:false,unsold:false}));
+  var rawPlayers=parsedRows.slice(1).map(function(r){
+    return {
+      serial:map.serial>=0?String(r[map.serial]||''):'',
+      name:map.name>=0?String(r[map.name]||''):'',
+      gamerId:map.gamerId>=0?String(r[map.gamerId]||''):'',
+      state:map.state>=0?String(r[map.state]||''):'',
+      sold:false, unsold:false
+    };
+  }).filter(function(p){ return p.name || p.gamerId || p.serial; });
+  // Drop exact duplicate rows (same serial+gamerId+name) so rapid re-import / file dups don't inflate roster
+  var seenImp={};
+  T.players=rawPlayers.filter(function(p){
+    var k=(p.serial||'')+'|'+(p.gamerId||'')+'|'+(p.name||'').toLowerCase().trim();
+    if(seenImp[k]) return false;
+    seenImp[k]=true;
+    return true;
+  });
+  if(rawPlayers.length !== T.players.length){
+    try{ console.warn('Import removed '+(rawPlayers.length-T.players.length)+' duplicate player rows'); }catch(e){}
+  }
   T.activeColumns=activeCols;
   $('wImportMsg').innerHTML='<p><strong>Imported '+T.players.length+' players.</strong></p>';
   alert('Import complete. '+T.players.length+' players imported.');
@@ -10349,15 +10368,14 @@ function renderAuction(opts){
       }, 220);
     }
   }
-  $('btnSold').onclick=()=>ask('Confirm sold','Mark '+(p.name||'')+' as sold?',()=>openSoldForm(idx));
-  $('btnUnsold').onclick=()=>ask('Confirm unsold','Mark '+(p.name||'')+' as unsold?', async()=>{
-    try{ playSfx('unsold'); }catch(e){}
-    p.unsold=true; p.sold=false; T.players[idx]=p;
-    T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now() };
-    T.meta.currentIndex=idx+1;
-    await afterLotSequence((p.name||'Player')+' unsold.', '');
-    renderAuction({ focusBid:true });
-  });
+  $('btnSold').onclick=function(){
+    if(window._lotBusy) return;
+    ask('Confirm sold','Mark '+(p.name||'')+' as sold?', function(){ openSoldForm(idx); });
+  };
+  $('btnUnsold').onclick=function(){
+    if(window._lotBusy) return;
+    ask('Confirm unsold','Mark '+(p.name||'')+' as unsold?', function(){ finalizeUnsold(); });
+  };
 }
 
 function renderVirtualAuctionUI(box, p, idx, recent, opts){
@@ -11270,6 +11288,7 @@ async function hostAdvanceNextPlayer(){
   if(!T || !user || T.ownerId !== user.uid) return;
   if(!isAwaitingNextPlayer()) return;
   if(T.status==='ended' || T.paused) return;
+  if(window._lotBusy) return; // wait until sold/unsold save finishes
   if(window._advancingNext) return;
   window._advancingNext=true;
   try{
@@ -11541,62 +11560,110 @@ async function afterLotSequence(resultLine, alertLine){
   }
 }
 
+/** Next index after marking idx sold/unsold — skip any already-processed players */
+function advanceIndexPast(idx){
+  const pl = T.players || [];
+  let i = Math.max(0, (idx|0) + 1);
+  while(i < pl.length && pl[i] && (pl[i].sold || pl[i].unsold || pl[i].status==='sold' || pl[i].status==='unsold')) i++;
+  return i;
+}
+
 async function finalizeSold(teamId, price){
   if(!T || !Array.isArray(T.players)){ alert('Auction data missing'); return; }
-  const idx=T.meta.currentIndex||0;
-  const p=T.players[idx];
-  if(!p){ alert('No player at this position'); return; }
-  const team=(T.teams||[]).find(t=>t.id===teamId);
-  if(!team){ alert('Team missing'); return; }
-  if(price>team.remaining){ alert('Purse issue'); return; }
-  // Block if already at maximum (before adding this player)
-  if(isTeamAtMax(team)){
-    alert('Maximum players filled for '+team.name+'. Unable to proceed.');
-    return;
+  if(window._lotBusy) return;
+  window._lotBusy = true;
+  try{
+    // Always resolve current unprocessed player (ignore stale closure index)
+    let idx = (T.meta && T.meta.currentIndex) || 0;
+    while(idx < T.players.length && T.players[idx] && (T.players[idx].sold || T.players[idx].unsold)) idx++;
+    const p = T.players[idx];
+    if(!p){ alert('No player at this position'); return; }
+    if(p.sold || p.unsold || p.status==='sold' || p.status==='unsold'){
+      T.meta.currentIndex = advanceIndexPast(idx - 1);
+      return;
+    }
+    const team=(T.teams||[]).find(t=>t.id===teamId);
+    if(!team){ alert('Team missing'); return; }
+    if(price>team.remaining){ alert('Purse issue'); return; }
+    if(isTeamAtMax(team)){
+      alert('Maximum players filled for '+team.name+'. Unable to proceed.');
+      return;
+    }
+    const maxP = getTeamMax(team);
+    if(maxP > 0 && (team.players||[]).length >= maxP){
+      team.maxReached = true;
+      alert('Maximum players filled for '+team.name+'. Unable to proceed.');
+      return;
+    }
+    // Prevent same player added twice to squad
+    const alreadyInSquad = (team.players||[]).some(function(x){
+      if(!x) return false;
+      if(p.id && x.id && p.id === x.id) return true;
+      if(p.gamerId && x.gamerId && String(p.gamerId)===String(x.gamerId)) return true;
+      if(p.serial && x.serial && String(p.serial)===String(x.serial) && p.name && x.name && p.name===x.name) return true;
+      return false;
+    });
+    if(alreadyInSquad){
+      p.sold=true; p.unsold=false; p.status='sold';
+      T.players[idx]=p;
+      T.meta.currentIndex = advanceIndexPast(idx);
+      await afterLotSequence((p.name||'Player')+' already in squad.', '');
+      renderAuction({ force:true });
+      return;
+    }
+    try{ playSfx('sold'); }catch(e){}
+    team.players=team.players||[];
+    team.players.push(Object.assign({}, p, { price: price }));
+    team.remaining-=price;
+    if(maxP > 0 && team.players.length >= maxP) team.maxReached = true;
+    p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
+    T.players[idx]=p;
+    T.meta.currentIndex = advanceIndexPast(idx);
+    T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
+    let alertLine='';
+    try{ alertLine=checkTeamAlerts(team)||''; }catch(e){}
+    const resultLine=(p.name||'Player')+' sold to '+team.name+' for '+price;
+    const more=T.meta.currentIndex<T.players.length;
+    if(more){
+      T.bid=makeBidStateForPlayer(T.meta.currentIndex, true);
+    } else T.bid=null;
+    window._soldN=(T.players||[]).filter(x=>x.sold).length;
+    await afterLotSequence(resultLine, alertLine);
+    renderAuction({ force:true });
+  } finally {
+    window._lotBusy = false;
   }
-  const maxP = getTeamMax(team);
-  if(maxP > 0 && (team.players||[]).length >= maxP){
-    team.maxReached = true;
-    alert('Maximum players filled for '+team.name+'. Unable to proceed.');
-    return;
-  }
-  try{ playSfx('sold'); }catch(e){}
-  team.players=team.players||[];
-  team.players.push({...p, price});
-  team.remaining-=price;
-  if(maxP > 0 && team.players.length >= maxP) team.maxReached = true;
-  p.sold=true; p.unsold=false; p.status='sold'; p.soldTeam=team.name; p.soldTeamId=team.id; p.soldPrice=price; p.team=team.name; p.price=price;
-  T.players[idx]=p;
-  T.meta.currentIndex=idx+1;
-  T.lastResult={ name:p.name||'', sold:true, team:team.name, price:price, at:Date.now() };
-  let alertLine='';
-  try{ alertLine=checkTeamAlerts(team)||''; }catch(e){}
-  const resultLine=(p.name||'Player')+' sold to '+team.name+' for '+price;
-  const more=T.meta.currentIndex<T.players.length;
-  if(more){
-    T.bid=makeBidStateForPlayer(T.meta.currentIndex, true); // start after intermission
-  } else T.bid=null;
-  window._soldN=(T.players||[]).filter(x=>x.sold).length;
-  await afterLotSequence(resultLine, alertLine);
-  renderAuction();
 }
 
 async function finalizeUnsold(){
   if(!T || !Array.isArray(T.players)){ alert('Auction data missing'); return; }
-  const idx=T.meta.currentIndex||0;
-  const p=T.players[idx];
-  if(!p){ alert('No player at this position'); return; }
-  try{ playSfx('unsold'); }catch(e){}
-  p.unsold=true; p.sold=false; p.status='unsold'; p.soldTeam=''; p.soldTeamId=''; p.soldPrice=null; p.team=''; p.price=null;
-  T.players[idx]=p;
-  T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now() };
-  T.meta.currentIndex=idx+1;
-  const more=T.meta.currentIndex<T.players.length;
-  if(more) T.bid=makeBidStateForPlayer(T.meta.currentIndex, true);
-  else T.bid=null;
-  window._unsoldN=(T.players||[]).filter(x=>x.unsold).length;
-  await afterLotSequence((p.name||'Player')+' unsold.', '');
-  renderAuction();
+  if(window._lotBusy) return;
+  window._lotBusy = true;
+  try{
+    let idx = (T.meta && T.meta.currentIndex) || 0;
+    while(idx < T.players.length && T.players[idx] && (T.players[idx].sold || T.players[idx].unsold)) idx++;
+    const p = T.players[idx];
+    if(!p){ alert('No player at this position'); return; }
+    // Already processed — do not mark again / do not double-count
+    if(p.sold || p.unsold || p.status==='sold' || p.status==='unsold'){
+      T.meta.currentIndex = advanceIndexPast(idx - 1);
+      renderAuction({ force:true });
+      return;
+    }
+    try{ playSfx('unsold'); }catch(e){}
+    p.unsold=true; p.sold=false; p.status='unsold'; p.soldTeam=''; p.soldTeamId=''; p.soldPrice=null; p.team=''; p.price=null;
+    T.players[idx]=p;
+    T.lastResult={ name:p.name||'', sold:false, team:'', price:0, at:Date.now() };
+    T.meta.currentIndex = advanceIndexPast(idx);
+    const more=T.meta.currentIndex<T.players.length;
+    if(more) T.bid=makeBidStateForPlayer(T.meta.currentIndex, true);
+    else T.bid=null;
+    window._unsoldN=(T.players||[]).filter(x=>x.unsold).length;
+    await afterLotSequence((p.name||'Player')+' unsold.', '');
+    renderAuction({ force:true });
+  } finally {
+    window._lotBusy = false;
+  }
 }
 
 function openSoldForm(idx){

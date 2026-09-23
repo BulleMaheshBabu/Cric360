@@ -1563,6 +1563,40 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   <button type="button" role="tab" id="hubTabMore" aria-selected="false">More</button>
 </nav>
 
+<!-- Tournament History (stats / teams / results) -->
+<section id="screenTournament" class="wrap panel hidden" role="region" aria-labelledby="tourTitle">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+    <button type="button" id="btnTourBack" class="btn-sec" aria-label="Back">Back</button>
+    <h1 id="tourTitle" tabindex="-1" style="flex:1;margin:0;font-size:1.15rem">Tournament</h1>
+    <button type="button" id="btnTourImport" class="btn-ok" aria-label="Import scorecard CSV">Import CSV</button>
+    <input type="file" id="tourCsvFile" accept=".csv,text/csv" class="hidden" aria-hidden="true" />
+  </div>
+  <p id="tourSub" style="color:var(--muted);font-size:13px;margin:0 0 10px"></p>
+  <div class="hub-subtabs" role="tablist" aria-label="Tournament tabs" style="display:flex;gap:6px;margin:0 0 12px">
+    <button type="button" role="tab" id="tourTabStats" class="btn-ok" aria-selected="true" style="flex:1">Stats</button>
+    <button type="button" role="tab" id="tourTabTeams" class="btn-sec" aria-selected="false" style="flex:1">Teams</button>
+    <button type="button" role="tab" id="tourTabResults" class="btn-sec" aria-selected="false" style="flex:1">Results</button>
+  </div>
+  <div id="tourPaneStats" role="tabpanel"></div>
+  <div id="tourPaneTeams" class="hidden" role="tabpanel"></div>
+  <div id="tourPaneResults" class="hidden" role="tabpanel"></div>
+  <div id="tourMapModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding:16px">
+    <div class="panel" style="width:100%;max-width:480px;max-height:80vh;overflow:auto" role="dialog" aria-labelledby="tourMapTitle">
+      <h2 id="tourMapTitle" style="margin-top:0">Map player</h2>
+      <p id="tourMapText"></p>
+      <label for="tourMapSelect">Squad player</label>
+      <select id="tourMapSelect" style="width:100%;margin:8px 0"></select>
+      <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
+        <input type="checkbox" id="tourMapUpdateId" checked /> Update saved game ID for next imports
+      </label>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="button" id="tourMapSave" class="btn-ok" style="flex:1">Save mapping</button>
+        <button type="button" id="tourMapSkip" class="btn-sec" style="flex:1">Skip this player</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Legacy list screen kept for deep links / fallback (normally unused) -->
 <section id="screenList" class="wrap panel hidden" role="region" aria-labelledby="listTitle">
   <button type="button" id="btnListBack" class="btn-sec" aria-label="Back to home">Back</button>
@@ -3722,7 +3756,7 @@ function showScreen(id, opts){
     }
   }catch(e){}
 
-  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList']
+  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenTournament','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList']
     .forEach(s=>{
       const el=$(s); if(!el) return;
       const on = (s===id);
@@ -3776,6 +3810,9 @@ function applyAppBackStep(){
       enterHome(); return true;
     }
     if($('screenWizard') && !$('screenWizard').classList.contains('hidden')){
+      enterHome(); return true;
+    }
+    if($('screenTournament') && !$('screenTournament').classList.contains('hidden')){
       enterHome(); return true;
     }
     // Registration screens → home + regs tab
@@ -4881,10 +4918,41 @@ async function openAuctionList(kind){
         : (st+'Remaining '+left+' · '+(it.ownerName||it.ownerEmail||''));
       btn.innerHTML='<strong>'+mode+(it.title||'Auction')+'</strong><br><span style="font-size:13px;color:var(--muted)">'+sub+'</span>';
       btn.setAttribute('aria-label', (it.title||'Auction')+', '+(kind==='ended'?'past':'live')+', '+sub);
-      btn.onclick=()=>openAuction(it.id);
+      if(kind==='ended'){
+        btn.onclick=function(){ openEndedAuctionActions(it); };
+      } else {
+        btn.onclick=function(){ openAuction(it.id); };
+      }
       body.appendChild(btn);
     });
   }catch(e){ body.innerHTML='<p class="hub-empty">'+(e.message||e)+'</p>'; }
+}
+
+/** Past auction: open, or Start Tournament / Tournament History */
+async function openEndedAuctionActions(it){
+  if(!it || !it.id) return;
+  var isHost = user && (it.ownerId === user.uid || (isAdmin && isAdmin()));
+  var tourId = null;
+  try{
+    var q = await db.collection('tournaments').where('auctionId','==',it.id).limit(1).get();
+    if(!q.empty) tourId = q.docs[0].id;
+  }catch(e){}
+  if(tourId){
+    openTournament(tourId);
+    return;
+  }
+  if(isHost){
+    ask('Start tournament?',
+      'Create tournament from "'+(it.title||'this auction')+'" squads? You can import match CSVs after this.',
+      async function(){
+        try{
+          var id = await startTournamentFromAuction(it.id);
+          if(id) openTournament(id);
+        }catch(err){ safeAlert(err); }
+      });
+  } else {
+    alert('No tournament has been started for this auction yet. Only the host can start it.');
+  }
 }
 
 function stopAuctionLive(){ if(auctionLiveUnsub){ try{auctionLiveUnsub();}catch(e){} auctionLiveUnsub=null; } stopPresence(); }
@@ -13268,6 +13336,685 @@ function wireAi360(){
 try{ wireAi360(); }catch(e){ console.warn('wireAi360', e); }
 
 
+
+/* ========== TOURNAMENT STATS (CSV scorecards → player career) ==========
+   Host writes; any signed-in user reads.
+   Same player 2–3 times in one CSV → stats summed under that player.
+*/
+var tourState = { id: null, data: null, squad: [], tab: 'stats', pendingMaps: [], mapResolve: null };
+
+function isTourHost(d){
+  d = d || tourState.data;
+  if(!user || !d) return false;
+  if(d.ownerId === user.uid) return true;
+  try{ if(typeof isAdmin==='function' && isAdmin()) return true; }catch(e){}
+  try{ if(typeof isSuperAdmin==='function' && isSuperAdmin()) return true; }catch(e){}
+  var em = (user.email||'').toLowerCase();
+  if(em === 'maheshdhoni7633@gmail.com' || em === 'cricthreesixty@gmail.com') return true;
+  return false;
+}
+
+function normalizeGamerId(s){
+  return String(s||'').trim().replace(/\s+/g,'');
+}
+function cleanPlayerName(s){
+  return String(s||'')
+    .replace(/[💎⭐✅]/g,'')
+    .replace(/\(not out\)/ig,'')
+    .replace(/\s+\d+\s*$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function idSimilarity(a, b){
+  a = normalizeGamerId(a).toLowerCase();
+  b = normalizeGamerId(b).toLowerCase();
+  if(!a || !b) return 0;
+  if(a === b) return 1;
+  var longer = a.length > b.length ? a : b;
+  var shorter = a.length > b.length ? b : a;
+  if(longer.indexOf(shorter) >= 0) return shorter.length / longer.length;
+  var matches = 0;
+  for(var i=0;i<shorter.length;i++){
+    if(longer.indexOf(shorter[i]) >= 0) matches++;
+  }
+  return matches / longer.length;
+}
+
+/** Build squad list from ended auction (teams[].players + optional players subcollection) */
+async function loadAuctionSquadForTournament(auctionId, auctionData){
+  var squad = [];
+  var teams = (auctionData && auctionData.teams) || [];
+  teams.forEach(function(t){
+    (t.players||[]).forEach(function(p){
+      if(!p) return;
+      squad.push({
+        playerId: p.id || ('p_'+normalizeGamerId(p.gamerId||p.name||Math.random())),
+        name: p.name || '',
+        gamerId: normalizeGamerId(p.gamerId || ''),
+        teamId: t.id,
+        teamName: t.name || '',
+        membership: p.membership || ''
+      });
+    });
+  });
+  // Enrich from players subcollection if needed
+  if(squad.length < 5 && db){
+    try{
+      var snap = await db.collection('auctions').doc(auctionId).collection('players').get();
+      snap.forEach(function(doc){
+        var p = doc.data() || {};
+        if(!p.sold) return;
+        var tid = p.soldTeamId || p.teamId || '';
+        var tname = p.soldTeam || p.teamName || '';
+        if(!tid && p.soldTeam){
+          var tm = teams.find(function(x){ return x.name === p.soldTeam; });
+          if(tm){ tid = tm.id; tname = tm.name; }
+        }
+        squad.push({
+          playerId: doc.id,
+          name: p.name || '',
+          gamerId: normalizeGamerId(p.gamerId || ''),
+          teamId: tid,
+          teamName: tname,
+          membership: p.membership || ''
+        });
+      });
+    }catch(e){ console.warn('squad subcol', e); }
+  }
+  // Dedupe by playerId / gamerId
+  var seen = {};
+  return squad.filter(function(s){
+    var k = s.playerId || s.gamerId || s.name;
+    if(seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+}
+
+async function startTournamentFromAuction(auctionId){
+  if(!db || !user) throw new Error('Not signed in');
+  var snap = await db.collection('auctions').doc(auctionId).get();
+  if(!snap.exists) throw new Error('Auction not found');
+  var data = snap.data();
+  if(data.ownerId !== user.uid && !isTourHost({ ownerId: data.ownerId })){
+    throw new Error('Only the host can start the tournament');
+  }
+  var existing = await db.collection('tournaments').where('auctionId','==',auctionId).limit(1).get();
+  if(!existing.empty) return existing.docs[0].id;
+
+  var squad = await loadAuctionSquadForTournament(auctionId, data);
+  var teams = (data.teams||[]).map(function(t){
+    return { id: t.id, name: t.name, purse: t.purse||0 };
+  });
+  var ref = await db.collection('tournaments').add({
+    title: data.title || 'Tournament',
+    auctionId: auctionId,
+    ownerId: data.ownerId || user.uid,
+    ownerEmail: data.ownerEmail || user.email || '',
+    status: 'active',
+    teams: teams,
+    matchCount: 0,
+    playerCount: squad.length,
+    pointsTable: teams.map(function(t){
+      return { teamId: t.id, name: t.name, played:0, won:0, lost:0, points:0, nrr:0, runsFor:0, runsAgainst:0, oversFor:0, oversAgainst:0 };
+    }),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  // Write squad in batches
+  for(var i=0;i<squad.length;i+=400){
+    var batch = db.batch();
+    squad.slice(i, i+400).forEach(function(s){
+      var id = s.playerId || ('p_'+i);
+      batch.set(ref.collection('squad').doc(id), {
+        name: s.name,
+        gamerId: s.gamerId || '',
+        teamId: s.teamId || '',
+        teamName: s.teamName || '',
+        membership: s.membership || '',
+        playerId: id
+      }, { merge: true });
+      batch.set(ref.collection('playerStats').doc(id), {
+        name: s.name,
+        gamerId: s.gamerId || '',
+        teamId: s.teamId || '',
+        teamName: s.teamName || '',
+        membership: s.membership || '',
+        batting: { runs:0, balls:0, fours:0, sixes:0, innings:0 },
+        bowling: { overs:0, balls:0, runs:0, wickets:0 },
+        matchesPlayed: 0,
+        updatedAt: Date.now()
+      }, { merge: true });
+    });
+    await batch.commit();
+  }
+  return ref.id;
+}
+
+/** Parse scorecard CSV (Hyderabad Hurricanes style export) */
+function parseScorecardCsv(text){
+  var lines = String(text||'').split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+  var result = {
+    teamA: null, teamB: null,
+    scoreA: null, scoreB: null,
+    batting: [], // { gamerId, name, runs, balls, fours, sixes, teamHint }
+    bowling: [],
+    resultText: '',
+    motm: '',
+    playedOn: ''
+  };
+  var i = 0;
+  var currentTeam = null;
+  var mode = null; // batting | bowling
+
+  function parseCsvLine(line){
+    // simple split — fields don't contain commas in this export format for numbers
+    return line.split(',').map(function(c){ return c.trim(); });
+  }
+
+  while(i < lines.length){
+    var line = lines[i];
+    var low = line.toLowerCase();
+
+    if(/won the game/i.test(line) || /won by/i.test(line)){
+      result.resultText = line;
+      i++; continue;
+    }
+    if(/player of the match/i.test(line)){
+      result.motm = line.replace(/\s*is player of the match\.?/i,'').trim();
+      i++; continue;
+    }
+    if(/played on/i.test(line)){
+      result.playedOn = line.replace(/played on/i,'').trim();
+      i++; continue;
+    }
+    if(/fall of wickets/i.test(low)){ i++; continue; }
+
+    // Team batting header: "alluri warriors  Batting,,,,,204 / 8 (10.0)"
+    var batM = line.match(/^(.+?)\s+Batting,+(.*)$/i);
+    if(batM){
+      currentTeam = batM[1].replace(/,+$/,'').trim();
+      mode = 'batting';
+      var scorePart = (batM[2]||'').trim();
+      var sm = scorePart.match(/(\d+)\s*\/\s*(\d+)/);
+      if(sm){
+        if(!result.teamA){ result.teamA = currentTeam; result.scoreA = { runs:+sm[1], wickets:+sm[2] }; }
+        else { result.teamB = currentTeam; result.scoreB = { runs:+sm[1], wickets:+sm[2] }; }
+      } else if(!result.teamA) result.teamA = currentTeam;
+      else result.teamB = currentTeam;
+      i++; continue;
+    }
+
+    // Bowling header
+    var bowlM = line.match(/^(.+?)\s+Bowling\s*$/i);
+    if(bowlM){
+      currentTeam = bowlM[1].trim();
+      mode = 'bowling';
+      i++; continue;
+    }
+
+    if(/^Batter ID,/i.test(line) || /^Bowler ID,/i.test(line)){ i++; continue; }
+
+    var cols = parseCsvLine(line);
+    if(mode === 'batting' && cols.length >= 3 && cols[0] && !/^fall/i.test(cols[0])){
+      var runs = parseInt(cols[2],10); var balls = parseInt(cols[3],10);
+      var fours = parseInt(cols[4],10)||0; var sixes = parseInt(cols[5],10)||0;
+      if(!isNaN(runs)){
+        result.batting.push({
+          gamerId: normalizeGamerId(cols[0]),
+          name: cleanPlayerName(cols[1]),
+          rawName: cols[1]||'',
+          runs: runs||0, balls: isNaN(balls)?0:balls, fours: fours, sixes: sixes,
+          teamHint: currentTeam
+        });
+      }
+      i++; continue;
+    }
+    if(mode === 'bowling' && cols.length >= 4 && cols[0] && !/^fall/i.test(cols[0])){
+      var overs = parseFloat(cols[2]); var bRuns = parseInt(cols[3],10);
+      var wkts = parseInt(cols[4],10)||0;
+      if(!isNaN(overs) || !isNaN(bRuns)){
+        result.bowling.push({
+          gamerId: normalizeGamerId(cols[0]),
+          name: cleanPlayerName(cols[1]),
+          rawName: cols[1]||'',
+          overs: isNaN(overs)?0:overs,
+          runs: isNaN(bRuns)?0:bRuns,
+          wickets: wkts,
+          teamHint: currentTeam
+        });
+      }
+      i++; continue;
+    }
+    i++;
+  }
+
+  // Aggregate same gamerId multiple times (2nd innings / repeat rows) under one person
+  function aggregateById(rows, fields){
+    var map = {};
+    rows.forEach(function(r){
+      var k = r.gamerId || ('name:'+r.name);
+      if(!map[k]){
+        map[k] = Object.assign({}, r);
+        fields.forEach(function(f){ map[k][f] = Number(r[f])||0; });
+      } else {
+        fields.forEach(function(f){ map[k][f] = (Number(map[k][f])||0) + (Number(r[f])||0); });
+        if(r.name && !map[k].name) map[k].name = r.name;
+      }
+    });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  result.batting = aggregateById(result.batting, ['runs','balls','fours','sixes']);
+  result.bowling = aggregateById(result.bowling, ['overs','runs','wickets']);
+  return result;
+}
+
+function findSquadMatch(gamerId, name, squad, teamHint){
+  var gid = normalizeGamerId(gamerId);
+  var exact = squad.find(function(s){ return s.gamerId && normalizeGamerId(s.gamerId) === gid; });
+  if(exact) return { player: exact, how: 'exact' };
+
+  var best = null, bestScore = 0;
+  squad.forEach(function(s){
+    if(!s.gamerId) return;
+    var sc = idSimilarity(gid, s.gamerId);
+    if(sc > bestScore){ bestScore = sc; best = s; }
+  });
+  if(best && bestScore >= 0.72) return { player: best, how: 'closest', score: bestScore };
+
+  var cn = cleanPlayerName(name).toLowerCase();
+  if(cn){
+    var byName = squad.filter(function(s){
+      return cleanPlayerName(s.name).toLowerCase() === cn ||
+        cleanPlayerName(s.name).toLowerCase().indexOf(cn) >= 0 ||
+        cn.indexOf(cleanPlayerName(s.name).toLowerCase()) >= 0;
+    });
+    if(teamHint){
+      var th = teamHint.toLowerCase();
+      var prefer = byName.filter(function(s){ return (s.teamName||'').toLowerCase().indexOf(th) >= 0 || th.indexOf((s.teamName||'').toLowerCase()) >= 0; });
+      if(prefer.length === 1) return { player: prefer[0], how: 'name' };
+    }
+    if(byName.length === 1) return { player: byName[0], how: 'name' };
+  }
+  return { player: null, how: 'none', closest: best, closestScore: bestScore };
+}
+
+function askTourMap(unmatched, squad){
+  return new Promise(function(resolve){
+    tourState.mapResolve = resolve;
+    var modal = $('tourMapModal');
+    if(!modal){ resolve(null); return; }
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    $('tourMapTitle').textContent = 'Player not in squad';
+    var msg = '"'+(unmatched.rawName||unmatched.name||unmatched.gamerId)+'" (ID: '+(unmatched.gamerId||'—')+') was not found.';
+    if(unmatched._closest){
+      msg += ' Closest ID: '+(unmatched._closest.gamerId||'')+' — '+(unmatched._closest.name||'');
+    }
+    $('tourMapText').textContent = msg;
+    var sel = $('tourMapSelect');
+    sel.innerHTML = '<option value="">— Choose squad player —</option>';
+    squad.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); }).forEach(function(s){
+      var o = document.createElement('option');
+      o.value = s.playerId;
+      o.textContent = (s.name||'Player')+' · '+(s.teamName||'')+(s.gamerId?' · '+s.gamerId:'');
+      sel.appendChild(o);
+    });
+    if(unmatched._closest && unmatched._closest.playerId) sel.value = unmatched._closest.playerId;
+  });
+}
+
+function wireTourMapButtons(){
+  if($('tourMapSave') && !$('tourMapSave')._wired){
+    $('tourMapSave')._wired = true;
+    $('tourMapSave').onclick = function(){
+      var sel = $('tourMapSelect');
+      var pid = sel && sel.value;
+      var updateId = $('tourMapUpdateId') && $('tourMapUpdateId').checked;
+      var modal = $('tourMapModal');
+      if(modal){ modal.classList.add('hidden'); modal.style.display = 'none'; }
+      var fn = tourState.mapResolve;
+      tourState.mapResolve = null;
+      if(fn) fn(pid ? { playerId: pid, updateId: !!updateId } : null);
+    };
+  }
+  if($('tourMapSkip') && !$('tourMapSkip')._wired){
+    $('tourMapSkip')._wired = true;
+    $('tourMapSkip').onclick = function(){
+      var modal = $('tourMapModal');
+      if(modal){ modal.classList.add('hidden'); modal.style.display = 'none'; }
+      var fn = tourState.mapResolve;
+      tourState.mapResolve = null;
+      if(fn) fn({ skip: true });
+    };
+  }
+}
+
+function oversToBalls(o){
+  o = Number(o)||0;
+  var whole = Math.floor(o);
+  var frac = Math.round((o - whole) * 10);
+  if(frac > 5) frac = 5;
+  return whole * 6 + frac;
+}
+function ballsToOvers(balls){
+  balls = Number(balls)||0;
+  return Math.floor(balls/6) + (balls%6)/10;
+}
+
+async function applyMatchToFirestore(tourId, parsed, mappings, squad){
+  // mappings: gamerId -> playerId
+  var byPid = {};
+  function addBat(row, pid){
+    if(!pid) return;
+    if(!byPid[pid]) byPid[pid] = { batting:{runs:0,balls:0,fours:0,sixes:0}, bowling:{overs:0,balls:0,runs:0,wickets:0} };
+    byPid[pid].batting.runs += row.runs||0;
+    byPid[pid].batting.balls += row.balls||0;
+    byPid[pid].batting.fours += row.fours||0;
+    byPid[pid].batting.sixes += row.sixes||0;
+  }
+  function addBowl(row, pid){
+    if(!pid) return;
+    if(!byPid[pid]) byPid[pid] = { batting:{runs:0,balls:0,fours:0,sixes:0}, bowling:{overs:0,balls:0,runs:0,wickets:0} };
+    byPid[pid].bowling.balls += oversToBalls(row.overs||0);
+    byPid[pid].bowling.runs += row.runs||0;
+    byPid[pid].bowling.wickets += row.wickets||0;
+  }
+  parsed.batting.forEach(function(r){
+    var pid = mappings[r.gamerId] || mappings['name:'+r.name];
+    addBat(r, pid);
+  });
+  parsed.bowling.forEach(function(r){
+    var pid = mappings[r.gamerId] || mappings['name:'+r.name];
+    addBowl(r, pid);
+  });
+
+  var matchRef = db.collection('tournaments').doc(tourId).collection('matches').doc();
+  var winnerName = '';
+  var m = (parsed.resultText||'').match(/^(.+?)\s+won/i);
+  if(m) winnerName = m[1].trim();
+
+  await matchRef.set({
+    teamA: parsed.teamA,
+    teamB: parsed.teamB,
+    scoreA: parsed.scoreA,
+    scoreB: parsed.scoreB,
+    resultText: parsed.resultText || '',
+    motm: parsed.motm || '',
+    playedOn: parsed.playedOn || '',
+    winnerName: winnerName,
+    importedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    importedBy: user.uid
+  });
+
+  var pids = Object.keys(byPid);
+  for(var i=0;i<pids.length;i+=200){
+    var batch = db.batch();
+    var slice = pids.slice(i, i+200);
+    for(var j=0;j<slice.length;j++){
+      var pid = slice[j];
+      var delta = byPid[pid];
+      var pref = db.collection('tournaments').doc(tourId).collection('playerStats').doc(pid);
+      batch.set(pref, {
+        'batting.runs': firebase.firestore.FieldValue.increment(delta.batting.runs),
+        'batting.balls': firebase.firestore.FieldValue.increment(delta.batting.balls),
+        'batting.fours': firebase.firestore.FieldValue.increment(delta.batting.fours),
+        'batting.sixes': firebase.firestore.FieldValue.increment(delta.batting.sixes),
+        'batting.innings': firebase.firestore.FieldValue.increment(delta.batting.runs || delta.batting.balls ? 1 : 0),
+        'bowling.balls': firebase.firestore.FieldValue.increment(delta.bowling.balls),
+        'bowling.runs': firebase.firestore.FieldValue.increment(delta.bowling.runs),
+        'bowling.wickets': firebase.firestore.FieldValue.increment(delta.bowling.wickets),
+        matchesPlayed: firebase.firestore.FieldValue.increment(1),
+        updatedAt: Date.now()
+      }, { merge: true });
+    }
+    await batch.commit();
+  }
+
+  // Points table (simple)
+  var tdoc = await db.collection('tournaments').doc(tourId).get();
+  var td = tdoc.data() || {};
+  var table = (td.pointsTable || []).map(function(r){ return Object.assign({}, r); });
+  function findRow(name){
+    var n = (name||'').toLowerCase();
+    return table.find(function(r){ return (r.name||'').toLowerCase() === n || n.indexOf((r.name||'').toLowerCase())>=0 || (r.name||'').toLowerCase().indexOf(n)>=0; });
+  }
+  var rowA = findRow(parsed.teamA);
+  var rowB = findRow(parsed.teamB);
+  var winA = winnerName && rowA && (winnerName.toLowerCase().indexOf((rowA.name||'').toLowerCase())>=0 || (rowA.name||'').toLowerCase().indexOf(winnerName.toLowerCase())>=0);
+  var winB = winnerName && rowB && (winnerName.toLowerCase().indexOf((rowB.name||'').toLowerCase())>=0 || (rowB.name||'').toLowerCase().indexOf(winnerName.toLowerCase())>=0);
+  if(rowA){ rowA.played = (rowA.played||0)+1; if(winA){ rowA.won=(rowA.won||0)+1; rowA.points=(rowA.points||0)+2; } else if(winB){ rowA.lost=(rowA.lost||0)+1; } }
+  if(rowB){ rowB.played = (rowB.played||0)+1; if(winB){ rowB.won=(rowB.won||0)+1; rowB.points=(rowB.points||0)+2; } else if(winA){ rowB.lost=(rowB.lost||0)+1; } }
+  await db.collection('tournaments').doc(tourId).set({
+    pointsTable: table,
+    matchCount: firebase.firestore.FieldValue.increment(1),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+
+  return matchRef.id;
+}
+
+async function importTourCsvFile(file){
+  if(!tourState.id || !isTourHost()){ alert('Only the host can import scorecards.'); return; }
+  var text = await file.text();
+  var parsed = parseScorecardCsv(text);
+  if(!parsed.batting.length && !parsed.bowling.length){
+    alert('Could not read batting/bowling tables from this CSV. Use the standard scorecard export.');
+    return;
+  }
+  var squadSnap = await db.collection('tournaments').doc(tourState.id).collection('squad').get();
+  var squad = [];
+  squadSnap.forEach(function(d){ squad.push(Object.assign({ playerId: d.id }, d.data())); });
+  tourState.squad = squad;
+
+  var mappings = {};
+  var unmatched = [];
+  function resolveRow(r){
+    var m = findSquadMatch(r.gamerId, r.name, squad, r.teamHint);
+    if(m.player){
+      mappings[r.gamerId || ('name:'+r.name)] = m.player.playerId || m.player.id;
+    } else {
+      r._closest = m.closest;
+      unmatched.push(r);
+    }
+  }
+  parsed.batting.forEach(resolveRow);
+  parsed.bowling.forEach(resolveRow);
+
+  // Dedupe unmatched by gamerId
+  var umap = {};
+  unmatched.forEach(function(u){ umap[u.gamerId || u.name] = u; });
+  unmatched = Object.keys(umap).map(function(k){ return umap[k]; });
+
+  wireTourMapButtons();
+  for(var i=0;i<unmatched.length;i++){
+    var u = unmatched[i];
+    var ans = await askTourMap(u, squad);
+    if(ans && ans.playerId){
+      mappings[u.gamerId || ('name:'+u.name)] = ans.playerId;
+      if(ans.updateId && u.gamerId){
+        try{
+          await db.collection('tournaments').doc(tourState.id).collection('squad').doc(ans.playerId).set({ gamerId: u.gamerId }, { merge: true });
+          await db.collection('tournaments').doc(tourState.id).collection('playerStats').doc(ans.playerId).set({ gamerId: u.gamerId }, { merge: true });
+        }catch(e){}
+      }
+    }
+  }
+
+  var matchedN = Object.keys(mappings).length;
+  if(!confirm('Import match?\n'+
+      (parsed.teamA||'?')+' vs '+(parsed.teamB||'?')+'\n'+
+      (parsed.resultText||'')+'\n'+
+      'Players linked: '+matchedN+'\n'+
+      'Same player appearing multiple times in CSV is summed under one name.')) return;
+
+  try{
+    await applyMatchToFirestore(tourState.id, parsed, mappings, squad);
+    alert('Match imported. Stats updated.');
+    await openTournament(tourState.id);
+  }catch(e){ safeAlert(e); }
+}
+
+async function openTournament(tourId){
+  if(!db || !tourId) return;
+  tourState.id = tourId;
+  var snap = await db.collection('tournaments').doc(tourId).get();
+  if(!snap.exists){ alert('Tournament not found'); return; }
+  tourState.data = snap.data();
+  showScreen('screenTournament');
+  $('tourTitle').textContent = tourState.data.title || 'Tournament';
+  $('tourSub').textContent = (tourState.data.matchCount||0)+' matches · '+(tourState.data.playerCount||0)+' players'+
+    (isTourHost() ? ' · You can import CSV' : ' · View only');
+  if($('btnTourImport')) $('btnTourImport').classList.toggle('hidden', !isTourHost());
+  switchTourTab(tourState.tab || 'stats');
+  focusEl($('tourTitle'));
+}
+
+function switchTourTab(which){
+  tourState.tab = which || 'stats';
+  ['stats','teams','results'].forEach(function(t){
+    var btn = $('tourTab'+t.charAt(0).toUpperCase()+t.slice(1));
+    var pane = $('tourPane'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(btn){
+      btn.className = (t===tourState.tab) ? 'btn-ok' : 'btn-sec';
+      btn.setAttribute('aria-selected', t===tourState.tab ? 'true' : 'false');
+    }
+    if(pane) pane.classList.toggle('hidden', t!==tourState.tab);
+  });
+  if(tourState.tab==='stats') renderTourStats();
+  else if(tourState.tab==='teams') renderTourTeams();
+  else renderTourResults();
+}
+
+async function renderTourStats(){
+  var box = $('tourPaneStats');
+  if(!box || !tourState.id) return;
+  box.innerHTML = '<p class="hub-empty">Loading stats…</p>';
+  try{
+    var snap = await db.collection('tournaments').doc(tourState.id).collection('playerStats').get();
+    var rows = [];
+    snap.forEach(function(d){
+      var x = d.data()||{};
+      var bat = x.batting||{};
+      var bowl = x.bowling||{};
+      rows.push({
+        name: x.name||'Player',
+        team: x.teamName||'',
+        membership: x.membership||'',
+        runs: bat.runs||0,
+        balls: bat.balls||0,
+        fours: bat.fours||0,
+        sixes: bat.sixes||0,
+        wickets: bowl.wickets||0,
+        bowlRuns: bowl.runs||0,
+        bowlBalls: bowl.balls||0
+      });
+    });
+    rows.sort(function(a,b){ return b.runs - a.runs; });
+    var h = '<h2 style="font-size:1rem">Top run scorers</h2>';
+    if(!rows.length) h += '<p class="hub-empty">No stats yet. Host can Import CSV.</p>';
+    else {
+      h += '<div class="hub-list">';
+      rows.slice(0,40).forEach(function(r,i){
+        var sr = r.balls ? Math.round((r.runs/r.balls)*100) : 0;
+        h += '<div class="panel" style="margin-top:8px;padding:10px"><strong>'+(i+1)+'. '+r.name+'</strong>'+
+          (r.membership?' <span class="badge">'+r.membership+'</span>':'')+
+          '<br><span style="color:var(--muted);font-size:13px">'+r.team+' · '+r.runs+' runs ('+r.balls+'b) · 4s '+r.fours+' · 6s '+r.sixes+' · SR '+sr+
+          (r.wickets?(' · '+r.wickets+' wkts'):'')+'</span></div>';
+      });
+      h += '</div>';
+    }
+    // Points table
+    var pt = (tourState.data && tourState.data.pointsTable) || [];
+    if(pt.length){
+      pt = pt.slice().sort(function(a,b){ return (b.points||0)-(a.points||0) || (b.nrr||0)-(a.nrr||0); });
+      h += '<h2 style="font-size:1rem;margin-top:16px">Points table</h2>';
+      pt.forEach(function(r){
+        h += '<div class="panel" style="margin-top:6px;padding:10px"><strong>'+(r.name||'')+'</strong> · '+
+          (r.points||0)+' pts · P '+(r.played||0)+' W '+(r.won||0)+' L '+(r.lost||0)+'</div>';
+      });
+    }
+    box.innerHTML = h;
+  }catch(e){ box.innerHTML = '<p class="hub-empty">'+(e.message||e)+'</p>'; }
+}
+
+async function renderTourTeams(){
+  var box = $('tourPaneTeams');
+  if(!box || !tourState.id) return;
+  box.innerHTML = '<p class="hub-empty">Loading teams…</p>';
+  try{
+    var snap = await db.collection('tournaments').doc(tourState.id).collection('squad').get();
+    var byTeam = {};
+    snap.forEach(function(d){
+      var x = d.data()||{};
+      var tn = x.teamName || 'Team';
+      if(!byTeam[tn]) byTeam[tn] = [];
+      byTeam[tn].push(x);
+    });
+    var h = '';
+    Object.keys(byTeam).sort().forEach(function(tn){
+      h += '<h2 style="font-size:1rem;margin-top:12px">'+tn+'</h2>';
+      byTeam[tn].forEach(function(p){
+        h += '<div class="panel" style="margin-top:6px;padding:10px"><strong>'+(p.name||'')+'</strong>'+
+          (p.membership?' <span class="badge">'+p.membership+'</span>':'')+
+          (p.gamerId?'<br><span style="color:var(--muted);font-size:12px">ID: '+p.gamerId+'</span>':'')+'</div>';
+      });
+    });
+    box.innerHTML = h || '<p class="hub-empty">No squad data.</p>';
+  }catch(e){ box.innerHTML = '<p class="hub-empty">'+(e.message||e)+'</p>'; }
+}
+
+async function renderTourResults(){
+  var box = $('tourPaneResults');
+  if(!box || !tourState.id) return;
+  box.innerHTML = '<p class="hub-empty">Loading results…</p>';
+  try{
+    var snap = await db.collection('tournaments').doc(tourState.id).collection('matches').orderBy('importedAt','desc').limit(50).get();
+    var h = '';
+    if(snap.empty) h = '<p class="hub-empty">No matches imported yet.</p>';
+    snap.forEach(function(d){
+      var m = d.data()||{};
+      var sa = m.scoreA ? (m.scoreA.runs+'/'+(m.scoreA.wickets!=null?m.scoreA.wickets:'?')) : '—';
+      var sb = m.scoreB ? (m.scoreB.runs+'/'+(m.scoreB.wickets!=null?m.scoreB.wickets:'?')) : '—';
+      h += '<div class="panel" style="margin-top:8px;padding:12px"><strong>'+(m.teamA||'?')+' vs '+(m.teamB||'?')+'</strong><br>'+
+        '<span style="color:var(--muted)">'+sa+' · '+sb+'</span><br>'+
+        (m.resultText?('<span>'+m.resultText+'</span><br>'):'')+
+        (m.motm?('<span style="font-size:13px">MotM: '+m.motm+'</span>'):'')+
+        '</div>';
+    });
+    box.innerHTML = h;
+  }catch(e){
+    // orderBy may need index — fallback
+    try{
+      var snap2 = await db.collection('tournaments').doc(tourState.id).collection('matches').limit(50).get();
+      var h2 = '';
+      snap2.forEach(function(d){
+        var m = d.data()||{};
+        h2 += '<div class="panel" style="margin-top:8px;padding:12px"><strong>'+(m.teamA||'?')+' vs '+(m.teamB||'?')+'</strong><br>'+(m.resultText||'')+'</div>';
+      });
+      box.innerHTML = h2 || '<p class="hub-empty">No matches yet.</p>';
+    }catch(e2){ box.innerHTML = '<p class="hub-empty">'+(e.message||e)+'</p>'; }
+  }
+}
+
+// Tournament UI wire-up
+(function wireTournamentUi(){
+  if($('btnTourBack')) $('btnTourBack').onclick = function(){ enterHome(); };
+  if($('tourTabStats')) $('tourTabStats').onclick = function(){ switchTourTab('stats'); };
+  if($('tourTabTeams')) $('tourTabTeams').onclick = function(){ switchTourTab('teams'); };
+  if($('tourTabResults')) $('tourTabResults').onclick = function(){ switchTourTab('results'); };
+  if($('btnTourImport')) $('btnTourImport').onclick = function(){
+    if(!isTourHost()){ alert('Only the host can import.'); return; }
+    var f = $('tourCsvFile');
+    if(f) f.click();
+  };
+  if($('tourCsvFile')) $('tourCsvFile').onchange = function(ev){
+    var file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if(file) importTourCsvFile(file);
+  };
+  wireTourMapButtons();
+})();
 
 // Stay on Loading until Firebase reports auth state (avoids 3–5s Sign-in flash)
 showScreen('screenBoot');

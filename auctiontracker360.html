@@ -1631,7 +1631,10 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
         <button type="button" id="btnTossBat" class="btn-ok" style="flex:1">Bat</button>
         <button type="button" id="btnTossBowl" class="btn-sec" style="flex:1">Bowl</button>
       </div>
-      <button type="button" id="btnGameGoLive" class="btn-ok btn-block" style="margin-top:10px">Go live</button>
+    </div>
+    <div id="gameTossGoLiveWrap" class="hidden" style="margin-top:12px">
+      <p id="gameTossReadyLine" style="font-weight:600;margin:0 0 8px"></p>
+      <button type="button" id="btnGameGoLive" class="btn-ok btn-block">Go live</button>
     </div>
   </div>
 </section>
@@ -14613,6 +14616,16 @@ function stopGameLive(){
   try{ if(gameTimerIv){ clearInterval(gameTimerIv); gameTimerIv=null; } }catch(e){}
   try{ if(gameBallWatchIv){ clearInterval(gameBallWatchIv); gameBallWatchIv=null; } }catch(e){}
   G=null; gameId=null;
+  window._gameSpeakKey = null;
+  window._gamePlayersKey = null;
+}
+
+function gameSpeakOnce(key, msg){
+  if(!key || !msg) return;
+  if(window._gameSpeakKey === key) return;
+  window._gameSpeakKey = key;
+  try{ announce(msg); }catch(e){}
+  try{ sayEvent(msg, 'host', false, { priority:'p0' }); }catch(e){}
 }
 
 function isGameHost(){
@@ -14710,7 +14723,7 @@ async function createGameAndShare(){
     uid: user.uid,
     email: user.email||'',
     displayName: user.displayName||user.email||'Host',
-    teamId: null
+    teamId: 't1'
   };
   var doc = {
     ownerId: user.uid,
@@ -14773,6 +14786,11 @@ async function openGame(id){
         if(uids.indexOf(user.uid)<0) uids.push(user.uid);
         tx.update(ref, { players: players, playerUids: uids, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       });
+      try{
+        var jn = (user.displayName||user.email||'Player')+' joined the game';
+        announce(jn);
+        sayEvent(jn, 'host', false, { priority:'p0' });
+      }catch(e){}
     }
     gameUnsub = db.collection('games').doc(id).onSnapshot(function(s){
       if(!s.exists){ alert('Game was removed'); stopGameLive(); enterHome(); try{ switchHubTab('games'); }catch(e){} return; }
@@ -14784,6 +14802,24 @@ async function openGame(id){
 
 function routeGameScreen(){
   if(!G) return;
+  // Comment when someone new joins (all clients hear once)
+  try{
+    var uids = (G.playerUids||[]).slice().sort().join(',');
+    if(window._gamePlayersKey && window._gamePlayersKey !== uids){
+      var prev = (window._gamePlayersKey||'').split(',').filter(Boolean);
+      (G.players||[]).forEach(function(p){
+        if(p && p.uid && prev.indexOf(p.uid)<0 && user && p.uid!==user.uid){
+          var msg = (p.displayName||p.email||'Player')+' joined';
+          if(p.teamId){
+            var tm = teamById(p.teamId);
+            msg += ', assigned to '+(tm&&tm.name||'team');
+          }
+          gameSpeakOnce('join|'+p.uid+'|'+(p.teamId||''), msg);
+        }
+      });
+    }
+    window._gamePlayersKey = uids;
+  }catch(e){}
   var st = G.status || 'lobby';
   if(st === 'live' || st === 'innings_break' || st === 'finished'){
     showScreen('screenGameLive');
@@ -14842,27 +14878,34 @@ function renderTossUi(){
   if(!G) return;
   var toss = G.toss || {};
   var host = isGameHost();
-  var me = myGamePlayer();
   if($('gameTossStatus')){
     if(G.status==='lobby') $('gameTossStatus').textContent = 'Assign teams, then host starts toss.';
     else if(!toss.result) $('gameTossStatus').textContent = 'Host selects Heads or Tails and flips.';
     else if(!toss.decision) $('gameTossStatus').textContent = 'Toss done. Winner picks Bat or Bowl.';
-    else $('gameTossStatus').textContent = 'Ready — host can go live.';
+    else $('gameTossStatus').textContent = 'Toss complete. Host can start the game.';
   }
   if($('gameTossChoose')) $('gameTossChoose').classList.toggle('hidden', !(host && G.status==='toss' && !toss.result));
+  // Show bat/bowl while waiting for decision
   if($('gameTossDecision')){
-    var showDec = !!(toss.result && !toss.decision);
+    var showDec = !!(toss.result && !toss.decision && G.status==='toss');
     $('gameTossDecision').classList.toggle('hidden', !showDec);
-    if(showDec && $('gameTossResultLine')){
+    if(toss.result && $('gameTossResultLine')){
       var winP = playerByUid(toss.winnerUid);
       $('gameTossResultLine').textContent = 'Result: '+(toss.result||'')+'. Winner: '+(winP&&winP.displayName || 'Player')+'.';
     }
   }
-  // only winner (or host if winner is host) can pick bat/bowl — allow winner only
+  // Go live stays visible AFTER bat/bowl is chosen (was hidden before — main bug)
+  if($('gameTossGoLiveWrap')){
+    var ready = !!(host && toss.decision && G.status==='toss');
+    $('gameTossGoLiveWrap').classList.toggle('hidden', !ready);
+    if(ready && $('gameTossReadyLine')){
+      $('gameTossReadyLine').textContent = 'They chose to '+(toss.decision)+'. Tap Go live to start.';
+    }
+  }
+  if($('btnGameGoLive')) $('btnGameGoLive').classList.toggle('hidden', !(host && toss.decision && G.status==='toss'));
   var iAmWinner = toss.winnerUid && user && toss.winnerUid === user.uid;
   if($('btnTossBat')) $('btnTossBat').disabled = !iAmWinner;
   if($('btnTossBowl')) $('btnTossBowl').disabled = !iAmWinner;
-  if($('btnGameGoLive')) $('btnGameGoLive').classList.toggle('hidden', !(host && toss.decision));
 }
 
 async function assignGamePlayer(uid, teamId){
@@ -14882,7 +14925,9 @@ async function assignGamePlayer(uid, teamId){
     });
     var p = playerByUid(uid);
     var t = teamById(teamId);
-    try{ announce('Assigned '+(p&&p.displayName||'player')+' to '+(t&&t.name||'team')); }catch(e){}
+    var line = (p&&p.displayName||'Player')+' assigned to '+(t&&t.name||'team');
+    try{ announce(line); }catch(e){}
+    try{ sayEvent(line, 'host', false, { priority:'p0' }); }catch(e){}
   }catch(e){ safeAlert(e); }
 }
 
@@ -14943,20 +14988,47 @@ async function gameTossDecision(dec){
       toss: Object.assign({}, G.toss, { decision: dec }),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+    var who = user.displayName||user.email||'Winner';
+    var line = who+' chose to '+dec;
+    try{ announce(line); sayEvent(line, 'host', false, { priority:'p0' }); }catch(e){}
+    // If host is the winner, auto start after a moment; otherwise host taps Go live
+    if(isGameHost()){
+      setTimeout(function(){ try{ gameGoLive(); }catch(e){} }, 600);
+    }
   }catch(e){ safeAlert(e); }
 }
 
 async function gameGoLive(){
-  if(!isGameHost() || !gameId || !G.toss || !G.toss.decision) return;
+  if(!isGameHost() || !gameId || !G || !G.toss || !G.toss.decision) return;
+  if(G.status === 'live' || G.status === 'innings_break' || G.status === 'finished') return;
   var winner = playerByUid(G.toss.winnerUid);
   var winTeam = winner && winner.teamId;
-  if(!winTeam){ alert('Toss winner has no team.'); return; }
+  // If winner has no team, use first team that has any assigned player
+  if(!winTeam){
+    var t1c = (G.players||[]).filter(function(p){ return p.teamId==='t1'; }).length;
+    var t2c = (G.players||[]).filter(function(p){ return p.teamId==='t2'; }).length;
+    if(t1c && t2c) winTeam = 't1';
+    else if(t1c) winTeam = 't1';
+    else if(t2c) winTeam = 't2';
+  }
+  if(!winTeam){ alert('Assign both teams before going live.'); return; }
   var otherTeam = winTeam === 't1' ? 't2' : 't1';
   var batting = G.toss.decision === 'bat' ? winTeam : otherTeam;
   var bowling = batting === 't1' ? 't2' : 't1';
   var batters = (G.players||[]).filter(function(p){ return p.teamId === batting; });
   var bowlers = (G.players||[]).filter(function(p){ return p.teamId === bowling; });
-  if(!batters.length || !bowlers.length){ alert('Need at least one player on each side.'); return; }
+  // Fallback: if one side empty, put unassigned players there
+  if(!batters.length || !bowlers.length){
+    var un = (G.players||[]).filter(function(p){ return !p.teamId; });
+    if(!batters.length && un.length){ batters = [un[0]]; }
+    if(!bowlers.length && un.length > (batters[0]&&!batters[0].teamId?1:0)){
+      bowlers = [un[batters[0]&&!batters[0].teamId?1:0] || un[0]];
+    }
+  }
+  if(!batters.length || !bowlers.length){
+    alert('Need at least one player on each team. Assign teams in the lobby.');
+    return;
+  }
   var ball = newBallState(bowlers[0].uid, batters[0].uid, G.settings && G.settings.ballTimerSec);
   try{
     await db.collection('games').doc(gameId).set({
@@ -14973,6 +15045,9 @@ async function gameGoLive(){
       resultText: '',
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+    var bn = (bowlers[0].displayName||'Bowler');
+    var btn = (batters[0].displayName||'Batter');
+    try{ sayEvent('Game live. '+bn+' to bowl. '+btn+' to bat. Select your ball.', 'host', false, { priority:'p0' }); }catch(e){}
   }catch(e){ safeAlert(e); }
 }
 
@@ -15057,17 +15132,43 @@ function renderGameLive(){
   var amBatter = ball.batterUid === me && ball.phase === 'wait_batter';
   if($('gamePadWrap')) $('gamePadWrap').classList.toggle('hidden', !(amBowler || amBatter) || G.status!=='live');
   if($('gamePadHint')){
-    if(amBowler) $('gamePadHint').textContent = 'You are bowling — pick a number';
-    else if(amBatter) $('gamePadHint').textContent = 'You are batting — select your shot';
+    if(amBowler) $('gamePadHint').textContent = 'Select your ball (1–6)';
+    else if(amBatter) $('gamePadHint').textContent = 'Select your hit (1–6)';
     else $('gamePadHint').textContent = '';
   }
   if($('gameLiveStatus')){
     if(G.status==='finished') $('gameLiveStatus').textContent = G.resultText || 'Finished';
     else if(G.status==='innings_break') $('gameLiveStatus').textContent = G.resultText || 'Second innings starting…';
-    else if(ball.phase==='wait_bowler') $('gameLiveStatus').textContent = 'Waiting for bowler…';
-    else if(ball.phase==='wait_batter') $('gameLiveStatus').textContent = 'Waiting for batter…';
-    else $('gameLiveStatus').textContent = ball.result === 'wicket' ? 'WICKET!' : (ball.result==='free_ball' ? 'Free ball!' : ((ball.runs||0)+' run(s)'));
+    else if(ball.phase==='wait_bowler') $('gameLiveStatus').textContent = 'Select your ball';
+    else if(ball.phase==='wait_batter') $('gameLiveStatus').textContent = 'Select your hit';
+    else if(ball.result==='wicket') $('gameLiveStatus').textContent = 'WICKET!';
+    else if(ball.result==='free_ball') $('gameLiveStatus').textContent = 'Free ball!';
+    else if(ball.phase==='done') $('gameLiveStatus').textContent = 'Bowler '+(ball.bowlerNumber!=null?ball.bowlerNumber:'—')+' · Batter '+(ball.batterNumber!=null?ball.batterNumber:'—')+' · '+(ball.runs||0)+' run(s)';
+    else $('gameLiveStatus').textContent = '';
   }
+  // Spoken commentary (once per state)
+  try{
+    if(G.status==='live' && ball.phase==='wait_bowler'){
+      gameSpeakOnce('bowl|'+(ball.timerEndsAt||0)+'|'+(ball.bowlerUid||''), 'Select your ball');
+    } else if(G.status==='live' && ball.phase==='wait_batter'){
+      gameSpeakOnce('hit|'+(ball.timerEndsAt||0)+'|'+(ball.batterUid||''), 'Select your hit');
+    } else if(G.status==='live' && ball.phase==='done'){
+      var bn = ball.bowlerNumber, ht = ball.batterNumber;
+      var line = '';
+      if(ball.result==='wicket'){
+        line = 'Bowler '+(bn!=null?bn:'')+', batter '+(ht!=null?ht:'')+'. Wicket!';
+      } else if(ball.result==='free_ball'){
+        line = 'No ball from bowler. Free ball. One run.';
+      } else {
+        line = 'Bowler '+(bn!=null?bn:'')+', batter '+(ht!=null?ht:'')+'. '+(ball.runs||0)+' run'+(ball.runs===1?'':'s')+'.';
+      }
+      gameSpeakOnce('res|'+(ball.timerEndsAt||0)+'|'+bn+'|'+ht+'|'+(ball.result||''), line);
+    } else if(G.status==='innings_break' && G.resultText){
+      gameSpeakOnce('brk|'+(G.inningsBreakUntil||0), G.resultText);
+    } else if(G.status==='finished' && G.resultText){
+      gameSpeakOnce('fin|'+(G.resultText||''), G.resultText);
+    }
+  }catch(e){}
   if($('gameCenterPhase')){
     if(ball.phase==='wait_bowler') $('gameCenterPhase').textContent = 'Bowl';
     else if(ball.phase==='wait_batter') $('gameCenterPhase').textContent = 'Shot';

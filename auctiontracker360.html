@@ -3724,7 +3724,15 @@ function showScreen(id, opts){
     if(id && id!=='screenAuth' && id!=='screenBoot' && !skipPush){
       const st = history.state;
       if(!st || st.screen!==id){
-        history.pushState({ screen: id, settingsPanel: (id==='screenSettings' ? (window._settingsPanel||'menu') : null) }, '', location.pathname + location.search);
+        var histPayload = { screen: id, settingsPanel: (id==='screenSettings' ? (window._settingsPanel||'menu') : null) };
+        // Keep form id so Back / refresh can reopen the right registration screen
+        if(id==='screenRegForm' || id==='screenRegUserTour' || id==='screenRegHost' || id==='screenRegRecords' || id==='screenRegPublicList'){
+          var fid = (typeof regFormCurrent!=='undefined' && regFormCurrent && regFormCurrent.id)
+            || (typeof regHostForm!=='undefined' && regHostForm && regHostForm.id)
+            || null;
+          if(fid) histPayload.formId = fid;
+        }
+        history.pushState(histPayload, '', location.pathname + location.search);
       }
     }
   }catch(e){}
@@ -3736,6 +3744,13 @@ function showScreen(id, opts){
       if(id==='screenSettings') persist.settingsPanel = window._settingsPanel || 'menu';
       if((id==='screenAuction' || id==='screenWatch' || id==='screenWait' || id==='screenWelcome') && typeof auctionId!=='undefined' && auctionId){
         persist.auctionId = auctionId;
+      }
+      // Registration screens: store form id so refresh reloads real content (not empty shell)
+      if(id==='screenRegForm' || id==='screenRegUserTour' || id==='screenRegHost' || id==='screenRegRecords' || id==='screenRegPublicList' || id==='screenRegWizard'){
+        var rf = (typeof regFormCurrent!=='undefined' && regFormCurrent && regFormCurrent.id)
+          || (typeof regHostForm!=='undefined' && regHostForm && regHostForm.id)
+          || null;
+        if(rf) persist.formId = rf;
       }
       sessionStorage.setItem('at_nav_restore', JSON.stringify(persist));
     }
@@ -3915,6 +3930,24 @@ window.addEventListener('popstate', function(ev){
         enterHome();
         return;
       }
+      // Never reopen registration FORM from history (after submit it must not come back)
+      if(st.screen === 'screenRegForm'){
+        var formIdBack = st.formId || (typeof regFormCurrent!=='undefined' && regFormCurrent && regFormCurrent.id) || null;
+        if(formIdBack && typeof openRegUserTour === 'function'){
+          window._skipHistoryPush = true;
+          try{ openRegUserTour(formIdBack); }catch(e){ enterHome(); try{ switchHubTab('regs'); }catch(e2){} }
+        } else {
+          enterHome();
+          try{ switchHubTab('regs'); }catch(e){}
+        }
+        return;
+      }
+      // Create-registration wizard → home + regs (same as in-app Back)
+      if(st.screen === 'screenRegWizard'){
+        enterHome();
+        try{ switchHubTab('regs'); }catch(e){}
+        return;
+      }
       // Settings panel step: restore panel without leaving settings screen
       if(st.screen === 'screenSettings'){
         window._skipHistoryPush = true;
@@ -3926,7 +3959,32 @@ window.addEventListener('popstate', function(ev){
         }catch(e){}
         return;
       }
-      const known = ['screenHome','screenList','screenSettings','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
+      // Reg tour / host / records / public: reopen with form id when possible
+      if(st.screen === 'screenRegUserTour' || st.screen === 'screenRegHost' || st.screen === 'screenRegRecords' || st.screen === 'screenRegPublicList'){
+        var rid = st.formId || (typeof regFormCurrent!=='undefined' && regFormCurrent && regFormCurrent.id)
+          || (typeof regHostForm!=='undefined' && regHostForm && regHostForm.id) || null;
+        window._skipHistoryPush = true;
+        try{
+          if(st.screen === 'screenRegUserTour' && rid && typeof openRegUserTour === 'function'){
+            openRegUserTour(rid);
+          } else if(st.screen === 'screenRegHost' && rid && typeof openRegHost === 'function'){
+            openRegHost(rid);
+          } else if(st.screen === 'screenRegRecords' && rid && typeof openRegHost === 'function'){
+            // Prefer host screen; records needs host context
+            openRegHost(rid).then(function(){ if(typeof openRegRecordsScreen==='function') openRegRecordsScreen(); }).catch(function(){ enterHome(); switchHubTab('regs'); });
+          } else if(st.screen === 'screenRegPublicList' && rid && typeof openRegUserTour === 'function'){
+            openRegUserTour(rid);
+          } else {
+            enterHome();
+            try{ switchHubTab('regs'); }catch(e3){}
+          }
+        }catch(e){
+          enterHome();
+          try{ switchHubTab('regs'); }catch(e2){}
+        }
+        return;
+      }
+      const known = ['screenHome','screenList','screenSettings'];
       if(known.indexOf(st.screen) >= 0){
         window._skipHistoryPush = true;
         if(st.screen === 'screenHome'){
@@ -4227,13 +4285,46 @@ async function restoreNavAfterRefresh(){
       return;
     }
     if(scr === 'screenWizard'){
-      showScreen('screenWizard');
+      // Wizard mid-flow is unsafe after full refresh — land on home
+      enterHome();
       return;
     }
-    // Generic restore for other static screens
-    var known = ['screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
-    if(known.indexOf(scr) >= 0){
-      showScreen(scr);
+    // Registration screens: reload with form id, or fall back to Home → Registrations
+    var regScreens = ['screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
+    if(regScreens.indexOf(scr) >= 0){
+      var formId = nav.formId || null;
+      try{
+        if(scr === 'screenRegUserTour' && formId && typeof openRegUserTour === 'function'){
+          await openRegUserTour(formId);
+          return;
+        }
+        if(scr === 'screenRegForm' && formId && typeof openRegFormForUser === 'function'){
+          // Re-open form in edit/apply mode; openRegFormForUser detects existing entry
+          await openRegFormForUser(formId, false);
+          return;
+        }
+        if(scr === 'screenRegHost' && formId && typeof openRegHost === 'function'){
+          await openRegHost(formId);
+          return;
+        }
+        if(scr === 'screenRegRecords' && formId && typeof openRegHost === 'function'){
+          await openRegHost(formId);
+          if(typeof openRegRecordsScreen === 'function') await openRegRecordsScreen();
+          return;
+        }
+        if(scr === 'screenRegPublicList' && formId && typeof openRegUserTour === 'function'){
+          await openRegUserTour(formId);
+          return;
+        }
+        // Wizard or missing form id → safe landing
+        enterHome();
+        try{ switchHubTab('regs'); }catch(e4){}
+      }catch(eReg){
+        console.warn('restore reg screen', eReg);
+        enterHome();
+        try{ switchHubTab('regs'); }catch(e5){}
+      }
+      return;
     }
   }catch(e){
     console.warn('restoreNavAfterRefresh', e);
@@ -7368,6 +7459,14 @@ async function submitUserRegForm(){
     if($('regFormStatus')) $('regFormStatus').textContent = window._regFormIsEdit ? 'Changes saved.' : 'Registered successfully.';
     try{ announce(window._regFormIsEdit ? 'Registration updated' : ('Registered for '+(regFormCurrent.title||'tournament'))); }catch(e){}
     alert(window._regFormIsEdit ? 'Changes saved.' : 'Registration submitted.');
+    // Collapse form out of browser Back stack so system Back cannot reopen the form
+    try{
+      history.replaceState(
+        { screen: 'screenHome' },
+        '',
+        location.pathname + location.search
+      );
+    }catch(eHist){}
     openRegUserTour(regFormCurrent.id);
   }catch(e){ safeAlert(e); }
 }

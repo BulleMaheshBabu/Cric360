@@ -1547,6 +1547,14 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <div id="hubRegsAppliedList" class="hub-list hidden" aria-label="Applied registrations"></div>
   </div>
 
+  <!-- GAMES tab -->
+  <div id="hubPaneGames" class="hidden" role="tabpanel" aria-labelledby="hubTabGames">
+    <div id="hubGamesAdmin" class="hub-admin" style="margin-bottom:10px">
+      <button type="button" id="btnCreateGame" class="btn-ok btn-block">Create game</button>
+    </div>
+    <div id="hubGamesList" class="hub-list" aria-label="Your games"></div>
+  </div>
+
   <!-- MORE tab: settings & account -->
   <div id="hubPaneMore" class="hidden" role="tabpanel" aria-labelledby="hubTabMore">
     <div class="hub-more-grid">
@@ -1560,8 +1568,132 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <nav class="hub-tabbar hidden" id="hubTabbar" role="tablist" aria-label="Main tabs">
   <button type="button" role="tab" id="hubTabLive" class="active" aria-selected="true">Auctions</button>
   <button type="button" role="tab" id="hubTabRegs" aria-selected="false">Registrations</button>
+  <button type="button" role="tab" id="hubTabGames" aria-selected="false">Games</button>
   <button type="button" role="tab" id="hubTabMore" aria-selected="false">More</button>
 </nav>
+
+<!-- ===== HAND CRICKET GAME ===== -->
+<section id="screenGameCreate" class="wrap panel hidden" role="region" aria-labelledby="gameCreateTitle">
+  <button type="button" id="btnGameCreateBack" class="btn-sec" aria-label="Back">Back</button>
+  <h1 id="gameCreateTitle" tabindex="-1">Create game</h1>
+  <label for="gameOvers">Overs</label>
+  <select id="gameOvers" style="width:100%;min-height:48px;margin-bottom:10px">
+    <option value="1">1</option><option value="2">2</option><option value="3" selected>3</option>
+    <option value="4">4</option><option value="5">5</option>
+  </select>
+  <label for="gameTimer">Ball timer (seconds)</label>
+  <select id="gameTimer" style="width:100%;min-height:48px;margin-bottom:10px">
+    <option value="20">20</option><option value="30" selected>30</option><option value="40">40</option>
+    <option value="50">50</option><option value="60">60</option>
+  </select>
+  <label for="gameWickets">Wickets</label>
+  <select id="gameWickets" style="width:100%;min-height:48px;margin-bottom:10px">
+    <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+    <option value="4">4</option><option value="5" selected>5</option>
+    <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+    <option value="9">9</option><option value="10">10</option>
+  </select>
+  <label for="gameTeamA">Team 1 name</label>
+  <input type="text" id="gameTeamA" placeholder="Team A" maxlength="40" style="width:100%;min-height:48px;margin-bottom:10px" />
+  <label for="gameTeamB">Team 2 name</label>
+  <input type="text" id="gameTeamB" placeholder="Team B" maxlength="40" style="width:100%;min-height:48px;margin-bottom:10px" />
+  <button type="button" id="btnGameCreateNext" class="btn-ok btn-block">Next — share link</button>
+</section>
+
+<section id="screenGameLobby" class="wrap panel hidden" role="region" aria-labelledby="gameLobbyTitle">
+  <button type="button" id="btnGameLobbyBack" class="btn-sec" aria-label="Back">Back</button>
+  <h1 id="gameLobbyTitle" tabindex="-1">Game lobby</h1>
+  <p id="gameLobbyMeta" style="color:var(--muted);font-size:14px"></p>
+  <p id="gameLobbyHost" style="font-weight:700;margin:8px 0"></p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+    <button type="button" id="btnGameShare" class="btn-ok" style="flex:1">Share join link</button>
+    <button type="button" id="btnGameCopy" class="btn-sec" style="flex:1">Copy link</button>
+  </div>
+  <h2 style="font-size:1rem;margin-top:12px">Players</h2>
+  <div id="gameLobbyPlayers" class="hub-list"></div>
+  <p id="gameLobbyHint" style="color:var(--muted);font-size:13px;margin-top:8px">Host assigns each player to a team, then starts the toss.</p>
+  <button type="button" id="btnGameStartToss" class="btn-ok btn-block" style="margin-top:12px">Start — toss</button>
+  <div id="gameTossPanel" class="panel hidden" style="margin-top:12px;padding:14px">
+    <h2 style="font-size:1rem;margin:0 0 8px">Toss</h2>
+    <p id="gameTossStatus" style="margin:0 0 10px;font-weight:600"></p>
+    <div id="gameTossChoose" class="hidden">
+      <p style="font-size:14px">Host picks for the flip:</p>
+      <div style="display:flex;gap:8px">
+        <button type="button" id="btnTossHeads" class="btn-sec" style="flex:1">Heads</button>
+        <button type="button" id="btnTossTails" class="btn-sec" style="flex:1">Tails</button>
+      </div>
+      <button type="button" id="btnTossFlip" class="btn-ok btn-block" style="margin-top:10px">Flip</button>
+    </div>
+    <div id="gameTossDecision" class="hidden">
+      <p id="gameTossResultLine" style="font-weight:700"></p>
+      <p style="font-size:14px">Winner chooses:</p>
+      <div style="display:flex;gap:8px">
+        <button type="button" id="btnTossBat" class="btn-ok" style="flex:1">Bat</button>
+        <button type="button" id="btnTossBowl" class="btn-sec" style="flex:1">Bowl</button>
+      </div>
+      <button type="button" id="btnGameGoLive" class="btn-ok btn-block" style="margin-top:10px">Go live</button>
+    </div>
+  </div>
+</section>
+
+<section id="screenGameLive" class="wrap panel hidden" role="region" aria-labelledby="gameLiveTitle">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <button type="button" id="btnGameLiveBack" class="btn-sec" aria-label="Leave game">Leave</button>
+    <h1 id="gameLiveTitle" tabindex="-1" style="flex:1;margin:0;font-size:1.1rem">Live game</h1>
+  </div>
+  <div id="gameLivePaneView">
+    <div class="game-vs-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;text-align:center">
+      <div style="flex:1;min-width:0">
+        <div id="gameTeamLeftName" style="font-weight:800;font-size:0.95rem"></div>
+        <div id="gamePlayerLeftName" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
+        <div id="gamePlayerLeftLine" style="font-size:1.4rem;font-weight:800;font-family:var(--font-score);margin-top:6px;min-height:1.4em">—</div>
+      </div>
+      <div style="flex:0 0 auto;padding-top:8px">
+        <div id="gameCenterTimer" style="font-size:1.35rem;font-weight:800;font-family:var(--font-score);color:var(--primary)">—</div>
+        <div id="gameCenterPhase" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div id="gameTeamRightName" style="font-weight:800;font-size:0.95rem"></div>
+        <div id="gamePlayerRightName" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
+        <div id="gamePlayerRightLine" style="font-size:1.4rem;font-weight:800;font-family:var(--font-score);margin-top:6px;min-height:1.4em">—</div>
+      </div>
+    </div>
+    <p id="gameScoreLine" style="text-align:center;font-weight:700;margin:12px 0 4px"></p>
+    <p id="gameTargetLine" style="text-align:center;font-size:13px;color:var(--muted);margin:0 0 12px"></p>
+    <div style="height:8px"></div>
+    <div id="gamePadWrap" class="hidden">
+      <p id="gamePadHint" style="text-align:center;font-weight:600;margin:0 0 8px"></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:320px;margin:0 auto">
+        <button type="button" class="btn-ok game-num-btn" data-n="1" style="min-height:52px;font-size:1.2rem">1</button>
+        <button type="button" class="btn-ok game-num-btn" data-n="2" style="min-height:52px;font-size:1.2rem">2</button>
+        <button type="button" class="btn-ok game-num-btn" data-n="3" style="min-height:52px;font-size:1.2rem">3</button>
+        <button type="button" class="btn-ok game-num-btn" data-n="4" style="min-height:52px;font-size:1.2rem">4</button>
+        <button type="button" class="btn-ok game-num-btn" data-n="5" style="min-height:52px;font-size:1.2rem">5</button>
+        <button type="button" class="btn-ok game-num-btn" data-n="6" style="min-height:52px;font-size:1.2rem">6</button>
+      </div>
+    </div>
+    <p id="gameLiveStatus" role="status" style="text-align:center;margin-top:14px;font-weight:600;color:var(--muted)"></p>
+  </div>
+  <div id="gameLivePaneScore" class="hidden">
+    <div id="gameScorecardBody"></div>
+  </div>
+  <div id="gameLivePaneChat" class="hidden">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+      <button type="button" id="btnGameCall" class="btn-ok">Call</button>
+    </div>
+    <div id="gameChatList" style="min-height:180px;max-height:42vh;overflow:auto;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="gameChatInput" maxlength="120" placeholder="Message…" style="flex:1;min-height:48px" />
+      <button type="button" id="btnGameChatSend" class="btn-ok">Send</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:6px">Only players in this game can see chat and call.</p>
+  </div>
+  <nav class="tabbar" id="gameTabbar" role="tablist" aria-label="Game tabs" style="margin-top:16px">
+    <button type="button" role="tab" id="gameTabView" class="active" aria-selected="true">Game</button>
+    <button type="button" role="tab" id="gameTabScore" aria-selected="false">Scorecard</button>
+    <button type="button" role="tab" id="gameTabChat" aria-selected="false">Chat</button>
+  </nav>
+</section>
 
 <!-- Tournament History (stats / teams / results) -->
 <section id="screenTournament" class="wrap panel hidden" role="region" aria-labelledby="tourTitle">
@@ -3773,7 +3905,7 @@ function showScreen(id, opts){
     }
   }catch(e){}
 
-  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenTournament','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList']
+  ['screenBoot','screenAuth','screenHome','screenList','screenWait','screenWelcome','screenWatch','screenSettings','screenWizard','screenAuction','screenTournament','screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList','screenGameCreate','screenGameLobby','screenGameLive']
     .forEach(s=>{
       const el=$(s); if(!el) return;
       const on = (s===id);
@@ -3781,7 +3913,7 @@ function showScreen(id, opts){
       el.setAttribute('aria-hidden', on ? 'false' : 'true');
       if(on) el.removeAttribute('inert'); else el.setAttribute('inert','');
     });
-  document.body.classList.toggle('has-tabbar', id==='screenAuction' || id==='screenWatch');
+  document.body.classList.toggle('has-tabbar', id==='screenAuction' || id==='screenWatch' || id==='screenGameLive');
   try{ if(typeof updateNavCallBtn==='function') updateNavCallBtn(); }catch(e){}
   document.body.classList.toggle('has-hub-tabbar', id==='screenHome');
   try{
@@ -3831,6 +3963,15 @@ function applyAppBackStep(){
     }
     if($('screenTournament') && !$('screenTournament').classList.contains('hidden')){
       enterHome(); return true;
+    }
+    // Game screens → home + games tab
+    if(($('screenGameCreate') && !$('screenGameCreate').classList.contains('hidden')) ||
+       ($('screenGameLobby') && !$('screenGameLobby').classList.contains('hidden')) ||
+       ($('screenGameLive') && !$('screenGameLive').classList.contains('hidden'))){
+      try{ stopGameLive(); }catch(e){}
+      enterHome();
+      try{ switchHubTab('games'); }catch(e){}
+      return true;
     }
     // Registration screens → home + regs tab
     if(($('screenRegWizard') && !$('screenRegWizard').classList.contains('hidden')) ||
@@ -4485,7 +4626,8 @@ try{
   joinAuctionId=q.get('join')||null;
   window._watchDeepLink=q.get('watch')||null;
   window._regDeepLink=q.get('reg')||q.get('registration')||null;
-}catch(e){ joinAuctionId=null; window._watchDeepLink=null; window._regDeepLink=null; }
+  window._gameDeepLink=q.get('game')||null;
+}catch(e){ joinAuctionId=null; window._watchDeepLink=null; window._regDeepLink=null; window._gameDeepLink=null; }
 
 async function handleJoinInvite(){
   if(!joinAuctionId||!user||!db) return;
@@ -4947,16 +5089,17 @@ async function refreshAdminOrgLists(){
 /* ===== Main hub tabs (Live / Past / More) — Cric360 Live layout ===== */
 function switchHubTab(which){
   which = (which||'live').toLowerCase();
-  if(which!=='live' && which!=='past' && which!=='more' && which!=='regs' && which!=='registrations') which='live';
+  if(which!=='live' && which!=='past' && which!=='more' && which!=='regs' && which!=='registrations' && which!=='games' && which!=='game') which='live';
   if(which==='registrations') which='regs';
+  if(which==='game') which='games';
   // Past is now a sub-tab under Auctions
   if(which==='past'){
     which='live';
     window._hubAucSub='past';
     setTimeout(function(){ if($('hubSubPast')) $('hubSubPast').click(); }, 0);
   }
-  const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), regs:$('hubPaneRegs'), more:$('hubPaneMore') };
-  const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), regs:$('hubTabRegs'), more:$('hubTabMore') };
+  const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), regs:$('hubPaneRegs'), games:$('hubPaneGames'), more:$('hubPaneMore') };
+  const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), regs:$('hubTabRegs'), games:$('hubTabGames'), more:$('hubTabMore') };
   Object.keys(panes).forEach(function(k){
     const on = k===which;
     if(panes[k]){
@@ -4980,6 +5123,8 @@ function switchHubTab(which){
     openAuctionList('ended');
   } else if(which==='regs'){
     try{ loadRegistrationsHub(); }catch(e){ console.warn(e); }
+  } else if(which==='games'){
+    try{ loadGamesHub(); }catch(e){ console.warn(e); }
   } else if(which==='more'){
     try{
       if($('hubMoreHint')){
@@ -4992,6 +5137,7 @@ function switchHubTab(which){
 if($('hubTabLive')) $('hubTabLive').onclick=function(){ switchHubTab('live'); };
 if($('hubTabPast')) $('hubTabPast').onclick=function(){ switchHubTab('past'); };
 if($('hubTabRegs')) $('hubTabRegs').onclick=function(){ switchHubTab('regs'); };
+if($('hubTabGames')) $('hubTabGames').onclick=function(){ switchHubTab('games'); };
 if($('hubTabMore')) $('hubTabMore').onclick=function(){ switchHubTab('more'); };
 if($('hubSubLive')) $('hubSubLive').onclick=function(){
   window._hubAucSub='live';
@@ -14443,6 +14589,850 @@ async function renderTourResults(){
 // Stay on Loading until Firebase reports auth state (avoids 3–5s Sign-in flash)
 showScreen('screenBoot');
 focusEl($('bootTitle'));
+
+
+/* ========== HAND CRICKET GAME MODULE ========== */
+let gameId = null;
+let G = null; // live game doc data
+let gameUnsub = null;
+let gameTimerIv = null;
+let gameBallWatchIv = null;
+
+function gameShareUrl(id){
+  try{
+    var base = (typeof appOriginPath === 'function') ? appOriginPath() : (location.origin + location.pathname);
+    base = String(base||'').replace(/\?.*$/,'').replace(/\/$/,'');
+    return base + '?game=' + encodeURIComponent(id);
+  }catch(e){
+    return location.origin + location.pathname + '?game=' + encodeURIComponent(id);
+  }
+}
+
+function stopGameLive(){
+  try{ if(gameUnsub){ gameUnsub(); gameUnsub=null; } }catch(e){}
+  try{ if(gameTimerIv){ clearInterval(gameTimerIv); gameTimerIv=null; } }catch(e){}
+  try{ if(gameBallWatchIv){ clearInterval(gameBallWatchIv); gameBallWatchIv=null; } }catch(e){}
+  G=null; gameId=null;
+}
+
+function isGameHost(){
+  return !!(G && user && G.ownerId === user.uid);
+}
+
+function myGamePlayer(){
+  if(!G || !user) return null;
+  var list = G.players || [];
+  for(var i=0;i<list.length;i++){
+    if(list[i] && list[i].uid === user.uid) return list[i];
+  }
+  return null;
+}
+
+function teamById(tid){
+  var teams = (G && G.teams) || [];
+  for(var i=0;i<teams.length;i++){
+    if(teams[i].id === tid) return teams[i];
+  }
+  return null;
+}
+
+function playerByUid(uid){
+  var list = (G && G.players) || [];
+  for(var i=0;i<list.length;i++){
+    if(list[i] && list[i].uid === uid) return list[i];
+  }
+  return null;
+}
+
+async function loadGamesHub(){
+  var box = $('hubGamesList');
+  if(!box || !db || !user) return;
+  box.innerHTML = '<p class="hub-empty">Loading games…</p>';
+  try{
+    var snap = await db.collection('games').where('playerUids','array-contains', user.uid).orderBy('updatedAt','desc').limit(30).get();
+    if(snap.empty){
+      // fallback without composite index
+      snap = await db.collection('games').where('ownerId','==', user.uid).limit(30).get();
+    }
+    var rows = [];
+    snap.forEach(function(d){ rows.push(Object.assign({id:d.id}, d.data())); });
+    rows.sort(function(a,b){ return (b.updatedAt&&b.updatedAt.toMillis?b.updatedAt.toMillis():0) - (a.updatedAt&&a.updatedAt.toMillis?a.updatedAt.toMillis():0); });
+    if(!rows.length){
+      box.innerHTML = '<p class="hub-empty">No games yet. Tap Create game.</p>';
+      return;
+    }
+    var h = '';
+    rows.forEach(function(g){
+      var st = g.status || 'lobby';
+      var ta = (g.teams&&g.teams[0]&&g.teams[0].name)||'Team A';
+      var tb = (g.teams&&g.teams[1]&&g.teams[1].name)||'Team B';
+      h += '<button type="button" class="list-btn" data-gid="'+g.id+'" style="width:100%;text-align:left;margin-top:8px">'
+        + '<strong>'+ta+' vs '+tb+'</strong><br><span style="color:var(--muted);font-size:13px">'+st+' · '+(g.settings&&g.settings.overs||'?')+' overs</span></button>';
+    });
+    box.innerHTML = h;
+    box.querySelectorAll('[data-gid]').forEach(function(btn){
+      btn.onclick = function(){ openGame(btn.getAttribute('data-gid')); };
+    });
+  }catch(e){
+    // index missing — show owner games only
+    try{
+      var snap2 = await db.collection('games').where('ownerId','==', user.uid).limit(20).get();
+      var h2 = '';
+      snap2.forEach(function(d){
+        var g = d.data()||{};
+        h2 += '<button type="button" class="list-btn" data-gid="'+d.id+'" style="width:100%;text-align:left;margin-top:8px"><strong>'+((g.teams&&g.teams[0]&&g.teams[0].name)||'Game')+'</strong> · '+(g.status||'')+'</button>';
+      });
+      box.innerHTML = h2 || '<p class="hub-empty">No games yet.</p>';
+      box.querySelectorAll('[data-gid]').forEach(function(btn){
+        btn.onclick = function(){ openGame(btn.getAttribute('data-gid')); };
+      });
+    }catch(e2){
+      box.innerHTML = '<p class="hub-empty">Could not load games. '+(e.message||e)+'</p>';
+    }
+  }
+}
+
+function openGameCreate(){
+  showScreen('screenGameCreate');
+  try{ focusEl($('gameCreateTitle')); }catch(e){}
+}
+
+async function createGameAndShare(){
+  if(!db || !user) return;
+  var overs = parseInt(($('gameOvers')&&$('gameOvers').value)||'3',10);
+  var timer = parseInt(($('gameTimer')&&$('gameTimer').value)||'30',10);
+  var wickets = parseInt(($('gameWickets')&&$('gameWickets').value)||'5',10);
+  var nameA = (($('gameTeamA')&&$('gameTeamA').value)||'').trim() || 'Team A';
+  var nameB = (($('gameTeamB')&&$('gameTeamB').value)||'').trim() || 'Team B';
+  var teamA = { id: 't1', name: nameA };
+  var teamB = { id: 't2', name: nameB };
+  var me = {
+    uid: user.uid,
+    email: user.email||'',
+    displayName: user.displayName||user.email||'Host',
+    teamId: null
+  };
+  var doc = {
+    ownerId: user.uid,
+    ownerEmail: user.email||'',
+    status: 'lobby',
+    settings: { overs: overs, ballTimerSec: timer, maxWickets: wickets },
+    teams: [teamA, teamB],
+    players: [me],
+    playerUids: [user.uid],
+    toss: null,
+    innings: 0,
+    battingTeamId: null,
+    bowlingTeamId: null,
+    score: {
+      t1: { runs: 0, wickets: 0, balls: 0 },
+      t2: { runs: 0, wickets: 0, balls: 0 }
+    },
+    currentBall: null,
+    target: null,
+    chat: [],
+    ballLog: [],
+    resultText: '',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    var ref = await db.collection('games').add(doc);
+    gameId = ref.id;
+    await openGame(gameId);
+    var url = gameShareUrl(gameId);
+    if(navigator.share){
+      try{ await navigator.share({ title: 'Join my cricket game', text: nameA+' vs '+nameB, url: url }); }catch(e){}
+    } else {
+      try{ await navigator.clipboard.writeText(url); alert('Join link copied:\n'+url); }catch(e){ alert('Share this link:\n'+url); }
+    }
+  }catch(e){ safeAlert(e); }
+}
+
+async function openGame(id){
+  if(!db || !user || !id) return;
+  stopGameLive();
+  gameId = id;
+  try{
+    var snap = await db.collection('games').doc(id).get();
+    if(!snap.exists){ alert('Game not found'); return; }
+    G = Object.assign({id: id}, snap.data());
+    // auto-join if not in players and still lobby/toss
+    var inList = (G.players||[]).some(function(p){ return p.uid === user.uid; });
+    if(!inList && (G.status==='lobby' || G.status==='toss')){
+      await db.runTransaction(async function(tx){
+        var ref = db.collection('games').doc(id);
+        var s = await tx.get(ref);
+        if(!s.exists) throw new Error('Game not found');
+        var d = s.data();
+        var players = d.players || [];
+        if(players.some(function(p){ return p.uid === user.uid; })) return;
+        if(d.status!=='lobby' && d.status!=='toss') throw new Error('Game already started');
+        players.push({ uid: user.uid, email: user.email||'', displayName: user.displayName||user.email||'Player', teamId: null });
+        var uids = d.playerUids || [];
+        if(uids.indexOf(user.uid)<0) uids.push(user.uid);
+        tx.update(ref, { players: players, playerUids: uids, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      });
+    }
+    gameUnsub = db.collection('games').doc(id).onSnapshot(function(s){
+      if(!s.exists){ alert('Game was removed'); stopGameLive(); enterHome(); try{ switchHubTab('games'); }catch(e){} return; }
+      G = Object.assign({id: id}, s.data());
+      routeGameScreen();
+    }, function(err){ console.warn('game snap', err); });
+  }catch(e){ safeAlert(e); }
+}
+
+function routeGameScreen(){
+  if(!G) return;
+  var st = G.status || 'lobby';
+  if(st === 'live' || st === 'innings_break' || st === 'finished'){
+    showScreen('screenGameLive');
+    renderGameLive();
+    startGameTimers();
+  } else {
+    showScreen('screenGameLobby');
+    renderGameLobby();
+  }
+}
+
+function renderGameLobby(){
+  if(!G) return;
+  var ta = (G.teams&&G.teams[0]&&G.teams[0].name)||'Team A';
+  var tb = (G.teams&&G.teams[1]&&G.teams[1].name)||'Team B';
+  if($('gameLobbyTitle')) $('gameLobbyTitle').textContent = ta+' vs '+tb;
+  if($('gameLobbyMeta')){
+    var s = G.settings||{};
+    $('gameLobbyMeta').textContent = (s.overs||'?')+' overs · '+(s.ballTimerSec||30)+'s per ball · '+(s.maxWickets||5)+' wickets';
+  }
+  if($('gameLobbyHost')) $('gameLobbyHost').textContent = 'Creator: '+(G.ownerEmail||'Host');
+  var box = $('gameLobbyPlayers');
+  if(box){
+    var h = '';
+    (G.players||[]).forEach(function(p){
+      var teamName = 'Not assigned';
+      if(p.teamId){ var t = teamById(p.teamId); teamName = t ? t.name : p.teamId; }
+      h += '<div class="panel" style="margin-top:8px;padding:12px"><strong>'+(p.displayName||p.email||'Player')+'</strong>';
+      if(p.uid === G.ownerId) h += ' <span class="badge">Host</span>';
+      h += '<br><span style="color:var(--muted);font-size:13px">'+teamName+'</span>';
+      if(isGameHost() && G.status==='lobby'){
+        h += '<div style="display:flex;gap:6px;margin-top:8px">';
+        (G.teams||[]).forEach(function(tm){
+          h += '<button type="button" class="btn-sec game-assign-btn" data-uid="'+p.uid+'" data-tid="'+tm.id+'" style="flex:1;min-height:40px;font-size:13px">'+tm.name+'</button>';
+        });
+        h += '</div>';
+      }
+      h += '</div>';
+    });
+    box.innerHTML = h || '<p class="hub-empty">Waiting for players…</p>';
+    box.querySelectorAll('.game-assign-btn').forEach(function(btn){
+      btn.onclick = function(){ assignGamePlayer(btn.getAttribute('data-uid'), btn.getAttribute('data-tid')); };
+    });
+  }
+  var host = isGameHost();
+  if($('btnGameStartToss')) $('btnGameStartToss').classList.toggle('hidden', !host || G.status!=='lobby');
+  if($('gameTossPanel')){
+    var showToss = (G.status==='toss' || (G.toss && G.toss.result));
+    $('gameTossPanel').classList.toggle('hidden', G.status!=='toss' && !(G.toss && G.toss.result && G.status==='lobby'));
+    if(G.status==='toss') $('gameTossPanel').classList.remove('hidden');
+  }
+  renderTossUi();
+}
+
+function renderTossUi(){
+  if(!G) return;
+  var toss = G.toss || {};
+  var host = isGameHost();
+  var me = myGamePlayer();
+  if($('gameTossStatus')){
+    if(G.status==='lobby') $('gameTossStatus').textContent = 'Assign teams, then host starts toss.';
+    else if(!toss.result) $('gameTossStatus').textContent = 'Host selects Heads or Tails and flips.';
+    else if(!toss.decision) $('gameTossStatus').textContent = 'Toss done. Winner picks Bat or Bowl.';
+    else $('gameTossStatus').textContent = 'Ready — host can go live.';
+  }
+  if($('gameTossChoose')) $('gameTossChoose').classList.toggle('hidden', !(host && G.status==='toss' && !toss.result));
+  if($('gameTossDecision')){
+    var showDec = !!(toss.result && !toss.decision);
+    $('gameTossDecision').classList.toggle('hidden', !showDec);
+    if(showDec && $('gameTossResultLine')){
+      var winP = playerByUid(toss.winnerUid);
+      $('gameTossResultLine').textContent = 'Result: '+(toss.result||'')+'. Winner: '+(winP&&winP.displayName || 'Player')+'.';
+    }
+  }
+  // only winner (or host if winner is host) can pick bat/bowl — allow winner only
+  var iAmWinner = toss.winnerUid && user && toss.winnerUid === user.uid;
+  if($('btnTossBat')) $('btnTossBat').disabled = !iAmWinner;
+  if($('btnTossBowl')) $('btnTossBowl').disabled = !iAmWinner;
+  if($('btnGameGoLive')) $('btnGameGoLive').classList.toggle('hidden', !(host && toss.decision));
+}
+
+async function assignGamePlayer(uid, teamId){
+  if(!isGameHost() || !gameId) return;
+  try{
+    await db.runTransaction(async function(tx){
+      var ref = db.collection('games').doc(gameId);
+      var s = await tx.get(ref);
+      if(!s.exists) throw new Error('Game not found');
+      var d = s.data();
+      if(d.status!=='lobby') throw new Error('Cannot assign after start');
+      var players = (d.players||[]).map(function(p){
+        if(p.uid===uid) return Object.assign({}, p, { teamId: teamId });
+        return p;
+      });
+      tx.update(ref, { players: players, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    });
+    var p = playerByUid(uid);
+    var t = teamById(teamId);
+    try{ announce('Assigned '+(p&&p.displayName||'player')+' to '+(t&&t.name||'team')); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+
+async function startGameToss(){
+  if(!isGameHost() || !gameId) return;
+  var unassigned = (G.players||[]).filter(function(p){ return !p.teamId; });
+  if(unassigned.length){
+    if(!confirm('Some players have no team. Continue to toss anyway?')) return;
+  }
+  var t1 = (G.players||[]).filter(function(p){ return p.teamId==='t1'; }).length;
+  var t2 = (G.players||[]).filter(function(p){ return p.teamId==='t2'; }).length;
+  if(t1<1 || t2<1){ alert('Assign at least one player to each team.'); return; }
+  try{
+    await db.collection('games').doc(gameId).set({
+      status: 'toss',
+      toss: { choice: null, result: null, winnerUid: null, decision: null },
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }catch(e){ safeAlert(e); }
+}
+
+async function gameTossPick(side){
+  if(!isGameHost() || !gameId) return;
+  try{
+    await db.collection('games').doc(gameId).set({
+      toss: Object.assign({}, G.toss||{}, { choice: side }),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }catch(e){ safeAlert(e); }
+}
+
+async function gameTossFlip(){
+  if(!isGameHost() || !gameId) return;
+  var choice = (G.toss && G.toss.choice) || null;
+  if(!choice){ alert('Select Heads or Tails first.'); return; }
+  var result = Math.random() < 0.5 ? 'heads' : 'tails';
+  // Winner: if host choice matches result, host's team captain = host; else a player from other side
+  // Simple: host wins toss if choice matches, else first player who is not host
+  var winnerUid = null;
+  if(result === choice){
+    winnerUid = G.ownerId;
+  } else {
+    var other = (G.players||[]).find(function(p){ return p.uid !== G.ownerId && p.teamId; });
+    winnerUid = other ? other.uid : G.ownerId;
+  }
+  try{
+    await db.collection('games').doc(gameId).set({
+      toss: { choice: choice, result: result, winnerUid: winnerUid, decision: null },
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }catch(e){ safeAlert(e); }
+}
+
+async function gameTossDecision(dec){
+  if(!G || !G.toss || !user || G.toss.winnerUid !== user.uid) return;
+  try{
+    await db.collection('games').doc(gameId).set({
+      toss: Object.assign({}, G.toss, { decision: dec }),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }catch(e){ safeAlert(e); }
+}
+
+async function gameGoLive(){
+  if(!isGameHost() || !gameId || !G.toss || !G.toss.decision) return;
+  var winner = playerByUid(G.toss.winnerUid);
+  var winTeam = winner && winner.teamId;
+  if(!winTeam){ alert('Toss winner has no team.'); return; }
+  var otherTeam = winTeam === 't1' ? 't2' : 't1';
+  var batting = G.toss.decision === 'bat' ? winTeam : otherTeam;
+  var bowling = batting === 't1' ? 't2' : 't1';
+  var batters = (G.players||[]).filter(function(p){ return p.teamId === batting; });
+  var bowlers = (G.players||[]).filter(function(p){ return p.teamId === bowling; });
+  if(!batters.length || !bowlers.length){ alert('Need at least one player on each side.'); return; }
+  var ball = newBallState(bowlers[0].uid, batters[0].uid, G.settings && G.settings.ballTimerSec);
+  try{
+    await db.collection('games').doc(gameId).set({
+      status: 'live',
+      innings: 1,
+      battingTeamId: batting,
+      bowlingTeamId: bowling,
+      currentBall: ball,
+      score: {
+        t1: { runs: 0, wickets: 0, balls: 0 },
+        t2: { runs: 0, wickets: 0, balls: 0 }
+      },
+      target: null,
+      resultText: '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }catch(e){ safeAlert(e); }
+}
+
+function newBallState(bowlerUid, batterUid, timerSec){
+  var sec = Number(timerSec)||30;
+  return {
+    phase: 'wait_bowler', // wait_bowler | wait_batter | done
+    bowlerUid: bowlerUid,
+    batterUid: batterUid,
+    bowlerNumber: null,
+    batterNumber: null,
+    timerEndsAt: Date.now() + sec * 1000,
+    result: null, // runs | wicket | free_ball
+    runs: 0
+  };
+}
+
+function scoreKey(teamId){
+  return teamId === 't2' ? 't2' : 't1';
+}
+
+function ballsPerInnings(){
+  var overs = (G && G.settings && G.settings.overs) || 3;
+  return overs * 6;
+}
+
+function renderGameLive(){
+  if(!G) return;
+  var ta = (G.teams&&G.teams[0])||{id:'t1',name:'Team A'};
+  var tb = (G.teams&&G.teams[1])||{id:'t2',name:'Team B'};
+  if($('gameTeamLeftName')) $('gameTeamLeftName').textContent = ta.name;
+  if($('gameTeamRightName')) $('gameTeamRightName').textContent = tb.name;
+  var ball = G.currentBall || {};
+  var bowler = playerByUid(ball.bowlerUid);
+  var batter = playerByUid(ball.batterUid);
+  // Left = batting side player, Right = bowling side player (simple)
+  var batTeam = G.battingTeamId;
+  var leftIsBatter = true;
+  if($('gamePlayerLeftName')) $('gamePlayerLeftName').textContent = (batter && batter.displayName) || 'Batter';
+  if($('gamePlayerRightName')) $('gamePlayerRightName').textContent = (bowler && bowler.displayName) || 'Bowler';
+
+  // Lines under names per rules:
+  // until bowler selects: show leftover timer on both
+  // after bowler selects: show 0 (hidden number) then batter shows number when hit
+  var leftLine = '—', rightLine = '—';
+  if(G.status === 'finished'){
+    leftLine = rightLine = '—';
+  } else if(ball.phase === 'wait_bowler'){
+    leftLine = rightLine = gameRemainLabel(ball.timerEndsAt);
+  } else if(ball.phase === 'wait_batter'){
+    // bowler selected → show 0 under bowler (right); batter still timer until shot
+    rightLine = '0';
+    leftLine = gameRemainLabel(ball.timerEndsAt);
+  } else if(ball.phase === 'done'){
+    leftLine = ball.batterNumber != null ? String(ball.batterNumber) : '—';
+    rightLine = ball.bowlerNumber != null ? String(ball.bowlerNumber) : '0';
+  }
+  if($('gamePlayerLeftLine')) $('gamePlayerLeftLine').textContent = leftLine;
+  if($('gamePlayerRightLine')) $('gamePlayerRightLine').textContent = rightLine;
+
+  var s1 = (G.score&&G.score.t1)||{runs:0,wickets:0,balls:0};
+  var s2 = (G.score&&G.score.t2)||{runs:0,wickets:0,balls:0};
+  if($('gameScoreLine')){
+    $('gameScoreLine').textContent = ta.name+' '+s1.runs+'/'+s1.wickets+' ('+fmtOvers(s1.balls)+')  ·  '+tb.name+' '+s2.runs+'/'+s2.wickets+' ('+fmtOvers(s2.balls)+')';
+  }
+  if($('gameTargetLine')){
+    if(G.innings===2 && G.target!=null){
+      var batScore = (G.score&&G.score[scoreKey(G.battingTeamId)])||{runs:0};
+      var need = Math.max(0, (G.target - batScore.runs));
+      $('gameTargetLine').textContent = 'Target '+G.target+' · need '+need+' more to win';
+    } else if(G.status==='innings_break'){
+      $('gameTargetLine').textContent = G.resultText || 'Innings break…';
+    } else if(G.status==='finished'){
+      $('gameTargetLine').textContent = G.resultText || 'Match over';
+    } else {
+      $('gameTargetLine').textContent = 'Innings '+(G.innings||1);
+    }
+  }
+
+  var me = user && user.uid;
+  var amBowler = ball.bowlerUid === me && ball.phase === 'wait_bowler';
+  var amBatter = ball.batterUid === me && ball.phase === 'wait_batter';
+  if($('gamePadWrap')) $('gamePadWrap').classList.toggle('hidden', !(amBowler || amBatter) || G.status!=='live');
+  if($('gamePadHint')){
+    if(amBowler) $('gamePadHint').textContent = 'You are bowling — pick a number';
+    else if(amBatter) $('gamePadHint').textContent = 'You are batting — select your shot';
+    else $('gamePadHint').textContent = '';
+  }
+  if($('gameLiveStatus')){
+    if(G.status==='finished') $('gameLiveStatus').textContent = G.resultText || 'Finished';
+    else if(G.status==='innings_break') $('gameLiveStatus').textContent = G.resultText || 'Second innings starting…';
+    else if(ball.phase==='wait_bowler') $('gameLiveStatus').textContent = 'Waiting for bowler…';
+    else if(ball.phase==='wait_batter') $('gameLiveStatus').textContent = 'Waiting for batter…';
+    else $('gameLiveStatus').textContent = ball.result === 'wicket' ? 'WICKET!' : (ball.result==='free_ball' ? 'Free ball!' : ((ball.runs||0)+' run(s)'));
+  }
+  if($('gameCenterPhase')){
+    if(ball.phase==='wait_bowler') $('gameCenterPhase').textContent = 'Bowl';
+    else if(ball.phase==='wait_batter') $('gameCenterPhase').textContent = 'Shot';
+    else $('gameCenterPhase').textContent = '';
+  }
+  renderGameScorecard();
+  renderGameChat();
+}
+
+function fmtOvers(balls){
+  balls = Number(balls)||0;
+  return Math.floor(balls/6) + '.' + (balls%6);
+}
+
+function gameRemainLabel(endsAt){
+  var ms = (endsAt||0) - Date.now();
+  if(ms <= 0) return '0';
+  return String(Math.ceil(ms/1000));
+}
+
+function startGameTimers(){
+  if(gameTimerIv) clearInterval(gameTimerIv);
+  gameTimerIv = setInterval(function(){
+    if(!G || !G.currentBall) return;
+    if($('gameCenterTimer')){
+      $('gameCenterTimer').textContent = gameRemainLabel(G.currentBall.timerEndsAt);
+    }
+    // refresh lines during wait phases
+    if(G.currentBall.phase==='wait_bowler' || G.currentBall.phase==='wait_batter'){
+      try{ renderGameLive(); }catch(e){}
+    }
+  }, 250);
+  if(gameBallWatchIv) clearInterval(gameBallWatchIv);
+  // Host (or any client) resolves expired timers via transaction
+  gameBallWatchIv = setInterval(function(){ try{ gameResolveTimerIfNeeded(); }catch(e){} }, 800);
+}
+
+async function gameResolveTimerIfNeeded(){
+  if(!G || !gameId || G.status!=='live' || !G.currentBall) return;
+  var ball = G.currentBall;
+  if(!ball.timerEndsAt || Date.now() < ball.timerEndsAt) return;
+  if(ball.phase!=='wait_bowler' && ball.phase!=='wait_batter') return;
+  // Only one writer wins
+  try{
+    await db.runTransaction(async function(tx){
+      var ref = db.collection('games').doc(gameId);
+      var s = await tx.get(ref);
+      if(!s.exists) return;
+      var d = s.data();
+      if(d.status!=='live') return;
+      var b = d.currentBall;
+      if(!b || !b.timerEndsAt || Date.now() < b.timerEndsAt) return;
+      if(b.phase==='wait_bowler'){
+        // Timer done, no ball from bowler → free ball for batter: give 1 run, continue
+        applyBallResultTx(tx, ref, d, { type: 'free_ball', runs: 1, bowlerNumber: null, batterNumber: null });
+      } else if(b.phase==='wait_batter'){
+        // Bowler selected, batter no shot → wicket
+        applyBallResultTx(tx, ref, d, { type: 'wicket', runs: 0, bowlerNumber: b.bowlerNumber, batterNumber: null });
+      }
+    });
+  }catch(e){ /* concurrent ok */ }
+}
+
+function applyBallResultTx(tx, ref, d, res){
+  var batting = d.battingTeamId;
+  var bowling = d.bowlingTeamId;
+  var sk = scoreKey(batting);
+  var score = JSON.parse(JSON.stringify(d.score||{t1:{runs:0,wickets:0,balls:0},t2:{runs:0,wickets:0,balls:0}}));
+  if(!score[sk]) score[sk] = { runs:0, wickets:0, balls:0 };
+  score[sk].balls = (score[sk].balls||0) + 1;
+  if(res.type === 'wicket'){
+    score[sk].wickets = (score[sk].wickets||0) + 1;
+  } else {
+    score[sk].runs = (score[sk].runs||0) + (res.runs||0);
+  }
+  var ballLog = (d.ballLog||[]).slice(-80);
+  ballLog.push({ at: Date.now(), type: res.type, runs: res.runs||0, innings: d.innings, batting: batting });
+
+  var maxW = (d.settings && d.settings.maxWickets) || 5;
+  var maxBalls = ((d.settings && d.settings.overs) || 3) * 6;
+  var inningsOver = score[sk].wickets >= maxW || score[sk].balls >= maxBalls;
+  var chaseDone = false;
+  if(d.innings===2 && d.target!=null && score[sk].runs >= d.target){
+    chaseDone = true;
+    inningsOver = true;
+  }
+
+  if(chaseDone || (d.innings===2 && inningsOver)){
+    var resultText = buildMatchResult(d, score);
+    tx.update(ref, {
+      score: score,
+      ballLog: ballLog,
+      currentBall: { phase:'done', result: res.type, runs: res.runs||0, bowlerNumber: res.bowlerNumber, batterNumber: res.batterNumber, bowlerUid: d.currentBall.bowlerUid, batterUid: d.currentBall.batterUid, timerEndsAt: Date.now() },
+      status: 'finished',
+      resultText: resultText,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return;
+  }
+
+  if(d.innings===1 && inningsOver){
+    var firstRuns = score[sk].runs||0;
+    var target = firstRuns + 1;
+    var nextBat = bowling;
+    var nextBowl = batting;
+    var batters = (d.players||[]).filter(function(p){ return p.teamId === nextBat; });
+    var bowlers = (d.players||[]).filter(function(p){ return p.teamId === nextBowl; });
+    var msg = ((teamNameById(d, batting))||'Team')+' scored '+firstRuns+' runs. Need at least '+target+' to win. Second innings starts soon…';
+    tx.update(ref, {
+      score: score,
+      ballLog: ballLog,
+      status: 'innings_break',
+      resultText: msg,
+      target: target,
+      inningsBreakUntil: Date.now() + 5000,
+      currentBall: { phase:'done', result: res.type, runs: res.runs||0, bowlerNumber: res.bowlerNumber, batterNumber: res.batterNumber, bowlerUid: d.currentBall.bowlerUid, batterUid: d.currentBall.batterUid, timerEndsAt: Date.now() },
+      _pendingInnings2: { battingTeamId: nextBat, bowlingTeamId: nextBowl, batterUid: batters[0]&&batters[0].uid, bowlerUid: bowlers[0]&&bowlers[0].uid },
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return;
+  }
+
+  // Next ball same innings — rotate simple: keep same pair for MVP (or rotate bowler)
+  var nextBowler = d.currentBall.bowlerUid;
+  var nextBatter = d.currentBall.batterUid;
+  var nb = newBallState(nextBowler, nextBatter, d.settings && d.settings.ballTimerSec);
+  tx.update(ref, {
+    score: score,
+    ballLog: ballLog,
+    currentBall: nb,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+function teamNameById(d, tid){
+  var teams = d.teams||[];
+  for(var i=0;i<teams.length;i++){ if(teams[i].id===tid) return teams[i].name; }
+  return tid;
+}
+
+function buildMatchResult(d, score){
+  var s1 = score.t1||{runs:0,wickets:0};
+  var s2 = score.t2||{runs:0,wickets:0};
+  var n1 = teamNameById(d,'t1')||'Team A';
+  var n2 = teamNameById(d,'t2')||'Team B';
+  if(s1.runs > s2.runs) return n1+' won by '+(s1.runs-s2.runs)+' runs';
+  if(s2.runs > s1.runs) return n2+' won by '+(s2.runs-s1.runs)+' runs';
+  return 'Match tied';
+}
+
+// Start 2nd innings after break
+setInterval(function(){
+  try{
+    if(!G || !gameId || G.status!=='innings_break') return;
+    if(!G.inningsBreakUntil || Date.now() < G.inningsBreakUntil) return;
+    if(!isGameHost() && !(G.players||[]).some(function(p){ return p.uid===user.uid; })) return;
+    db.runTransaction(async function(tx){
+      var ref = db.collection('games').doc(gameId);
+      var s = await tx.get(ref);
+      if(!s.exists) return;
+      var d = s.data();
+      if(d.status!=='innings_break') return;
+      if(d.inningsBreakUntil && Date.now() < d.inningsBreakUntil) return;
+      var pend = d._pendingInnings2 || {};
+      var timer = (d.settings && d.settings.ballTimerSec) || 30;
+      var ball = newBallState(pend.bowlerUid, pend.batterUid, timer);
+      tx.update(ref, {
+        status: 'live',
+        innings: 2,
+        battingTeamId: pend.battingTeamId,
+        bowlingTeamId: pend.bowlingTeamId,
+        currentBall: ball,
+        inningsBreakUntil: null,
+        _pendingInnings2: null,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }).catch(function(){});
+  }catch(e){}
+}, 1000);
+
+async function gamePickNumber(n){
+  n = parseInt(n,10);
+  if(!G || !gameId || G.status!=='live' || !G.currentBall) return;
+  var ball = G.currentBall;
+  var me = user && user.uid;
+  try{
+    await db.runTransaction(async function(tx){
+      var ref = db.collection('games').doc(gameId);
+      var s = await tx.get(ref);
+      if(!s.exists) throw new Error('Game not found');
+      var d = s.data();
+      if(d.status!=='live') throw new Error('Not live');
+      var b = d.currentBall;
+      if(!b) throw new Error('No ball');
+      if(b.phase==='wait_bowler'){
+        if(b.bowlerUid !== me) throw new Error('Only the bowler can pick now');
+        if(Date.now() >= (b.timerEndsAt||0)) throw new Error('Time is up');
+        // Bowler selected → show 0, start batter timer
+        var sec = (d.settings && d.settings.ballTimerSec) || 30;
+        tx.update(ref, {
+          currentBall: {
+            phase: 'wait_batter',
+            bowlerUid: b.bowlerUid,
+            batterUid: b.batterUid,
+            bowlerNumber: n,
+            batterNumber: null,
+            timerEndsAt: Date.now() + sec * 1000,
+            result: null,
+            runs: 0
+          },
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return;
+      }
+      if(b.phase==='wait_batter'){
+        if(b.batterUid !== me) throw new Error('Only the batter can pick now');
+        if(Date.now() >= (b.timerEndsAt||0)) throw new Error('Time is up');
+        var same = Number(b.bowlerNumber) === Number(n);
+        if(same){
+          applyBallResultTx(tx, ref, d, { type:'wicket', runs:0, bowlerNumber:b.bowlerNumber, batterNumber:n });
+        } else {
+          applyBallResultTx(tx, ref, d, { type:'runs', runs:n, bowlerNumber:b.bowlerNumber, batterNumber:n });
+        }
+        return;
+      }
+      throw new Error('Wait for next ball');
+    });
+  }catch(e){
+    var msg = friendlyError(e);
+    if(/Only the|Time is up|Wait for/i.test(msg)) showAppError(msg, { ms: 3000 });
+    else safeAlert(e);
+  }
+}
+
+function renderGameScorecard(){
+  var box = $('gameScorecardBody');
+  if(!box || !G) return;
+  var ta = teamNameById(G,'t1')||'Team A';
+  var tb = teamNameById(G,'t2')||'Team B';
+  var s1 = (G.score&&G.score.t1)||{runs:0,wickets:0,balls:0};
+  var s2 = (G.score&&G.score.t2)||{runs:0,wickets:0,balls:0};
+  var h = '<div class="panel" style="padding:12px"><strong>'+ta+'</strong><br>'+s1.runs+'/'+s1.wickets+' ('+fmtOvers(s1.balls)+' ov)</div>';
+  h += '<div class="panel" style="padding:12px;margin-top:8px"><strong>'+tb+'</strong><br>'+s2.runs+'/'+s2.wickets+' ('+fmtOvers(s2.balls)+' ov)</div>';
+  if(G.target!=null) h += '<p style="margin-top:10px;font-weight:700">Target: '+G.target+'</p>';
+  if(G.resultText) h += '<p style="margin-top:8px">'+G.resultText+'</p>';
+  var log = (G.ballLog||[]).slice(-12).reverse();
+  if(log.length){
+    h += '<h2 style="font-size:0.95rem;margin-top:14px">Recent balls</h2>';
+    log.forEach(function(b){
+      h += '<div style="font-size:13px;color:var(--muted);margin-top:4px">Innings '+(b.innings||'?')+': '+(b.type||'')+(b.runs?(' +'+b.runs):'')+'</div>';
+    });
+  }
+  box.innerHTML = h;
+}
+
+function renderGameChat(){
+  var box = $('gameChatList');
+  if(!box || !G) return;
+  var chat = G.chat || [];
+  var h = '';
+  chat.slice(-40).forEach(function(m){
+    h += '<div style="margin:6px 0;padding:8px 10px;background:var(--card);border-radius:10px"><strong style="font-size:12px">'+(m.fromName||'Player')+'</strong><br>'+(m.text||'')+'</div>';
+  });
+  box.innerHTML = h || '<p class="hub-empty">No messages yet.</p>';
+  try{ box.scrollTop = box.scrollHeight; }catch(e){}
+}
+
+async function gameSendChat(){
+  if(!gameId || !user || !G) return;
+  if(!isGameHost() && !myGamePlayer()){ alert('Only game players can chat'); return; }
+  var inp = $('gameChatInput');
+  var text = String(inp && inp.value || '').trim();
+  if(!text) return;
+  if(text.length>120){ alert('Keep under 120 characters'); return; }
+  try{
+    await db.runTransaction(async function(tx){
+      var ref = db.collection('games').doc(gameId);
+      var s = await tx.get(ref);
+      if(!s.exists) throw new Error('Game not found');
+      var d = s.data();
+      var chat = (d.chat||[]).slice(-50);
+      chat.push({ text: text, fromUid: user.uid, fromName: user.displayName||user.email||'Player', at: Date.now() });
+      tx.update(ref, { chat: chat, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    });
+    if(inp) inp.value = '';
+  }catch(e){ safeAlert(e); }
+}
+
+function switchGameTab(which){
+  which = which || 'view';
+  var panes = { view: $('gameLivePaneView'), score: $('gameLivePaneScore'), chat: $('gameLivePaneChat') };
+  var tabs = { view: $('gameTabView'), score: $('gameTabScore'), chat: $('gameTabChat') };
+  Object.keys(panes).forEach(function(k){
+    if(panes[k]) panes[k].classList.toggle('hidden', k!==which);
+    if(tabs[k]){ tabs[k].classList.toggle('active', k===which); tabs[k].setAttribute('aria-selected', k===which?'true':'false'); }
+  });
+}
+
+function wireGameUi(){
+  if($('btnCreateGame')) $('btnCreateGame').onclick = openGameCreate;
+  if($('btnGameCreateBack')) $('btnGameCreateBack').onclick = function(){ enterHome(); try{ switchHubTab('games'); }catch(e){} };
+  if($('btnGameCreateNext')) $('btnGameCreateNext').onclick = createGameAndShare;
+  if($('btnGameLobbyBack')) $('btnGameLobbyBack').onclick = function(){ stopGameLive(); enterHome(); try{ switchHubTab('games'); }catch(e){} };
+  if($('btnGameLiveBack')) $('btnGameLiveBack').onclick = function(){ stopGameLive(); enterHome(); try{ switchHubTab('games'); }catch(e){} };
+  if($('btnGameShare')) $('btnGameShare').onclick = async function(){
+    if(!gameId) return;
+    var url = gameShareUrl(gameId);
+    if(navigator.share){ try{ await navigator.share({ title:'Join game', url:url }); }catch(e){} }
+    else { try{ await navigator.clipboard.writeText(url); alert('Link copied'); }catch(e){ prompt('Copy link', url); } }
+  };
+  if($('btnGameCopy')) $('btnGameCopy').onclick = async function(){
+    if(!gameId) return;
+    var url = gameShareUrl(gameId);
+    try{ await navigator.clipboard.writeText(url); alert('Link copied'); }catch(e){ prompt('Copy link', url); }
+  };
+  if($('btnGameStartToss')) $('btnGameStartToss').onclick = startGameToss;
+  if($('btnTossHeads')) $('btnTossHeads').onclick = function(){ gameTossPick('heads'); };
+  if($('btnTossTails')) $('btnTossTails').onclick = function(){ gameTossPick('tails'); };
+  if($('btnTossFlip')) $('btnTossFlip').onclick = gameTossFlip;
+  if($('btnTossBat')) $('btnTossBat').onclick = function(){ gameTossDecision('bat'); };
+  if($('btnTossBowl')) $('btnTossBowl').onclick = function(){ gameTossDecision('bowl'); };
+  if($('btnGameGoLive')) $('btnGameGoLive').onclick = gameGoLive;
+  document.querySelectorAll('.game-num-btn').forEach(function(btn){
+    btn.onclick = function(){ gamePickNumber(btn.getAttribute('data-n')); };
+  });
+  if($('gameTabView')) $('gameTabView').onclick = function(){ switchGameTab('view'); };
+  if($('gameTabScore')) $('gameTabScore').onclick = function(){ switchGameTab('score'); };
+  if($('gameTabChat')) $('gameTabChat').onclick = function(){ switchGameTab('chat'); };
+  if($('btnGameChatSend')) $('btnGameChatSend').onclick = gameSendChat;
+  if($('gameChatInput')) $('gameChatInput').addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); gameSendChat(); } });
+  if($('btnGameCall')) $('btnGameCall').onclick = function(){
+    alert('Voice call uses the same Call feature as auctions when enabled for your project. Chat is available now for both teams in this game.');
+  };
+}
+try{ wireGameUi(); }catch(e){ console.warn('wireGameUi', e); }
+
+// Deep link ?game=
+(function handleGameDeepLink(){
+  try{
+    if(window._gameDeepLink && user){
+      var gid = window._gameDeepLink;
+      window._gameDeepLink = null;
+      try{ history.replaceState({},'',location.pathname); }catch(e){}
+      openGame(gid);
+    }
+  }catch(e){}
+})();
+// Also after auth ready — hook existing pattern
+var _origEnterHomeGame = null;
+try{
+  // poll once auth settles
+  var _gdlTries = 0;
+  var _gdlIv = setInterval(function(){
+    _gdlTries++;
+    if(window._gameDeepLink && user && db){
+      var gid = window._gameDeepLink;
+      window._gameDeepLink = null;
+      try{ history.replaceState({},'',location.pathname); }catch(e){}
+      openGame(gid);
+      clearInterval(_gdlIv);
+    }
+    if(_gdlTries > 40) clearInterval(_gdlIv);
+  }, 500);
+}catch(e){}
+
 
 /* PWA: register service worker for install + offline support */
 if ('serviceWorker' in navigator) {

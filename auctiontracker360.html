@@ -1642,6 +1642,18 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       <p id="gameTossWaitLine" class="hidden" style="text-align:center;color:var(--muted);font-weight:600"></p>
       <button type="button" id="btnGameTossStartLive" class="btn-ok btn-block hidden" style="margin-top:12px">Start game</button>
     </div>
+    <div id="gameTossStepWaitHost" class="hidden">
+      <p id="gameTossWaitHostText" style="font-weight:700;text-align:center;margin:0" tabindex="-1"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Match result modal -->
+<div id="gameResultModal" class="hidden" style="position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px">
+  <div class="panel" style="width:100%;max-width:360px;padding:20px;border-radius:16px" role="dialog" aria-modal="true" aria-labelledby="gameResultTitle">
+    <p id="gameResultTitle" style="font-weight:800;font-size:1.15rem;text-align:center;margin:0 0 10px" tabindex="-1"></p>
+    <p id="gameResultBody" style="text-align:center;margin:0 0 16px;font-weight:600"></p>
+    <button type="button" id="btnGameResultOk" class="btn-ok btn-block">OK</button>
   </div>
 </div>
 
@@ -14615,6 +14627,8 @@ function stopGameLive(){
   window._gameSpeakKey=null;
   window._gameLiveSig=null;
   window._gamePicking=false;
+  window._gameTossFocused=false;
+  window._gameDangerKey=null;
 }
 
 function gameSpeakOnce(key, msg){
@@ -14626,15 +14640,27 @@ function gameSpeakOnce(key, msg){
 }
 
 function gamePlaySfx(name){
+  // Prefer files in site root: 1.mp3 … 6.mp3, wicket.mp3, toss.mp3, win.mp3, looser.mp3, danger.mp3
   try{
-    if(typeof playSfx==='function') playSfx(name);
+    var file = String(name||'');
+    if(file.indexOf('.')<0) file = file + '.mp3';
+    var a = new Audio('/' + file);
+    a.volume = 0.9;
+    var p = a.play();
+    if(p && p.catch) p.catch(function(){});
+    return;
   }catch(e){}
-  // Optional Toss.mp3 / outcome.mp3 from site root
+  try{ if(typeof playSfx==='function') playSfx(name); }catch(e2){}
+}
+
+function gameFocusEl(el){
+  if(!el) return;
   try{
-    var a = new Audio('/' + name + (name.indexOf('.')>=0?'':'.mp3'));
-    a.volume = 0.85;
-    a.play().catch(function(){});
-  }catch(e){}
+    el.setAttribute('tabindex','-1');
+    el.focus({ preventScroll:false });
+  }catch(e){
+    try{ el.focus(); }catch(e2){}
+  }
 }
 
 function isGameHost(){ return !!(G && user && G.ownerId===user.uid); }
@@ -14826,13 +14852,8 @@ function routeGameScreen(){
     openGameTossModal();
     renderTossModal();
   } else if(st==='finished'){
-    // Host deletes record
-    if(isGameHost() && gameId){
-      db.collection('games').doc(gameId).delete().catch(function(){});
-    }
-    stopGameLive();
-    enterHome();
-    try{ switchHubTab('games'); }catch(e){}
+    try{ closeGameTossModal(); }catch(e){}
+    showGameResultModal();
   } else {
     try{ closeGameTossModal(); }catch(e){}
     if(window._currentScreenId!=='screenGameLobby') showScreen('screenGameLobby');
@@ -14921,52 +14942,141 @@ async function assignPlayerTeam(uid, teamId){
 /* ----- Toss modal ----- */
 function openGameTossModal(){
   var m=$('gameTossModal');
-  if(m){ m.classList.remove('hidden'); m.style.display='flex'; }
+  if(m){
+    m.classList.remove('hidden');
+    m.style.display='flex';
+    window._gameTossFocused=false;
+  }
 }
 function closeGameTossModal(){
   var m=$('gameTossModal');
   if(m){ m.classList.add('hidden'); m.style.display=''; }
+  window._gameTossFocused=false;
+}
+
+function showGameResultModal(){
+  if(!G || window._gameResultShown) return;
+  window._gameResultShown = true;
+  var me=playerByUid(user&&user.uid);
+  var myTeam = me && me.teamId;
+  var s1=(G.score&&G.score.t1)||{runs:0};
+  var s2=(G.score&&G.score.t2)||{runs:0};
+  var winnerTeam = null;
+  if(s1.runs > s2.runs) winnerTeam='t1';
+  else if(s2.runs > s1.runs) winnerTeam='t2';
+  var resultText = G.resultText || buildMatchResult(G, G.score||{});
+  var title='', body='';
+  var iWon = myTeam && winnerTeam && myTeam===winnerTeam;
+  var iLost = myTeam && winnerTeam && myTeam!==winnerTeam;
+  if(!winnerTeam){
+    title = 'Match tied';
+    body = resultText;
+  } else if(iWon){
+    title = 'You won the game';
+    body = resultText;
+    gamePlaySfx('win');
+  } else if(iLost){
+    title = 'You lost this match';
+    body = resultText;
+    gamePlaySfx('looser');
+  } else {
+    title = 'Match over';
+    body = resultText;
+  }
+  if($('gameResultTitle')) $('gameResultTitle').textContent = title;
+  if($('gameResultBody')) $('gameResultBody').textContent = body;
+  var m=$('gameResultModal');
+  if(m){ m.classList.remove('hidden'); m.style.display='flex'; }
+  setTimeout(function(){ gameFocusEl($('btnGameResultOk')||$('gameResultTitle')); }, 100);
+}
+
+function closeGameResultAndLeave(){
+  var m=$('gameResultModal');
+  if(m){ m.classList.add('hidden'); m.style.display=''; }
+  var id = gameId;
+  var host = isGameHost();
+  stopGameLive();
+  window._gameResultShown=false;
+  // Host removes Firestore record after result is acknowledged
+  if(host && id && db){
+    db.collection('games').doc(id).delete().catch(function(){});
+  }
+  enterHome();
+  try{ switchHubTab('games'); }catch(e){}
 }
 
 function renderTossModal(){
   if(!G) return;
   var toss=G.toss||{};
+  var host=isGameHost();
+  var me=playerByUid(user&&user.uid);
   var stepCoin=$('gameTossStepCoin');
   var stepRes=$('gameTossStepResult');
+  var stepWait=$('gameTossStepWaitHost');
+  var leftName=teamName('t1');
+
+  // Before flip result
   if(!toss.result){
-    if(stepCoin) stepCoin.classList.remove('hidden');
     if(stepRes) stepRes.classList.add('hidden');
-    // only host flips
-    var host=isGameHost();
-    if($('btnGameFlip')) $('btnGameFlip').style.display=host?'':'none';
-    if($('gameChkHeads')) $('gameChkHeads').disabled=!host;
-    if($('gameChkTails')) $('gameChkTails').disabled=!host;
-  } else {
-    if(stepCoin) stepCoin.classList.add('hidden');
-    if(stepRes) stepRes.classList.remove('hidden');
-    var winTeam=toss.winnerTeamId;
-    var winName=teamName(winTeam);
-    var iAmWinnerTeam=false;
-    var me=playerByUid(user&&user.uid);
-    if(me&&me.teamId&&me.teamId===winTeam) iAmWinnerTeam=true;
-    if($('gameTossResultText')){
-      if(!toss.decision){
-        if(iAmWinnerTeam) $('gameTossResultText').textContent=winName+' won. Select bat or bowl.';
-        else $('gameTossResultText').textContent=winName+' won the toss and is selecting.';
-      } else {
-        $('gameTossResultText').textContent=winName+' chose to '+toss.decision+'.';
+    if(host){
+      // Creator: toss selection UI
+      if(stepCoin) stepCoin.classList.remove('hidden');
+      if(stepWait) stepWait.classList.add('hidden');
+      if($('btnGameFlip')) $('btnGameFlip').style.display='';
+      if($('gameChkHeads')) $('gameChkHeads').disabled=false;
+      if($('gameChkTails')) $('gameChkTails').disabled=false;
+      syncFlipEnabled();
+      if(!window._gameTossFocused){
+        window._gameTossFocused=true;
+        setTimeout(function(){ gameFocusEl($('gameChkHeads')||$('btnGameFlip')); }, 80);
+      }
+    } else {
+      // Other player: waiting while host selects toss
+      if(stepCoin) stepCoin.classList.add('hidden');
+      if(stepWait) stepWait.classList.remove('hidden');
+      if($('gameTossWaitHostText')){
+        $('gameTossWaitHostText').textContent = leftName + ' selecting the toss';
+        if(!window._gameTossFocused){
+          window._gameTossFocused=true;
+          setTimeout(function(){ gameFocusEl($('gameTossWaitHostText')); }, 80);
+        }
       }
     }
-    var showChoices=iAmWinnerTeam && !toss.decision;
-    if($('gameTossWinnerChoices')) $('gameTossWinnerChoices').classList.toggle('hidden', !showChoices);
-    if($('gameTossWaitLine')){
-      $('gameTossWaitLine').classList.toggle('hidden', !(!iAmWinnerTeam && !toss.decision));
-      $('gameTossWaitLine').textContent=winName+' won the toss and selecting the game';
+    return;
+  }
+
+  // After result — both see outcome; only winning team gets Bat/Bowl
+  if(stepCoin) stepCoin.classList.add('hidden');
+  if(stepWait) stepWait.classList.add('hidden');
+  if(stepRes) stepRes.classList.remove('hidden');
+  var winTeam=toss.winnerTeamId;
+  var winName=teamName(winTeam);
+  var iAmWinnerTeam=!!(me&&me.teamId&&me.teamId===winTeam);
+
+  if($('gameTossResultText')){
+    if(!toss.decision){
+      if(iAmWinnerTeam) $('gameTossResultText').textContent = winName + ' won. Select bat or bowl.';
+      else $('gameTossResultText').textContent = winName + ' won the toss and is selecting the game.';
+    } else {
+      $('gameTossResultText').textContent = winName + ' chose to ' + toss.decision + '.';
     }
-    if($('btnGameTossStartLive')){
-      var ready=!!toss.decision;
-      $('btnGameTossStartLive').classList.toggle('hidden', !ready);
+    setTimeout(function(){ gameFocusEl($('gameTossResultText')); }, 60);
+  }
+  if($('gameTossWinnerChoices')){
+    $('gameTossWinnerChoices').classList.toggle('hidden', !(iAmWinnerTeam && !toss.decision));
+    if(iAmWinnerTeam && !toss.decision){
+      setTimeout(function(){ gameFocusEl($('btnGameChooseBat')); }, 100);
     }
+  }
+  if($('gameTossWaitLine')){
+    var showWait = !iAmWinnerTeam && !toss.decision;
+    $('gameTossWaitLine').classList.toggle('hidden', !showWait);
+    if(showWait) $('gameTossWaitLine').textContent = winName + ' won the toss and is selecting the game';
+  }
+  if($('btnGameTossStartLive')){
+    var ready=!!toss.decision;
+    $('btnGameTossStartLive').classList.toggle('hidden', !ready);
+    if(ready) setTimeout(function(){ gameFocusEl($('btnGameTossStartLive')); }, 100);
   }
 }
 
@@ -15003,7 +15113,7 @@ async function gameDoFlip(){
   var callTeam='t1'; // host team (left) is the call
   var callName=teamName(callTeam);
   gameSpeakOnce('flip|'+Date.now(), callName+' flipping the coin');
-  gamePlaySfx('Toss');
+  gamePlaySfx('toss');
   // show flipping state briefly
   if($('btnGameFlip')){ $('btnGameFlip').disabled=true; $('btnGameFlip').textContent='Flipping…'; }
   await new Promise(function(r){ setTimeout(r, 2000); });
@@ -15101,33 +15211,46 @@ function renderGameLive(){
   var leftIsBat = G.battingTeamId==='t1';
   var leftPlayer = leftIsBat ? batter : bowler;
   var rightPlayer = leftIsBat ? bowler : batter;
-  if($('gLiveLeftPlayer')) $('gLiveLeftPlayer').textContent=(leftPlayer&&(leftPlayer.email||leftPlayer.displayName))||'—';
-  if($('gLiveRightPlayer')) $('gLiveRightPlayer').textContent=(rightPlayer&&(rightPlayer.email||rightPlayer.displayName))||'—';
+  // Show team names only under headings (not emails)
+  if($('gLiveLeftPlayer')) $('gLiveLeftPlayer').textContent = leftT;
+  if($('gLiveRightPlayer')) $('gLiveRightPlayer').textContent = rightT;
 
   var s1=(G.score&&G.score.t1)||{runs:0,wickets:0,balls:0};
   var s2=(G.score&&G.score.t2)||{runs:0,wickets:0,balls:0};
-  // Center score: batting team's line focusable
-  var batSk=G.battingTeamId==='t2'?'t2':'t1';
-  var bs=G.score&&G.score[batSk]||{runs:0,wickets:0,balls:0};
   if($('gLiveScoreLine')){
     var line=leftT+' '+s1.runs+'/'+s1.wickets+' ('+fmtOvers(s1.balls)+')  ·  '+rightT+' '+s2.runs+'/'+s2.wickets+' ('+fmtOvers(s2.balls)+')';
     if(G.innings===2&&G.target!=null) line+='  ·  target '+G.target;
     $('gLiveScoreLine').textContent=line;
   }
 
-  // Prompts under emails
+  // Different prompts per role — never the same text for both; never show bowler number until outcome
   var me=user&&user.uid;
+  var amBowler=!!(me&&ball.bowlerUid===me&&ball.bowlerUid!==ball.batterUid);
+  var amBatter=!!(me&&ball.batterUid===me&&ball.bowlerUid!==ball.batterUid);
   var leftPrompt='', rightPrompt='';
   var leftNum='', rightNum='';
+
   if(G.status==='live'){
     if(ball.phase==='wait_bowler'){
-      if(leftIsBat){ rightPrompt = (ball.bowlerUid===me)?'Select your ball':''; leftPrompt=''; }
-      else { leftPrompt = (ball.bowlerUid===me)?'Select your ball':''; rightPrompt=''; }
+      // Bowler: select ball. Batter: bowler is thinking. No numbers yet.
+      if(amBowler){
+        if(leftIsBat){ rightPrompt='Select your ball'; leftPrompt=''; }
+        else { leftPrompt='Select your ball'; rightPrompt=''; }
+      } else if(amBatter){
+        if(leftIsBat){ leftPrompt='Bowler is thinking'; rightPrompt=''; }
+        else { rightPrompt='Bowler is thinking'; leftPrompt=''; }
+      }
     } else if(ball.phase==='wait_batter'){
-      if(leftIsBat){ leftPrompt = (ball.batterUid===me)?'Select your hit':''; rightPrompt=''; rightNum=String(ball.bowlerNumber!=null?ball.bowlerNumber:''); }
-      else { rightPrompt = (ball.batterUid===me)?'Select your hit':''; leftPrompt=''; leftNum=String(ball.bowlerNumber!=null?ball.bowlerNumber:''); }
-    } else if(ball.phase==='done' || ball.bowlerNumber!=null){
-      // show both numbers beside players
+      // Batter: select hit. Bowler: batter is thinking. Hide bowler number.
+      if(amBatter){
+        if(leftIsBat){ leftPrompt='Select your hit'; rightPrompt=''; }
+        else { rightPrompt='Select your hit'; leftPrompt=''; }
+      } else if(amBowler){
+        if(leftIsBat){ rightPrompt='Batter is thinking'; leftPrompt=''; }
+        else { leftPrompt='Batter is thinking'; rightPrompt=''; }
+      }
+    } else if(ball.phase==='done'){
+      // Only after both selected + outcome: show numbers under team sides
       if(leftIsBat){
         leftNum = ball.batterNumber!=null?String(ball.batterNumber):'';
         rightNum = ball.bowlerNumber!=null?String(ball.bowlerNumber):'';
@@ -15142,32 +15265,52 @@ function renderGameLive(){
   if($('gLiveLeftNum')) $('gLiveLeftNum').textContent=leftNum;
   if($('gLiveRightNum')) $('gLiveRightNum').textContent=rightNum;
 
-  var amBowler=me&&ball.bowlerUid===me&&ball.phase==='wait_bowler'&&ball.bowlerUid!==ball.batterUid;
-  var amBatter=me&&ball.batterUid===me&&ball.phase==='wait_batter'&&ball.bowlerUid!==ball.batterUid;
-  var showPad=G.status==='live'&&(amBowler||amBatter);
+  var showPad=G.status==='live'&&((amBowler&&ball.phase==='wait_bowler')||(amBatter&&ball.phase==='wait_batter'));
   if($('gamePadWrap')) $('gamePadWrap').classList.toggle('hidden', !showPad);
   document.querySelectorAll('.game-num-btn').forEach(function(btn){ btn.disabled=!showPad; });
 
-  // Role + ball commentary for everyone
+  // Role speech once per match; ball prompts only for the active player
   if(G.status==='live'){
     var meP = playerByUid(me);
     if(meP&&meP.teamId===G.bowlingTeamId) gameSpeakOnce('role|'+gameId+'|bowl', 'Your team is bowling');
     if(meP&&meP.teamId===G.battingTeamId) gameSpeakOnce('role|'+gameId+'|bat', 'Your team is batting');
   }
-  if(G.status==='live'&&ball.phase==='wait_bowler'){
-    gameSpeakOnce('bowl|'+ball.timerEndsAt+'|'+ball.bowlerUid, 'Select your ball');
-  } else if(G.status==='live'&&ball.phase==='wait_batter'){
-    gameSpeakOnce('hit|'+ball.timerEndsAt+'|'+ball.batterUid, 'Select your hit');
-  } else if(ball.phase==='done'||(ball.result&&ball.bowlerNumber!=null)){
+  if(G.status==='live'&&ball.phase==='wait_bowler'&&amBowler){
+    gameSpeakOnce('bowl|'+ball.timerEndsAt+'|'+me, 'Select your ball');
+  } else if(G.status==='live'&&ball.phase==='wait_batter'&&amBatter){
+    gameSpeakOnce('hit|'+ball.timerEndsAt+'|'+me, 'Select your hit');
+  } else if(ball.phase==='done'){
     var line='Bowler '+(ball.bowlerNumber!=null?ball.bowlerNumber:'')+', batter '+(ball.batterNumber!=null?ball.batterNumber:'');
     if(ball.result==='wicket') line+='. Wicket!';
     else if(ball.result==='free_ball') line+='. Free ball.';
     else line+='. '+(ball.runs||0)+' run'+(ball.runs===1?'':'s')+'.';
-    gameSpeakOnce('out|'+ball.bowlerNumber+'|'+ball.batterNumber+'|'+(ball.result||'')+'|'+(G.score&&G.score.t1&&G.score.t1.balls)+'|'+(G.score&&G.score.t2&&G.score.t2.balls), line);
+    var okey='out|'+ball.bowlerNumber+'|'+ball.batterNumber+'|'+(ball.result||'')+'|'+(s1.balls)+'|'+(s2.balls);
+    if(window._gameSpeakKey!==okey){
+      // Outcome sound for BOTH players
+      if(ball.result==='wicket') gamePlaySfx('wicket');
+      else if(ball.result==='runs' && ball.batterNumber!=null) gamePlaySfx(String(ball.batterNumber));
+      else if(ball.result==='free_ball') gamePlaySfx('1');
+      gameSpeakOnce(okey, line);
+    }
   }
 
-  renderGameScorecard();
-  renderGameChat();
+  // Danger sound when ≤10s left on active timer
+  if(G.status==='live' && (ball.phase==='wait_bowler'||ball.phase==='wait_batter') && ball.timerEndsAt){
+    var leftSec = Math.ceil((ball.timerEndsAt - Date.now())/1000);
+    if(leftSec===10){
+      var dkey='danger|'+ball.phase+'|'+ball.timerEndsAt;
+      if(window._gameDangerKey!==dkey){
+        window._gameDangerKey=dkey;
+        gamePlaySfx('danger');
+      }
+    }
+  }
+
+  // Scorecard/chat only when those panes visible — reduce churn
+  try{
+    if($('gameLivePaneScore') && !$('gameLivePaneScore').classList.contains('hidden')) renderGameScorecard();
+    if($('gameLivePaneChat') && !$('gameLivePaneChat').classList.contains('hidden')) renderGameChat();
+  }catch(e){}
 }
 
 function renderGameScorecard(){
@@ -15357,20 +15500,21 @@ function buildMatchResult(d, score){
   return 'Match tied';
 }
 
-// Advance from done → next ball after 1.8s; start innings 2 after break
+// Advance from done → next ball after 2s; start innings 2 after break
 setInterval(function(){
   try{
     if(!G||!gameId) return;
     if(G.status==='live'&&G.currentBall&&G.currentBall.phase==='done'&&G.currentBall._next){
       if(!window._gameAdvancing){
         window._gameAdvancing=true;
-        gamePlaySfx('bid'); // outcome tick
+        var nextBall = G.currentBall._next;
         setTimeout(function(){
+          if(!gameId) { window._gameAdvancing=false; return; }
           db.collection('games').doc(gameId).set({
-            currentBall:G.currentBall._next,
+            currentBall: nextBall,
             updatedAt:firebase.firestore.FieldValue.serverTimestamp()
           },{merge:true}).finally(function(){ window._gameAdvancing=false; });
-        }, 1800);
+        }, 2000);
       }
     }
     if(G.status==='innings_break'&&G.inningsBreakUntil&&Date.now()>=G.inningsBreakUntil){
@@ -15388,12 +15532,6 @@ setInterval(function(){
           updatedAt:firebase.firestore.FieldValue.serverTimestamp()
         });
       }).catch(function(){});
-    }
-    if(G.status==='finished'&&isGameHost()&&gameId){
-      if(!window._gameDeleting){
-        window._gameDeleting=true;
-        db.collection('games').doc(gameId).delete().finally(function(){ window._gameDeleting=false; });
-      }
     }
   }catch(e){}
 }, 500);
@@ -15432,6 +15570,7 @@ function wireGameUi(){
   if($('gameTabChat')) $('gameTabChat').onclick=function(){ switchGameTab('chat'); };
   if($('btnGameChatSend')) $('btnGameChatSend').onclick=gameSendChat;
   if($('gameChatInput')) $('gameChatInput').addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); gameSendChat(); } });
+  if($('btnGameResultOk')) $('btnGameResultOk').onclick=closeGameResultAndLeave;
 }
 try{ wireGameUi(); }catch(e){ console.warn('wireGameUi', e); }
 

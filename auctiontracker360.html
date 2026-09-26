@@ -1673,6 +1673,19 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   width:100%;min-height:52px;border:none;border-radius:14px;margin-top:8px;
   background:#fff;color:#1a0a2e;font-weight:800;font-size:16px;cursor:pointer;
 }
+/* Sticky stop-music control during tower / create-auction setup */
+.setup-bgm-bar{
+  position:sticky;top:0;z-index:60;
+  display:flex;justify-content:flex-end;align-items:center;
+  padding:6px 0 8px;margin:0 0 4px;
+  background:linear-gradient(180deg,var(--bg-base) 70%,transparent);
+}
+.setup-bgm-stop{
+  min-height:44px;min-width:120px;padding:10px 16px;
+  font-weight:800;font-size:14px;border-radius:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);
+}
+.setup-bgm-stop[hidden]{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -2263,6 +2276,10 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 
 
 <section id="screenWizard" class="wrap panel hidden" role="region" aria-labelledby="wizTitle">
+  <div id="setupBgmBar" class="setup-bgm-bar" role="region" aria-label="Background music controls">
+    <button type="button" id="btnSetupBgmStop" class="btn-sec setup-bgm-stop" hidden aria-hidden="true"
+      aria-label="Stop background music">Stop music</button>
+  </div>
   <p class="progress" id="wizProgress">Step 1</p>
   <h1 id="wizTitle" tabindex="-1">Create tournament</h1>
   <div id="wizBody"></div>
@@ -4502,6 +4519,13 @@ function closeConfirm(fromNo){
   if(fromNo && typeof noFn==='function'){
     try{ noFn(); }catch(e){}
   }
+  // Virtual mode: decision panel must stay until host acts — restore after any cancel
+  try{
+    if(T && T.bid && T.bid.phase==='await_host' && user && T.ownerId===user.uid){
+      window._hostDecKey = null;
+      showHostTimerDecision(!!T.bid.leaderTeamId);
+    }
+  }catch(e){}
 }
 $('cYes').onclick=()=>{
   const f=pendingFn;
@@ -6767,14 +6791,20 @@ function updateTimerDisplay(el, endsAt, phase){
 
 /* ===== Setup background music (background.mp3 / waiting.mp3) =====
    Host places files next to the HTML: background.mp3, waiting.mp3
-   - Create auction → background at 25%, loops
-   - Invite / copy-link step (virtual) → waiting: 5s@10%, ramp 5s→25%, then 25% loop
-   - Go live / cancel → stop all
+   - Create auction / tower setup → background at 15% of full media volume, loops
+   - Invite / copy-link step (virtual) → waiting at 15% loop
+   - Sticky Stop music control on wizard; Go live / cancel → stop all
 */
 var _setupBgm = null; // HTMLAudioElement
 var _setupBgmKind = null; // 'background' | 'waiting'
 var _setupBgmFadeTimer = null;
 var _setupBgmRampTimer = null;
+/** Always 15% of full media volume (HTMLAudioElement volume is 0–1). */
+var SETUP_BGM_VOLUME = 0.15;
+
+function setupBgmApplyVolume(){
+  try{ if(_setupBgm) _setupBgm.volume = SETUP_BGM_VOLUME; }catch(e){}
+}
 
 function setupBgmStop(){
   try{
@@ -6784,6 +6814,7 @@ function setupBgmStop(){
   try{
     if(_setupBgm){
       _setupBgm.onended = null;
+      _setupBgm.ontimeupdate = null;
       _setupBgm.pause();
       _setupBgm.removeAttribute('src');
       try{ _setupBgm.load(); }catch(e2){}
@@ -6791,74 +6822,80 @@ function setupBgmStop(){
   }catch(e){}
   _setupBgm = null;
   _setupBgmKind = null;
+  try{ setupBgmUpdateStopBtn(); }catch(e){}
+}
+
+function setupBgmUpdateStopBtn(){
+  var btn = $('btnSetupBgmStop');
+  if(!btn) return;
+  var playing = false;
+  try{ playing = !!(!_setupBgm ? false : !_setupBgm.paused); }catch(e){}
+  btn.hidden = !playing;
+  btn.setAttribute('aria-hidden', playing ? 'false' : 'true');
+  if(playing){
+    btn.removeAttribute('tabindex');
+  } else {
+    btn.setAttribute('tabindex', '-1');
+  }
 }
 
 function setupBgmPlay(kind){
   // kind: 'background' | 'waiting'
   if(kind !== 'background' && kind !== 'waiting') return;
-  if(_setupBgmKind === kind && _setupBgm && !_setupBgm.paused) return; // already playing this track
+  if(_setupBgmKind === kind && _setupBgm && !_setupBgm.paused){
+    setupBgmApplyVolume();
+    try{ setupBgmUpdateStopBtn(); }catch(e){}
+    return;
+  }
   setupBgmStop();
   var src = kind === 'waiting' ? 'waiting.mp3' : 'background.mp3';
   var a = new Audio();
   a.preload = 'auto';
-  a.loop = false; // we handle restart ourselves for volume control
+  a.loop = false; // restart ourselves so volume stays fixed at 15%
   a.src = src;
+  a.volume = SETUP_BGM_VOLUME;
   _setupBgm = a;
   _setupBgmKind = kind;
 
   function restartSameVol(){
     if(!_setupBgm || _setupBgmKind !== kind) return;
     try{
+      _setupBgm.volume = SETUP_BGM_VOLUME; // always re-apply 15%
       _setupBgm.currentTime = 0;
       var p = _setupBgm.play();
       if(p && p.catch) p.catch(function(){});
     }catch(e){}
+    try{ setupBgmUpdateStopBtn(); }catch(e){}
   }
 
-  if(kind === 'background'){
-    a.volume = 0.15;
-    a.onended = function(){ restartSameVol(); };
+  // Both tracks: fixed 15% of full media volume for entire setup
+  a.volume = SETUP_BGM_VOLUME;
+  a.onended = function(){ restartSameVol(); };
+  a.ontimeupdate = function(){
     try{
-      var p = a.play();
-      if(p && p.catch) p.catch(function(){ /* autoplay blocked until gesture — create click already is gesture */ });
+      if(_setupBgm && Math.abs((_setupBgm.volume||0) - SETUP_BGM_VOLUME) > 0.01){
+        _setupBgm.volume = SETUP_BGM_VOLUME;
+      }
     }catch(e){}
-    return;
-  }
-
-  // waiting.mp3: first 5s at 10%, next 5s ramp to 25%, then hold 25%
-  a.volume = 0.10;
-  a.onended = function(){
-    // Restart without fade — stay at 25%
-    if(!_setupBgm || _setupBgmKind !== 'waiting') return;
-    try{ _setupBgm.volume = 0.25; }catch(e){}
-    restartSameVol();
   };
   try{
-    var p2 = a.play();
-    if(p2 && p2.catch) p2.catch(function(){});
+    var p = a.play();
+    if(p && p.catch) p.catch(function(){});
   }catch(e){}
-
-  var startAt = Date.now();
-  _setupBgmRampTimer = setInterval(function(){
-    if(!_setupBgm || _setupBgmKind !== 'waiting'){
-      try{ clearInterval(_setupBgmRampTimer); }catch(e){}
-      _setupBgmRampTimer = null;
-      return;
-    }
-    var elapsed = (Date.now() - startAt) / 1000;
-    if(elapsed < 5){
-      try{ _setupBgm.volume = 0.10; }catch(e){}
-    } else if(elapsed < 10){
-      // ramp 10% → 25% over seconds 5–10
-      var t = (elapsed - 5) / 5;
-      try{ _setupBgm.volume = 0.10 + t * 0.15; }catch(e){}
-    } else {
-      try{ _setupBgm.volume = 0.25; }catch(e){}
-      try{ clearInterval(_setupBgmRampTimer); }catch(e){}
-      _setupBgmRampTimer = null;
-    }
-  }, 200);
+  try{ setupBgmUpdateStopBtn(); }catch(e){}
 }
+
+// Sticky Stop music — always available during tower setup for pointer + screen reader
+try{
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if(!t) return;
+    if(t.id === 'btnSetupBgmStop' || (t.closest && t.closest('#btnSetupBgmStop'))){
+      try{ setupBgmStop(); }catch(e){}
+      try{ announce('Background music stopped'); }catch(e){}
+    }
+  });
+}catch(e){}
 
 
 /* ========== REGISTRATIONS ========== */
@@ -11449,9 +11486,9 @@ function startTimerLoop(){
     const el=$('pTimer');
     if(T.bid.phase==='await_host'){
       if(el){ el.textContent='Waiting for host decision'; el.className='timer-box warn'; }
-      // Keep decision buttons alive every tick (recreate if wiped or detached)
+      // Keep decision panel until host acts — recreate if wiped/detached (skip only while confirm modal is open)
       try{
-        if(user && T.ownerId===user.uid && !window._lotBusy && !window._modalOpen){
+        if(user && T.ownerId===user.uid && !window._modalOpen){
           var needPanel = !$('decExtend') || !$('decUnsold') || !$('hostDecisionPanel') ||
             !document.body.contains($('hostDecisionPanel'));
           if(needPanel){
@@ -11550,7 +11587,7 @@ async function onTimerExpired(){
 function showHostTimerDecision(hasLeader){
   if(!T || !user || T.ownerId !== user.uid) return;
   if(!T.bid || T.bid.phase!=='await_host') return;
-  if(window._lotBusy) return;
+  // Do NOT return on _lotBusy — panel must stay visible until host acts
   const box=$('aucPlayer');
   if(!box) return;
   const lotKey='dec|'+(T.bid.playerIndex)+'|'+(T.bid.price)+'|'+(T.bid.leaderTeamId||'');
@@ -11558,18 +11595,59 @@ function showHostTimerDecision(hasLeader){
   window._hostDecKey = lotKey;
 
   let mount=$('hostDecisionMount');
-  if(!mount){
+  if(!mount || !box.contains(mount)){
     mount=document.createElement('div');
     mount.id='hostDecisionMount';
     box.appendChild(mount);
   }
-  // Always recreate panel so buttons cannot stay detached / empty after dialog
+
+  // Keep existing panel if buttons are still in the document for this lot
+  // (avoids SR focus loss and accidental disappearance until host acts)
   let panel=$('hostDecisionPanel');
+  var hasExtend = !!(panel && document.body.contains(panel) && $('decExtend'));
+  var hasUnsold = !!(panel && document.body.contains(panel) && $('decUnsold'));
+  var hasSoldOk = hasLeader ? !!(panel && $('decSold')) : !(panel && $('decSold'));
+  if(hasExtend && hasUnsold && hasSoldOk && !firstTime){
+    // Re-wire only if handlers were lost; leave DOM intact
+    function reShowKeep(){
+      try{
+        window._hostDecKey = null;
+        if(T && T.bid && T.bid.phase==='await_host'){
+          showHostTimerDecision(!!(T.bid && T.bid.leaderTeamId));
+        }
+      }catch(e){}
+    }
+    if($('decExtend') && !$('decExtend')._hcWired){
+      $('decExtend')._hcWired=true;
+      $('decExtend').onclick=function(){
+        if(window._lotBusy) return;
+        ask('Extend timer?','Start a fresh timer for this player?', async function(){ await hostExtend(); }, { onNo: reShowKeep });
+      };
+    }
+    if($('decSold') && !$('decSold')._hcWired){
+      $('decSold')._hcWired=true;
+      $('decSold').onclick=function(){
+        if(window._lotBusy) return;
+        ask('Confirm sold?','Sell to '+(T.bid.leaderTeamName||'')+' for '+(T.bid.price||'')+'?', function(){ finalizeSold(T.bid.leaderTeamId, T.bid.price); }, { onNo: reShowKeep });
+      };
+    }
+    if($('decUnsold') && !$('decUnsold')._hcWired){
+      $('decUnsold')._hcWired=true;
+      $('decUnsold').onclick=function(){
+        if(window._lotBusy) return;
+        ask('Mark unsold?','Mark this player unsold and continue?', function(){ finalizeUnsold(); }, { onNo: reShowKeep });
+      };
+    }
+    return;
+  }
+
   if(panel && panel.parentNode){ try{ panel.parentNode.removeChild(panel); }catch(e){} }
   panel=document.createElement('div');
   panel.id='hostDecisionPanel';
   panel.className='panel';
   panel.style.marginTop='12px';
+  panel.setAttribute('role','region');
+  panel.setAttribute('aria-label','Host decision — time ran out');
   mount.appendChild(panel);
 
   const lead=hasLeader?('Lead: '+(T.bid.leaderTeamName||'')+' at '+T.bid.price):'No leading bid';
@@ -11588,18 +11666,27 @@ function showHostTimerDecision(hasLeader){
       }
     }catch(e){}
   }
-  if($('decExtend')) $('decExtend').onclick=function(){
-    if(window._lotBusy) return;
-    ask('Extend timer?','Start a fresh timer for this player?', async function(){ await hostExtend(); }, { onNo: reShow });
-  };
-  if($('decSold')) $('decSold').onclick=function(){
-    if(window._lotBusy) return;
-    ask('Confirm sold?','Sell to '+(T.bid.leaderTeamName||'')+' for '+(T.bid.price||'')+'?', function(){ finalizeSold(T.bid.leaderTeamId, T.bid.price); }, { onNo: reShow });
-  };
-  if($('decUnsold')) $('decUnsold').onclick=function(){
-    if(window._lotBusy) return;
-    ask('Mark unsold?','Mark this player unsold and continue?', function(){ finalizeUnsold(); }, { onNo: reShow });
-  };
+  if($('decExtend')){
+    $('decExtend')._hcWired=true;
+    $('decExtend').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Extend timer?','Start a fresh timer for this player?', async function(){ await hostExtend(); }, { onNo: reShow });
+    };
+  }
+  if($('decSold')){
+    $('decSold')._hcWired=true;
+    $('decSold').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Confirm sold?','Sell to '+(T.bid.leaderTeamName||'')+' for '+(T.bid.price||'')+'?', function(){ finalizeSold(T.bid.leaderTeamId, T.bid.price); }, { onNo: reShow });
+    };
+  }
+  if($('decUnsold')){
+    $('decUnsold')._hcWired=true;
+    $('decUnsold').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Mark unsold?','Mark this player unsold and continue?', function(){ finalizeUnsold(); }, { onNo: reShow });
+    };
+  }
   if(firstTime){
     focusEl($('decExtend')||$('hostDecH'));
     const awaitKey='await|'+(T.bid.playerIndex)+'|'+(T.bid.price||'');

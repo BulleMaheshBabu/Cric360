@@ -4304,11 +4304,11 @@ function applyAppBackStep(){
   return false;
 }
 function isSuperAdmin(){
-  const em=(user&&user.email||'').toLowerCase();
-  return SUPER_ADMIN_EMAILS.includes(em) || !!(profile&&profile.superAdmin);
+  const em=(user&&user.email||'').toLowerCase().trim();
+  return SUPER_ADMIN_EMAILS.includes(em);
 }
 function isAdmin(){
-  const em=(user&&user.email||'').toLowerCase();
+  const em=(user&&user.email||'').toLowerCase().trim();
   return ADMIN_EMAILS.includes(em) || isSuperAdmin();
 }
 function canCreate(){
@@ -5332,10 +5332,11 @@ async function refreshAdminOrgLists(){
   if(!oBox||!pBox) return;
   oBox.innerHTML='Loading…'; pBox.innerHTML='Loading…';
   if(!isSuperAdmin() && !isAdmin()){
-    oBox.innerHTML='<p style="color:var(--muted)">Admin only.</p>';
+    oBox.innerHTML='<p style="color:var(--muted)">Admin only. Sign in with an admin email.</p>';
     pBox.innerHTML='';
     return;
   }
+  // Organisers list
   try{
     const users=await db.collection('users').where('isOrganiser','==',true).get();
     oBox.innerHTML='';
@@ -5353,13 +5354,29 @@ async function refreshAdminOrgLists(){
       rem.onclick=()=>ask('Remove organiser?','Remove access for '+(d.email||'')+'?', async()=>{ try{ await doc.ref.set({isOrganiser:false,orgPaused:false},{merge:true}); refreshAdminOrgLists(); }catch(e){ safeAlert(e); } });
       row.appendChild(pause); row.appendChild(rem); div.appendChild(row); oBox.appendChild(div);
     });
-
-    const pend=await db.collection('organiserRequests').where('status','==','pending').get();
+  }catch(e){
+    console.error('organisers list', e);
+    oBox.innerHTML='<p style="color:var(--danger,#ef4444)">Could not load organisers. '+(e.message||e)+'</p><p style="color:var(--muted);font-size:13px">Deploy latest firestore.rules, then refresh.</p>';
+  }
+  // Pending requests — prefer status query; fall back to full collection filter
+  try{
+    var pendDocs = [];
+    try{
+      const pend=await db.collection('organiserRequests').where('status','==','pending').get();
+      pend.forEach(function(doc){ pendDocs.push(doc); });
+    }catch(qErr){
+      console.warn('pending query failed, fallback', qErr);
+      const all=await db.collection('organiserRequests').get();
+      all.forEach(function(doc){
+        var d=doc.data()||{};
+        if(d.status==='pending') pendDocs.push(doc);
+      });
+    }
     pBox.innerHTML='';
-    if(pend.empty){
+    if(!pendDocs.length){
       pBox.innerHTML='<p style="color:var(--muted)">No pending requests.</p>';
     } else {
-      pend.forEach(doc=>{
+      pendDocs.forEach(doc=>{
         const d=doc.data()||{};
         const div=document.createElement('div'); div.className='panel'; div.style.marginTop='8px';
         div.innerHTML='<strong>'+(d.displayName||d.email||'User')+'</strong><br><span style="color:var(--muted)">'+(d.email||'')+'</span>';
@@ -5367,7 +5384,7 @@ async function refreshAdminOrgLists(){
         const ok=document.createElement('button'); ok.type='button'; ok.className='btn-ok'; ok.textContent='Approve';
         ok.onclick=async()=>{
           try{
-            if(!d.uid){ alert('Missing user id'); return; }
+            if(!d.uid){ alert('Missing user id on request'); return; }
             await db.collection('users').doc(d.uid).set({isOrganiser:true,orgPaused:false},{merge:true});
             await doc.ref.set({status:'approved', approvedAt:Date.now(), approvedBy:user.uid},{merge:true});
             refreshAdminOrgLists();
@@ -5384,9 +5401,8 @@ async function refreshAdminOrgLists(){
       });
     }
   }catch(e){
-    console.error('refreshAdminOrgLists', e);
-    oBox.innerHTML='<p style="color:var(--danger,#ef4444)">Could not load. '+(e.message||e)+'</p>';
-    pBox.innerHTML='';
+    console.error('pending list', e);
+    pBox.innerHTML='<p style="color:var(--danger,#ef4444)">Could not load pending. '+(e.message||e)+'</p><p style="color:var(--muted);font-size:13px">Deploy latest firestore.rules as admin, hard-refresh, sign in again.</p>';
   }
 }
 
@@ -15091,26 +15107,35 @@ async function saveGamesPreference(){
   if($('btnGamesPrefSave')) $('btnGamesPrefSave').disabled = true;
   if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Saving…';
   try{
-    await ensureGamePlayerDoc(user.uid, email, userId);
+    // 1) users profile (self-update allowed)
     await db.collection('users').doc(user.uid).set({
       gameUserId: userId,
       gamePlayerKey: key,
       email: email
     }, { merge:true });
+
+    // 2) career doc — uid must match auth (rules)
     await db.collection('gamePlayers').doc(key).set({
       playerKey: key,
       userId: userId,
       uid: user.uid,
       email: email,
       displayName: user.displayName||userId,
+      matchesPlayed: firebase.firestore.FieldValue.increment(0),
+      matchesWon: firebase.firestore.FieldValue.increment(0),
+      runsScored: firebase.firestore.FieldValue.increment(0),
+      wicketsTaken: firebase.firestore.FieldValue.increment(0),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge:true });
+
     if($('gamePrefStatus')) $('gamePrefStatus').textContent = '';
     setGamesPrefMode(true, userId);
     try{ if(typeof announce==='function') announce('Display name saved'); }catch(e){}
   }catch(e){
-    if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Could not save.';
-    safeAlert(e);
+    console.error('saveGamesPreference', e);
+    var msg = (e && (e.message||e.code)) || 'permission error';
+    if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Could not save: '+msg;
+    try{ alert('Could not save display name.\n'+msg+'\n\nDeploy the latest firestore.rules, then try again.'); }catch(e2){}
   }finally{
     updateGamesSaveEnabled();
   }
@@ -15142,11 +15167,13 @@ async function ensureGamePlayerOnLogin(){
         wicketsTaken: 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge:true });
+      });
     } else {
+      // claim/repair ownership fields only
       await ref.set({
         uid: user.uid,
         email: email,
+        playerKey: key,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge:true });
     }

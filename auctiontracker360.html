@@ -1673,6 +1673,19 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   width:100%;min-height:52px;border:none;border-radius:14px;margin-top:8px;
   background:#fff;color:#1a0a2e;font-weight:800;font-size:16px;cursor:pointer;
 }
+/* Sticky stop-music control during tower / create-auction setup */
+.setup-bgm-bar{
+  position:sticky;top:0;z-index:60;
+  display:flex;justify-content:flex-end;align-items:center;
+  padding:6px 0 8px;margin:0 0 4px;
+  background:linear-gradient(180deg,var(--bg-base) 70%,transparent);
+}
+.setup-bgm-stop{
+  min-height:44px;min-width:120px;padding:10px 16px;
+  font-weight:800;font-size:14px;border-radius:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);
+}
+.setup-bgm-stop[hidden]{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -1822,10 +1835,10 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 </section>
 
 <!-- Toss / decision modal – Hand Cricket style -->
-<div id="gameTossModal" class="hidden hc-theme" style="position:fixed;inset:0;z-index:240;display:flex;align-items:center;justify-content:center" role="dialog" aria-modal="true" aria-label="Toss">
+<div id="gameTossModal" class="hidden hc-theme" style="position:fixed;inset:0;z-index:240;display:flex;align-items:center;justify-content:center" role="dialog" aria-modal="true" aria-labelledby="gameTossDialogTitle" aria-label="Toss">
   <div class="hc-toss-inner">
     <div class="hc-toss-header">
-      <h2>HAND CRICKET</h2>
+      <h2 id="gameTossDialogTitle" tabindex="-1">HAND CRICKET</h2>
       <p>Toss Selection</p>
     </div>
     <div id="gameTossStepCoin">
@@ -1846,7 +1859,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       </div>
     </div>
     <div id="gameTossStepResult" class="hidden">
-      <div class="hc-coin-wrap"><div class="hc-coin" id="hcCoinResult">₹</div></div>
+      <div class="hc-coin-wrap" aria-hidden="true"><div class="hc-coin" id="hcCoinResult">₹</div></div>
       <div class="hc-result-box">
         <h3 id="gameTossResultText"></h3>
         <p id="gameTossWaitLine" class="hidden"></p>
@@ -1898,40 +1911,40 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       </div>
     </div>
   </div>
-  <p class="hc-welcome" id="gLiveWelcome">Welcome</p>
+  <p class="hc-welcome" id="gLiveWelcome" aria-hidden="true">Welcome</p>
   <!-- hidden legacy score line for a11y / existing JS -->
-  <div id="gLiveScoreLine" class="sr-only score-line" tabindex="0" role="status" aria-live="polite"></div>
+  <div id="gLiveScoreLine" class="sr-only score-line" aria-hidden="true"></div>
 
   <div class="hc-card" id="hcPlayCard">
     <p class="hc-over-label" id="hcOverLabel">This Over</p>
-    <div class="hc-hands-row">
+    <div class="hc-hands-row" aria-hidden="true">
       <div class="hc-hand-slot" id="gLiveLeftBox">
-        <div class="hc-hand-icon" id="gLiveLeftHand">✊</div>
+        <div class="hc-hand-icon" id="gLiveLeftHand" aria-hidden="true">✊</div>
         <div class="hc-hand-name" id="gLiveLeftPlayer">—</div>
         <div class="hc-hand-role" id="gLiveLeftRole">—</div>
-        <div id="gLiveLeftPrompt" class="sr-only"></div>
-        <div id="gLiveLeftNum" class="sr-only"></div>
+        <div id="gLiveLeftPrompt" class="sr-only" aria-hidden="true"></div>
+        <div id="gLiveLeftNum" class="sr-only" aria-hidden="true"></div>
       </div>
-      <div class="hc-result-badge runs" id="hcResultBadge">—</div>
+      <div class="hc-result-badge runs" id="hcResultBadge" aria-hidden="true">—</div>
       <div class="hc-hand-slot" id="gLiveRightBox">
-        <div class="hc-hand-icon" id="gLiveRightHand">✊</div>
+        <div class="hc-hand-icon" id="gLiveRightHand" aria-hidden="true">✊</div>
         <div class="hc-hand-name" id="gLiveRightPlayer">—</div>
         <div class="hc-hand-role" id="gLiveRightRole">—</div>
-        <div id="gLiveRightPrompt" class="sr-only"></div>
-        <div id="gLiveRightNum" class="sr-only"></div>
+        <div id="gLiveRightPrompt" class="sr-only" aria-hidden="true"></div>
+        <div id="gLiveRightNum" class="sr-only" aria-hidden="true"></div>
       </div>
     </div>
   </div>
 
-  <p class="hc-select-label" id="hcSelectLabel">Select your Hit</p>
+  <p class="hc-select-label" id="hcSelectLabel" role="status" aria-live="polite" aria-atomic="true">Select your Hit</p>
   <div id="gamePadWrap">
-    <div class="hc-num-row" id="hcNumRow">
-      <button type="button" class="hc-num-btn game-num-btn" data-n="1"><span class="hc-bat">🏏</span>1</button>
-      <button type="button" class="hc-num-btn game-num-btn" data-n="2"><span class="hc-bat">🏏</span>2</button>
-      <button type="button" class="hc-num-btn game-num-btn" data-n="3"><span class="hc-bat">🏏</span>3</button>
-      <button type="button" class="hc-num-btn game-num-btn" data-n="4"><span class="hc-bat">🏏</span>4</button>
-      <button type="button" class="hc-num-btn game-num-btn" data-n="5"><span class="hc-bat">🏏</span>5</button>
-      <button type="button" class="hc-num-btn game-num-btn" data-n="6"><span class="hc-bat">🏏</span>6</button>
+    <div class="hc-num-row" id="hcNumRow" role="group" aria-label="Number pad">
+      <button type="button" class="hc-num-btn game-num-btn" data-n="1" aria-label="1"><span class="hc-bat" aria-hidden="true">🏏</span><span aria-hidden="true">1</span></button>
+      <button type="button" class="hc-num-btn game-num-btn" data-n="2" aria-label="2"><span class="hc-bat" aria-hidden="true">🏏</span><span aria-hidden="true">2</span></button>
+      <button type="button" class="hc-num-btn game-num-btn" data-n="3" aria-label="3"><span class="hc-bat" aria-hidden="true">🏏</span><span aria-hidden="true">3</span></button>
+      <button type="button" class="hc-num-btn game-num-btn" data-n="4" aria-label="4"><span class="hc-bat" aria-hidden="true">🏏</span><span aria-hidden="true">4</span></button>
+      <button type="button" class="hc-num-btn game-num-btn" data-n="5" aria-label="5"><span class="hc-bat" aria-hidden="true">🏏</span><span aria-hidden="true">5</span></button>
+      <button type="button" class="hc-num-btn game-num-btn" data-n="6" aria-label="6"><span class="hc-bat" aria-hidden="true">🏏</span><span aria-hidden="true">6</span></button>
     </div>
   </div>
 
@@ -2052,6 +2065,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <button type="button" class="menu-item" id="btnSetSounds">Sounds</button>
     <button type="button" class="menu-item hidden" id="btnSetAdmin">Permissions</button>
     <button type="button" class="menu-item" id="btnSetRegPref">Registrations preference</button>
+    <button type="button" class="menu-item" id="btnSetGamesPref">Games preference</button>
     <button type="button" class="menu-item" id="btnSetNotifications">Notifications</button>
     <button type="button" class="menu-item" id="btnSetAbout">About</button>
   </div>
@@ -2123,6 +2137,23 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <div id="regPrefFormBody"></div>
     <p id="regPrefStatus" class="set-status" role="status"></p>
     <button type="button" id="btnRegPrefSave" class="btn-ok btn-block">Save preference</button>
+  </div>
+
+  <div id="panelGamesPref" class="set-panel hidden" aria-label="Games preference">
+    <p class="set-status" id="gamesPrefHint">Choose a user ID for 1vs1 games. Stats are stored under a permanent player key from your email — changing your user ID later will not reset stats.</p>
+    <label class="set-label" for="gameUserIdInput">User ID</label>
+    <input id="gameUserIdInput" type="text" maxlength="32" autocomplete="username" placeholder="e.g. MaheshBat" aria-describedby="gamesPrefHint" style="width:100%;min-height:48px;font-size:16px;margin-bottom:8px" />
+    <p class="set-label" style="margin-top:4px">Player key (from email)</p>
+    <p id="gamePlayerKeyLabel" class="set-status" style="word-break:break-all;font-family:monospace;font-size:13px">—</p>
+    <p class="set-label" style="margin-top:12px">Your stats</p>
+    <div id="gameStatsBox" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Matches played</div><div id="gsPlayed" style="font-weight:800;font-size:1.2rem">0</div></div>
+      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Matches won</div><div id="gsWon" style="font-weight:800;font-size:1.2rem">0</div></div>
+      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Runs scored</div><div id="gsRuns" style="font-weight:800;font-size:1.2rem">0</div></div>
+      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Wickets taken</div><div id="gsWickets" style="font-weight:800;font-size:1.2rem">0</div></div>
+    </div>
+    <p id="gamesPrefStatus" class="set-status" role="status"></p>
+    <button type="button" id="btnGamesPrefSave" class="btn-ok btn-block">Save</button>
   </div>
 
     <div id="panelNotifications" class="set-panel hidden" aria-label="Notifications">
@@ -2263,6 +2294,10 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 
 
 <section id="screenWizard" class="wrap panel hidden" role="region" aria-labelledby="wizTitle">
+  <div id="setupBgmBar" class="setup-bgm-bar" role="region" aria-label="Background music controls">
+    <button type="button" id="btnSetupBgmStop" class="btn-sec setup-bgm-stop" hidden aria-hidden="true"
+      aria-label="Stop background music">Stop music</button>
+  </div>
   <p class="progress" id="wizProgress">Step 1</p>
   <h1 id="wizTitle" tabindex="-1">Create tournament</h1>
   <div id="wizBody"></div>
@@ -4502,6 +4537,13 @@ function closeConfirm(fromNo){
   if(fromNo && typeof noFn==='function'){
     try{ noFn(); }catch(e){}
   }
+  // Virtual mode: decision panel must stay until host acts — restore after any cancel
+  try{
+    if(T && T.bid && T.bid.phase==='await_host' && user && T.ownerId===user.uid){
+      window._hostDecKey = null;
+      showHostTimerDecision(!!T.bid.leaderTeamId);
+    }
+  }catch(e){}
 }
 $('cYes').onclick=()=>{
   const f=pendingFn;
@@ -5158,7 +5200,7 @@ $('btnLogout').onclick=()=>{ if(!confirm('Are you sure you want to sign out from
 window._settingsPanel='menu';
 function showSettingsPanel(which){
   const menu=$('settingsMenu');
-  const panels=['panelProfile','panelCommentary','panelSounds','panelRegPref','panelNotifications','panelAbout','panelAdmin'];
+  const panels=['panelProfile','panelCommentary','panelSounds','panelRegPref','panelGamesPref','panelNotifications','panelAbout','panelAdmin'];
   which=which||'menu';
   const prev = window._settingsPanel;
   window._settingsPanel=which;
@@ -5180,7 +5222,7 @@ function showSettingsPanel(which){
     return;
   }
   if(menu){ menu.classList.add('hidden'); menu.setAttribute('aria-hidden','true'); menu.setAttribute('inert',''); }
-  const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', regpref:'panelRegPref', notifications: 'panelNotifications', about:'panelAbout', admin:'panelAdmin' };
+  const map={ profile:'panelProfile', commentary:'panelCommentary', sounds:'panelSounds', regpref:'panelRegPref', gamespref:'panelGamesPref', notifications: 'panelNotifications', about:'panelAbout', admin:'panelAdmin' };
   const id=map[which];
   if($(id)){
     $(id).classList.remove('hidden');
@@ -5232,6 +5274,7 @@ document.addEventListener('click', function(ev){
   if(t.id==='btnSetCommentary'){ showSettingsPanel('commentary'); try{wireTtsSettings();}catch(e){} }
   if(t.id==='btnSetSounds'){ showSettingsPanel('sounds'); try{wireSfxSettings();}catch(e){} }
   if(t.id==='btnSetRegPref'){ showSettingsPanel('regpref'); try{ openRegPrefPanel(); }catch(e){} }
+  if(t.id==='btnSetGamesPref'){ showSettingsPanel('gamespref'); try{ openGamesPrefPanel(); }catch(e){} }
   if(t.id==='btnSetNotifications'){ showSettingsPanel('notifications'); try{ refreshNotifPanel(); restoreFcmTokenIfGranted(); }catch(e){} }
   if(t.id==='btnSetAbout') showSettingsPanel('about');
   if(t.id==='btnSetAdmin'){ showSettingsPanel('admin'); }
@@ -5644,8 +5687,8 @@ function applyAuctionData(data){
     aiInsights: Array.isArray(data.aiInsights) ? data.aiInsights : [],
     aiInsight: data.aiInsight || null,
     voiceCall: data.voiceCall || null,
-    intermissionSec:data.intermissionSec||5, intermissionUntil:data.intermissionUntil||null,
-    playerAdvance: data.playerAdvance==='manual'?'manual':'auto',
+    intermissionSec:0, intermissionUntil:null, // permanent: no auto gap seconds
+    playerAdvance: 'manual', // permanent manual — ignore legacy auto
     awaitNextPlayer: keepLotLocal && T ? !!T.awaitNextPlayer : !!data.awaitNextPlayer,
     playersStorage: data.playersStorage || (Array.isArray(data.players) && data.players.length ? 'embedded' : 'subcollection'),
     playersCount: data.playersCount != null ? data.playersCount : (nextPlayers.length || 0),
@@ -5731,17 +5774,14 @@ function applyAuctionData(data){
     if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
     T.intermissionUntil=null;
   }
-  // Recover stuck gap (automatic only)
-  else if(T.bid && T.bid.phase==='intermission' && !(T.intermissionUntil && T.intermissionUntil>Date.now()) && T.playerAdvance!=='manual'){
-    T.bid.phase='contest';
-    if(!T.bid.timerEndsAt || Date.now() >= T.bid.timerEndsAt){
-      T.bid.timerEndsAt=Date.now()+((T.rules&&T.rules.contestSeconds)||30)*1000;
-    }
-    if(T.meta && T.bid.playerIndex == null) T.bid.playerIndex = T.meta.currentIndex || 0;
+  // Legacy intermission phase → convert to manual Next player wait
+  else if(T.bid && T.bid.phase==='intermission'){
+    T.awaitNextPlayer = true;
+    T.bid.phase = 'await_next';
+    T.bid.timerEndsAt = null;
     T.intermissionUntil = null;
-    window._gapPendingPlayer=false;
-    window._gapEndedLocal=true;
-    if(window._sayPlayerKey==='__in_gap__') window._sayPlayerKey=null;
+    window._gapPendingPlayer = true;
+    window._gapEndedLocal = false;
   }
   try{
     const onAuction=$('screenAuction') && !$('screenAuction').classList.contains('hidden');
@@ -6767,15 +6807,23 @@ function updateTimerDisplay(el, endsAt, phase){
 
 /* ===== Setup background music (background.mp3 / waiting.mp3) =====
    Host places files next to the HTML: background.mp3, waiting.mp3
-   - Create auction → background at 25%, loops
-   - Invite / copy-link step (virtual) → waiting: 5s@10%, ramp 5s→25%, then 25% loop
-   - Go live / cancel → stop all
+   - Always 15% of HTML media max (device system volume still multiplies)
+   - Sticky Stop / Play music on wizard (soft pause + resume)
+   - Go live / cancel → hard stop (destroy player)
 */
 var _setupBgm = null; // HTMLAudioElement
 var _setupBgmKind = null; // 'background' | 'waiting'
 var _setupBgmFadeTimer = null;
 var _setupBgmRampTimer = null;
+var _setupBgmUserPaused = false; // soft-paused via Stop — can Resume
+/** Fixed 15% of HTML media element max (0–1). */
+var SETUP_BGM_VOLUME = 0.15;
 
+function setupBgmApplyVolume(){
+  try{ if(_setupBgm) _setupBgm.volume = SETUP_BGM_VOLUME; }catch(e){}
+}
+
+/** Hard stop — destroy player (leave wizard / go live). */
 function setupBgmStop(){
   try{
     if(_setupBgmFadeTimer){ clearInterval(_setupBgmFadeTimer); _setupBgmFadeTimer=null; }
@@ -6784,6 +6832,9 @@ function setupBgmStop(){
   try{
     if(_setupBgm){
       _setupBgm.onended = null;
+      _setupBgm.ontimeupdate = null;
+      _setupBgm.onplay = null;
+      _setupBgm.onplaying = null;
       _setupBgm.pause();
       _setupBgm.removeAttribute('src');
       try{ _setupBgm.load(); }catch(e2){}
@@ -6791,74 +6842,140 @@ function setupBgmStop(){
   }catch(e){}
   _setupBgm = null;
   _setupBgmKind = null;
+  _setupBgmUserPaused = false;
+  try{ setupBgmUpdateStopBtn(); }catch(e){}
+}
+
+/** Soft pause — keep track so user can resume at 15%. */
+function setupBgmPause(){
+  try{
+    if(_setupBgm && !_setupBgm.paused){
+      _setupBgm.pause();
+      _setupBgmUserPaused = true;
+    }
+  }catch(e){}
+  try{ setupBgmUpdateStopBtn(); }catch(e){}
+}
+
+/** Resume after soft pause, same track, still 15%. */
+function setupBgmResume(){
+  if(!_setupBgm || !_setupBgmKind){
+    try{ setupBgmPlay('background'); }catch(e){}
+    return;
+  }
+  _setupBgmUserPaused = false;
+  setupBgmApplyVolume();
+  try{
+    var p = _setupBgm.play();
+    if(p && p.catch) p.catch(function(){});
+  }catch(e){}
+  try{ setupBgmUpdateStopBtn(); }catch(e){}
+}
+
+function setupBgmIsPlaying(){
+  try{ return !!(!_setupBgm ? false : (!_setupBgm.paused && !_setupBgmUserPaused)); }catch(e){ return false; }
+}
+
+function setupBgmUpdateStopBtn(){
+  var btn = $('btnSetupBgmStop');
+  if(!btn) return;
+  var onWizard = false;
+  try{
+    var sw = $('screenWizard');
+    onWizard = !!(sw && !sw.classList.contains('hidden'));
+  }catch(e){}
+  if(!onWizard){
+    btn.hidden = true;
+    btn.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  btn.hidden = false;
+  btn.setAttribute('aria-hidden', 'false');
+  btn.removeAttribute('tabindex');
+  var playing = setupBgmIsPlaying();
+  if(playing){
+    btn.textContent = 'Stop music';
+    btn.setAttribute('aria-label', 'Stop background music');
+    btn.setAttribute('aria-pressed', 'false');
+  } else {
+    btn.textContent = 'Play music';
+    btn.setAttribute('aria-label', 'Play background music at low volume');
+    btn.setAttribute('aria-pressed', 'true');
+  }
 }
 
 function setupBgmPlay(kind){
-  // kind: 'background' | 'waiting'
   if(kind !== 'background' && kind !== 'waiting') return;
-  if(_setupBgmKind === kind && _setupBgm && !_setupBgm.paused) return; // already playing this track
-  setupBgmStop();
+  _setupBgmUserPaused = false;
+  if(_setupBgmKind === kind && _setupBgm){
+    setupBgmApplyVolume();
+    if(_setupBgm.paused){
+      try{
+        var pr = _setupBgm.play();
+        if(pr && pr.catch) pr.catch(function(){});
+      }catch(e){}
+    }
+    try{ setupBgmUpdateStopBtn(); }catch(e){}
+    return;
+  }
+  try{
+    if(_setupBgmFadeTimer){ clearInterval(_setupBgmFadeTimer); _setupBgmFadeTimer=null; }
+    if(_setupBgmRampTimer){ clearInterval(_setupBgmRampTimer); _setupBgmRampTimer=null; }
+  }catch(e){}
+  try{
+    if(_setupBgm){
+      _setupBgm.onended = null;
+      _setupBgm.ontimeupdate = null;
+      _setupBgm.pause();
+      _setupBgm.removeAttribute('src');
+      try{ _setupBgm.load(); }catch(e2){}
+    }
+  }catch(e){}
+
   var src = kind === 'waiting' ? 'waiting.mp3' : 'background.mp3';
   var a = new Audio();
   a.preload = 'auto';
-  a.loop = false; // we handle restart ourselves for volume control
+  a.loop = true;
   a.src = src;
+  a.volume = SETUP_BGM_VOLUME;
   _setupBgm = a;
   _setupBgmKind = kind;
 
-  function restartSameVol(){
-    if(!_setupBgm || _setupBgmKind !== kind) return;
+  a.ontimeupdate = function(){
     try{
-      _setupBgm.currentTime = 0;
-      var p = _setupBgm.play();
-      if(p && p.catch) p.catch(function(){});
+      if(_setupBgm && Math.abs((_setupBgm.volume||0) - SETUP_BGM_VOLUME) > 0.005){
+        _setupBgm.volume = SETUP_BGM_VOLUME;
+      }
     }catch(e){}
-  }
-
-  if(kind === 'background'){
-    a.volume = 0.15;
-    a.onended = function(){ restartSameVol(); };
-    try{
-      var p = a.play();
-      if(p && p.catch) p.catch(function(){ /* autoplay blocked until gesture — create click already is gesture */ });
-    }catch(e){}
-    return;
-  }
-
-  // waiting.mp3: first 5s at 10%, next 5s ramp to 25%, then hold 25%
-  a.volume = 0.10;
-  a.onended = function(){
-    // Restart without fade — stay at 25%
-    if(!_setupBgm || _setupBgmKind !== 'waiting') return;
-    try{ _setupBgm.volume = 0.25; }catch(e){}
-    restartSameVol();
   };
-  try{
-    var p2 = a.play();
-    if(p2 && p2.catch) p2.catch(function(){});
-  }catch(e){}
+  a.onplay = function(){ setupBgmApplyVolume(); };
+  a.onplaying = function(){ setupBgmApplyVolume(); };
 
-  var startAt = Date.now();
-  _setupBgmRampTimer = setInterval(function(){
-    if(!_setupBgm || _setupBgmKind !== 'waiting'){
-      try{ clearInterval(_setupBgmRampTimer); }catch(e){}
-      _setupBgmRampTimer = null;
-      return;
+  try{
+    var p = a.play();
+    if(p && p.then){
+      p.then(function(){ setupBgmApplyVolume(); }).catch(function(){});
     }
-    var elapsed = (Date.now() - startAt) / 1000;
-    if(elapsed < 5){
-      try{ _setupBgm.volume = 0.10; }catch(e){}
-    } else if(elapsed < 10){
-      // ramp 10% → 25% over seconds 5–10
-      var t = (elapsed - 5) / 5;
-      try{ _setupBgm.volume = 0.10 + t * 0.15; }catch(e){}
-    } else {
-      try{ _setupBgm.volume = 0.25; }catch(e){}
-      try{ clearInterval(_setupBgmRampTimer); }catch(e){}
-      _setupBgmRampTimer = null;
-    }
-  }, 200);
+  }catch(e){}
+  try{ setupBgmUpdateStopBtn(); }catch(e){}
 }
+
+// Sticky Stop / Play music during tower setup
+try{
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if(!t) return;
+    if(t.id === 'btnSetupBgmStop' || (t.closest && t.closest('#btnSetupBgmStop'))){
+      if(setupBgmIsPlaying()){
+        try{ setupBgmPause(); }catch(e){}
+        try{ announce('Background music stopped. Press Play music to resume.'); }catch(e){}
+      } else {
+        try{ setupBgmResume(); }catch(e){}
+        try{ announce('Background music playing at low volume.'); }catch(e){}
+      }
+    }
+  });
+}catch(e){}
 
 
 /* ========== REGISTRATIONS ========== */
@@ -7929,7 +8046,7 @@ async function startAuctionFromReg(){
   try{ if(typeof stopWait==='function') stopWait(); }catch(e){}
   try{
     step = 0;
-    wiz = { name: regHostForm.title||'', teamCount:'', purse:'', minP:'', maxP:'', teamNames:[], mode:'physical', rules:{}, playerAdvance:'auto', intermissionSec:5 };
+    wiz = { name: regHostForm.title||'', teamCount:'', purse:'', minP:'', maxP:'', teamNames:[], mode:'physical', rules:{}, playerAdvance:'manual', intermissionSec:0 };
     showScreen('screenWizard');
     if(typeof renderWizard==='function') renderWizard();
     try{ focusEl($('wizTitle')); }catch(e){}
@@ -8567,10 +8684,11 @@ try{ wireRegistrationsUi(); }catch(e){ console.warn('wireRegistrationsUi', e); }
 $('btnCreate').onclick=async()=>{ stopAssignLive(); stopWait();
   await refreshProfile();
   if(!canCreate()){ alert('You need organiser permission.'); return; }
-  wiz={name:'',teamCount:'',purse:'',minP:'',maxP:'',teamNames:[],mode:'physical',rules:{}};
+  wiz={name:'',teamCount:'',purse:'',minP:'',maxP:'',teamNames:[],mode:'physical',rules:{},playerAdvance:'manual',intermissionSec:0};
   step=0; T=null; auctionId=null;
   try{ if(typeof setupBgmPlay==='function') setupBgmPlay('background'); }catch(e){}
   renderWizard(); showScreen('screenWizard');
+  try{ if(typeof setupBgmUpdateStopBtn==='function') setupBgmUpdateStopBtn(); }catch(e){}
 };
 
 function renderWizard(){
@@ -8597,30 +8715,7 @@ function renderWizard(){
       '<label for="arCustom">Custom player counts (comma separated)</label>'+
       '<input id="arCustom" type="text" inputmode="numeric" placeholder="e.g. 5, 10, 12, 14" value="'+((ar.customCounts||[]).join(', '))+'" autocomplete="off" />'+
       '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="arPurse" '+(ar.purse!==false?'checked':'')+' /> Purse used alerts (50%, 75%, 90%)</label>'+
-      '<h2 style="font-size:1.05rem;margin-top:16px">Next player display</h2>'+
-      '<p style="color:var(--muted);font-size:14px">How the next player appears after Sold or Unsold.</p>'+
-      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="radio" name="wAdvance" value="auto" '+(wiz.playerAdvance!=='manual'?'checked':'')+' /> Automatic — short timer, then next player</label>'+
-      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="radio" name="wAdvance" value="manual" '+(wiz.playerAdvance==='manual'?'checked':'')+' /> Manual — host presses Next player</label>'+
-      '<div id="wGapBox" class="'+(wiz.playerAdvance==='manual'?'hidden':'')+'">'+
-      '<label for="wGap">Gap between players (seconds)</label>'+
-      '<select id="wGap" aria-label="Gap between players">'+
-      '<option value="3"'+(wiz.intermissionSec===3?' selected':'')+'>3 seconds</option>'+
-      '<option value="5"'+(wiz.intermissionSec===5||!wiz.intermissionSec?' selected':'')+'>5 seconds</option>'+
-      '<option value="7"'+(wiz.intermissionSec===7?' selected':'')+'>7 seconds</option>'+
-      '<option value="10"'+(wiz.intermissionSec===10?' selected':'')+'>10 seconds</option>'+
-      '</select>'+
-      '<p style="color:var(--muted);font-size:13px">After sold or unsold, a short wait before the next player.</p>'+
-      '</div>'+
-      '<p id="wManualHint" class="'+(wiz.playerAdvance==='manual'?'':'hidden')+'" style="color:var(--muted);font-size:13px">No automatic gap. After Sold/Unsold the host uses <strong>Next player</strong>. Everyone else sees “Waiting for next player” until then.</p>';
-    try{
-      document.querySelectorAll('input[name="wAdvance"]').forEach(function(r){
-        r.onchange=function(){
-          const man=(document.querySelector('input[name="wAdvance"]:checked')||{}).value==='manual';
-          if($('wGapBox')) $('wGapBox').classList.toggle('hidden', man);
-          if($('wManualHint')) $('wManualHint').classList.toggle('hidden', !man);
-        };
-      });
-    }catch(e){}
+      '<p style="color:var(--muted);font-size:14px;margin-top:16px">After Sold or Unsold, the host presses <strong>Next player</strong> to continue. There is no automatic timer between players.</p>';
   }
   else if(step===4){
     let h=''; for(let i=0;i<(wiz.teamCount||0);i++) h+='<label for="tn'+i+'">Team '+(i+1)+' name</label><input id="tn'+i+'" type="text" value="'+(wiz.teamNames[i]||'')+'" />';
@@ -8759,13 +8854,9 @@ function wizardNext(){
       purse: !!$('arPurse').checked,
       fired: {}
     };
-    const advEl=document.querySelector('input[name="wAdvance"]:checked');
-    wiz.playerAdvance=(advEl&&advEl.value==='manual')?'manual':'auto';
-    if(wiz.playerAdvance==='auto'){
-      wiz.intermissionSec=parseInt(($('wGap')&&$('wGap').value)||'5',10)||5;
-    } else {
-      wiz.intermissionSec=0;
-    }
+    // Permanent: manual Next player only — no auto gap / seconds
+    wiz.playerAdvance='manual';
+    wiz.intermissionSec=0;
   }
   else if(step===4){
     wiz.teamNames=[]; for(let i=0;i<wiz.teamCount;i++) wiz.teamNames.push(($('tn'+i).value.trim())||('Team '+(i+1)));
@@ -8775,8 +8866,8 @@ function wizardNext(){
       ownerEmail: (user && user.email) || '',
       ownerName: (user && user.displayName) || '',
       alertRules: wiz.alertRules||{ minPlayers:true, maxPlayers:true, customCounts:[], purse:true, fired:{} },
-      intermissionSec: wiz.intermissionSec||5,
-      playerAdvance: wiz.playerAdvance==='manual'?'manual':'auto',
+      intermissionSec: 0,
+      playerAdvance: 'manual',
       awaitNextPlayer: false };
   }
   else if(step===5){
@@ -8915,9 +9006,9 @@ function buildLivePayload(opts){
     aiInsight: T.aiInsight || null,
     aiInsights: Array.isArray(T.aiInsights) ? T.aiInsights : [],
     voiceCall: T.voiceCall || null,
-    intermissionSec: T.intermissionSec || 5,
+    intermissionSec: 0,
     intermissionUntil: T.intermissionUntil || null,
-    playerAdvance: T.playerAdvance === 'manual' ? 'manual' : 'auto',
+    playerAdvance: 'manual',
     awaitNextPlayer: !!T.awaitNextPlayer,
     // Roster metadata only — full list in subcollection
     playersStorage: 'subcollection',
@@ -10626,11 +10717,20 @@ function reopenCurrentLotTimer(force){
   return true;
 }
 
-/** Host-only: unpause + reopen timer + save + announce once */
+/** Host-only: unpause. Preserve decision / Next-player wait; only reopen contest timer if mid-lot. */
 async function hostResumeAndReopen(){
   if(!T || !user || T.ownerId !== user.uid) return;
   T.paused = false;
-  reopenCurrentLotTimer(true);
+  var phase = T.bid && T.bid.phase;
+  // Do not wipe host decision or Next player wait
+  if(phase === 'await_host' || phase === 'await_next'){
+    // keep bid as-is
+  } else if(T.awaitNextPlayer){
+    if(T.bid){ T.bid.phase = 'await_next'; T.bid.timerEndsAt = null; }
+  } else if(isVirtual()){
+    // Mid-contest (or unknown): fresh timer for current player
+    reopenCurrentLotTimer(true);
+  }
   queueClearSpeech();
   try{ ttsStop(); }catch(e){}
   window._ttsPauseKey = null;
@@ -10638,21 +10738,19 @@ async function hostResumeAndReopen(){
   window._bidFocusKey = null;
   window._pauseFocus = null;
   window._aucSig = null;
-  window._lastPausedFlag = true; // so owner snapshot sees pause→resume flip
+  window._lastPausedFlag = true;
   try{
-    // Explicit pause clear so owners never stay on "waiting for host"
     await saveLivePartial({
       paused: false,
       bid: T.bid || null,
-      intermissionUntil: T.intermissionUntil || null
+      intermissionUntil: null,
+      awaitNextPlayer: !!T.awaitNextPlayer
     }, false);
   }catch(e){ safeAlert(e); return; }
-  // Resume is a user gesture — unlock + welcome only (never call-end tone)
   try{
     unlockSfx();
     playSfx('welcome');
   }catch(e){}
-  // Keep voice end key so stale voiceCall.status=ended cannot replay end.mp3
   try{
     if(T && T.voiceCall && T.voiceCall.status==='ended'){
       window._vcLastStatus = 'ended';
@@ -10660,7 +10758,7 @@ async function hostResumeAndReopen(){
     }
   }catch(e){}
   sayEvent('Host has resumed the bidding.', 'host', false, { priority:'p0' });
-  renderAuction({ focusBid: true });
+  renderAuction({ force: true, focusBid: phase === 'contest' });
 }
 
 function showTimerBanner(msg){
@@ -11165,29 +11263,17 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     const bp = (T.players||[])[bpi];
     if(bp && (bp.sold || bp.unsold || bp.status==='sold' || bp.status==='unsold')){
       try{ const hp=$('hostDecisionPanel'); if(hp && hp.parentNode) hp.parentNode.removeChild(hp); }catch(e){}
-      if(T.playerAdvance==='manual' || T.awaitNextPlayer){
-        T.awaitNextPlayer = true;
-        if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
-        box.innerHTML='<div class="player-stage"><span class="live-pill" aria-hidden="true">LIVE</span>'+
-          '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
-          '<h2 class="player-name" id="pName" tabindex="-1">Waiting for next player</h2>'+
-          '<p style="color:var(--muted)">Press Next player when ready.</p></div>'+
-          (user&&T.ownerId===user.uid ? '<button type="button" id="btnNextPlayer" class="btn-ok btn-block" style="margin-top:12px">Next player</button>' : '')+
-          recentLineHtml(recent);
-        if($('btnNextPlayer')) $('btnNextPlayer').onclick=function(){ hostAdvanceNextPlayer(); };
-        return;
-      }
-      // auto mode: treat as intermission gap
-      if(T.bid){ T.bid.phase='intermission'; T.bid.timerEndsAt=null; }
-      if(!T.intermissionUntil || T.intermissionUntil < Date.now()){
-        T.intermissionUntil = Date.now() + (intermissionSeconds()||5)*1000;
-      }
-      box.innerHTML='<div class="player-stage"><span class="live-pill" aria-hidden="true">Live</span>'+
+      // Permanent: Next player only
+      T.awaitNextPlayer = true;
+      if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
+      T.intermissionUntil = null;
+      box.innerHTML='<div class="player-stage"><span class="live-pill" aria-hidden="true">LIVE</span>'+
         '<p style="margin:8px 0 0;font-size:12px;font-weight:800;color:var(--muted)">PLEASE WAIT</p>'+
-        '<h2 class="player-name" id="pName" tabindex="-1">Waiting for player details</h2>'+
-        '<p style="color:var(--muted)">Next player will appear after the short break.</p></div>'+
+        '<h2 class="player-name" id="pName" tabindex="-1">Waiting for next player</h2>'+
+        '<p style="color:var(--muted)">Press Next player when ready.</p></div>'+
+        (user&&T.ownerId===user.uid ? '<button type="button" id="btnNextPlayer" class="btn-ok btn-block" style="margin-top:12px">Next player</button>' : '')+
         recentLineHtml(recent);
-      ensureIntermissionTicker();
+      if($('btnNextPlayer')) $('btnNextPlayer').onclick=function(){ hostAdvanceNextPlayer(); };
       return;
     }
     const isHost=user&&T.ownerId===user.uid;
@@ -11449,9 +11535,9 @@ function startTimerLoop(){
     const el=$('pTimer');
     if(T.bid.phase==='await_host'){
       if(el){ el.textContent='Waiting for host decision'; el.className='timer-box warn'; }
-      // Keep decision buttons alive every tick (recreate if wiped or detached)
+      // Keep decision panel until host acts — recreate if wiped/detached (skip only while confirm modal is open)
       try{
-        if(user && T.ownerId===user.uid && !window._lotBusy && !window._modalOpen){
+        if(user && T.ownerId===user.uid && !window._modalOpen){
           var needPanel = !$('decExtend') || !$('decUnsold') || !$('hostDecisionPanel') ||
             !document.body.contains($('hostDecisionPanel'));
           if(needPanel){
@@ -11550,7 +11636,7 @@ async function onTimerExpired(){
 function showHostTimerDecision(hasLeader){
   if(!T || !user || T.ownerId !== user.uid) return;
   if(!T.bid || T.bid.phase!=='await_host') return;
-  if(window._lotBusy) return;
+  // Do NOT return on _lotBusy — panel must stay visible until host acts
   const box=$('aucPlayer');
   if(!box) return;
   const lotKey='dec|'+(T.bid.playerIndex)+'|'+(T.bid.price)+'|'+(T.bid.leaderTeamId||'');
@@ -11558,18 +11644,59 @@ function showHostTimerDecision(hasLeader){
   window._hostDecKey = lotKey;
 
   let mount=$('hostDecisionMount');
-  if(!mount){
+  if(!mount || !box.contains(mount)){
     mount=document.createElement('div');
     mount.id='hostDecisionMount';
     box.appendChild(mount);
   }
-  // Always recreate panel so buttons cannot stay detached / empty after dialog
+
+  // Keep existing panel if buttons are still in the document for this lot
+  // (avoids SR focus loss and accidental disappearance until host acts)
   let panel=$('hostDecisionPanel');
+  var hasExtend = !!(panel && document.body.contains(panel) && $('decExtend'));
+  var hasUnsold = !!(panel && document.body.contains(panel) && $('decUnsold'));
+  var hasSoldOk = hasLeader ? !!(panel && $('decSold')) : !(panel && $('decSold'));
+  if(hasExtend && hasUnsold && hasSoldOk && !firstTime){
+    // Re-wire only if handlers were lost; leave DOM intact
+    function reShowKeep(){
+      try{
+        window._hostDecKey = null;
+        if(T && T.bid && T.bid.phase==='await_host'){
+          showHostTimerDecision(!!(T.bid && T.bid.leaderTeamId));
+        }
+      }catch(e){}
+    }
+    if($('decExtend') && !$('decExtend')._hcWired){
+      $('decExtend')._hcWired=true;
+      $('decExtend').onclick=function(){
+        if(window._lotBusy) return;
+        ask('Extend timer?','Start a fresh timer for this player?', async function(){ await hostExtend(); }, { onNo: reShowKeep });
+      };
+    }
+    if($('decSold') && !$('decSold')._hcWired){
+      $('decSold')._hcWired=true;
+      $('decSold').onclick=function(){
+        if(window._lotBusy) return;
+        ask('Confirm sold?','Sell to '+(T.bid.leaderTeamName||'')+' for '+(T.bid.price||'')+'?', function(){ finalizeSold(T.bid.leaderTeamId, T.bid.price); }, { onNo: reShowKeep });
+      };
+    }
+    if($('decUnsold') && !$('decUnsold')._hcWired){
+      $('decUnsold')._hcWired=true;
+      $('decUnsold').onclick=function(){
+        if(window._lotBusy) return;
+        ask('Mark unsold?','Mark this player unsold and continue?', function(){ finalizeUnsold(); }, { onNo: reShowKeep });
+      };
+    }
+    return;
+  }
+
   if(panel && panel.parentNode){ try{ panel.parentNode.removeChild(panel); }catch(e){} }
   panel=document.createElement('div');
   panel.id='hostDecisionPanel';
   panel.className='panel';
   panel.style.marginTop='12px';
+  panel.setAttribute('role','region');
+  panel.setAttribute('aria-label','Host decision — time ran out');
   mount.appendChild(panel);
 
   const lead=hasLeader?('Lead: '+(T.bid.leaderTeamName||'')+' at '+T.bid.price):'No leading bid';
@@ -11588,18 +11715,27 @@ function showHostTimerDecision(hasLeader){
       }
     }catch(e){}
   }
-  if($('decExtend')) $('decExtend').onclick=function(){
-    if(window._lotBusy) return;
-    ask('Extend timer?','Start a fresh timer for this player?', async function(){ await hostExtend(); }, { onNo: reShow });
-  };
-  if($('decSold')) $('decSold').onclick=function(){
-    if(window._lotBusy) return;
-    ask('Confirm sold?','Sell to '+(T.bid.leaderTeamName||'')+' for '+(T.bid.price||'')+'?', function(){ finalizeSold(T.bid.leaderTeamId, T.bid.price); }, { onNo: reShow });
-  };
-  if($('decUnsold')) $('decUnsold').onclick=function(){
-    if(window._lotBusy) return;
-    ask('Mark unsold?','Mark this player unsold and continue?', function(){ finalizeUnsold(); }, { onNo: reShow });
-  };
+  if($('decExtend')){
+    $('decExtend')._hcWired=true;
+    $('decExtend').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Extend timer?','Start a fresh timer for this player?', async function(){ await hostExtend(); }, { onNo: reShow });
+    };
+  }
+  if($('decSold')){
+    $('decSold')._hcWired=true;
+    $('decSold').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Confirm sold?','Sell to '+(T.bid.leaderTeamName||'')+' for '+(T.bid.price||'')+'?', function(){ finalizeSold(T.bid.leaderTeamId, T.bid.price); }, { onNo: reShow });
+    };
+  }
+  if($('decUnsold')){
+    $('decUnsold')._hcWired=true;
+    $('decUnsold').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Mark unsold?','Mark this player unsold and continue?', function(){ finalizeUnsold(); }, { onNo: reShow });
+    };
+  }
   if(firstTime){
     focusEl($('decExtend')||$('hostDecH'));
     const awaitKey='await|'+(T.bid.playerIndex)+'|'+(T.bid.price||'');
@@ -11968,7 +12104,7 @@ function isInGapNow(data){
   return false;
 }
 
-function isManualAdvance(){ return !!(T && T.playerAdvance==='manual'); }
+function isManualAdvance(){ return true; } // permanent: Next player only — no auto gap
 function isAwaitingNextPlayer(){
   if(!T) return false;
   if(T.awaitNextPlayer) return true;
@@ -11976,7 +12112,7 @@ function isAwaitingNextPlayer(){
   return false;
 }
 
-/** Start gap after a lot. Automatic = timer; Manual = wait for host Next player. */
+/** After Sold/Unsold: always wait for host Next player (no auto timer / seconds). */
 function beginIntermission(){
   window._gapPendingPlayer = true;
   window._sayPlayerKey = '__in_gap__';
@@ -11984,24 +12120,11 @@ function beginIntermission(){
   window._playerSfxForGap = false;
   window._gapEndedLocal = false;
   window._allowNextPlayerAnnounce = false;
-  // Drop any queued "now auctioning" lines from the previous advance
   try{ _speechQueue = (_speechQueue||[]).filter(function(x){ return x.category !== 'player'; }); }catch(e){}
-  if(isManualAdvance()){
-    T.awaitNextPlayer = true;
-    T.intermissionUntil = null;
-    if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
-    showIntermissionBar(0);
-    return;
-  }
-  T.awaitNextPlayer = false;
-  const sec = intermissionSeconds();
-  T.intermissionUntil = Date.now() + sec * 1000;
-  if(T.bid){
-    T.bid.phase = 'intermission';
-    T.bid.timerEndsAt = null;
-  }
-  showIntermissionBar(sec);
-  ensureIntermissionTicker();
+  T.awaitNextPlayer = true;
+  T.intermissionUntil = null;
+  if(T.bid){ T.bid.phase='await_next'; T.bid.timerEndsAt=null; }
+  showIntermissionBar(0);
 }
 
 /** Host: open next player (manual mode). Button only works after sold/unsold wait. */
@@ -12231,7 +12354,7 @@ async function afterLotSequence(resultLine, alertLine){
   // Never keep await_host after a lot is decided
   try{
     if(T && T.bid && T.bid.phase==='await_host'){
-      T.bid.phase = (T.playerAdvance==='manual') ? 'await_next' : 'intermission';
+      T.bid.phase = 'await_next';
       T.bid.timerEndsAt = null;
     }
   }catch(e){}
@@ -13483,7 +13606,7 @@ if($('btnLeaveAuc')){
   function sync(){
     var isHost = !!(user && T && T.ownerId===user.uid);
     var isOwn = !!ownerMode && !isHost;
-    if($('btnPauseAuc')) $('btnPauseAuc').classList.toggle('hidden', !isHost || (T && T.status==='ended'));
+    if($('btnPauseAuc')) $('btnPauseAuc').classList.toggle('hidden', !isHost || (T && T.status==='ended') || !!(T && T.paused));
     if($('btnLeaveAuc')) $('btnLeaveAuc').classList.toggle('hidden', !isOwn || (T && T.status==='ended'));
     if($('btnEndAuction')) $('btnEndAuction').classList.toggle('hidden', !isHost);
   }
@@ -14873,6 +14996,240 @@ let gameTimerIv = null;
 let gameBallWatchIv = null;
 let gameHubUnsub = null;
 
+/* ===== Games preference: stable player key from email + career stats =====
+   Player key never changes when user ID (display name) is edited.
+   Collection: gamePlayers/{playerKey}
+   fields: email, uid, userId, matchesPlayed, matchesWon, runsScored, wicketsTaken
+*/
+function normalizeGameEmail(email){
+  return String(email||'').trim().toLowerCase();
+}
+
+/** Deterministic player key from email (not from display name). */
+function gamePlayerKeyFromEmail(email){
+  var e = normalizeGameEmail(email);
+  if(!e) return '';
+  // Stable short key: pk_ + base36-ish hash of email
+  var h = 2166136261;
+  for(var i=0;i<e.length;i++){
+    h ^= e.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  var hex = (h>>>0).toString(16);
+  // Also embed sanitized local-part for readability (not required for uniqueness)
+  var local = e.split('@')[0].replace(/[^a-z0-9]/g,'').slice(0,12) || 'p';
+  return 'pk_' + local + '_' + hex;
+}
+
+async function resolveGameDisplayName(){
+  if(!user) return 'Player';
+  try{
+    if(db){
+      var us = await db.collection('users').doc(user.uid).get();
+      if(us.exists){
+        var d = us.data()||{};
+        if(d.gameUserId) return String(d.gameUserId);
+      }
+    }
+  }catch(e){}
+  return user.displayName||user.email||'Player';
+}
+
+function getMyGamePlayerKey(){
+  if(!user) return '';
+  return gamePlayerKeyFromEmail(user.email||'');
+}
+
+async function openGamesPrefPanel(){
+  if(!user) return;
+  var key = getMyGamePlayerKey();
+  if($('gamePlayerKeyLabel')) $('gamePlayerKeyLabel').textContent = key || 'Sign in with email required';
+  if($('gamesPrefStatus')) $('gamePrefStatus').textContent = '';
+  if($('gameUserIdInput')) $('gameUserIdInput').value = '';
+  // Load from users doc + gamePlayers
+  try{
+    var uidVal = '';
+    if(db && user.uid){
+      var us = await db.collection('users').doc(user.uid).get();
+      if(us.exists){
+        var ud = us.data()||{};
+        uidVal = ud.gameUserId || ud.displayName || '';
+      }
+    }
+    if(!uidVal) uidVal = (user.displayName||'').trim();
+    if($('gameUserIdInput')) $('gameUserIdInput').value = uidVal;
+  }catch(e){}
+  await refreshGamesPrefStats();
+}
+
+async function refreshGamesPrefStats(){
+  var z = function(n){ return String(n==null?0:n); };
+  if($('gsPlayed')) $('gsPlayed').textContent='0';
+  if($('gsWon')) $('gsWon').textContent='0';
+  if($('gsRuns')) $('gsRuns').textContent='0';
+  if($('gsWickets')) $('gsWickets').textContent='0';
+  if(!db||!user) return;
+  var key = getMyGamePlayerKey();
+  if(!key) return;
+  try{
+    var snap = await db.collection('gamePlayers').doc(key).get();
+    if(!snap.exists) return;
+    var d = snap.data()||{};
+    if($('gsPlayed')) $('gsPlayed').textContent = z(d.matchesPlayed);
+    if($('gsWon')) $('gsWon').textContent = z(d.matchesWon);
+    if($('gsRuns')) $('gsRuns').textContent = z(d.runsScored);
+    if($('gsWickets')) $('gsWickets').textContent = z(d.wicketsTaken);
+    if(d.userId && $('gameUserIdInput') && !$('gameUserIdInput').value){
+      $('gameUserIdInput').value = d.userId;
+    }
+  }catch(e){ console.warn('refreshGamesPrefStats', e); }
+}
+
+async function saveGamesPreference(){
+  if(!db||!user){ alert('Sign in required'); return; }
+  var email = normalizeGameEmail(user.email||'');
+  if(!email){ alert('Your account needs an email to create a player key.'); return; }
+  var userId = String(($('gameUserIdInput')&&$('gameUserIdInput').value)||'').trim();
+  if(!userId){ alert('Enter a user ID'); return; }
+  if(userId.length>32){ alert('User ID max 32 characters'); return; }
+  if(!/^[a-zA-Z0-9 _.\-]+$/.test(userId)){ alert('User ID: letters, numbers, spaces, _ . - only'); return; }
+  var key = gamePlayerKeyFromEmail(email);
+  if($('btnGamesPrefSave')) $('btnGamesPrefSave').disabled = true;
+  if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Saving…';
+  try{
+    // Link on user profile (editable display name only)
+    await db.collection('users').doc(user.uid).set({
+      gameUserId: userId,
+      gamePlayerKey: key,
+      email: email
+    }, { merge:true });
+
+    // Career doc keyed by email-derived key — create if missing, never reset counters on rename
+    var ref = db.collection('gamePlayers').doc(key);
+    var existing = await ref.get();
+    if(existing.exists){
+      await ref.set({
+        userId: userId,
+        uid: user.uid,
+        email: email,
+        displayName: user.displayName||userId,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+    } else {
+      await ref.set({
+        playerKey: key,
+        userId: userId,
+        uid: user.uid,
+        email: email,
+        displayName: user.displayName||userId,
+        matchesPlayed: 0,
+        matchesWon: 0,
+        runsScored: 0,
+        wicketsTaken: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+    }
+    if($('gamePlayerKeyLabel')) $('gamePlayerKeyLabel').textContent = key;
+    if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Saved. Player key is permanent for this email.';
+    try{ if(typeof announce==='function') announce('Games preference saved'); }catch(e){}
+    await refreshGamesPrefStats();
+  }catch(e){
+    if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Could not save. Check connection.';
+    safeAlert(e);
+  }finally{
+    if($('btnGamesPrefSave')) $('btnGamesPrefSave').disabled = false;
+  }
+}
+
+/** Ensure player profile exists (lazy) so stats can increment after a match. */
+async function ensureGamePlayerDoc(uid, email, displayName){
+  if(!db||!email) return null;
+  var key = gamePlayerKeyFromEmail(email);
+  if(!key) return null;
+  var ref = db.collection('gamePlayers').doc(key);
+  try{
+    var s = await ref.get();
+    if(!s.exists){
+      await ref.set({
+        playerKey: key,
+        userId: displayName||email.split('@')[0],
+        uid: uid||'',
+        email: normalizeGameEmail(email),
+        displayName: displayName||'',
+        matchesPlayed: 0,
+        matchesWon: 0,
+        runsScored: 0,
+        wicketsTaken: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+    }
+  }catch(e){ console.warn('ensureGamePlayerDoc', e); }
+  return key;
+}
+
+/**
+ * After a finished 1vs1 match, update career stats for every participant.
+ * Keyed by email-derived playerKey so renaming userId never moves/resets stats.
+ * Called once per client for self only (avoids double-count without transactions per player).
+ */
+async function recordMyGameMatchStats(g){
+  if(!db||!user||!g||g.status!=='finished') return;
+  if(window._gameStatsRecordedFor === (g.id||gameId)) return;
+  var me = null;
+  (g.players||[]).forEach(function(p){ if(p&&p.uid===user.uid) me=p; });
+  if(!me||!me.teamId) return;
+  var email = normalizeGameEmail(user.email||me.email||'');
+  if(!email) return;
+  var key = await ensureGamePlayerDoc(user.uid, email, me.displayName||user.displayName||'');
+  if(!key) return;
+
+  // Idempotency: mark this match on the player doc
+  var matchId = g.id || gameId;
+  try{
+    var pref = db.collection('gamePlayers').doc(key);
+    await db.runTransaction(async function(tx){
+      var snap = await tx.get(pref);
+      var d = snap.exists ? (snap.data()||{}) : {};
+      var done = d.recordedMatches || {};
+      if(done[matchId]) return; // already counted
+      done[matchId] = Date.now();
+      // Keep map small
+      var ids = Object.keys(done);
+      if(ids.length > 80){
+        ids.sort(function(a,b){ return (done[a]||0)-(done[b]||0); });
+        ids.slice(0, ids.length-60).forEach(function(id){ delete done[id]; });
+      }
+      var s1=(g.score&&g.score.t1)||{runs:0,wickets:0};
+      var s2=(g.score&&g.score.t2)||{runs:0,wickets:0};
+      var myRuns = me.teamId==='t2' ? (s2.runs||0) : (s1.runs||0);
+      // Wickets taken ≈ wickets fallen on the other team
+      var myWkts = me.teamId==='t2' ? (s1.wickets||0) : (s2.wickets||0);
+      var winner = null;
+      if((s1.runs||0)>(s2.runs||0)) winner='t1';
+      else if((s2.runs||0)>(s1.runs||0)) winner='t2';
+      var won = !!(winner && me.teamId===winner);
+
+      var patch = {
+        uid: user.uid,
+        email: email,
+        recordedMatches: done,
+        matchesPlayed: firebase.firestore.FieldValue.increment(1),
+        matchesWon: firebase.firestore.FieldValue.increment(won?1:0),
+        runsScored: firebase.firestore.FieldValue.increment(myRuns),
+        wicketsTaken: firebase.firestore.FieldValue.increment(myWkts),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      // Prefer existing userId; do not overwrite with empty
+      if(d.userId){ /* keep */ }
+      else if(me.displayName) patch.userId = me.displayName;
+      tx.set(pref, patch, { merge:true });
+    });
+    window._gameStatsRecordedFor = matchId;
+  }catch(e){ console.warn('recordMyGameMatchStats', e); }
+}
+
 function gameShareUrl(id){
   try{
     var base = (typeof appOriginPath === 'function') ? appOriginPath() : (location.origin + location.pathname);
@@ -14889,6 +15246,7 @@ function stopGameLive(){
   try{ if(gameBallWatchIv){ clearInterval(gameBallWatchIv); gameBallWatchIv=null; } }catch(e){}
   try{ closeGameTossModal(); }catch(e){}
   try{ hideGameInningsModal(); }catch(e){}
+  try{ gameRemoveTossFocusTrap(); }catch(e){}
   G=null; gameId=null;
   window._gameSpeakKey=null;
   window._gameLiveSig=null;
@@ -14897,6 +15255,7 @@ function stopGameLive(){
   window._gameDangerKey=null;
   window._gameInningsDlg=false;
   window._gameAdvancing=false;
+  window._gamePhaseFocusKey=null;
 }
 
 function gameSpeakOnce(key, msg){
@@ -14975,12 +15334,14 @@ async function loadGamesHub(){
       if(!rows.length){ box.innerHTML='<p class="hub-empty">No open lobbies</p>'; return; }
       var h='';
       rows.forEach(function(g){
-        var ta=(g.teams&&g.teams[0]&&g.teams[0].name)||'Team A';
-        var tb=(g.teams&&g.teams[1]&&g.teams[1].name)||'Team B';
+        var email = g.ownerEmail || (g.players&&g.players[0]&&g.players[0].email) || 'Host';
+        var ov = (g.settings&&g.settings.overs)!=null ? g.settings.overs : 3;
+        var wk = (g.settings&&g.settings.maxWickets)!=null ? g.settings.maxWickets : 5;
+        var modeLine = ov+' overs · '+wk+' wickets';
         var n=(g.players&&g.players.length)||0;
         h+='<div class="panel" style="margin-top:8px;padding:10px">';
-        h+='<button type="button" class="list-btn" data-gid="'+g.id+'" style="width:100%;text-align:left;border:0;background:transparent">';
-        h+='<strong>'+ta+' vs '+tb+'</strong><br><span style="color:var(--muted);font-size:13px">'+n+' joined</span></button>';
+        h+='<button type="button" class="list-btn" data-gid="'+g.id+'" style="width:100%;text-align:left;border:0;background:transparent" aria-label="'+String(email).replace(/"/g,'')+', '+modeLine+', '+n+' joined">';
+        h+='<strong>'+email+'</strong><br><span style="color:var(--muted);font-size:13px">'+modeLine+' · '+n+' joined</span></button>';
         if(user&&g.ownerId===user.uid){
           h+='<button type="button" class="btn-danger btn-block" data-del="'+g.id+'" style="margin-top:8px;min-height:40px">Delete</button>';
         }
@@ -15026,8 +15387,9 @@ async function createGameAndShare(){
   var me={
     uid:user.uid,
     email:user.email||'',
-    displayName:user.displayName||user.email||'Host',
-    teamId:'t1'
+    displayName: await resolveGameDisplayName(),
+    teamId:'t1',
+    playerKey: getMyGamePlayerKey()
   };
   var doc={
     ownerId:user.uid,
@@ -15083,7 +15445,9 @@ async function openGame(id){
         if(d.status!=='lobby') throw new Error('Lobby closed');
         var players=d.players||[];
         if(players.some(function(p){ return p.uid===user.uid; })) return;
-        players.push({ uid:user.uid, email:user.email||'', displayName:user.displayName||user.email||'Player', teamId:null });
+        var joinName = user.displayName||user.email||'Player';
+        try{ joinName = await resolveGameDisplayName(); }catch(e){}
+        players.push({ uid:user.uid, email:user.email||'', displayName:joinName, teamId:null, playerKey: getMyGamePlayerKey() });
         var uids=d.playerUids||[];
         if(uids.indexOf(user.uid)<0) uids.push(user.uid);
         tx.update(ref,{ players:players, playerUids:uids, updatedAt:firebase.firestore.FieldValue.serverTimestamp() });
@@ -15219,16 +15583,85 @@ async function assignPlayerTeam(uid, teamId){
 /* ----- Toss modal ----- */
 function openGameTossModal(){
   var m=$('gameTossModal');
-  if(m){
-    m.classList.remove('hidden');
-    m.style.display='flex';
-    window._gameTossFocused=false;
-  }
+  if(!m) return;
+  m.classList.remove('hidden');
+  m.style.display='flex';
+  window._gameTossFocused=false;
+  // Hide previous screens from focus + screen reader while toss is open
+  try{
+    ['screenGameLobby','screenGameLive','screenHome','screenGameCreate'].forEach(function(id){
+      var el=$(id); if(!el) return;
+      el.setAttribute('inert','');
+      el.setAttribute('aria-hidden','true');
+    });
+    var tn=document.querySelector('.top-nav');
+    if(tn){ tn.setAttribute('inert',''); tn.setAttribute('aria-hidden','true'); }
+  }catch(e){}
+  try{ gameInstallTossFocusTrap(m); }catch(e){}
 }
 function closeGameTossModal(){
   var m=$('gameTossModal');
   if(m){ m.classList.add('hidden'); m.style.display=''; }
   window._gameTossFocused=false;
+  try{ gameRemoveTossFocusTrap(); }catch(e){}
+  // Restore lobby visibility for SR when still in toss→lobby transition handled by showScreen
+  try{
+    var lobby=$('screenGameLobby');
+    if(lobby && window._currentScreenId==='screenGameLobby'){
+      lobby.removeAttribute('inert');
+      lobby.setAttribute('aria-hidden','false');
+    }
+    var tn=document.querySelector('.top-nav');
+    if(tn && window._currentScreenId!=='screenGameLive'){
+      tn.removeAttribute('inert');
+      tn.removeAttribute('aria-hidden');
+    }
+  }catch(e){}
+}
+
+function gameInstallTossFocusTrap(modal){
+  gameRemoveTossFocusTrap();
+  function focusables(){
+    return Array.prototype.slice.call(
+      modal.querySelectorAll('button:not([disabled]):not([hidden]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])')
+    ).filter(function(el){
+      return el.offsetParent!==null && !el.closest('.hidden') && el.getAttribute('aria-hidden')!=='true';
+    });
+  }
+  window._gameTossTrapHandler = function(ev){
+    if(ev.key!=='Tab') return;
+    var list = focusables();
+    if(!list.length){ ev.preventDefault(); return; }
+    var first=list[0], last=list[list.length-1];
+    if(ev.shiftKey){
+      if(document.activeElement===first || !modal.contains(document.activeElement)){
+        ev.preventDefault(); last.focus();
+      }
+    } else {
+      if(document.activeElement===last || !modal.contains(document.activeElement)){
+        ev.preventDefault(); first.focus();
+      }
+    }
+  };
+  document.addEventListener('keydown', window._gameTossTrapHandler, true);
+  // Keep focus inside if something outside steals it
+  window._gameTossFocusIn = function(ev){
+    if(!modal || modal.classList.contains('hidden')) return;
+    if(modal.contains(ev.target)) return;
+    var list = focusables();
+    if(list.length) list[0].focus();
+  };
+  document.addEventListener('focusin', window._gameTossFocusIn, true);
+}
+function gameRemoveTossFocusTrap(){
+  if(window._gameTossTrapHandler){
+    document.removeEventListener('keydown', window._gameTossTrapHandler, true);
+    window._gameTossTrapHandler=null;
+  }
+  if(window._gameTossFocusIn){
+    document.removeEventListener('focusin', window._gameTossFocusIn, true);
+    window._gameTossFocusIn=null;
+  }
 }
 
 function hideGameInningsModal(){
@@ -15271,6 +15704,7 @@ function showGameInningsBreakDialog(){
 function showGameResultModal(){
   if(!G || window._gameResultShown) return;
   window._gameResultShown = true;
+  try{ recordMyGameMatchStats(G); }catch(e){}
   var me=playerByUid(user&&user.uid);
   var myTeam = me && me.teamId;
   var s1=(G.score&&G.score.t1)||{runs:0};
@@ -15342,7 +15776,9 @@ function renderTossModal(){
       syncFlipEnabled();
       if(!window._gameTossFocused){
         window._gameTossFocused=true;
-        setTimeout(function(){ gameFocusEl($('gameChkHeads')||$('btnGameFlip')); }, 80);
+        setTimeout(function(){
+          gameFocusEl($('gameTossDialogTitle')||$('btnGameFlip')||$('hcSideLabel'));
+        }, 80);
       }
     } else {
       // Other player: waiting while host selects toss
@@ -15382,15 +15818,23 @@ function renderTossModal(){
       setTimeout(function(){ gameFocusEl($('btnGameChooseBat')); }, 100);
     }
   }
-  if($('gameTossWaitLine')){
-    var showWait = !iAmWinnerTeam && !toss.decision;
-    $('gameTossWaitLine').classList.toggle('hidden', !showWait);
-    if(showWait) $('gameTossWaitLine').textContent = winName + ' won the toss and is selecting the game';
-  }
   if($('btnGameTossStartLive')){
-    var ready=!!toss.decision;
-    $('btnGameTossStartLive').classList.toggle('hidden', !ready);
-    if(ready) setTimeout(function(){ gameFocusEl($('btnGameTossStartLive')); }, 100);
+    // Only the toss-winning team sees Start Game — loser never gets the button
+    var showStart = !!(toss.decision && iAmWinnerTeam);
+    $('btnGameTossStartLive').classList.toggle('hidden', !showStart);
+    if(showStart) setTimeout(function(){ gameFocusEl($('btnGameTossStartLive')); }, 100);
+  }
+  if($('gameTossWaitLine')){
+    if(!iAmWinnerTeam && !toss.decision){
+      $('gameTossWaitLine').classList.remove('hidden');
+      $('gameTossWaitLine').textContent = winName + ' won the toss and is selecting the game';
+    } else if(!iAmWinnerTeam && toss.decision){
+      $('gameTossWaitLine').classList.remove('hidden');
+      $('gameTossWaitLine').textContent = winName + ' chose to ' + toss.decision + '. Waiting for them to start.';
+    } else {
+      $('gameTossWaitLine').classList.add('hidden');
+      $('gameTossWaitLine').textContent = '';
+    }
   }
 }
 
@@ -15458,7 +15902,12 @@ async function gameChooseBatBowl(dec){
 
 async function gameStartLiveFromToss(){
   if(!gameId||!G||!G.toss||!G.toss.decision) return;
-  // Any participant can press start after decision (both get the button)
+  // Only toss-winning team may start
+  var meStart=playerByUid(user&&user.uid);
+  if(!meStart || meStart.teamId!==G.toss.winnerTeamId){
+    showAppError('Only the toss winner can start the game',{ms:2500});
+    return;
+  }
   var winTeam=G.toss.winnerTeamId;
   var other=winTeam==='t1'?'t2':'t1';
   var batting=G.toss.decision==='bat'?winTeam:other;
@@ -15650,25 +16099,13 @@ function renderGameLive(){
     else if(live&&ball.phase==='wait_batter') $('hcSelectLabel').textContent='Batter selecting…';
     else $('hcSelectLabel').textContent='Select your Hit';
   }
-  // Toggle bat vs ball icons on pad
-  var padIsBowl = live && ((amBowler&&ball.phase==='wait_bowler') || (ball.phase==='wait_bowler'));
-  document.querySelectorAll('.hc-num-btn .hc-bat, .hc-num-btn .hc-ball').forEach(function(el){ el.remove(); });
+  // Keep pad icons stable — never rebuild DOM (avoids SR re-reading entire pad)
   document.querySelectorAll('.hc-num-btn').forEach(function(btn){
     var n=btn.getAttribute('data-n');
-    var icon=document.createElement('span');
-    if(padIsBowl && (amBowler||true)){
-      // show cricket ball when bowling phase
-      if(amBowler&&ball.phase==='wait_bowler'){
-        icon.className='hc-ball';
-        btn.insertBefore(icon, btn.firstChild);
-      } else {
-        icon.className='hc-bat'; icon.textContent='🏏';
-        btn.insertBefore(icon, btn.firstChild);
-      }
-    } else {
-      icon.className='hc-bat'; icon.textContent='🏏';
-      btn.insertBefore(icon, btn.firstChild);
-    }
+    // Plain number only for screen readers (no "cricket" / emoji names)
+    btn.setAttribute('aria-label', String(n));
+    var icon=btn.querySelector('.hc-bat, .hc-ball');
+    if(icon) icon.setAttribute('aria-hidden','true');
   });
   // Scorebar
   var curScore = battingId==='t2' ? s2 : s1;
@@ -15685,14 +16122,26 @@ function renderGameLive(){
   if($('gLiveLeftBox')) $('gLiveLeftBox').classList.toggle('active', leftIsBat);
   if($('gLiveRightBox')) $('gLiveRightBox').classList.toggle('active', !leftIsBat);
 
-  // Pad stays on screen; disable when it is not your turn
+  // Pad stays on screen; disable when it is not your turn — no full redraw
   var canPick=live&&((amBowler&&ball.phase==='wait_bowler')||(amBatter&&ball.phase==='wait_batter'));
   if($('gamePadWrap')) $('gamePadWrap').classList.remove('hidden');
   document.querySelectorAll('.game-num-btn').forEach(function(btn){
+    var n=btn.getAttribute('data-n');
     btn.disabled=!canPick;
     btn.setAttribute('aria-disabled', canPick?'false':'true');
+    btn.setAttribute('aria-label', String(n));
     btn.classList.toggle('selected', false);
   });
+  // Focus prompt label once when phase changes (not the whole screen)
+  try{
+    var phaseKey = (ball.phase||'')+'|'+(amBowler?'b':'')+(amBatter?'t':'');
+    if(window._gamePhaseFocusKey !== phaseKey){
+      window._gamePhaseFocusKey = phaseKey;
+      if(canPick && $('hcSelectLabel')){
+        setTimeout(function(){ gameFocusEl($('hcSelectLabel')); }, 80);
+      }
+    }
+  }catch(e){}
 
   if(live){
     var meP = playerByUid(me);
@@ -15704,11 +16153,18 @@ function renderGameLive(){
   } else if(live&&ball.phase==='wait_batter'&&amBatter){
     gameSpeakOnce('hit|'+ball.timerEndsAt+'|'+me, 'Select your hit');
   } else if(ball.phase==='done'){
-    var oline='Bowler '+(ball.bowlerNumber!=null?ball.bowlerNumber:'')+', batter '+(ball.batterNumber!=null?ball.batterNumber:'');
-    if(ball.result==='wicket') oline+='. Wicket!';
-    else if(ball.result==='free_ball') oline+='. Free ball.';
-    else oline+='. '+(ball.runs||0)+' run'+(ball.runs===1?'':'s')+'.';
-    var okey='out|'+ball.bowlerNumber+'|'+ball.batterNumber+'|'+(ball.result||'')+'|'+(s1.balls)+'|'+(s2.balls);
+    // Commentary: bowler ball + outcome only (do not announce batter selection number)
+    var bn = ball.bowlerNumber!=null ? ball.bowlerNumber : '';
+    var oline = '';
+    if(ball.result==='wicket'){
+      oline = (bn!=='' ? ('Bowler '+bn+'. ') : '') + 'Wicket!';
+    } else if(ball.result==='free_ball'){
+      oline = 'Free ball. 1 run.';
+    } else {
+      var r = ball.runs!=null ? ball.runs : 0;
+      oline = (bn!=='' ? ('Bowler '+bn+'. ') : '') + r + ' run' + (r===1?'':'s') + '.';
+    }
+    var okey='out|'+ball.bowlerNumber+'|'+(ball.result||'')+'|'+(ball.runs||0)+'|'+(s1.balls)+'|'+(s2.balls);
     if(window._gameSpeakKey!==okey){
       if(ball.result==='wicket') gamePlaySfx('wicket');
       else if(ball.result==='runs' && ball.batterNumber!=null) gamePlaySfx(String(ball.batterNumber));
@@ -15836,9 +16292,7 @@ async function gamePickNumber(n){
       }
       throw new Error('Wait for next ball');
     });
-    if(G&&G.currentBall&&G.currentBall.phase==='wait_batter'){
-      gameSpeakOnce('afterbowl|'+Date.now(), 'Select your hit');
-    }
+    // Batter prompt comes from renderGameLive via phase key — avoid double/spam
   }catch(e){
     var msg=friendlyError(e);
     if(/Only the|Wait for|Invalid/i.test(msg)) showAppError(msg,{ms:2500});
@@ -16074,6 +16528,9 @@ function wireGameUi(){
   if($('btnGameResultOk')) $('btnGameResultOk').onclick=closeGameResultAndLeave;
 }
 try{ wireGameUi(); }catch(e){ console.warn('wireGameUi', e); }
+try{
+  if($('btnGamesPrefSave')) $('btnGamesPrefSave').onclick=function(){ saveGamesPreference(); };
+}catch(e){}
 
 try{
   var _gdlTries=0;

@@ -1588,6 +1588,67 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 #screenGameLive .hc-tabbar-wrap .tabbar button{color:rgba(255,255,255,.6)}
 #screenGameLive .hc-tabbar-wrap .tabbar button.active{background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff}
 
+/* Dual board + team clash layout */
+#screenGameLive .hc-teams-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:4px 6px 10px;
+}
+#screenGameLive .hc-team-name{
+  flex:1;font-weight:900;font-size:15px;color:#f8fafc;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#screenGameLive .hc-clash{
+  flex:0 0 auto;font-size:22px;line-height:1;padding:0 4px;
+  filter:drop-shadow(0 2px 6px rgba(168,85,247,.5));
+}
+#screenGameLive .hc-score-strip{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;padding:10px 14px;margin:0 0 10px;text-align:center;
+}
+#screenGameLive .hc-score-main{
+  font-size:22px;font-weight:900;font-family:var(--font-score);color:#fff;letter-spacing:.02em;
+}
+#screenGameLive .hc-score-sub{
+  font-size:12px;font-weight:600;color:rgba(255,255,255,.7);margin-top:4px;min-height:1.2em;
+}
+#screenGameLive .hc-board{
+  display:flex;align-items:stretch;gap:0;
+  background:#fff;border-radius:18px;overflow:hidden;
+  box-shadow:0 12px 40px rgba(0,0,0,.35);margin:0 0 10px;color:#0f172a;
+}
+#screenGameLive .hc-board-half{
+  flex:1;text-align:center;padding:14px 8px 12px;min-width:0;
+  background:#fff;
+}
+#screenGameLive .hc-board-half.active{
+  background:linear-gradient(180deg,#f5f3ff 0%,#fff 100%);
+}
+#screenGameLive .hc-board-vs{
+  display:flex;align-items:center;justify-content:center;
+  width:52px;background:linear-gradient(180deg,#f8fafc,#eef2ff);
+  border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;
+}
+#screenGameLive .hc-prev-pick{
+  margin-top:6px;font-size:20px;font-weight:900;font-family:var(--font-score);
+  color:#7c3aed;min-height:26px;
+}
+#screenGameLive .hc-status-row{
+  display:flex;gap:10px;margin:0 0 12px;
+}
+#screenGameLive .hc-status-box{
+  flex:1;text-align:center;padding:10px 8px;border-radius:12px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  font-size:12px;font-weight:700;color:rgba(255,255,255,.9);min-height:40px;
+  display:flex;align-items:center;justify-content:center;
+}
+#screenGameLive .hc-status-box.me-turn{
+  background:rgba(168,85,247,.25);border-color:#a855f7;color:#fff;
+}
+#screenGameLive .hc-chat-list{
+  background:rgba(255,255,255,.06);border-radius:12px;padding:8px;
+}
+
+
 /* Toss modal – video style */
 #gameTossModal.hc-theme{
   background:linear-gradient(180deg,#1a0a2e 0%,#2d1b4e 100%)!important;
@@ -1803,9 +1864,9 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <option value="6">6</option><option value="7">7</option><option value="8">8</option>
     <option value="9">9</option><option value="10">10</option>
   </select>
-  <label for="gameTeamA">Left team</label>
+  <label for="gameTeamA">Team A</label>
   <input type="text" id="gameTeamA" placeholder="Team A" maxlength="40" style="width:100%;min-height:48px;margin-bottom:10px" />
-  <label for="gameTeamB">Right team</label>
+  <label for="gameTeamB">Team B</label>
   <input type="text" id="gameTeamB" placeholder="Team B" maxlength="40" style="width:100%;min-height:48px;margin-bottom:10px" />
   <button type="button" id="btnGameCreateNext" class="btn-ok btn-block">Create</button>
 </section>
@@ -1914,43 +1975,51 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   <div class="hc-topbar">
     <button type="button" id="btnGameLiveBack" class="hc-leave-btn" aria-label="Leave">Leave</button>
     <h1 id="gameLiveTitle" class="sr-only" tabindex="-1">Live</h1>
-    <div style="display:flex;gap:6px;align-items:center">
-      <div class="hc-team-pill" id="hcTeamPillA">
-        <span class="hc-badge a">A</span>
-        <span id="gLiveLeftTeam">—</span>
-      </div>
-      <div class="hc-team-pill" id="hcTeamPillB">
-        <span id="gLiveRightTeam">—</span>
-        <span class="hc-badge b">B</span>
-      </div>
-    </div>
   </div>
-  <p class="hc-welcome" id="gLiveWelcome" aria-hidden="true">Welcome</p>
-  <!-- hidden legacy score line for a11y / existing JS -->
+
+  <!-- Team names + clash fists -->
+  <div class="hc-teams-row" aria-label="Teams">
+    <div class="hc-team-name" id="gLiveLeftTeam">Team A</div>
+    <div class="hc-clash" aria-hidden="true">👊💥👊</div>
+    <div class="hc-team-name" id="gLiveRightTeam">Team B</div>
+  </div>
+
+  <!-- Sticky score strip -->
+  <div class="hc-score-strip" id="hcScoreStrip" role="status" aria-live="polite">
+    <div class="hc-score-main" id="hcScoreMain">0/0 (0.0)</div>
+    <div class="hc-score-sub" id="hcScoreSub"></div>
+  </div>
   <div id="gLiveScoreLine" class="sr-only score-line" aria-hidden="true"></div>
+  <p class="hc-welcome" id="gLiveWelcome">Welcome</p>
 
-  <div class="hc-card" id="hcPlayCard">
-    <p class="hc-over-label" id="hcOverLabel">This Over</p>
-    <div class="hc-hands-row" aria-hidden="true">
-      <div class="hc-hand-slot" id="gLiveLeftBox">
-        <div class="hc-hand-icon" id="gLiveLeftHand" aria-hidden="true">✊</div>
-        <div class="hc-hand-name" id="gLiveLeftPlayer">—</div>
-        <div class="hc-hand-role" id="gLiveLeftRole">—</div>
-        <div id="gLiveLeftPrompt" class="sr-only" aria-hidden="true"></div>
-        <div id="gLiveLeftNum" class="sr-only" aria-hidden="true"></div>
-      </div>
-      <div class="hc-result-badge runs" id="hcResultBadge" aria-hidden="true">—</div>
-      <div class="hc-hand-slot" id="gLiveRightBox">
-        <div class="hc-hand-icon" id="gLiveRightHand" aria-hidden="true">✊</div>
-        <div class="hc-hand-name" id="gLiveRightPlayer">—</div>
-        <div class="hc-hand-role" id="gLiveRightRole">—</div>
-        <div id="gLiveRightPrompt" class="sr-only" aria-hidden="true"></div>
-        <div id="gLiveRightNum" class="sr-only" aria-hidden="true"></div>
-      </div>
+  <!-- Big dual scoreboard -->
+  <div class="hc-board" id="hcPlayCard">
+    <div class="hc-board-half" id="gLiveLeftBox">
+      <div class="hc-hand-icon" id="gLiveLeftHand" aria-hidden="true">✊</div>
+      <div class="hc-hand-name" id="gLiveLeftPlayer">—</div>
+      <div class="hc-hand-role" id="gLiveLeftRole">—</div>
+      <div class="hc-prev-pick" id="gLiveLeftNum" aria-live="off"></div>
+    </div>
+    <div class="hc-board-vs" aria-hidden="true">
+      <span class="hc-result-badge runs" id="hcResultBadge">·</span>
+    </div>
+    <div class="hc-board-half" id="gLiveRightBox">
+      <div class="hc-hand-icon" id="gLiveRightHand" aria-hidden="true">✊</div>
+      <div class="hc-hand-name" id="gLiveRightPlayer">—</div>
+      <div class="hc-hand-role" id="gLiveRightRole">—</div>
+      <div class="hc-prev-pick" id="gLiveRightNum" aria-live="off"></div>
     </div>
   </div>
 
-  <p class="hc-select-label" id="hcSelectLabel" role="status" aria-live="polite" aria-atomic="true">Select your Hit</p>
+  <!-- Status boxes under each player -->
+  <div class="hc-status-row">
+    <div class="hc-status-box" id="gLiveLeftPrompt" role="status">—</div>
+    <div class="hc-status-box" id="gLiveRightPrompt" role="status">—</div>
+  </div>
+
+  <p class="hc-select-label" id="hcSelectLabel" role="status" aria-live="polite" aria-atomic="true">Select your Ball</p>
+  <p class="hc-over-label" id="hcOverLabel" style="display:none">This Over</p>
+
   <div id="gamePadWrap">
     <div class="hc-num-row" id="hcNumRow" role="group" aria-label="Number pad">
       <button type="button" class="hc-num-btn game-num-btn" data-n="1" aria-label="1"><span class="hc-bat" aria-hidden="true">🏏</span><span aria-hidden="true">1</span></button>
@@ -1971,13 +2040,14 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   </div>
   <div id="gameLivePaneScore" class="hidden" style="margin-top:12px"><div id="gameScorecardBody"></div></div>
   <div id="gameLivePaneChat" class="hidden" style="margin-top:12px">
-    <div id="gameChatList" style="min-height:140px;max-height:40vh;overflow:auto;margin-bottom:10px"></div>
-    <div style="display:flex;gap:8px">
-      <input type="text" id="gameChatInput" maxlength="120" placeholder="Message…" style="flex:1;min-height:48px" />
+    <div id="gameChatList" class="hc-chat-list" style="min-height:140px;max-height:40vh;overflow:auto;margin-bottom:10px"></div>
+    <div class="hc-chat-compose" style="display:flex;gap:8px">
+      <input type="text" id="gameChatInput" maxlength="120" placeholder="Message…" style="flex:1;min-height:48px" aria-label="Chat message" />
       <button type="button" id="btnGameChatSend" class="btn-ok">Send</button>
     </div>
   </div>
 
+  <!-- bottom compact score reference -->
   <div class="hc-scorebar" id="hcScorebar">
     <div class="hc-sc-item">
       <div class="hc-sc-label">Score</div>
@@ -15399,14 +15469,14 @@ async function loadGamesHub(){
       if(!rows.length){ box.innerHTML='<p class="hub-empty">No open lobbies</p>'; return; }
       var h='';
       rows.forEach(function(g){
-        var email = g.ownerEmail || (g.players&&g.players[0]&&g.players[0].email) || 'Host';
+        var hostName = (g.players&&g.players[0]&&(g.players[0].displayName||g.players[0].userId)) || 'Host';
         var ov = (g.settings&&g.settings.overs)!=null ? g.settings.overs : 3;
         var wk = (g.settings&&g.settings.maxWickets)!=null ? g.settings.maxWickets : 5;
         var modeLine = ov+' overs · '+wk+' wickets';
         var n=(g.players&&g.players.length)||0;
         h+='<div class="panel" style="margin-top:8px;padding:10px">';
-        h+='<button type="button" class="list-btn" data-gid="'+g.id+'" style="width:100%;text-align:left;border:0;background:transparent" aria-label="'+String(email).replace(/"/g,'')+', '+modeLine+', '+n+' joined">';
-        h+='<strong>'+email+'</strong><br><span style="color:var(--muted);font-size:13px">'+modeLine+' · '+n+' joined</span></button>';
+        h+='<button type="button" class="list-btn" data-gid="'+g.id+'" style="width:100%;text-align:left;border:0;background:transparent" aria-label="'+String(hostName).replace(/"/g,'')+', '+modeLine+', '+n+' joined">';
+        h+='<strong>'+hostName+'</strong><br><span style="color:var(--muted);font-size:13px">'+modeLine+' · '+n+' joined</span></button>';
         if(user&&g.ownerId===user.uid){
           h+='<button type="button" class="btn-danger btn-block" data-del="'+g.id+'" style="margin-top:8px;min-height:40px">Delete</button>';
         }
@@ -15802,20 +15872,30 @@ function showGameResultModal(){
   var title='', body='';
   var iWon = myTeam && winnerTeam && myTeam===winnerTeam;
   var iLost = myTeam && winnerTeam && myTeam!==winnerTeam;
+  var winName = winnerTeam ? teamName(winnerTeam) : '';
+  // Personalise: "Your team won by X runs/wickets" vs "You lost. Team X won by..."
+  function personalise(rt){
+    if(!rt) return rt;
+    if(iWon){
+      // "CSK won by 6 runs" → "Your team won by 6 runs"
+      return String(rt).replace(/^.+?\s+won by\s+/i, 'Your team won by ');
+    }
+    if(iLost){
+      return 'You lost. '+rt;
+    }
+    return rt;
+  }
+  body = personalise(resultText);
   if(!winnerTeam){
     title = 'Match tied';
-    body = resultText;
   } else if(iWon){
-    title = 'You won the game';
-    body = resultText;
+    title = 'Your team won';
     gamePlaySfx('win');
   } else if(iLost){
-    title = 'You lost this match';
-    body = resultText;
+    title = 'You lost';
     gamePlaySfx('looser');
   } else {
     title = 'Match over';
-    body = resultText;
   }
   if($('gameResultTitle')) $('gameResultTitle').textContent = title;
   if($('gameResultBody')) $('gameResultBody').textContent = body;
@@ -16059,48 +16139,58 @@ function renderGameLive(){
   var bowlingId = G.bowlingTeamId;
   var innings = Number(G.innings)||1;
   var leftIsBat = battingId==='t1';
-
-  if($('gLiveLeftTeam')) $('gLiveLeftTeam').textContent=leftT;
-  if($('gLiveRightTeam')) $('gLiveRightTeam').textContent=rightT;
-  if($('gLiveLeftPlayer')) $('gLiveLeftPlayer').textContent = leftIsBat ? ((batter&&batter.displayName)||'Batter') : ((bowler&&bowler.displayName)||'Bowler');
-  if($('gLiveRightPlayer')) $('gLiveRightPlayer').textContent = leftIsBat ? ((bowler&&bowler.displayName)||'Bowler') : ((batter&&batter.displayName)||'Batter');
-  if($('gLiveLeftRole')){
-    $('gLiveLeftRole').textContent = leftIsBat ? 'Batting' : 'Bowling';
-    $('gLiveLeftRole').style.color = leftIsBat ? 'var(--ok)' : 'var(--muted)';
-  }
-  if($('gLiveRightRole')){
-    $('gLiveRightRole').textContent = leftIsBat ? 'Bowling' : 'Batting';
-    $('gLiveRightRole').style.color = leftIsBat ? 'var(--muted)' : 'var(--ok)';
-  }
-  if($('gLiveLeftBox')){
-    $('gLiveLeftBox').classList.toggle('striker-box', leftIsBat);
-    $('gLiveLeftBox').classList.toggle('non-box', !leftIsBat);
-  }
-  if($('gLiveRightBox')){
-    $('gLiveRightBox').classList.toggle('striker-box', !leftIsBat);
-    $('gLiveRightBox').classList.toggle('non-box', leftIsBat);
-  }
-
+  var maxBalls=((G.settings&&G.settings.overs)||3)*6;
   var s1=(G.score&&G.score.t1)||{runs:0,wickets:0,balls:0};
   var s2=(G.score&&G.score.t2)||{runs:0,wickets:0,balls:0};
-  var maxBalls=((G.settings&&G.settings.overs)||3)*6;
-  if($('gLiveScoreLine')){
-    var line='';
-    if(innings===1){
-      var cur = battingId==='t2' ? s2 : s1;
-      var nm = battingId==='t2' ? rightT : leftT;
-      line = nm+'  '+cur.runs+'/'+cur.wickets+'  ('+fmtOvers(cur.balls)+')';
-    } else {
-      var firstId = G.firstInningsBattingTeamId || (battingId==='t1'?'t2':'t1');
-      var prev = firstId==='t2' ? s2 : s1;
-      var prevN = firstId==='t2' ? rightT : leftT;
-      var curS = battingId==='t2' ? s2 : s1;
-      var curN = battingId==='t2' ? rightT : leftT;
-      var need = Math.max(0, (G.target||0) - (curS.runs||0));
-      var remB = Math.max(0, maxBalls - (curS.balls||0));
-      line = prevN+' '+prev.runs+'/'+prev.wickets+' ('+fmtOvers(prev.balls)+')  ·  '+curN+' '+curS.runs+'/'+curS.wickets+' ('+fmtOvers(curS.balls)+')  ·  Need '+need+' from '+remB+' balls';
-    }
-    $('gLiveScoreLine').textContent=line;
+
+  // Top team names
+  if($('gLiveLeftTeam')) $('gLiveLeftTeam').textContent=leftT;
+  if($('gLiveRightTeam')) $('gLiveRightTeam').textContent=rightT;
+
+  // Player names: left = t1 player perspective, right = t2
+  // Show active bowler/batter under the team that is bowling/batting
+  var leftPlayer, rightPlayer, leftRole, rightRole;
+  if(leftIsBat){
+    leftPlayer = (batter&&batter.displayName)||'Batter';
+    rightPlayer = (bowler&&bowler.displayName)||'Bowler';
+    leftRole = 'Batting';
+    rightRole = 'Bowling';
+  } else {
+    leftPlayer = (bowler&&bowler.displayName)||'Bowler';
+    rightPlayer = (batter&&batter.displayName)||'Batter';
+    leftRole = 'Bowling';
+    rightRole = 'Batting';
+  }
+  if($('gLiveLeftPlayer')) $('gLiveLeftPlayer').textContent = leftPlayer;
+  if($('gLiveRightPlayer')) $('gLiveRightPlayer').textContent = rightPlayer;
+  if($('gLiveLeftRole')){ $('gLiveLeftRole').textContent = leftRole; $('gLiveLeftRole').style.color = leftIsBat ? '#10b981' : '#64748b'; }
+  if($('gLiveRightRole')){ $('gLiveRightRole').textContent = rightRole; $('gLiveRightRole').style.color = leftIsBat ? '#64748b' : '#10b981'; }
+  if($('gLiveLeftBox')) $('gLiveLeftBox').classList.toggle('active', leftIsBat);
+  if($('gLiveRightBox')) $('gLiveRightBox').classList.toggle('active', !leftIsBat);
+
+  // Score strip
+  var curScore = battingId==='t2' ? s2 : s1;
+  var curName = battingId==='t2' ? rightT : leftT;
+  var scoreMain = curName+'  '+(curScore.runs||0)+'/'+(curScore.wickets||0)+'  ('+fmtOvers(curScore.balls||0)+')';
+  var scoreSub = '';
+  if(innings===1){
+    scoreSub = '1st innings';
+  } else {
+    var need = Math.max(0, (G.target||0) - (curScore.runs||0));
+    var remB = Math.max(0, maxBalls - (curScore.balls||0));
+    scoreSub = 'Need '+need+' from '+remB+' balls';
+  }
+  // After every 6 balls (over complete) add over summary flavour
+  if((curScore.balls||0) > 0 && (curScore.balls % 6) === 0 && ball.phase !== 'done'){
+    scoreSub = (scoreSub ? scoreSub+' · ' : '') + 'Over complete · '+(curScore.runs||0)+'/'+(curScore.wickets||0);
+  }
+  if($('hcScoreMain')) $('hcScoreMain').textContent = scoreMain;
+  if($('hcScoreSub')) $('hcScoreSub').textContent = scoreSub;
+  if($('gLiveScoreLine')) $('gLiveScoreLine').textContent = scoreMain + (scoreSub ? ' · '+scoreSub : '');
+  if($('hcScoreVal')) $('hcScoreVal').textContent = (curScore.runs||0)+' / '+(curScore.wickets||0);
+  if($('hcBallsVal')){
+    var rem = Math.max(0, maxBalls - (curScore.balls||0));
+    $('hcBallsVal').textContent = rem+' off '+maxBalls;
   }
 
   var me=user&&user.uid;
@@ -16115,34 +16205,52 @@ function renderGameLive(){
       if(amBowler){
         if(leftIsBat){ rightPrompt='Select your ball'; }
         else { leftPrompt='Select your ball'; }
-      } else if(amBatter){
-        if(leftIsBat){ leftPrompt='Bowler is thinking'; }
-        else { rightPrompt='Bowler is thinking'; }
+      } else {
+        // everyone else sees bowler thinking on bowler side
+        if(leftIsBat){ rightPrompt='Bowler thinking'; leftPrompt = amBatter ? 'Bowler thinking' : 'Bowler thinking'; }
+        else { leftPrompt='Bowler thinking'; rightPrompt = amBatter ? 'Bowler thinking' : 'Bowler thinking'; }
+        if(amBatter){
+          if(leftIsBat) leftPrompt='Bowler thinking';
+          else rightPrompt='Bowler thinking';
+        }
       }
     } else if(ball.phase==='wait_batter'){
       if(amBatter){
         if(leftIsBat){ leftPrompt='Select your hit'; }
         else { rightPrompt='Select your hit'; }
-      } else if(amBowler){
-        if(leftIsBat){ rightPrompt='Batter is thinking'; }
-        else { leftPrompt='Batter is thinking'; }
+      } else {
+        if(leftIsBat){ leftPrompt='Batter thinking'; }
+        else { rightPrompt='Batter thinking'; }
+        if(amBowler){
+          if(leftIsBat) rightPrompt='Batter thinking';
+          else leftPrompt='Batter thinking';
+        }
       }
     } else if(ball.phase==='done'){
+      // Show previous selections under each name until next ball
       if(leftIsBat){
-        leftNum = ball.batterNumber!=null?String(ball.batterNumber):'';
-        rightNum = ball.bowlerNumber!=null?String(ball.bowlerNumber):'';
+        leftNum = ball.batterNumber!=null ? String(ball.batterNumber) : '';
+        rightNum = ball.bowlerNumber!=null ? String(ball.bowlerNumber) : '';
       } else {
-        leftNum = ball.bowlerNumber!=null?String(ball.bowlerNumber):'';
-        rightNum = ball.batterNumber!=null?String(ball.batterNumber):'';
+        leftNum = ball.bowlerNumber!=null ? String(ball.bowlerNumber) : '';
+        rightNum = ball.batterNumber!=null ? String(ball.batterNumber) : '';
       }
+      leftPrompt = '';
+      rightPrompt = '';
     }
   }
-  if($('gLiveLeftPrompt')) $('gLiveLeftPrompt').textContent=leftPrompt;
-  if($('gLiveRightPrompt')) $('gLiveRightPrompt').textContent=rightPrompt;
-  if($('gLiveLeftNum')) $('gLiveLeftNum').textContent=leftNum;
-  if($('gLiveRightNum')) $('gLiveRightNum').textContent=rightNum;
+  if($('gLiveLeftPrompt')){
+    $('gLiveLeftPrompt').textContent = leftPrompt || '—';
+    $('gLiveLeftPrompt').classList.toggle('me-turn', !!(leftPrompt && leftPrompt.indexOf('Select')===0 && ((leftIsBat&&amBatter)||(!leftIsBat&&amBowler))));
+  }
+  if($('gLiveRightPrompt')){
+    $('gLiveRightPrompt').textContent = rightPrompt || '—';
+    $('gLiveRightPrompt').classList.toggle('me-turn', !!(rightPrompt && rightPrompt.indexOf('Select')===0 && ((leftIsBat&&amBowler)||(!leftIsBat&&amBatter))));
+  }
+  if($('gLiveLeftNum')) $('gLiveLeftNum').textContent = leftNum;
+  if($('gLiveRightNum')) $('gLiveRightNum').textContent = rightNum;
 
-  // Hand Cricket visual: gestures + over label + scorebar
+  // Hands
   var HC_HANDS={0:'✊',1:'☝️',2:'✌️',3:'🤟',4:'🖖',5:'🖐️',6:'👍'};
   function hcHand(n){ return (n!=null && HC_HANDS[n]!=null) ? HC_HANDS[n] : '✊'; }
   var leftN = leftIsBat ? ball.batterNumber : ball.bowlerNumber;
@@ -16164,51 +16272,32 @@ function renderGameLive(){
       badge.textContent='·'; badge.className='hc-result-badge runs';
     }
   }
-  // Over summary (simple: show last ball result trail via phase)
-  if($('hcOverLabel')){
-    if(ball.phase==='done' && ball.result==='wicket') $('hcOverLabel').textContent='This Over · Wicket';
-    else if(ball.phase==='done') $('hcOverLabel').textContent='This Over · '+(ball.runs!=null?ball.runs:'');
-    else $('hcOverLabel').textContent='This Over';
-  }
-  // Welcome / role line
+
+  // Welcome
   var meP2 = playerByUid(me);
   if($('gLiveWelcome')){
     if(meP2 && meP2.teamId===battingId) $('gLiveWelcome').textContent='Welcome. You are Batting';
     else if(meP2 && meP2.teamId===bowlingId) $('gLiveWelcome').textContent='Welcome. You are Bowling';
     else $('gLiveWelcome').textContent='Welcome';
   }
-  // Select label
+
+  // Global select label
   if($('hcSelectLabel')){
     if(live&&amBowler&&ball.phase==='wait_bowler') $('hcSelectLabel').textContent='Select your Ball';
     else if(live&&amBatter&&ball.phase==='wait_batter') $('hcSelectLabel').textContent='Select your Hit';
     else if(live&&ball.phase==='wait_bowler') $('hcSelectLabel').textContent='Bowler selecting…';
     else if(live&&ball.phase==='wait_batter') $('hcSelectLabel').textContent='Batter selecting…';
-    else $('hcSelectLabel').textContent='Select your Hit';
+    else if(live&&ball.phase==='done') $('hcSelectLabel').textContent = (badge && badge.textContent) ? badge.textContent : '…';
+    else $('hcSelectLabel').textContent='';
   }
-  // Keep pad icons stable — never rebuild DOM (avoids SR re-reading entire pad)
+
   document.querySelectorAll('.hc-num-btn').forEach(function(btn){
     var n=btn.getAttribute('data-n');
-    // Plain number only for screen readers (no "cricket" / emoji names)
     btn.setAttribute('aria-label', String(n));
     var icon=btn.querySelector('.hc-bat, .hc-ball');
     if(icon) icon.setAttribute('aria-hidden','true');
   });
-  // Scorebar
-  var curScore = battingId==='t2' ? s2 : s1;
-  if($('hcScoreVal')) $('hcScoreVal').textContent = (curScore.runs||0)+' / '+(curScore.wickets||0);
-  if($('hcBallsVal')){
-    var rem = Math.max(0, maxBalls - (curScore.balls||0));
-    if(innings>1 && G.target!=null){
-      $('hcBallsVal').textContent = rem+' off '+maxBalls;
-    } else {
-      $('hcBallsVal').textContent = rem+' off '+maxBalls;
-    }
-  }
-  // Active hand highlight
-  if($('gLiveLeftBox')) $('gLiveLeftBox').classList.toggle('active', leftIsBat);
-  if($('gLiveRightBox')) $('gLiveRightBox').classList.toggle('active', !leftIsBat);
 
-  // Pad stays on screen; disable when it is not your turn — no full redraw
   var canPick=live&&((amBowler&&ball.phase==='wait_bowler')||(amBatter&&ball.phase==='wait_batter'));
   if($('gamePadWrap')) $('gamePadWrap').classList.remove('hidden');
   document.querySelectorAll('.game-num-btn').forEach(function(btn){
@@ -16218,7 +16307,6 @@ function renderGameLive(){
     btn.setAttribute('aria-label', String(n));
     btn.classList.toggle('selected', false);
   });
-  // Focus prompt label once when phase changes (not the whole screen)
   try{
     var phaseKey = (ball.phase||'')+'|'+(amBowler?'b':'')+(amBatter?'t':'');
     if(window._gamePhaseFocusKey !== phaseKey){
@@ -16239,7 +16327,6 @@ function renderGameLive(){
   } else if(live&&ball.phase==='wait_batter'&&amBatter){
     gameSpeakOnce('hit|'+ball.timerEndsAt+'|'+me, 'Select your hit');
   } else if(ball.phase==='done'){
-    // Commentary: bowler ball + outcome only (do not announce batter selection number)
     var bn = ball.bowlerNumber!=null ? ball.bowlerNumber : '';
     var oline = '';
     if(ball.result==='wicket'){
@@ -16249,6 +16336,17 @@ function renderGameLive(){
     } else {
       var r = ball.runs!=null ? ball.runs : 0;
       oline = (bn!=='' ? ('Bowler '+bn+'. ') : '') + r + ' run' + (r===1?'':'s') + '.';
+    }
+    // After over: score + wickets commentary
+    if((curScore.balls||0) > 0 && (curScore.balls % 6) === 0){
+      oline += ' Over complete. '+curName+' '+(curScore.runs||0)+' for '+(curScore.wickets||0)+'.';
+      if(innings>1){
+        var need2 = Math.max(0, (G.target||0) - (curScore.runs||0));
+        oline += ' Need '+need2+' runs.';
+      }
+    } else if(innings>1 && ball.result!=='wicket'){
+      var need3 = Math.max(0, (G.target||0) - (curScore.runs||0));
+      if(need3>0) oline += ' Need '+need3+'.';
     }
     var okey='out|'+ball.bowlerNumber+'|'+(ball.result||'')+'|'+(ball.runs||0)+'|'+(s1.balls)+'|'+(s2.balls);
     if(window._gameSpeakKey!==okey){
@@ -16281,23 +16379,32 @@ function renderGameScorecard(){
   if(!box||!G) return;
   var s1=G.score&&G.score.t1||{runs:0,wickets:0,balls:0};
   var s2=G.score&&G.score.t2||{runs:0,wickets:0,balls:0};
+  var n1=teamName('t1'), n2=teamName('t2');
   var innings=Number(G.innings)||1;
-  var battingId=G.battingTeamId;
   var h='';
-  if(innings===1){
-    var cur = battingId==='t2' ? s2 : s1;
-    var nm = battingId==='t2' ? teamName('t2') : teamName('t1');
-    h='<div class="score-hero"><div class="score-big">'+nm+' '+cur.runs+'/'+cur.wickets+'</div><div class="score-sub">'+fmtOvers(cur.balls)+' overs · 1st innings</div></div>';
-  } else {
-    var firstId=G.firstInningsBattingTeamId || (battingId==='t1'?'t2':'t1');
-    var prev = firstId==='t2'?s2:s1;
-    var curS = battingId==='t2'?s2:s1;
+  h+='<div class="panel" style="padding:14px;margin-bottom:10px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">';
+  h+='<strong style="font-size:1.05rem">'+n1+'</strong>';
+  h+='<span style="font-weight:900;font-family:var(--font-score);font-size:1.2rem">'+(s1.runs||0)+'/'+(s1.wickets||0)+'</span>';
+  h+='</div>';
+  h+='<div style="color:var(--muted);font-size:13px">'+fmtOvers(s1.balls||0)+' overs</div>';
+  h+='</div>';
+  h+='<div class="panel" style="padding:14px;margin-bottom:10px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">';
+  h+='<strong style="font-size:1.05rem">'+n2+'</strong>';
+  h+='<span style="font-weight:900;font-family:var(--font-score);font-size:1.2rem">'+(s2.runs||0)+'/'+(s2.wickets||0)+'</span>';
+  h+='</div>';
+  h+='<div style="color:var(--muted);font-size:13px">'+fmtOvers(s2.balls||0)+' overs</div>';
+  h+='</div>';
+  if(innings>1 && G.target!=null){
+    var cur = G.battingTeamId==='t2' ? s2 : s1;
+    var need=Math.max(0,(G.target||0)-(cur.runs||0));
     var maxBalls=((G.settings&&G.settings.overs)||3)*6;
-    var need=Math.max(0,(G.target||0)-(curS.runs||0));
-    var rem=Math.max(0,maxBalls-(curS.balls||0));
-    h='<div class="score-hero"><div class="score-big">'+teamName(battingId)+' '+curS.runs+'/'+curS.wickets+'</div>'+
-      '<div class="score-sub">Need '+need+' from '+rem+' balls · target '+(G.target||'')+'</div></div>'+
-      '<div class="panel" style="padding:12px;margin-top:8px"><strong>'+teamName(firstId)+'</strong> '+prev.runs+'/'+prev.wickets+' ('+fmtOvers(prev.balls)+')</div>';
+    var rem=Math.max(0,maxBalls-(cur.balls||0));
+    h+='<div class="panel" style="padding:12px;text-align:center"><strong>Target '+(G.target||'')+'</strong><br><span style="color:var(--muted)">Need '+need+' from '+rem+' balls</span></div>';
+  }
+  if(G.status==='finished' && G.resultText){
+    h+='<div class="panel" style="padding:12px;text-align:center;font-weight:700">'+G.resultText+'</div>';
   }
   box.innerHTML=h;
 }
@@ -16484,10 +16591,28 @@ function teamNameById(d, tid){
   return tid;
 }
 function buildMatchResult(d, score){
-  var s1=score.t1||{runs:0}, s2=score.t2||{runs:0};
+  var s1=score.t1||{runs:0,wickets:0}, s2=score.t2||{runs:0,wickets:0};
   var n1=teamNameById(d,'t1')||'Team A', n2=teamNameById(d,'t2')||'Team B';
-  if(s1.runs>s2.runs) return n1+' won by '+(s1.runs-s2.runs)+' runs';
-  if(s2.runs>s1.runs) return n2+' won by '+(s2.runs-s1.runs)+' runs';
+  var maxW = (d.settings && d.settings.maxWickets != null) ? Number(d.settings.maxWickets) : 5;
+  // Chase side is second innings batting team
+  var chaseId = d.battingTeamId || null;
+  var firstId = d.firstInningsBattingTeamId || (chaseId==='t1'?'t2': (chaseId==='t2'?'t1':null));
+  if(s1.runs===s2.runs) return 'Match tied';
+  if(s1.runs>s2.runs){
+    // If t1 chased and finished with wickets in hand → win by wickets
+    if(chaseId==='t1' && firstId==='t2'){
+      var left = Math.max(0, maxW - (s1.wickets||0));
+      if(left>0 && (s1.wickets||0) < maxW) return n1+' won by '+left+' wicket'+(left===1?'':'s');
+    }
+    return n1+' won by '+(s1.runs-s2.runs)+' run'+((s1.runs-s2.runs)===1?'':'s');
+  }
+  if(s2.runs>s1.runs){
+    if(chaseId==='t2' && firstId==='t1'){
+      var left2 = Math.max(0, maxW - (s2.wickets||0));
+      if(left2>0 && (s2.wickets||0) < maxW) return n2+' won by '+left2+' wicket'+(left2===1?'':'s');
+    }
+    return n2+' won by '+(s2.runs-s1.runs)+' run'+((s2.runs-s1.runs)===1?'':'s');
+  }
   return 'Match tied';
 }
 

@@ -1879,6 +1879,20 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   </div>
 </div>
 
+<!-- Public player stats card -->
+<div id="gameStatsModal" class="hidden" style="position:fixed;inset:0;z-index:260;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px" role="dialog" aria-modal="true" aria-labelledby="gameStatsModalTitle">
+  <div class="panel" style="width:100%;max-width:360px;padding:18px;border-radius:16px">
+    <h2 id="gameStatsModalTitle" tabindex="-1" style="font-size:1.1rem;margin:0 0 12px;font-weight:800">Player stats</h2>
+    <ul id="gameStatsModalList" style="list-style:none;padding:0;margin:0 0 16px;line-height:1.7">
+      <li>Matches played: <strong id="gsmPlayed">0</strong></li>
+      <li>Matches won: <strong id="gsmWon">0</strong></li>
+      <li>Runs scored: <strong id="gsmRuns">0</strong></li>
+      <li>Wickets taken: <strong id="gsmWickets">0</strong></li>
+    </ul>
+    <button type="button" id="btnGameStatsClose" class="btn-ok btn-block">Close</button>
+  </div>
+</div>
+
 <!-- Match result modal -->
 <div id="gameResultModal" class="hidden" style="position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px">
   <div class="panel" style="width:100%;max-width:360px;padding:20px;border-radius:16px" role="dialog" aria-modal="true" aria-labelledby="gameResultTitle">
@@ -2076,11 +2090,6 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <div id="viewerOrgBlock" style="margin-top:10px">
       <p id="orgStatus" role="status" class="set-status"></p>
       <button type="button" id="btnRequestOrg" class="btn-ok btn-block">Request organiser</button>
-      <div id="enterCodeBox" class="hidden" style="margin-top:10px">
-        <label for="orgCodeInput">Code</label>
-        <input id="orgCodeInput" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" />
-        <button type="button" id="btnVerifyCode" class="btn-ok btn-block">Verify</button>
-      </div>
     </div>
     <button type="button" id="btnLogout" class="btn-danger btn-block" style="margin-top:12px">Log out</button>
   </div>
@@ -2139,21 +2148,18 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <button type="button" id="btnRegPrefSave" class="btn-ok btn-block">Save preference</button>
   </div>
 
-  <div id="panelGamesPref" class="set-panel hidden" aria-label="Games preference">
-    <p class="set-status" id="gamesPrefHint">Choose a user ID for 1vs1 games. Stats are stored under a permanent player key from your email — changing your user ID later will not reset stats.</p>
-    <label class="set-label" for="gameUserIdInput">User ID</label>
-    <input id="gameUserIdInput" type="text" maxlength="32" autocomplete="username" placeholder="e.g. MaheshBat" aria-describedby="gamesPrefHint" style="width:100%;min-height:48px;font-size:16px;margin-bottom:8px" />
-    <p class="set-label" style="margin-top:4px">Player key (from email)</p>
-    <p id="gamePlayerKeyLabel" class="set-status" style="word-break:break-all;font-family:monospace;font-size:13px">—</p>
-    <p class="set-label" style="margin-top:12px">Your stats</p>
-    <div id="gameStatsBox" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Matches played</div><div id="gsPlayed" style="font-weight:800;font-size:1.2rem">0</div></div>
-      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Matches won</div><div id="gsWon" style="font-weight:800;font-size:1.2rem">0</div></div>
-      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Runs scored</div><div id="gsRuns" style="font-weight:800;font-size:1.2rem">0</div></div>
-      <div class="panel" style="padding:10px;margin:0"><div style="font-size:12px;color:var(--muted)">Wickets taken</div><div id="gsWickets" style="font-weight:800;font-size:1.2rem">0</div></div>
+    <div id="panelGamesPref" class="set-panel hidden" aria-label="Games preference">
+    <p class="set-status" id="gamePrefHint">Enter your display name for games. You can change it anytime here. Changing will not affect your saved stats.</p>
+    <div id="gameNameView" class="hidden">
+      <button type="button" id="btnGameNameEdit" class="list-btn" style="width:100%;text-align:left;min-height:52px;font-size:1.1rem;font-weight:800;padding:12px 14px" aria-label="Edit display name">—</button>
+      <button type="button" id="btnViewMyGameStats" class="btn-sec btn-block" style="margin-top:12px">View my stats</button>
     </div>
-    <p id="gamesPrefStatus" class="set-status" role="status"></p>
-    <button type="button" id="btnGamesPrefSave" class="btn-ok btn-block">Save</button>
+    <div id="gameNameEdit">
+      <label class="set-label" for="gameUserIdInput">Display name</label>
+      <input id="gameUserIdInput" type="text" maxlength="32" autocomplete="username" placeholder="Your name in games" aria-describedby="gamePrefHint" style="width:100%;min-height:48px;font-size:16px;margin-bottom:8px" />
+      <p id="gamePrefStatus" class="set-status" role="status"></p>
+      <button type="button" id="btnGamesPrefSave" class="btn-ok btn-block" disabled>Save</button>
+    </div>
   </div>
 
     <div id="panelNotifications" class="set-panel hidden" aria-label="Notifications">
@@ -2536,6 +2542,7 @@ const firebaseConfig = {
   measurementId: "G-MTYE09EDSY"
 };
 const SUPER_ADMIN_EMAILS = ["maheshdhoni7633@gmail.com"];
+const ADMIN_EMAILS = ["maheshdhoni7633@gmail.com", "cricthreesixty@gmail.com"];
 const ADMIN_NOTIFY_EMAIL = "maheshdhoni7633@gmail.com";
 /** Web Push VAPID public key (Firebase Cloud Messaging) */
 const FCM_VAPID_KEY = "BEwQKcaPvunimOioBjc5SyDoXXIxNl5d_8bEw9zXh3bbcCnNnsoHZupf0-32xivMKC4g96XhytywSd549PTOv3k";
@@ -4300,6 +4307,10 @@ function isSuperAdmin(){
   const em=(user&&user.email||'').toLowerCase();
   return SUPER_ADMIN_EMAILS.includes(em) || !!(profile&&profile.superAdmin);
 }
+function isAdmin(){
+  const em=(user&&user.email||'').toLowerCase();
+  return ADMIN_EMAILS.includes(em) || isSuperAdmin();
+}
 function canCreate(){
   if(isSuperAdmin()) return true;
   if(!profile || profile.orgPaused) return false;
@@ -4896,6 +4907,7 @@ auth.onAuthStateChanged(async u=>{
   // Already signed in (e.g. from hub) — skip Google button, go home
   user=u;
   try{ profile=await loadProfile(u); }catch(e){ profile={}; console.warn(e); }
+  try{ await ensureGamePlayerOnLogin(); }catch(e){}
   enterHome();
   if(joinAuctionId){
     try{ await handleJoinInvite(); }catch(e){ safeAlert(e); }
@@ -5254,16 +5266,14 @@ $('btnSettings').onclick=async()=>{
   if(canCreate()){
     if($('orgStatus')) $('orgStatus').textContent='Organiser access on';
     if($('btnRequestOrg')) $('btnRequestOrg').classList.add('hidden');
-    if($('enterCodeBox')) $('enterCodeBox').classList.add('hidden');
-  } else {
-    if($('orgStatus')) $('orgStatus').textContent='Viewer — request organiser access if needed';
+      } else {
+    if($('orgStatus')) $('orgStatus').textContent='Viewer — request organiser access. An admin will approve from Permissions.';
     if($('btnRequestOrg')) $('btnRequestOrg').classList.remove('hidden');
-    if($('enterCodeBox')) $('enterCodeBox').classList.remove('hidden');
-  }
+      }
   const adminBtn=$('btnSetAdmin');
-  if(adminBtn) adminBtn.classList.toggle('hidden', !isSuperAdmin());
-  $('orgAdminBlock').classList.toggle('hidden', !isSuperAdmin());
-  if(isSuperAdmin()) await refreshAdminOrgLists();
+  if(adminBtn) adminBtn.classList.toggle('hidden', !(isSuperAdmin()||isAdmin()));
+  if($('orgAdminBlock')) $('orgAdminBlock').classList.toggle('hidden', !(isSuperAdmin()||isAdmin()));
+  if(isSuperAdmin()||isAdmin()) await refreshAdminOrgLists();
   showSettingsPanel('menu');
 };
 
@@ -5299,57 +5309,21 @@ $('btnSwitchAccount').onclick=async()=>{
   }
 };
 
-function fourDigit(){ return String(Math.floor(1000+Math.random()*9000)); }
 $('btnRequestOrg').onclick=async()=>{
   try{
-    // Never show the code to the requester — only super admin sees it in Permissions
+    if(!user||!db) return;
     const existing=await db.collection('organiserRequests').where('uid','==',user.uid).where('status','==','pending').limit(1).get();
     if(existing.empty){
-      const code=fourDigit();
-      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
       await db.collection('organiserRequests').add({
         uid:user.uid,
         email:user.email||'',
         displayName:user.displayName||'',
-        code:code,
         status:'pending',
-        expiresAt: expiresAt,
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
     }
-    alert('Request sent. Ask the super admin for your 4-digit code (valid 10 minutes), then enter it below.');
-    $('enterCodeBox').classList.remove('hidden');
-    focusEl($('orgCodeInput'));
-  }catch(e){ safeAlert(e); }
-};
-$('btnVerifyCode').onclick=async()=>{
-  const code=String($('orgCodeInput').value||'').replace(/\D/g,'').trim();
-  if(code.length!==4){ alert('Enter the 4-digit code from the super admin'); return; }
-  try{
-    // Query OWN requests only (rules allow this) — do not query by code globally
-    const q=await db.collection('organiserRequests')
-      .where('uid','==',user.uid)
-      .where('status','==','pending')
-      .limit(5)
-      .get();
-    if(q.empty){ alert('No pending request. Tap Request organiser first.'); return; }
-    let doc=null;
-    q.forEach(function(d){
-      var data=d.data()||{};
-      if(String(data.code||'')===code) doc=d;
-    });
-    if(!doc){ alert('Code does not match. Ask the super admin for the correct code.'); return; }
-    var data=doc.data()||{};
-    if(data.expiresAt && Date.now() > Number(data.expiresAt)){
-      try{ await doc.ref.update({status:'expired'}); }catch(e){}
-      alert('This code has expired (10 minutes). Request organiser again.');
-      return;
-    }
-    await doc.ref.update({status:'approved', approvedAt: Date.now()});
-    await db.collection('users').doc(user.uid).set({isOrganiser:true,orgPaused:false},{merge:true});
-    profile=await loadProfile(user);
-    alert('You are now an organiser.');
-    enterHome();
+    if($('orgStatus')) $('orgStatus').textContent='Request sent. Waiting for admin approval.';
+    alert('Request sent. An admin will approve or reject it from Permissions.');
   }catch(e){ safeAlert(e); }
 };
 
@@ -5357,8 +5331,8 @@ async function refreshAdminOrgLists(){
   const oBox=$('organisersList'), pBox=$('pendingCodes');
   if(!oBox||!pBox) return;
   oBox.innerHTML='Loading…'; pBox.innerHTML='Loading…';
-  if(!isSuperAdmin()){
-    oBox.innerHTML='<p style="color:var(--muted)">Super admin only.</p>';
+  if(!isSuperAdmin() && !isAdmin()){
+    oBox.innerHTML='<p style="color:var(--muted)">Admin only.</p>';
     pBox.innerHTML='';
     return;
   }
@@ -5367,11 +5341,11 @@ async function refreshAdminOrgLists(){
     oBox.innerHTML='';
     if(users.empty) oBox.innerHTML='<p style="color:var(--muted)">No organisers yet.</p>';
     users.forEach(doc=>{
-      const d=doc.data();
-      if(SUPER_ADMIN_EMAILS.includes(String(d.email||'').toLowerCase())) return; // skip listing self as removable
+      const d=doc.data()||{};
+      if(SUPER_ADMIN_EMAILS.includes(String(d.email||'').toLowerCase())) return;
       const div=document.createElement('div'); div.className='panel'; div.style.marginTop='8px';
-      div.innerHTML='<strong>'+(d.displayName||d.email)+'</strong><br><span style="color:var(--muted)">'+(d.email||'')+(d.orgPaused?' · Paused':'')+'</span>';
-      const row=document.createElement('div'); row.className='row'; row.style.marginTop='8px';
+      div.innerHTML='<strong>'+(d.displayName||d.email||'User')+'</strong><br><span style="color:var(--muted)">'+(d.email||'')+(d.orgPaused?' · Paused':'')+'</span>';
+      const row=document.createElement('div'); row.className='row'; row.style.marginTop='8px'; row.style.gap='8px'; row.style.flexWrap='wrap';
       const pause=document.createElement('button'); pause.type='button'; pause.className='btn-sec';
       pause.textContent=d.orgPaused?'Resume permission':'Pause permission';
       pause.onclick=async()=>{ try{ await doc.ref.set({orgPaused:!d.orgPaused},{merge:true}); refreshAdminOrgLists(); }catch(e){ safeAlert(e); } };
@@ -5379,6 +5353,7 @@ async function refreshAdminOrgLists(){
       rem.onclick=()=>ask('Remove organiser?','Remove access for '+(d.email||'')+'?', async()=>{ try{ await doc.ref.set({isOrganiser:false,orgPaused:false},{merge:true}); refreshAdminOrgLists(); }catch(e){ safeAlert(e); } });
       row.appendChild(pause); row.appendChild(rem); div.appendChild(row); oBox.appendChild(div);
     });
+
     const pend=await db.collection('organiserRequests').where('status','==','pending').get();
     pBox.innerHTML='';
     if(pend.empty){
@@ -5386,19 +5361,31 @@ async function refreshAdminOrgLists(){
     } else {
       pend.forEach(doc=>{
         const d=doc.data()||{};
-        const expired = d.expiresAt && Date.now() > Number(d.expiresAt);
         const div=document.createElement('div'); div.className='panel'; div.style.marginTop='8px';
-        div.innerHTML='<strong>'+(d.displayName||d.email||'User')+'</strong><br>'+
-          '<span style="color:var(--muted)">'+(d.email||'')+'</span>'+
-          (expired
-            ? '<p style="color:var(--danger,#ef4444);font-weight:700">Expired — ask them to request again</p>'
-            : '<p style="font-size:1.6rem;font-weight:800;letter-spacing:.15em;margin:8px 0">'+(d.code||'')+'</p><p style="color:var(--muted);font-size:12px">Share this code (valid 10 min)</p>');
-        pBox.appendChild(div);
+        div.innerHTML='<strong>'+(d.displayName||d.email||'User')+'</strong><br><span style="color:var(--muted)">'+(d.email||'')+'</span>';
+        const row=document.createElement('div'); row.className='row'; row.style.marginTop='8px'; row.style.gap='8px';
+        const ok=document.createElement('button'); ok.type='button'; ok.className='btn-ok'; ok.textContent='Approve';
+        ok.onclick=async()=>{
+          try{
+            if(!d.uid){ alert('Missing user id'); return; }
+            await db.collection('users').doc(d.uid).set({isOrganiser:true,orgPaused:false},{merge:true});
+            await doc.ref.set({status:'approved', approvedAt:Date.now(), approvedBy:user.uid},{merge:true});
+            refreshAdminOrgLists();
+          }catch(e){ safeAlert(e); }
+        };
+        const no=document.createElement('button'); no.type='button'; no.className='btn-danger'; no.textContent='Reject';
+        no.onclick=async()=>{
+          try{
+            await doc.ref.set({status:'rejected', rejectedAt:Date.now(), rejectedBy:user.uid},{merge:true});
+            refreshAdminOrgLists();
+          }catch(e){ safeAlert(e); }
+        };
+        row.appendChild(ok); row.appendChild(no); div.appendChild(row); pBox.appendChild(div);
       });
     }
   }catch(e){
     console.error('refreshAdminOrgLists', e);
-    oBox.innerHTML='<p style="color:var(--danger,#ef4444)">Could not load. '+(e.message||e)+'</p><p style="color:var(--muted);font-size:13px">Check Firestore rules allow admin read on users and organiserRequests.</p>';
+    oBox.innerHTML='<p style="color:var(--danger,#ef4444)">Could not load. '+(e.message||e)+'</p>';
     pBox.innerHTML='';
   }
 }
@@ -15042,86 +15029,113 @@ function getMyGamePlayerKey(){
 
 async function openGamesPrefPanel(){
   if(!user) return;
-  var key = getMyGamePlayerKey();
-  if($('gamePlayerKeyLabel')) $('gamePlayerKeyLabel').textContent = key || 'Sign in with email required';
-  if($('gamesPrefStatus')) $('gamePrefStatus').textContent = '';
-  if($('gameUserIdInput')) $('gameUserIdInput').value = '';
-  // Load from users doc + gamePlayers
+  if($('gamePrefStatus')) $('gamePrefStatus').textContent = '';
+  var saved = '';
   try{
-    var uidVal = '';
     if(db && user.uid){
       var us = await db.collection('users').doc(user.uid).get();
       if(us.exists){
         var ud = us.data()||{};
-        uidVal = ud.gameUserId || ud.displayName || '';
+        saved = ud.gameUserId || '';
       }
     }
-    if(!uidVal) uidVal = (user.displayName||'').trim();
-    if($('gameUserIdInput')) $('gameUserIdInput').value = uidVal;
   }catch(e){}
-  await refreshGamesPrefStats();
+  if(!saved){
+    try{
+      var key = getMyGamePlayerKey();
+      if(key && db){
+        var gs = await db.collection('gamePlayers').doc(key).get();
+        if(gs.exists) saved = (gs.data()||{}).userId || '';
+      }
+    }catch(e){}
+  }
+  setGamesPrefMode(!!saved, saved);
 }
 
-async function refreshGamesPrefStats(){
-  var z = function(n){ return String(n==null?0:n); };
-  if($('gsPlayed')) $('gsPlayed').textContent='0';
-  if($('gsWon')) $('gsWon').textContent='0';
-  if($('gsRuns')) $('gsRuns').textContent='0';
-  if($('gsWickets')) $('gsWickets').textContent='0';
-  if(!db||!user) return;
-  var key = getMyGamePlayerKey();
-  if(!key) return;
-  try{
-    var snap = await db.collection('gamePlayers').doc(key).get();
-    if(!snap.exists) return;
-    var d = snap.data()||{};
-    if($('gsPlayed')) $('gsPlayed').textContent = z(d.matchesPlayed);
-    if($('gsWon')) $('gsWon').textContent = z(d.matchesWon);
-    if($('gsRuns')) $('gsRuns').textContent = z(d.runsScored);
-    if($('gsWickets')) $('gsWickets').textContent = z(d.wicketsTaken);
-    if(d.userId && $('gameUserIdInput') && !$('gameUserIdInput').value){
-      $('gameUserIdInput').value = d.userId;
+function setGamesPrefMode(hasName, name){
+  var view=$('gameNameView'), edit=$('gameNameEdit');
+  if(hasName && name){
+    if(view) view.classList.remove('hidden');
+    if(edit) edit.classList.add('hidden');
+    if($('btnGameNameEdit')){
+      $('btnGameNameEdit').textContent = name;
+      $('btnGameNameEdit').setAttribute('aria-label', 'Edit display name, '+name);
     }
-  }catch(e){ console.warn('refreshGamesPrefStats', e); }
+  } else {
+    if(view) view.classList.add('hidden');
+    if(edit) edit.classList.remove('hidden');
+    if($('gameUserIdInput')){
+      $('gameUserIdInput').value = name||'';
+      updateGamesSaveEnabled();
+    }
+  }
+}
+
+function updateGamesSaveEnabled(){
+  var btn=$('btnGamesPrefSave');
+  var inp=$('gameUserIdInput');
+  if(!btn||!inp) return;
+  var v=String(inp.value||'').trim();
+  btn.disabled = !v;
 }
 
 async function saveGamesPreference(){
   if(!db||!user){ alert('Sign in required'); return; }
   var email = normalizeGameEmail(user.email||'');
-  if(!email){ alert('Your account needs an email to create a player key.'); return; }
+  if(!email){ alert('Your account needs an email.'); return; }
   var userId = String(($('gameUserIdInput')&&$('gameUserIdInput').value)||'').trim();
-  if(!userId){ alert('Enter a user ID'); return; }
-  if(userId.length>32){ alert('User ID max 32 characters'); return; }
-  if(!/^[a-zA-Z0-9 _.\-]+$/.test(userId)){ alert('User ID: letters, numbers, spaces, _ . - only'); return; }
+  if(!userId){ alert('Enter a display name'); return; }
+  if(userId.length>32){ alert('Max 32 characters'); return; }
+  if(!/^[a-zA-Z0-9 _.\-]+$/.test(userId)){ alert('Letters, numbers, spaces, _ . - only'); return; }
   var key = gamePlayerKeyFromEmail(email);
   if($('btnGamesPrefSave')) $('btnGamesPrefSave').disabled = true;
   if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Saving…';
   try{
-    // Link on user profile (editable display name only)
+    await ensureGamePlayerDoc(user.uid, email, userId);
     await db.collection('users').doc(user.uid).set({
       gameUserId: userId,
       gamePlayerKey: key,
       email: email
     }, { merge:true });
+    await db.collection('gamePlayers').doc(key).set({
+      playerKey: key,
+      userId: userId,
+      uid: user.uid,
+      email: email,
+      displayName: user.displayName||userId,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge:true });
+    if($('gamePrefStatus')) $('gamePrefStatus').textContent = '';
+    setGamesPrefMode(true, userId);
+    try{ if(typeof announce==='function') announce('Display name saved'); }catch(e){}
+  }catch(e){
+    if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Could not save.';
+    safeAlert(e);
+  }finally{
+    updateGamesSaveEnabled();
+  }
+}
 
-    // Career doc keyed by email-derived key — create if missing, never reset counters on rename
+/** Create player key doc right after login (stats stay on this key forever). */
+async function ensureGamePlayerOnLogin(){
+  if(!db||!user||!user.email) return;
+  try{
+    var email = normalizeGameEmail(user.email);
+    var key = gamePlayerKeyFromEmail(email);
+    if(!key) return;
+    await db.collection('users').doc(user.uid).set({
+      gamePlayerKey: key,
+      email: email
+    }, { merge:true });
     var ref = db.collection('gamePlayers').doc(key);
-    var existing = await ref.get();
-    if(existing.exists){
-      await ref.set({
-        userId: userId,
-        uid: user.uid,
-        email: email,
-        displayName: user.displayName||userId,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge:true });
-    } else {
+    var snap = await ref.get();
+    if(!snap.exists){
       await ref.set({
         playerKey: key,
-        userId: userId,
+        userId: '',
         uid: user.uid,
         email: email,
-        displayName: user.displayName||userId,
+        displayName: user.displayName||'',
         matchesPlayed: 0,
         matchesWon: 0,
         runsScored: 0,
@@ -15129,20 +15143,16 @@ async function saveGamesPreference(){
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge:true });
+    } else {
+      await ref.set({
+        uid: user.uid,
+        email: email,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
     }
-    if($('gamePlayerKeyLabel')) $('gamePlayerKeyLabel').textContent = key;
-    if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Saved. Player key is permanent for this email.';
-    try{ if(typeof announce==='function') announce('Games preference saved'); }catch(e){}
-    await refreshGamesPrefStats();
-  }catch(e){
-    if($('gamePrefStatus')) $('gamePrefStatus').textContent = 'Could not save. Check connection.';
-    safeAlert(e);
-  }finally{
-    if($('btnGamesPrefSave')) $('btnGamesPrefSave').disabled = false;
-  }
+  }catch(e){ console.warn('ensureGamePlayerOnLogin', e); }
 }
 
-/** Ensure player profile exists (lazy) so stats can increment after a match. */
 async function ensureGamePlayerDoc(uid, email, displayName){
   if(!db||!email) return null;
   var key = gamePlayerKeyFromEmail(email);
@@ -15153,7 +15163,7 @@ async function ensureGamePlayerDoc(uid, email, displayName){
     if(!s.exists){
       await ref.set({
         playerKey: key,
-        userId: displayName||email.split('@')[0],
+        userId: displayName||'',
         uid: uid||'',
         email: normalizeGameEmail(email),
         displayName: displayName||'',
@@ -15169,11 +15179,45 @@ async function ensureGamePlayerDoc(uid, email, displayName){
   return key;
 }
 
-/**
- * After a finished 1vs1 match, update career stats for every participant.
- * Keyed by email-derived playerKey so renaming userId never moves/resets stats.
- * Called once per client for self only (avoids double-count without transactions per player).
- */
+async function showGameStatsCard(opts){
+  opts = opts||{};
+  var title = opts.title || 'Player stats';
+  var key = opts.playerKey || '';
+  var email = opts.email || '';
+  if(!key && email) key = gamePlayerKeyFromEmail(email);
+  if(!key && user && !opts.email && !opts.playerKey) key = getMyGamePlayerKey();
+  var played=0, won=0, runs=0, wkts=0, name=title;
+  try{
+    if(db && key){
+      var snap = await db.collection('gamePlayers').doc(key).get();
+      if(snap.exists){
+        var d = snap.data()||{};
+        played = d.matchesPlayed||0;
+        won = d.matchesWon||0;
+        runs = d.runsScored||0;
+        wkts = d.wicketsTaken||0;
+        if(d.userId) name = d.userId;
+      }
+    }
+  }catch(e){ console.warn('showGameStatsCard', e); }
+  if($('gameStatsModalTitle')) $('gameStatsModalTitle').textContent = name;
+  if($('gsmPlayed')) $('gsmPlayed').textContent = String(played);
+  if($('gsmWon')) $('gsmWon').textContent = String(won);
+  if($('gsmRuns')) $('gsmRuns').textContent = String(runs);
+  if($('gsmWickets')) $('gsmWickets').textContent = String(wkts);
+  var m=$('gameStatsModal');
+  if(m){
+    m.classList.remove('hidden');
+    m.style.display='flex';
+  }
+  setTimeout(function(){ try{ gameFocusEl($('btnGameStatsClose')||$('gameStatsModalTitle')); }catch(e){} }, 60);
+}
+
+function closeGameStatsCard(){
+  var m=$('gameStatsModal');
+  if(m){ m.classList.add('hidden'); m.style.display=''; }
+}
+
 async function recordMyGameMatchStats(g){
   if(!db||!user||!g||g.status!=='finished') return;
   if(window._gameStatsRecordedFor === (g.id||gameId)) return;
@@ -15184,8 +15228,6 @@ async function recordMyGameMatchStats(g){
   if(!email) return;
   var key = await ensureGamePlayerDoc(user.uid, email, me.displayName||user.displayName||'');
   if(!key) return;
-
-  // Idempotency: mark this match on the player doc
   var matchId = g.id || gameId;
   try{
     var pref = db.collection('gamePlayers').doc(key);
@@ -15193,9 +15235,8 @@ async function recordMyGameMatchStats(g){
       var snap = await tx.get(pref);
       var d = snap.exists ? (snap.data()||{}) : {};
       var done = d.recordedMatches || {};
-      if(done[matchId]) return; // already counted
+      if(done[matchId]) return;
       done[matchId] = Date.now();
-      // Keep map small
       var ids = Object.keys(done);
       if(ids.length > 80){
         ids.sort(function(a,b){ return (done[a]||0)-(done[b]||0); });
@@ -15204,16 +15245,15 @@ async function recordMyGameMatchStats(g){
       var s1=(g.score&&g.score.t1)||{runs:0,wickets:0};
       var s2=(g.score&&g.score.t2)||{runs:0,wickets:0};
       var myRuns = me.teamId==='t2' ? (s2.runs||0) : (s1.runs||0);
-      // Wickets taken ≈ wickets fallen on the other team
       var myWkts = me.teamId==='t2' ? (s1.wickets||0) : (s2.wickets||0);
       var winner = null;
       if((s1.runs||0)>(s2.runs||0)) winner='t1';
       else if((s2.runs||0)>(s1.runs||0)) winner='t2';
       var won = !!(winner && me.teamId===winner);
-
       var patch = {
         uid: user.uid,
         email: email,
+        playerKey: key,
         recordedMatches: done,
         matchesPlayed: firebase.firestore.FieldValue.increment(1),
         matchesWon: firebase.firestore.FieldValue.increment(won?1:0),
@@ -15221,9 +15261,7 @@ async function recordMyGameMatchStats(g){
         wicketsTaken: firebase.firestore.FieldValue.increment(myWkts),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      // Prefer existing userId; do not overwrite with empty
-      if(d.userId){ /* keep */ }
-      else if(me.displayName) patch.userId = me.displayName;
+      if(!d.userId && me.displayName) patch.userId = me.displayName;
       tx.set(pref, patch, { merge:true });
     });
     window._gameStatsRecordedFor = matchId;
@@ -15517,40 +15555,61 @@ function renderGameLobby(){
   if($('gameLobbyLeftName')) $('gameLobbyLeftName').textContent=left;
   if($('gameLobbyRightName')) $('gameLobbyRightName').textContent=right;
   var L=playersOn('t1'), R=playersOn('t2'), W=playersWaiting();
+  var host=isGameHost();
+  function gamePlayerRow(p, extraClass, extraAttrs, hostAction){
+    var nm = (p.displayName||p.email||'Player');
+    var pk = p.playerKey || (p.email ? gamePlayerKeyFromEmail(p.email) : '');
+    var h = '<div style="margin:4px 0">';
+    h += '<button type="button" class="list-btn game-name-btn '+extraClass+'" data-uid="'+(p.uid||'')+'" data-email="'+(p.email||'')+'" data-pkey="'+pk+'" data-name="'+String(nm).replace(/"/g,'&quot;')+'" '+extraAttrs+' style="width:100%;text-align:left;padding:8px">'+nm+'</button>';
+    if(host && hostAction==='add'){
+      h += '<button type="button" class="btn-sec game-host-add" data-uid="'+(p.uid||'')+'" style="margin-top:4px;min-height:40px;width:100%">Add to team B</button>';
+    }
+    if(host && hostAction==='remove'){
+      h += '<button type="button" class="btn-danger game-host-remove" data-uid="'+(p.uid||'')+'" style="margin-top:4px;min-height:40px;width:100%">Remove</button>';
+    }
+    h += '</div>';
+    return h;
+  }
   if($('gameLobbyLeftBox')){
     $('gameLobbyLeftBox').innerHTML=L.map(function(p){
-      return '<button type="button" class="list-btn game-slot-player" data-uid="'+p.uid+'" data-side="t1" style="width:100%;text-align:left;margin:4px 0;padding:8px">'+(p.displayName||p.email||'Player')+'</button>';
+      return gamePlayerRow(p, 'game-slot-player', 'data-side="t1"', p.uid=== (user&&user.uid) ? '' : 'remove');
     }).join('') || '';
   }
   if($('gameLobbyRightBox')){
     $('gameLobbyRightBox').innerHTML=R.map(function(p){
-      return '<button type="button" class="list-btn game-slot-player" data-uid="'+p.uid+'" data-side="t2" style="width:100%;text-align:left;margin:4px 0;padding:8px">'+(p.displayName||p.email||'Player')+'</button>';
+      return gamePlayerRow(p, 'game-slot-player', 'data-side="t2"', 'remove');
     }).join('') || '';
   }
   if($('gameLobbyWaiting')){
     $('gameLobbyWaiting').innerHTML=W.map(function(p){
-      return '<button type="button" class="list-btn game-wait-player" data-uid="'+p.uid+'" style="width:100%;text-align:left;margin:4px 0">'+(p.displayName||p.email||'Player')+'</button>';
+      return gamePlayerRow(p, 'game-wait-player', '', 'add');
     }).join('');
   }
-  // Only host manages adds/removes and start
-  var host=isGameHost();
   if($('btnGameStartGame')) $('btnGameStartGame').classList.toggle('hidden', !host);
   if($('btnGameDeleteLobby')) $('btnGameDeleteLobby').classList.toggle('hidden', !host);
 
-  document.querySelectorAll('.game-wait-player').forEach(function(btn){
+  document.querySelectorAll('.game-name-btn').forEach(function(btn){
     btn.onclick=function(){
-      if(!isGameHost()) return;
+      showGameStatsCard({
+        playerKey: btn.getAttribute('data-pkey')||'',
+        email: btn.getAttribute('data-email')||'',
+        title: btn.getAttribute('data-name')||'Player'
+      });
+    };
+  });
+  document.querySelectorAll('.game-host-add').forEach(function(btn){
+    btn.onclick=function(ev){
+      ev.stopPropagation();
       var uid=btn.getAttribute('data-uid');
       var p=playerByUid(uid);
       if(!confirm('Add '+(p&&p.displayName||'player')+' to '+right+'?')) return;
       assignPlayerTeam(uid, 't2');
     };
   });
-  document.querySelectorAll('.game-slot-player').forEach(function(btn){
-    btn.onclick=function(){
-      if(!isGameHost()) return;
+  document.querySelectorAll('.game-host-remove').forEach(function(btn){
+    btn.onclick=function(ev){
+      ev.stopPropagation();
       var uid=btn.getAttribute('data-uid');
-      // double-tap style: confirm remove
       var p=playerByUid(uid);
       if(!confirm('Remove '+(p&&p.displayName||'player')+' from team?')) return;
       assignPlayerTeam(uid, null);
@@ -16530,6 +16589,19 @@ function wireGameUi(){
 try{ wireGameUi(); }catch(e){ console.warn('wireGameUi', e); }
 try{
   if($('btnGamesPrefSave')) $('btnGamesPrefSave').onclick=function(){ saveGamesPreference(); };
+  if($('gameUserIdInput')){
+    $('gameUserIdInput').addEventListener('input', updateGamesSaveEnabled);
+    $('gameUserIdInput').addEventListener('keyup', updateGamesSaveEnabled);
+  }
+  if($('btnGameNameEdit')) $('btnGameNameEdit').onclick=function(){
+    var nm = ($('btnGameNameEdit')&&$('btnGameNameEdit').textContent)||'';
+    setGamesPrefMode(false, nm==='—'?'':nm);
+    setTimeout(function(){ try{ $('gameUserIdInput').focus(); }catch(e){} }, 50);
+  };
+  if($('btnViewMyGameStats')) $('btnViewMyGameStats').onclick=function(){
+    showGameStatsCard({ playerKey: getMyGamePlayerKey(), email: user&&user.email, title: 'My stats' });
+  };
+  if($('btnGameStatsClose')) $('btnGameStatsClose').onclick=closeGameStatsCard;
 }catch(e){}
 
 try{

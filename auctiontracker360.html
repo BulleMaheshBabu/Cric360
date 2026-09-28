@@ -1597,10 +1597,37 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   flex:1;font-weight:900;font-size:15px;color:#f8fafc;text-align:center;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+#screenGameLive .hc-clash-wrap{
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:64px;padding:0 4px;
+}
 #screenGameLive .hc-clash{
-  flex:0 0 auto;font-size:22px;line-height:1;padding:0 4px;
+  font-size:22px;line-height:1;
   filter:drop-shadow(0 2px 6px rgba(168,85,247,.5));
 }
+#screenGameLive .hc-ball-timer{
+  margin-top:2px;font-size:13px;font-weight:900;font-family:var(--font-score);
+  color:#fbbf24;min-height:18px;letter-spacing:.04em;
+  text-shadow:0 1px 4px rgba(0,0,0,.4);
+}
+#screenGameLive .hc-ball-timer.warn{color:#f87171;animation:hcPulse 1s ease-in-out infinite}
+@keyframes hcPulse{0%,100%{opacity:1}50%{opacity:.55}}
+#screenGameLive #gamePadWrap{padding-bottom:12px;margin-bottom:4px}
+#screenGameLive .hc-num-row{margin-bottom:8px}
+#screenGameLive.hc-tab-score .hc-board,
+#screenGameLive.hc-tab-score .hc-status-row,
+#screenGameLive.hc-tab-score #gamePadWrap,
+#screenGameLive.hc-tab-score .hc-select-label,
+#screenGameLive.hc-tab-score .hc-welcome,
+#screenGameLive.hc-tab-score .hc-scorebar,
+#screenGameLive.hc-tab-chat .hc-board,
+#screenGameLive.hc-tab-chat .hc-status-row,
+#screenGameLive.hc-tab-chat #gamePadWrap,
+#screenGameLive.hc-tab-chat .hc-select-label,
+#screenGameLive.hc-tab-chat .hc-welcome,
+#screenGameLive.hc-tab-chat .hc-scorebar{display:none!important}
+#screenGameLive .hc-pane{min-height:200px}
+
 #screenGameLive .hc-score-strip{
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);
   border-radius:14px;padding:10px 14px;margin:0 0 10px;text-align:center;
@@ -1963,11 +1990,13 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   </div>
 </div>
 
-<!-- Innings break dialog -->
-<div id="gameInningsModal" class="hidden" style="position:fixed;inset:0;z-index:248;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px">
+<!-- Innings break dialog (5s auto-start) -->
+<div id="gameInningsModal" class="hidden" style="position:fixed;inset:0;z-index:248;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px">
   <div class="panel" style="width:100%;max-width:360px;padding:22px;border-radius:16px" role="dialog" aria-modal="true" aria-labelledby="gameInningsTitle">
     <p id="gameInningsTitle" style="font-weight:800;font-size:1.1rem;text-align:center;margin:0 0 10px" tabindex="-1">Innings break</p>
-    <p id="gameInningsBody" style="text-align:center;margin:0;font-weight:600;line-height:1.45"></p>
+    <p id="gameInningsBody" style="text-align:center;margin:0 0 14px;font-weight:600;line-height:1.45"></p>
+    <p id="gameInningsCountdown" style="text-align:center;margin:0;font-size:28px;font-weight:900;font-family:var(--font-score);color:#a855f7" aria-live="polite">5</p>
+    <p style="text-align:center;margin:8px 0 0;font-size:12px;color:var(--muted)">2nd innings starts automatically</p>
   </div>
 </div>
 
@@ -1977,15 +2006,18 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <h1 id="gameLiveTitle" class="sr-only" tabindex="-1">Live</h1>
   </div>
 
-  <!-- Team names + clash fists -->
+  <!-- Team names + clash fists + ball timer -->
   <div class="hc-teams-row" aria-label="Teams">
     <div class="hc-team-name" id="gLiveLeftTeam">Team A</div>
-    <div class="hc-clash" aria-hidden="true">👊💥👊</div>
+    <div class="hc-clash-wrap" aria-hidden="true">
+      <div class="hc-clash">👊💥👊</div>
+      <div class="hc-ball-timer" id="gLiveBallTimer" aria-live="off">—</div>
+    </div>
     <div class="hc-team-name" id="gLiveRightTeam">Team B</div>
   </div>
 
   <!-- Sticky score strip -->
-  <div class="hc-score-strip" id="hcScoreStrip" role="status" aria-live="polite">
+  <div class="hc-score-strip" id="hcScoreStrip" aria-live="off">
     <div class="hc-score-main" id="hcScoreMain">0/0 (0.0)</div>
     <div class="hc-score-sub" id="hcScoreSub"></div>
   </div>
@@ -2013,11 +2045,11 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 
   <!-- Status boxes under each player -->
   <div class="hc-status-row">
-    <div class="hc-status-box" id="gLiveLeftPrompt" role="status">—</div>
-    <div class="hc-status-box" id="gLiveRightPrompt" role="status">—</div>
+    <div class="hc-status-box" id="gLiveLeftPrompt" aria-live="off">—</div>
+    <div class="hc-status-box" id="gLiveRightPrompt" aria-live="off">—</div>
   </div>
 
-  <p class="hc-select-label" id="hcSelectLabel" role="status" aria-live="polite" aria-atomic="true">Select your Ball</p>
+  <p class="hc-select-label" id="hcSelectLabel" role="status" aria-live="polite" aria-atomic="true"></p>
   <p class="hc-over-label" id="hcOverLabel" style="display:none">This Over</p>
 
   <div id="gamePadWrap">
@@ -2038,16 +2070,16 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       <button type="button" role="tab" id="gameTabChat" aria-selected="false">Chat</button>
     </nav>
   </div>
-  <div id="gameLivePaneScore" class="hidden" style="margin-top:12px"><div id="gameScorecardBody"></div></div>
-  <div id="gameLivePaneChat" class="hidden" style="margin-top:12px">
-    <div id="gameChatList" class="hc-chat-list" style="min-height:140px;max-height:40vh;overflow:auto;margin-bottom:10px"></div>
+  <div id="gameLivePaneScore" class="hidden hc-pane" style="margin-top:12px;padding-bottom:24px"><div id="gameScorecardBody"></div></div>
+  <div id="gameLivePaneChat" class="hidden hc-pane" style="margin-top:12px;padding-bottom:24px">
+    <div id="gameChatList" class="hc-chat-list" style="min-height:180px;max-height:45vh;overflow:auto;margin-bottom:10px"></div>
     <div class="hc-chat-compose" style="display:flex;gap:8px">
       <input type="text" id="gameChatInput" maxlength="120" placeholder="Message…" style="flex:1;min-height:48px" aria-label="Chat message" />
       <button type="button" id="btnGameChatSend" class="btn-ok">Send</button>
     </div>
   </div>
 
-  <!-- bottom compact score reference -->
+  <!-- bottom compact score reference (Game tab only) -->
   <div class="hc-scorebar" id="hcScorebar">
     <div class="hc-sc-item">
       <div class="hc-sc-label">Score</div>
@@ -15841,20 +15873,24 @@ function showGameInningsBreakDialog(){
   var body = '';
   if(myTeam === firstBat){
     title = 'You scored '+(sc.runs||0)+' runs in '+overs+' overs';
-    body = 'Now you are bowling.';
+    body = 'Now you are bowling. 2nd innings starts in 5 seconds.';
   } else if(myTeam === chase){
-    title = 'You have to score '+target+' runs to win this game';
-    body = 'You are batting.';
+    title = 'You have to score '+target+' runs to win';
+    body = 'You are batting. 2nd innings starts in 5 seconds.';
   } else {
     title = teamName(firstBat)+' scored '+(sc.runs||0)+' in '+overs;
-    body = teamName(chase)+' need '+target+' to win. They are batting.';
+    body = teamName(chase)+' need '+target+' to win. Starts in 5 seconds.';
   }
   if($('gameInningsTitle')) $('gameInningsTitle').textContent = title;
   if($('gameInningsBody')) $('gameInningsBody').textContent = body;
+  var leftSec = 5;
+  if(G.inningsBreakUntil) leftSec = Math.max(1, Math.ceil((G.inningsBreakUntil - Date.now())/1000));
+  if($('gameInningsCountdown')) $('gameInningsCountdown').textContent = String(leftSec);
   m.classList.remove('hidden');
   m.style.display = 'flex';
   setTimeout(function(){ gameFocusEl($('gameInningsTitle')); }, 60);
   gameSpeakOnce('innbrk|'+gameId+'|'+(myTeam||'')+'|'+target, title+'. '+body);
+  try{ updateGameTimerLabels(); }catch(e){}
 }
 
 function showGameResultModal(){
@@ -16121,12 +16157,32 @@ function newBallState(bowlerUid, batterUid, timerSec){
 
 /* ----- Live UI ----- */
 function updateGameTimerLabels(){
-  // no per-tick full redraw; numbers only after pick
+  var el=$('gLiveBallTimer');
+  if(!el||!G) return;
+  var ball=G.currentBall||{};
+  if(G.status==='live' && (ball.phase==='wait_bowler'||ball.phase==='wait_batter') && ball.timerEndsAt){
+    var leftSec = Math.max(0, Math.ceil((ball.timerEndsAt - Date.now())/1000));
+    el.textContent = String(leftSec);
+    el.classList.toggle('warn', leftSec <= 10);
+    el.setAttribute('aria-label', leftSec+' seconds left');
+  } else if(G.status==='innings_break' && G.inningsBreakUntil){
+    var leftI = Math.max(0, Math.ceil((G.inningsBreakUntil - Date.now())/1000));
+    el.textContent = String(leftI);
+    el.classList.remove('warn');
+    var cd=$('gameInningsCountdown');
+    if(cd) cd.textContent = String(leftI);
+  } else {
+    el.textContent = '';
+    el.classList.remove('warn');
+  }
 }
 
 function startGameTimers(){
   if(gameBallWatchIv) return;
-  gameBallWatchIv=setInterval(function(){ try{ gameResolveTimerIfNeeded(); }catch(e){} }, 900);
+  gameBallWatchIv=setInterval(function(){
+    try{ gameResolveTimerIfNeeded(); }catch(e){}
+    try{ updateGameTimerLabels(); }catch(e){}
+  }, 400);
 }
 
 function renderGameLive(){
@@ -16180,8 +16236,8 @@ function renderGameLive(){
     var remB = Math.max(0, maxBalls - (curScore.balls||0));
     scoreSub = 'Need '+need+' from '+remB+' balls';
   }
-  // After every 6 balls (over complete) add over summary flavour
-  if((curScore.balls||0) > 0 && (curScore.balls % 6) === 0 && ball.phase !== 'done'){
+  // Over complete only briefly while ball is done at end of over
+  if((curScore.balls||0) > 0 && (curScore.balls % 6) === 0 && ball.phase === 'done'){
     scoreSub = (scoreSub ? scoreSub+' · ' : '') + 'Over complete · '+(curScore.runs||0)+'/'+(curScore.wickets||0);
   }
   if($('hcScoreMain')) $('hcScoreMain').textContent = scoreMain;
@@ -16199,35 +16255,31 @@ function renderGameLive(){
   var leftPrompt='', rightPrompt='';
   var leftNum='', rightNum='';
   var live = G.status==='live';
+  // left half = t1 side, right half = t2 side
+  // when t1 batting: left=batter, right=bowler; else left=bowler, right=batter
+  var leftIsBowlerSide = !leftIsBat;
+  var rightIsBowlerSide = leftIsBat;
 
   if(live){
     if(ball.phase==='wait_bowler'){
-      if(amBowler){
-        if(leftIsBat){ rightPrompt='Select your ball'; }
-        else { leftPrompt='Select your ball'; }
+      // Active: Select your ball under bowler; Bowler thinking under batter
+      if(leftIsBowlerSide){
+        leftPrompt = amBowler ? 'Select your ball' : 'Bowler thinking';
+        rightPrompt = 'Bowler thinking';
       } else {
-        // everyone else sees bowler thinking on bowler side
-        if(leftIsBat){ rightPrompt='Bowler thinking'; leftPrompt = amBatter ? 'Bowler thinking' : 'Bowler thinking'; }
-        else { leftPrompt='Bowler thinking'; rightPrompt = amBatter ? 'Bowler thinking' : 'Bowler thinking'; }
-        if(amBatter){
-          if(leftIsBat) leftPrompt='Bowler thinking';
-          else rightPrompt='Bowler thinking';
-        }
+        rightPrompt = amBowler ? 'Select your ball' : 'Bowler thinking';
+        leftPrompt = 'Bowler thinking';
       }
     } else if(ball.phase==='wait_batter'){
-      if(amBatter){
-        if(leftIsBat){ leftPrompt='Select your hit'; }
-        else { rightPrompt='Select your hit'; }
+      // Active: Select your hit under batter; Batter thinking under bowler
+      if(leftIsBat){
+        leftPrompt = amBatter ? 'Select your hit' : 'Batter thinking';
+        rightPrompt = 'Batter thinking';
       } else {
-        if(leftIsBat){ leftPrompt='Batter thinking'; }
-        else { rightPrompt='Batter thinking'; }
-        if(amBowler){
-          if(leftIsBat) rightPrompt='Batter thinking';
-          else leftPrompt='Batter thinking';
-        }
+        rightPrompt = amBatter ? 'Select your hit' : 'Batter thinking';
+        leftPrompt = 'Batter thinking';
       }
     } else if(ball.phase==='done'){
-      // Show previous selections under each name until next ball
       if(leftIsBat){
         leftNum = ball.batterNumber!=null ? String(ball.batterNumber) : '';
         rightNum = ball.bowlerNumber!=null ? String(ball.bowlerNumber) : '';
@@ -16240,12 +16292,16 @@ function renderGameLive(){
     }
   }
   if($('gLiveLeftPrompt')){
-    $('gLiveLeftPrompt').textContent = leftPrompt || '—';
-    $('gLiveLeftPrompt').classList.toggle('me-turn', !!(leftPrompt && leftPrompt.indexOf('Select')===0 && ((leftIsBat&&amBatter)||(!leftIsBat&&amBowler))));
+    var lp = leftPrompt || '';
+    $('gLiveLeftPrompt').textContent = lp || '';
+    $('gLiveLeftPrompt').setAttribute('aria-hidden', lp ? 'false' : 'true');
+    $('gLiveLeftPrompt').classList.toggle('me-turn', !!(lp && lp.indexOf('Select')===0));
   }
   if($('gLiveRightPrompt')){
-    $('gLiveRightPrompt').textContent = rightPrompt || '—';
-    $('gLiveRightPrompt').classList.toggle('me-turn', !!(rightPrompt && rightPrompt.indexOf('Select')===0 && ((leftIsBat&&amBowler)||(!leftIsBat&&amBatter))));
+    var rp = rightPrompt || '';
+    $('gLiveRightPrompt').textContent = rp || '';
+    $('gLiveRightPrompt').setAttribute('aria-hidden', rp ? 'false' : 'true');
+    $('gLiveRightPrompt').classList.toggle('me-turn', !!(rp && rp.indexOf('Select')===0));
   }
   if($('gLiveLeftNum')) $('gLiveLeftNum').textContent = leftNum;
   if($('gLiveRightNum')) $('gLiveRightNum').textContent = rightNum;
@@ -16291,22 +16347,18 @@ function renderGameLive(){
     else $('hcSelectLabel').textContent='';
   }
 
-  document.querySelectorAll('.hc-num-btn').forEach(function(btn){
+  var canPick=live&&((amBowler&&ball.phase==='wait_bowler')||(amBatter&&ball.phase==='wait_batter'));
+  var pickVerb = (amBowler&&ball.phase==='wait_bowler') ? 'Bowl ' : ((amBatter&&ball.phase==='wait_batter') ? 'Hit ' : '');
+  document.querySelectorAll('.hc-num-btn, .game-num-btn').forEach(function(btn){
     var n=btn.getAttribute('data-n');
-    btn.setAttribute('aria-label', String(n));
     var icon=btn.querySelector('.hc-bat, .hc-ball');
     if(icon) icon.setAttribute('aria-hidden','true');
-  });
-
-  var canPick=live&&((amBowler&&ball.phase==='wait_bowler')||(amBatter&&ball.phase==='wait_batter'));
-  if($('gamePadWrap')) $('gamePadWrap').classList.remove('hidden');
-  document.querySelectorAll('.game-num-btn').forEach(function(btn){
-    var n=btn.getAttribute('data-n');
     btn.disabled=!canPick;
     btn.setAttribute('aria-disabled', canPick?'false':'true');
-    btn.setAttribute('aria-label', String(n));
+    btn.setAttribute('aria-label', canPick && pickVerb ? (pickVerb + n) : String(n));
     btn.classList.toggle('selected', false);
   });
+  if($('gamePadWrap')) $('gamePadWrap').classList.remove('hidden');
   try{
     var phaseKey = (ball.phase||'')+'|'+(amBowler?'b':'')+(amBatter?'t':'');
     if(window._gamePhaseFocusKey !== phaseKey){
@@ -16368,6 +16420,7 @@ function renderGameLive(){
     }
   }
 
+  try{ updateGameTimerLabels(); }catch(e){}
   try{
     if($('gameLivePaneScore') && !$('gameLivePaneScore').classList.contains('hidden')) renderGameScorecard();
     if($('gameLivePaneChat') && !$('gameLivePaneChat').classList.contains('hidden')) renderGameChat();
@@ -16440,12 +16493,22 @@ async function gameSendChat(){
 function switchGameTab(which){
   which=which||'view';
   var score=$('gameLivePaneScore'), chat=$('gameLivePaneChat');
+  var liveSec=$('screenGameLive');
   if(score) score.classList.toggle('hidden', which!=='score');
   if(chat) chat.classList.toggle('hidden', which!=='chat');
-  // game view is always the top area
+  if(liveSec){
+    liveSec.classList.toggle('hc-tab-score', which==='score');
+    liveSec.classList.toggle('hc-tab-chat', which==='chat');
+  }
   [['view','gameTabView'],['score','gameTabScore'],['chat','gameTabChat']].forEach(function(x){
     var el=$(x[1]); if(el){ el.classList.toggle('active', x[0]===which); el.setAttribute('aria-selected', x[0]===which?'true':'false'); }
   });
+  if(which==='score'){ try{ renderGameScorecard(); }catch(e){} }
+  if(which==='chat'){ try{ renderGameChat(); }catch(e){} }
+  try{
+    var focusId = which==='score' ? 'gameScorecardBody' : (which==='chat' ? 'gameChatInput' : 'hcSelectLabel');
+    setTimeout(function(){ if($(focusId)) gameFocusEl($(focusId)); }, 60);
+  }catch(e){}
 }
 
 async function gamePickNumber(n){
@@ -16566,7 +16629,7 @@ function applyBallResultTx(tx, ref, d, res){
       firstInningsBattingTeamId: firstBat,
       battingTeamId: firstBat,
       bowlingTeamId: nextBat,
-      inningsBreakUntil: Date.now() + 2000,
+      inningsBreakUntil: Date.now() + 5000,
       currentBall: doneBall,
       _pendingInnings2:{ battingTeamId:nextBat, bowlingTeamId:nextBowl, batterUid:batterUid, bowlerUid:bowlerUid },
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()

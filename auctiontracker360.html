@@ -4186,7 +4186,7 @@ function friendlyError(e){
 
   // ----- Firestore -----
   const fsMap = {
-    'permission-denied': 'Permission denied by Firestore rules. Publish latest rules, then sign out and sign in again.',
+    'permission-denied': 'Permission denied. If joining a game, the host may need updated rules published. Sign out and sign in again after rules update.',
     'firestore/permission-denied': 'Permission denied by Firestore rules. If this is Approve/Pause, publish the latest rules and sign in again. If this is a live auction, ask the host to assign your team.',
     'not-found': 'Auction not found or was removed.',
     'firestore/not-found': 'Auction not found or was removed.',
@@ -4828,17 +4828,8 @@ $('cNo').onclick=()=>{ closeConfirm(true); };
       }
     };
   }catch(e){}
-  try{
-    window._nativeConfirm = window.confirm;
-    window.confirm = function(message){
-      // Sync confirm cannot wait on modal; prefer ask() at call sites.
-      // Fallback: show in-app alert and return false (safe default).
-      try{
-        appAlert(message, { title: 'Confirm', okLabel: 'OK' });
-      }catch(e){}
-      return false;
-    };
-  }catch(e){}
+  /* Do NOT override window.confirm — it must stay synchronous.
+     Use ask() for Yes/No flows so domain chrome is avoided where we control it. */
 })();
 
 /** TalkBack: announce checkbox state after toggle (native often silent on dynamic UI) */
@@ -16513,11 +16504,13 @@ async function loadGamesHub(){
 
 async function deleteGameById(id){
   if(!id||!db||!user) return;
-  if(!confirm('Delete this game?')) return;
-  try{
-    await db.collection('games').doc(id).delete();
-    if(gameId===id){ stopGameLive(); enterHome(); try{switchHubTab('games');}catch(e){} }
-  }catch(e){ safeAlert(e); }
+  ask('Delete this game?', 'The lobby will be removed for everyone. This cannot be undone.', async function(){
+    try{
+      await db.collection('games').doc(id).delete();
+      if(gameId===id){ stopGameLive(); enterHome(); try{switchHubTab('games');}catch(e){} }
+      try{ if(typeof announce==='function') announce('Game deleted'); }catch(x){}
+    }catch(e){ safeAlert(e); }
+  }, { yesLabel:'Delete', noLabel:'Cancel' });
 }
 
 function openGameCreate(){

@@ -1671,6 +1671,23 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   font-size:12px;font-weight:700;color:rgba(255,255,255,.9);min-height:40px;
   display:flex;align-items:center;justify-content:center;
 }
+#screenGameLive .hc-status-box.free-hit{
+  background:linear-gradient(135deg,rgba(168,85,247,.35),rgba(0,168,255,.25));
+  border:2px solid #a855f7;
+  color:#fff;
+  font-weight:800;
+  box-shadow:0 0 16px rgba(168,85,247,.4);
+}
+#screenGameCreate select option:checked,
+#screenGameCreate select option:focus{
+  background:#00A8FF;
+  color:#001018;
+}
+#screenGameCreate select:focus{
+  outline:2px solid #00A8FF;
+  outline-offset:2px;
+  border-color:#00A8FF;
+}
 #screenGameLive .hc-status-box.me-turn{
   background:rgba(168,85,247,.25);border-color:#a855f7;color:#fff;
 }
@@ -2075,7 +2092,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   </div>
   <div id="gameLivePaneScore" class="hidden hc-pane" style="margin-top:12px;padding-bottom:24px" inert aria-hidden="true"><div id="gameScorecardBody" tabindex="0" aria-label="Scorecard"></div></div>
   <div id="gameLivePaneChat" class="hidden hc-pane" style="margin-top:12px;padding-bottom:24px" inert aria-hidden="true">
-    <div id="gameChatTurnBadge" class="hidden" style="text-align:center;margin:0 0 10px;padding:8px;border-radius:10px;background:rgba(168,85,247,.25);border:1px solid #a855f7;font-weight:800;font-size:13px;color:#fff" aria-live="polite">Your turn</div>
+    <div id="gameChatTurnBadge" class="hidden" style="text-align:center;margin:0 0 10px;padding:8px;border-radius:10px;background:rgba(168,85,247,.25);border:1px solid #a855f7;font-weight:800;font-size:13px;color:#fff" aria-live="off" aria-hidden="true" role="presentation">Your turn</div>
     <div id="gameChatList" class="hc-chat-list" style="min-height:180px;max-height:45vh;overflow:auto;margin-bottom:10px" tabindex="0" aria-label="Chat messages"></div>
     <div class="hc-chat-compose" style="display:flex;gap:8px">
       <input type="text" id="gameChatInput" maxlength="120" placeholder="Message…" style="flex:1;min-height:48px" aria-label="Chat message" />
@@ -2346,7 +2363,11 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   <label for="regSearch" class="sr-only">Search registrations</label>
   <input id="regSearch" type="search" placeholder="Search name or email…" autocomplete="off" style="width:100%;min-height:48px;margin:8px 0 10px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
   <p id="regRecordsCount" style="font-weight:700;margin:0 0 8px" role="status"></p>
-  <div id="regRecordsList" class="hub-list" aria-label="Registered players" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+  <div style="display:flex;flex-direction:column;gap:8px;margin:0 0 12px">
+    <button type="button" id="btnRegAddManual" class="btn-ok btn-block" style="min-height:48px">Add registration</button>
+    <button type="button" id="btnRegEditMyManual" class="btn-sec btn-block" style="min-height:48px">Edit my registrations</button>
+  </div>
+  <div id="regRecordsList" class="hub-list" aria-label="Registered players" style="max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
   <button type="button" id="btnRegLoadMore" class="btn-sec btn-block hidden" style="margin-top:10px">Load more</button>
 </section>
 
@@ -2466,9 +2487,9 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       <div id="aucStats" class="stats" role="group" aria-label="Auction statistics"></div>
       <div id="aucPlayer" role="region" aria-label="Current player and timer"></div>
       <div class="auc-home-row" id="aucHostFooter" style="display:flex;flex-direction:column;gap:8px">
-        <button type="button" id="btnPauseAuc" class="btn-sec btn-block">Pause bidding</button>
+        <button type="button" id="btnPauseAuc" class="btn-sec btn-block hidden">Pause bidding</button>
         <button type="button" id="btnLeaveAuc" class="btn-sec btn-block hidden">Leave auction</button>
-        <button type="button" id="btnEndAuction" class="btn-sec btn-block">End this auction</button>
+        <button type="button" id="btnEndAuction" class="btn-sec btn-block hidden">End this auction</button>
       </div>
     </div>
     <div id="tabSquads" class="panel hidden" role="region" aria-labelledby="sqTitle">
@@ -2738,16 +2759,15 @@ function announceNowPlayer(idx, name, total, liveData, force){
   if(D.paused) return;
   const pkey = 'pl|'+idx+'|'+(name||'');
   if(!force){
-    // Manual Next player: no speech/SFX until host presses Next
+    // Wait states: no "Now auctioning" until the lot is actually open
     if(D.awaitNextPlayer) return;
     if(D.bid && (D.bid.phase==='await_next' || D.bid.phase==='intermission')) return;
     if(D.intermissionUntil && D.intermissionUntil > Date.now()) return;
     if(window._sayPlayerKey === '__in_gap__' || window._gapPendingPlayer) return;
     if(T && typeof isAwaitingNextPlayer==='function' && isAwaitingNextPlayer()) return;
-    if((D.playerAdvance==='manual' || (T && T.playerAdvance==='manual')) && !window._allowNextPlayerAnnounce){
-      return;
-    }
+    // Same player already announced on this device (quiet join seeds key)
     if(window._sayPlayerKey === pkey) return;
+    // New player key while lot is open → all clients (host/owners/viewers) announce
   } else {
     window._gapPendingPlayer = false;
     window._allowNextPlayerAnnounce = true;
@@ -7641,14 +7661,66 @@ async function saveRegRulesFromModal(){
   }catch(e){ safeAlert(e); }
 }
 
+function regTodayYmd(){
+  var d = new Date();
+  var m = d.getMonth()+1, day = d.getDate();
+  return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(day<10?'0':'')+day;
+}
+/** Compare YYYY-MM-DD strings. Returns -1 if a<b, 0 if equal, 1 if a>b. */
+function regCmpYmd(a, b){
+  a = String(a||'').trim(); b = String(b||'').trim();
+  if(!a || !b) return 0;
+  if(a < b) return -1;
+  if(a > b) return 1;
+  return 0;
+}
+/**
+ * Window check for public registration.
+ * Returns null if OK, or { kind:'early'|'late', message } if blocked.
+ * Manual organiser entry bypasses this.
+ */
+function regWindowBlockMessage(form, email){
+  if(!form) return null;
+  if(window._regManualMode) return null; // organiser manual entry
+  var start = String(form.startDate||'').trim();
+  var end = String(form.endDate||'').trim();
+  var today = regTodayYmd();
+  var who = (email || (user && user.email) || 'there').trim();
+  if(start && regCmpYmd(today, start) < 0){
+    return {
+      kind: 'early',
+      message: 'Hi, '+who+'. You are trying to register too early. Please wait until registrations open on '+start+'. Don\'t worry — we\'ll send a reminder once the window opens.'
+    };
+  }
+  if(end && regCmpYmd(today, end) > 0){
+    return {
+      kind: 'late',
+      message: 'Hi, '+who+'. It\'s too late to register online — the window closed on '+end+'. Contact the organiser to check if you still have a chance to register. Good luck!'
+    };
+  }
+  return null;
+}
+
 async function openRegFormForUser(formId, isEdit){
   if(!db || !user) return;
   try{
     var doc = await db.collection('registrationForms').doc(formId).get();
     if(!doc.exists){ alert('Registration not found'); return; }
     var data = doc.data();
-    if(!isEdit && data.status !== 'open'){ alert('This registration is closed'); return; }
+    if(!isEdit && data.status !== 'open' && !window._regManualMode){ alert('This registration is closed'); return; }
+    // Date window lock (skip for organiser manual entry / edit of own entry)
+    if(!isEdit && !window._regManualMode){
+      var block = regWindowBlockMessage(data, user.email);
+      if(block){
+        ask(block.kind==='early' ? 'Registrations not open yet' : 'Registration window closed', block.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
+        return;
+      }
+    }
     var existingSnap = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
+    // Manual add: blank form. Manual edit: filled by caller via fillUserRegForm.
+    if(window._regManualMode){
+      existingSnap = { exists: false };
+    }
     if(!isEdit && existingSnap.exists){
       isEdit = true;
     }
@@ -7673,6 +7745,15 @@ async function openRegFormForUser(formId, isEdit){
         try{ announce('Your registration details loaded'); }catch(e){}
         try{ focusEl($('regFormTitle')); }catch(e){}
       }, 80);
+      return;
+    }
+
+    // Manual organiser entry: blank form, no preference
+    if(window._regManualMode){
+      if($('regFormStatus')) $('regFormStatus').textContent = window._regManualEditId
+        ? 'Edit this organiser registration and save.'
+        : 'Fill the form and save. Marked as organiser entry.';
+      try{ focusEl($('regFormTitle')); }catch(e){}
       return;
     }
 
@@ -7840,8 +7921,9 @@ function paintRegEntriesPaged(){
   slice.forEach(function(en){
     var name = entryDisplayName(en);
     var sub = en.email||'';
-    h += '<button type="button" class="list-btn reg-entry-btn" data-id="'+en.id+'" aria-label="'+escHtml(String(name))+', '+escHtml(sub)+'">'
-      +escHtml(String(name))+'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span></button>';
+    var tag = (en.source==='organiser') ? ' · Organiser' : '';
+    h += '<button type="button" class="list-btn reg-entry-btn" data-id="'+en.id+'" aria-label="'+escHtml(String(name))+', '+escHtml(sub+tag)+'">'
+      +escHtml(String(name))+'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+escHtml(tag)+'</span></button>';
   });
   list.innerHTML = h;
   list.querySelectorAll('.reg-entry-btn').forEach(function(btn){
@@ -8055,6 +8137,14 @@ function wireRegShowIf(fields){
 
 async function submitUserRegForm(){
   if(!regFormCurrent||!user||!db) return;
+  // Date window (not for manual organiser entry or editing existing)
+  if(!window._regManualMode && !window._regFormIsEdit){
+    var blockSub = regWindowBlockMessage(regFormCurrent, user.email);
+    if(blockSub){
+      ask(blockSub.kind==='early' ? 'Registrations not open yet' : 'Registration window closed', blockSub.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
+      return;
+    }
+  }
   var fields = regFormCurrent.fields||[];
   var answers = {};
   for(var i=0;i<fields.length;i++){
@@ -8095,19 +8185,27 @@ async function submitUserRegForm(){
     }
     answers[f.id] = val;
   }
+  var isManual = !!window._regManualMode;
+  var manualEditId = window._regManualEditId || null;
+  var entryUid = isManual ? ('manual_'+(manualEditId || (Date.now().toString(36)+Math.random().toString(36).slice(2,8)))) : user.uid;
+  if(isManual && manualEditId) entryUid = manualEditId;
   var entry = {
-    uid: user.uid,
-    email: user.email||'',
-    displayName: user.displayName||'',
+    uid: isManual ? entryUid : user.uid,
+    email: isManual ? ('organiser:'+(user.email||'')) : (user.email||''),
+    displayName: isManual ? (user.displayName||user.email||'Organiser') : (user.displayName||''),
     answers: answers,
+    source: isManual ? 'organiser' : 'user',
+    createdBy: user.uid,
+    createdByEmail: user.email||'',
     submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   try{
-    var ref = db.collection('registrationForms').doc(regFormCurrent.id).collection('entries').doc(user.uid);
+    var ref = db.collection('registrationForms').doc(regFormCurrent.id).collection('entries').doc(entryUid);
     var exists = await ref.get();
-    if(exists.exists && !window._regFormIsEdit){
-      // Allow overwrite only via Edit path
+    if(isManual){
+      await ref.set(entry, { merge: true });
+    } else if(exists.exists && !window._regFormIsEdit){
       await ref.set(entry, { merge: true });
     } else if(exists.exists && window._regFormIsEdit){
       await ref.set(entry, { merge: true });
@@ -8116,10 +8214,14 @@ async function submitUserRegForm(){
     } else {
       await ref.set(entry, { merge: true });
     }
-    if($('regFormStatus')) $('regFormStatus').textContent = window._regFormIsEdit ? 'Changes saved.' : 'Registered successfully.';
-    try{ announce(window._regFormIsEdit ? 'Registration updated' : ('Registered for '+(regFormCurrent.title||'tournament'))); }catch(e){}
-    alert(window._regFormIsEdit ? 'Changes saved.' : 'Registration submitted.');
-    // Collapse form out of browser Back stack so system Back cannot reopen the form
+    var okMsg = isManual
+      ? (manualEditId ? 'Organiser registration updated.' : 'Manual registration saved.')
+      : (window._regFormIsEdit ? 'Changes saved.' : 'Registration submitted.');
+    if($('regFormStatus')) $('regFormStatus').textContent = okMsg;
+    try{ announce(okMsg); }catch(e){}
+    alert(okMsg);
+    window._regManualMode = false;
+    window._regManualEditId = null;
     try{
       history.replaceState(
         { screen: 'screenHome' },
@@ -8127,7 +8229,11 @@ async function submitUserRegForm(){
         location.pathname + location.search
       );
     }catch(eHist){}
-    openRegUserTour(regFormCurrent.id);
+    if(isManual && regHostForm){
+      openRegRecordsScreen();
+    } else {
+      openRegUserTour(regFormCurrent.id);
+    }
   }catch(e){ safeAlert(e); }
 }
 
@@ -8766,6 +8872,40 @@ function wireRegistrationsUi(){
   if($('btnRegCopyLink')) $('btnRegCopyLink').onclick=function(){ copyRegLink(regHostForm); };
   if($('btnRegUserShare')) $('btnRegUserShare').onclick=function(){ closeRegUserMore(); shareRegForm(regFormCurrent); };
   if($('btnRegOpenRecords')) $('btnRegOpenRecords').onclick=function(){ openRegRecordsScreen(); };
+  if($('btnRegAddManual')) $('btnRegAddManual').onclick=function(){
+    if(!regHostForm||!regHostForm.id){ alert('No tournament selected'); return; }
+    window._regManualMode = true;
+    window._regManualEditId = null;
+    window._regFormIsEdit = false;
+    openRegFormForUser(regHostForm.id, false).then(function(){
+      if($('regFormTitle')) $('regFormTitle').textContent = 'Add registration (organiser)';
+      if($('btnRegFormSubmit')) $('btnRegFormSubmit').textContent = 'Save registration';
+      if($('regFormStatus')) $('regFormStatus').textContent = 'Fill the form and save. This entry is marked as organiser.';
+    }).catch(function(e){ safeAlert(e); window._regManualMode=false; });
+  };
+  if($('btnRegEditMyManual')) $('btnRegEditMyManual').onclick=function(){
+    if(!regHostForm||!regHostForm.id){ alert('No tournament selected'); return; }
+    var mine = (regEntriesCache||[]).filter(function(en){
+      return en.source==='organiser' && (en.createdBy===user.uid || String(en.email||'').indexOf('organiser:')===0);
+    });
+    if(!mine.length){ alert('You have not added any organiser registrations yet.'); return; }
+    // Simple pick list via ask for first, or show panel
+    var pickHtml = mine.map(function(en,i){
+      return (i+1)+'. '+entryDisplayName(en);
+    }).join('\n');
+    var choice = prompt('Enter number to edit:\n'+pickHtml, '1');
+    var n = parseInt(choice,10);
+    if(!n || n<1 || n>mine.length) return;
+    var en = mine[n-1];
+    window._regManualMode = true;
+    window._regManualEditId = en.id;
+    window._regFormIsEdit = true;
+    openRegFormForUser(regHostForm.id, true).then(function(){
+      if($('regFormTitle')) $('regFormTitle').textContent = 'Edit organiser registration';
+      if($('btnRegFormSubmit')) $('btnRegFormSubmit').textContent = 'Save changes';
+      setTimeout(function(){ fillUserRegForm(en); }, 100);
+    }).catch(function(e){ safeAlert(e); window._regManualMode=false; window._regManualEditId=null; });
+  };
   if($('btnRegDeleteForm')) $('btnRegDeleteForm').onclick=function(){
     if(!regHostForm) return;
     var tname = regHostForm.title || 'this tournament';
@@ -12143,6 +12283,7 @@ function checkTeamAlerts(team){
   const purse = Number(team.purse)||0;
   const remaining = team.remaining != null ? Number(team.remaining) : purse;
   const usedPct = purse > 0 ? Math.round(((purse - remaining) / purse) * 100) : 0;
+  const remLabel = (remaining != null ? String(remaining) : '0');
   const parts = [];
 
   function fireOnce(key, msg){
@@ -12151,29 +12292,36 @@ function checkTeamAlerts(team){
     parts.push(msg);
   }
 
-  // Custom counts: fire only at the exact threshold (not every count above)
+  // Custom counts: exact threshold + purse context
   ar.customCounts.forEach(function(n){
     const num = Number(n);
-    if(num > 0 && count === num) fireOnce(tid+'|c|'+num, 'has bought '+num+' players');
+    if(num > 0 && count === num){
+      fireOnce(tid+'|c|'+num,
+        'has bought '+num+' players and used '+usedPct+' percent of the purse. Remaining purse: '+remLabel);
+    }
   });
-  // Min: only once when count first reaches min (key is stable)
+  // Min: once when count first reaches min
   if(ar.minPlayers !== false && minP > 0 && count === minP){
-    fireOnce(tid+'|min|'+minP, 'has bought the minimum of '+minP+' players');
+    fireOnce(tid+'|min|'+minP,
+      'has bought the minimum of '+minP+' players and used '+usedPct+' percent of the purse. Remaining purse: '+remLabel);
   } else if(ar.minPlayers !== false && minP > 0 && count > minP){
-    // Mark fired if somehow skipped so later sales do not announce min again
     ar.fired[tid+'|min|'+minP] = true;
   }
   if(ar.maxPlayers !== false && maxP > 0 && count === maxP){
-    fireOnce(tid+'|max|'+maxP, 'has reached the maximum of '+maxP+' players');
+    fireOnce(tid+'|max|'+maxP,
+      'has reached the maximum of '+maxP+' players and used '+usedPct+' percent of the purse. Remaining purse: '+remLabel);
     team.maxReached = true;
   } else if(ar.maxPlayers !== false && maxP > 0 && count >= maxP){
     ar.fired[tid+'|max|'+maxP] = true;
     team.maxReached = true;
   }
-  // Purse bands: only when first crossing each band
+  // Purse bands: include players bought (covers single expensive buy)
   if(ar.purse !== false && purse > 0){
     [50,75,90].forEach(function(th){
-      if(usedPct >= th) fireOnce(tid+'|p|'+th, 'has used '+th+' percent of their purse, remaining '+remaining);
+      if(usedPct >= th){
+        fireOnce(tid+'|p|'+th,
+          'has used '+th+' percent of the purse and bought '+count+' player'+(count===1?'':'s')+'. Remaining purse: '+remLabel);
+      }
     });
   }
 
@@ -13729,11 +13877,16 @@ if($('btnLeaveAuc')){
   function sync(){
     var isHost = !!(user && T && T.ownerId===user.uid);
     var isOwn = !!ownerMode && !isHost;
-    if($('btnPauseAuc')) $('btnPauseAuc').classList.toggle('hidden', !isHost || (T && T.status==='ended') || !!(T && T.paused));
-    if($('btnLeaveAuc')) $('btnLeaveAuc').classList.toggle('hidden', !isOwn || (T && T.status==='ended'));
-    if($('btnEndAuction')) $('btnEndAuction').classList.toggle('hidden', !isHost);
+    var ended = !!(T && T.status==='ended');
+    var paused = !!(T && T.paused);
+    // Pause + End: auction host only (never team owners)
+    if($('btnPauseAuc')) $('btnPauseAuc').classList.toggle('hidden', !isHost || ended || paused);
+    if($('btnEndAuction')) $('btnEndAuction').classList.toggle('hidden', !isHost || ended);
+    // Leave: team owners only (not host)
+    if($('btnLeaveAuc')) $('btnLeaveAuc').classList.toggle('hidden', !isOwn || ended);
   }
   window._syncPauseLeaveBtns = sync;
+  try{ sync(); }catch(e){}
 })();
 if($('btnHomeAuc')){
   try{ $('btnHomeAuc').remove(); }catch(e){}
@@ -15516,7 +15669,17 @@ async function loadGamesHub(){
         var bm=b.createdAt&&b.createdAt.toMillis?b.createdAt.toMillis():0;
         return bm-am;
       });
-      if(!rows.length){ box.innerHTML='<p class="hub-empty">No open lobbies</p>'; return; }
+      if(!rows.length){
+        box.innerHTML='<div class="hub-empty" style="padding:28px 12px;text-align:center">'+
+          '<div style="font-size:42px;margin-bottom:8px" aria-hidden="true">🏏</div>'+
+          '<p style="margin:0 0 12px;font-weight:700">No open lobbies</p>'+
+          '<p style="margin:0 0 16px;color:var(--muted);font-size:13px">Create a game or refresh to check again.</p>'+
+          '<button type="button" id="btnRefreshLobbies" class="btn-sec" style="min-height:44px">Refresh lobbies</button>'+
+          '</div>';
+        var rb=$('btnRefreshLobbies');
+        if(rb) rb.onclick=function(){ loadGamesHub(); };
+        return;
+      }
       var h='';
       rows.forEach(function(g){
         var hostName = (g.players&&g.players[0]&&(g.players[0].displayName||g.players[0].userId)) || 'Host';
@@ -15752,8 +15915,8 @@ function renderGameLobby(){
       ev.stopPropagation();
       var uid=btn.getAttribute('data-uid');
       var p=playerByUid(uid);
-      if(!confirm('Add '+(p&&p.displayName||'player')+' to '+right+'?')) return;
-      assignPlayerTeam(uid, 't2');
+      var nm=(p&&p.displayName)||'player';
+      ask('Add to team', 'Add '+nm+' to '+right+'?', function(){ assignPlayerTeam(uid, 't2'); }, { yesLabel:'Add', noLabel:'Cancel' });
     };
   });
   document.querySelectorAll('.game-host-remove').forEach(function(btn){
@@ -15761,8 +15924,8 @@ function renderGameLobby(){
       ev.stopPropagation();
       var uid=btn.getAttribute('data-uid');
       var p=playerByUid(uid);
-      if(!confirm('Remove '+(p&&p.displayName||'player')+' from team?')) return;
-      assignPlayerTeam(uid, null);
+      var nm=(p&&p.displayName)||'player';
+      ask('Remove player', 'Remove '+nm+' from team?', function(){ assignPlayerTeam(uid, null); }, { yesLabel:'Remove', noLabel:'Cancel' });
     };
   });
 }
@@ -15933,14 +16096,20 @@ function showGameResultModal(){
   // Personalise: "Your team won by X runs/wickets" vs "You lost. Team X won by..."
   function personalise(rt){
     if(!rt) return rt;
+    var s = String(rt);
+    if(/forfeit/i.test(s)){
+      if(iWon) return s.replace(/—\s*.+?\s+wins/i, '— your team wins');
+      if(iLost) return 'You lost. '+s;
+      return s;
+    }
     if(iWon){
       // "CSK won by 6 runs" → "Your team won by 6 runs"
-      return String(rt).replace(/^.+?\s+won by\s+/i, 'Your team won by ');
+      return s.replace(/^.+?\s+won by\s+/i, 'Your team won by ');
     }
     if(iLost){
-      return 'You lost. '+rt;
+      return 'You lost. '+s;
     }
-    return rt;
+    return s;
   }
   body = personalise(resultText);
   if(!winnerTeam){
@@ -16196,6 +16365,36 @@ function updateGameTimerLabels(){
         try{ gameSpeakOnce(tkey, leftSec+' seconds left'); }catch(e){}
       }
     }
+    // Chat trap: force back to Game tab when ≤5s and it is your turn
+    try{
+      var meUid = user && user.uid;
+      var canPickNow = (ball.phase==='wait_bowler'&&ball.bowlerUid===meUid)||(ball.phase==='wait_batter'&&ball.batterUid===meUid);
+      if(canPickNow && leftSec<=5 && window._gameLiveTab==='chat'){
+        var akey='autoswitch|'+ball.timerEndsAt;
+        if(window._gameChatAutoSwitchKey!==akey){
+          window._gameChatAutoSwitchKey=akey;
+          switchGameTab('view');
+          try{ gameSpeakOnce(akey, 'Your turn — five seconds left. Back to game.'); }catch(e){}
+          try{ if(navigator.vibrate) navigator.vibrate([80,40,80]); }catch(e){}
+        }
+      }
+    }catch(e){}
+    // Keep chat badge visual-only
+    try{
+      var badge=$('gameChatTurnBadge');
+      if(badge){
+        badge.setAttribute('aria-hidden','true');
+        badge.setAttribute('aria-live','off');
+        if(window._gameLiveTab==='chat'){
+          var me2=user&&user.uid;
+          var can2=((ball.phase==='wait_bowler'&&ball.bowlerUid===me2)||(ball.phase==='wait_batter'&&ball.batterUid===me2));
+          if(can2){
+            badge.textContent='Your turn · '+leftSec+'s';
+            badge.classList.remove('hidden');
+          } else badge.classList.add('hidden');
+        }
+      }
+    }catch(e){}
   } else if(G.status==='innings_break' && G.inningsBreakUntil){
     var leftI = Math.max(0, Math.ceil((G.inningsBreakUntil - Date.now())/1000));
     el.textContent = String(leftI);
@@ -16306,12 +16505,21 @@ function renderGameLive(){
       }
     } else if(ball.phase==='wait_batter'){
       var freePrompt = !!ball.freeBall;
-      if(leftIsBat){
-        leftPrompt = amBatter ? (freePrompt ? 'Free ball — select your hit' : 'Select your hit') : (freePrompt ? 'Free ball' : 'Batter thinking');
-        rightPrompt = freePrompt ? 'Free ball' : 'Batter thinking';
+      if(freePrompt){
+        // Single FREE HIT banner on batter side only — no triple duplication
+        if(leftIsBat){
+          leftPrompt = amBatter ? 'FREE HIT — no dismissal' : 'Free hit';
+          rightPrompt = '';
+        } else {
+          rightPrompt = amBatter ? 'FREE HIT — no dismissal' : 'Free hit';
+          leftPrompt = '';
+        }
+      } else if(leftIsBat){
+        leftPrompt = amBatter ? 'Select your hit' : 'Batter thinking';
+        rightPrompt = 'Batter thinking';
       } else {
-        rightPrompt = amBatter ? (freePrompt ? 'Free ball — select your hit' : 'Select your hit') : (freePrompt ? 'Free ball' : 'Batter thinking');
-        leftPrompt = freePrompt ? 'Free ball' : 'Batter thinking';
+        rightPrompt = amBatter ? 'Select your hit' : 'Batter thinking';
+        leftPrompt = 'Batter thinking';
       }
     } else if(ball.phase==='done'){
       if(leftIsBat){
@@ -16331,16 +16539,18 @@ function renderGameLive(){
     var lp = leftPrompt || '';
     $('gLiveLeftPrompt').textContent = lp || '';
     // Only the active "Select…" side is in SR path; passive thinking is hidden
-    var leftSelect = !!(lp && (lp.indexOf('Select')>=0 || lp.indexOf('Free ball —')>=0));
+    var leftSelect = !!(lp && (lp.indexOf('Select')>=0 || lp.indexOf('FREE HIT')>=0 || lp.indexOf('Free ball')>=0));
     $('gLiveLeftPrompt').setAttribute('aria-hidden', leftSelect ? 'false' : 'true');
     $('gLiveLeftPrompt').classList.toggle('me-turn', leftSelect && ((leftIsBat&&amBatter)||(!leftIsBat&&amBowler)));
+    $('gLiveLeftPrompt').classList.toggle('free-hit', !!(lp && lp.indexOf('FREE HIT')>=0));
   }
   if($('gLiveRightPrompt')){
     var rp = rightPrompt || '';
     $('gLiveRightPrompt').textContent = rp || '';
-    var rightSelect = !!(rp && (rp.indexOf('Select')>=0 || rp.indexOf('Free ball —')>=0));
+    var rightSelect = !!(rp && (rp.indexOf('Select')>=0 || rp.indexOf('FREE HIT')>=0 || rp.indexOf('Free ball')>=0));
     $('gLiveRightPrompt').setAttribute('aria-hidden', rightSelect ? 'false' : 'true');
     $('gLiveRightPrompt').classList.toggle('me-turn', rightSelect && ((leftIsBat&&amBowler)||(!leftIsBat&&amBatter)));
+    $('gLiveRightPrompt').classList.toggle('free-hit', !!(rp && rp.indexOf('FREE HIT')>=0));
   }
   if($('gLiveLeftNum')){
     $('gLiveLeftNum').textContent = leftNum;
@@ -16389,10 +16599,10 @@ function renderGameLive(){
   // Global select label
   if($('hcSelectLabel')){
     if(live&&amBowler&&ball.phase==='wait_bowler') $('hcSelectLabel').textContent='Select your Ball';
-    else if(live&&amBatter&&ball.phase==='wait_batter'&&ball.freeBall) $('hcSelectLabel').textContent='Free ball — Select your Hit';
+    else if(live&&amBatter&&ball.phase==='wait_batter'&&ball.freeBall) $('hcSelectLabel').textContent='FREE HIT — Select your hit';
     else if(live&&amBatter&&ball.phase==='wait_batter') $('hcSelectLabel').textContent='Select your Hit';
     else if(live&&ball.phase==='wait_bowler') $('hcSelectLabel').textContent='Bowler selecting…';
-    else if(live&&ball.phase==='wait_batter'&&ball.freeBall) $('hcSelectLabel').textContent='Free ball — batter selecting…';
+    else if(live&&ball.phase==='wait_batter'&&ball.freeBall) $('hcSelectLabel').textContent='Free hit — batter selecting…';
     else if(live&&ball.phase==='wait_batter') $('hcSelectLabel').textContent='Batter selecting…';
     else if(live&&ball.phase==='done') $('hcSelectLabel').textContent = (badge && badge.textContent) ? badge.textContent : '…';
     else $('hcSelectLabel').textContent='';
@@ -16428,7 +16638,7 @@ function renderGameLive(){
   if(live&&ball.phase==='wait_bowler'&&amBowler){
     gameSpeakOnce('bowl|'+ball.timerEndsAt+'|'+me, 'Select your ball');
   } else if(live&&ball.phase==='wait_batter'&&amBatter){
-    if(ball.freeBall) gameSpeakOnce('freehit|'+ball.timerEndsAt+'|'+me, 'Free ball. Select your hit');
+    if(ball.freeBall) gameSpeakOnce('freehit|'+ball.timerEndsAt+'|'+me, 'Opponent timed out. Free hit awarded. You cannot be out on this ball. Select your hit');
     else gameSpeakOnce('hit|'+ball.timerEndsAt+'|'+me, 'Select your hit');
   } else if(ball.phase==='done'){
     var bn = ball.bowlerNumber!=null ? ball.bowlerNumber : '';
@@ -16693,12 +16903,12 @@ async function gameResolveTimerIfNeeded(){
         });
         return;
       }
-      // Batter timeout on normal ball → wicket; on free ball → 0 runs (dot)
+      // Batter timeout on normal ball → wicket (flag forfeit if match ends); on free ball → 0 runs (dot)
       if(b.phase==='wait_batter'){
         if(b.freeBall){
           applyBallResultTx(tx, ref, d, { type:'free_ball', runs:0, bowlerNumber:null, batterNumber:null });
         } else {
-          applyBallResultTx(tx, ref, d, { type:'wicket', runs:0, bowlerNumber:b.bowlerNumber, batterNumber:null });
+          applyBallResultTx(tx, ref, d, { type:'wicket', runs:0, bowlerNumber:b.bowlerNumber, batterNumber:null, timeoutForfeit:true });
         }
       }
     });
@@ -16731,6 +16941,19 @@ function applyBallResultTx(tx, ref, d, res){
 
   if(chaseDone||(d.innings===2&&inningsOver)){
     var resultText=buildMatchResult(d, score);
+    // Timeout forfeit: do not invent a run margin — state the forfeit clearly
+    if(res.timeoutForfeit){
+      var winTeamId = null;
+      var s1f=score.t1||{runs:0}, s2f=score.t2||{runs:0};
+      if(s1f.runs>s2f.runs) winTeamId='t1';
+      else if(s2f.runs>s1f.runs) winTeamId='t2';
+      else {
+        // Chase side all out / timed out without matching — other team wins
+        winTeamId = (d.battingTeamId==='t1') ? 't2' : 't1';
+      }
+      var winNm = teamNameById(d, winTeamId) || 'Opponent';
+      resultText = 'Match forfeited due to timeout — '+winNm+' wins';
+    }
     tx.update(ref,{
       score:score, ballLog:ballLog, currentBall:doneBall, status:'finished', resultText:resultText,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()

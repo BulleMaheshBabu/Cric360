@@ -2379,8 +2379,11 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <section id="screenRegRecords" class="wrap panel hidden" role="region" aria-labelledby="regRecordsTitle">
   <button type="button" id="btnRegRecordsBack" class="btn-sec" aria-label="Back to tournament">Back</button>
   <h1 id="regRecordsTitle" tabindex="-1">Registration records</h1>
-  <label for="regSearch" class="sr-only">Search registrations</label>
-  <input id="regSearch" type="search" placeholder="Search name or email…" autocomplete="off" style="width:100%;min-height:48px;margin:8px 0 10px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
+  <div class="reg-toolbar" style="display:flex;align-items:center;gap:8px;margin:8px 0 10px">
+    <label for="regSearch" class="sr-only">Search registrations</label>
+    <input id="regSearch" type="search" placeholder="Search name or email…" autocomplete="off" aria-label="Search registrations" style="flex:1;min-width:0;min-height:48px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
+    <button type="button" id="btnRegDownload" class="btn-ok" style="min-height:48px;flex-shrink:0;padding:10px 16px;font-weight:800" aria-label="Download registrations as Excel">Download</button>
+  </div>
   <p id="regRecordsCount" style="font-weight:700;margin:0 0 8px" role="status"></p>
   <div style="display:flex;flex-direction:column;gap:8px;margin:0 0 12px">
     <button type="button" id="btnRegAddManual" class="btn-ok btn-block" style="min-height:48px">Add registration</button>
@@ -2429,13 +2432,31 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <section id="screenRegPublicList" class="wrap panel hidden" role="region" aria-labelledby="regPublicTitle">
   <button type="button" id="btnRegPublicBack" class="btn-sec" aria-label="Back to tournament">Back</button>
   <h1 id="regPublicTitle" tabindex="-1">Registered players</h1>
-  <label for="regPublicSearch" class="sr-only">Search</label>
-  <input id="regPublicSearch" type="search" placeholder="Search name or email…" autocomplete="off" style="width:100%;min-height:48px;margin:8px 0 10px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
+  <div class="reg-toolbar" style="display:flex;align-items:center;gap:8px;margin:8px 0 10px">
+    <label for="regPublicSearch" class="sr-only">Search</label>
+    <input id="regPublicSearch" type="search" placeholder="Search name or email…" autocomplete="off" aria-label="Search registered players" style="flex:1;min-width:0;min-height:48px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:16px" />
+    <button type="button" id="btnRegPublicDownload" class="btn-ok" style="min-height:48px;flex-shrink:0;padding:10px 16px;font-weight:800" aria-label="Download name and email as Excel">Download</button>
+  </div>
   <p id="regPublicCount" style="font-weight:700;margin:0 0 8px" role="status"></p>
   <div id="regPublicList" class="hub-list" aria-label="Registered players" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
   <button type="button" id="btnRegPublicMore" class="btn-sec btn-block hidden" style="margin-top:10px">Load more</button>
 </section>
 
+
+<!-- Registration Excel column picker (organiser) -->
+<div id="regExportModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="regExportTitle" aria-hidden="true" style="position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center">
+  <div class="panel" style="width:100%;max-width:440px;border-radius:16px 16px 0 0;padding:16px;margin:0;max-height:85vh;overflow-y:auto">
+    <h2 id="regExportTitle" tabindex="-1" style="margin:0 0 8px">Download Excel</h2>
+    <p style="color:var(--muted);font-size:14px;margin:0 0 12px">Select the columns to include. Only ticked columns will be exported.</p>
+    <div id="regExportCols" style="display:flex;flex-direction:column;gap:8px;margin:0 0 14px" role="group" aria-label="Columns to export"></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <button type="button" id="btnRegExportAll" class="btn-sec" style="flex:1;min-height:44px">Select all</button>
+      <button type="button" id="btnRegExportNone" class="btn-sec" style="flex:1;min-height:44px">Clear</button>
+    </div>
+    <button type="button" id="btnRegExportGo" class="btn-ok btn-block" style="margin-top:12px;min-height:48px">Download selected</button>
+    <button type="button" id="btnRegExportCancel" class="btn-sec btn-block" style="margin-top:8px">Cancel</button>
+  </div>
+</div>
 <div id="regDetailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="regDetailTitle">
   <div class="modal-box" style="max-height:80vh;overflow-y:auto">
     <h2 id="regDetailTitle" tabindex="-1" style="margin-top:0">Player details</h2>
@@ -4165,8 +4186,8 @@ function friendlyError(e){
 
   // ----- Firestore -----
   const fsMap = {
-    'permission-denied': 'Permission denied. Sign in again or ask the host to assign your team.',
-    'firestore/permission-denied': 'Permission denied. Sign in again or ask the host to assign your team.',
+    'permission-denied': 'Permission denied by Firestore rules. Publish latest rules, then sign out and sign in again.',
+    'firestore/permission-denied': 'Permission denied by Firestore rules. If this is Approve/Pause, publish the latest rules and sign in again. If this is a live auction, ask the host to assign your team.',
     'not-found': 'Auction not found or was removed.',
     'firestore/not-found': 'Auction not found or was removed.',
     'unavailable': 'Network problem. Check your connection and try again.',
@@ -4234,7 +4255,7 @@ function isFirebaseRetryable(e){
 function safeAlert(e){
   const msg = friendlyError(e);
   try{ announce(msg); }catch(err){}
-  try{ alert(msg); }catch(err){ console.error(msg, e); }
+  try{ appAlert(msg); }catch(err){ try{ console.error(msg, e); }catch(x){} }
 }
 /** Soft status line for non-blocking errors (screen-reader friendly) */
 function showAppError(msg, opts){
@@ -4684,24 +4705,74 @@ function isConfirmOpen(){
   const m=$('confirmModal');
   return m && !m.classList.contains('hidden');
 }
+/**
+ * In-app dialogs only — never use browser alert/confirm (they show "cric360teluguyt.in says").
+ * alert mode: single OK button. confirm mode: Yes/No via ask().
+ */
+function appAlert(msg, opts){
+  opts = opts || {};
+  var text = (msg == null) ? '' : String(msg);
+  // Strip accidental domain prefixes if any library adds them
+  text = text.replace(/^https?:\/\/[^\s]+\s+says\s*/i, '')
+             .replace(/^cric360teluguyt\.in\s+says\s*/i, '')
+             .replace(/^[\w.-]+\.in\s+says\s*/i, '');
+  var title = opts.title || 'Message';
+  pendingFn = typeof opts.onOk === 'function' ? opts.onOk : null;
+  window._pendingNoFn = null;
+  window._confirmIsAlert = true;
+  if($('cTitle')) $('cTitle').textContent = title;
+  if($('cText')) $('cText').textContent = text;
+  var yesBtn = $('cYes');
+  var noBtn = $('cNo');
+  if(yesBtn){
+    yesBtn.textContent = opts.okLabel || 'OK';
+    yesBtn.setAttribute('aria-label', opts.okLabel || 'OK');
+    yesBtn.classList.remove('hidden');
+  }
+  if(noBtn){
+    noBtn.classList.add('hidden');
+    noBtn.setAttribute('aria-hidden', 'true');
+  }
+  var modal = $('confirmModal');
+  if(modal){
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  window._modalOpen = true;
+  function focusOk(){
+    if(!isConfirmOpen()) return;
+    try{ yesBtn && yesBtn.focus(); }catch(e){}
+  }
+  focusOk();
+  setTimeout(focusOk, 50);
+  setTimeout(focusOk, 200);
+  try{ announce(text); }catch(e){}
+}
+
 function ask(title,msg,onYes,opts){
   opts=opts||{};
-  $('cTitle').textContent=title;
-  $('cText').textContent=msg;
+  window._confirmIsAlert = false;
+  if($('cTitle')) $('cTitle').textContent=title;
+  if($('cText')) $('cText').textContent=msg;
   pendingFn=onYes;
   window._pendingNoFn = typeof opts.onNo==='function' ? opts.onNo : null;
   const yesBtn=$('cYes'); const noBtn=$('cNo');
   if(yesBtn){
     yesBtn.textContent = opts.yesLabel || 'Yes';
     yesBtn.setAttribute('aria-label', opts.yesAria || (opts.yesLabel || 'Yes'));
+    yesBtn.classList.remove('hidden');
   }
   if(noBtn){
+    noBtn.classList.remove('hidden');
+    noBtn.setAttribute('aria-hidden', 'false');
     noBtn.textContent = opts.noLabel || 'No';
     noBtn.setAttribute('aria-label', opts.noAria || (opts.noLabel || 'No'));
   }
   const modal=$('confirmModal');
-  modal.classList.remove('hidden');
-  modal.setAttribute('aria-hidden','false');
+  if(modal){
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden','false');
+  }
   window._modalOpen=true;
   function focusYes(){
     if(!isConfirmOpen()) return;
@@ -4720,19 +4791,21 @@ function closeConfirm(fromNo){
   }
   window._modalOpen=false;
   const noFn=window._pendingNoFn;
+  const wasAlert = !!window._confirmIsAlert;
   window._pendingNoFn=null;
   pendingFn=null;
-  // Restore default button labels
+  window._confirmIsAlert = false;
+  // Restore default button labels and show both
   try{
-    if($('cYes')){ $('cYes').textContent='Yes'; $('cYes').setAttribute('aria-label','Yes'); }
-    if($('cNo')){ $('cNo').textContent='No'; $('cNo').setAttribute('aria-label','No'); }
+    if($('cYes')){ $('cYes').textContent='Yes'; $('cYes').setAttribute('aria-label','Yes'); $('cYes').classList.remove('hidden'); }
+    if($('cNo')){ $('cNo').textContent='No'; $('cNo').setAttribute('aria-label','No'); $('cNo').classList.remove('hidden'); $('cNo').setAttribute('aria-hidden','false'); }
   }catch(e){}
   if(fromNo && typeof noFn==='function'){
     try{ noFn(); }catch(e){}
   }
   // Virtual mode: decision panel must stay until host acts — restore after any cancel
   try{
-    if(T && T.bid && T.bid.phase==='await_host' && user && T.ownerId===user.uid){
+    if(!wasAlert && T && T.bid && T.bid.phase==='await_host' && user && T.ownerId===user.uid){
       window._hostDecKey = null;
       showHostTimerDecision(!!T.bid.leaderTeamId);
     }
@@ -4744,6 +4817,29 @@ $('cYes').onclick=()=>{
   if(f) f();
 };
 $('cNo').onclick=()=>{ closeConfirm(true); };
+
+/* Block browser alert/confirm chrome ("domain says…") — use in-app dialog only */
+(function installAppDialogs(){
+  try{
+    window._nativeAlert = window.alert;
+    window.alert = function(message){
+      try{ appAlert(message); }catch(e){
+        try{ if(window._nativeAlert) window._nativeAlert(message); }catch(e2){}
+      }
+    };
+  }catch(e){}
+  try{
+    window._nativeConfirm = window.confirm;
+    window.confirm = function(message){
+      // Sync confirm cannot wait on modal; prefer ask() at call sites.
+      // Fallback: show in-app alert and return false (safe default).
+      try{
+        appAlert(message, { title: 'Confirm', okLabel: 'OK' });
+      }catch(e){}
+      return false;
+    };
+  }catch(e){}
+})();
 
 /** TalkBack: announce checkbox state after toggle (native often silent on dynamic UI) */
 function checkboxLabelText(cb){
@@ -5535,9 +5631,28 @@ async function refreshAdminOrgLists(){
     pBox.innerHTML='';
     return;
   }
-  // Organisers list
+  // Organisers list (query + client filter fallback)
   try{
-    const users=await db.collection('users').where('isOrganiser','==',true).get();
+    var users;
+    try{
+      users = await db.collection('users').where('isOrganiser','==',true).get();
+    }catch(q1){
+      console.warn('organisers where failed, fallback all users', q1);
+      var allU = await db.collection('users').limit(200).get();
+      // Fake QuerySnapshot-like filter
+      users = { empty: true, forEach: function(fn){
+        var n = 0;
+        allU.forEach(function(doc){
+          var d = doc.data()||{};
+          if(d.isOrganiser === true){ n++; fn(doc); }
+        });
+        users.empty = n === 0;
+      }};
+      // materialize for empty check
+      var tmp = [];
+      allU.forEach(function(doc){ var d=doc.data()||{}; if(d.isOrganiser===true) tmp.push(doc); });
+      users = { empty: !tmp.length, forEach: function(fn){ tmp.forEach(fn); } };
+    }
     oBox.innerHTML='';
     if(users.empty) oBox.innerHTML='<p style="color:var(--muted)">No organisers yet.</p>';
     users.forEach(doc=>{
@@ -5548,9 +5663,9 @@ async function refreshAdminOrgLists(){
       const row=document.createElement('div'); row.className='row'; row.style.marginTop='8px'; row.style.gap='8px'; row.style.flexWrap='wrap';
       const pause=document.createElement('button'); pause.type='button'; pause.className='btn-sec';
       pause.textContent=d.orgPaused?'Resume permission':'Pause permission';
-      pause.onclick=async()=>{ try{ await doc.ref.set({orgPaused:!d.orgPaused},{merge:true}); refreshAdminOrgLists(); }catch(e){ safeAlert(e); } };
+      pause.onclick=async()=>{ try{ await doc.ref.set({orgPaused:!d.orgPaused, email:d.email||'', displayName:d.displayName||''},{merge:true}); refreshAdminOrgLists(); }catch(e){ console.error('pause', e); alert('Pause failed: '+(e && (e.code||e.message)||e)); } };
       const rem=document.createElement('button'); rem.type='button'; rem.className='btn-danger'; rem.textContent='Remove permission';
-      rem.onclick=()=>ask('Remove organiser?','Remove access for '+(d.email||'')+'?', async()=>{ try{ await doc.ref.set({isOrganiser:false,orgPaused:false},{merge:true}); refreshAdminOrgLists(); }catch(e){ safeAlert(e); } });
+      rem.onclick=()=>ask('Remove organiser?','Remove access for '+(d.email||'')+'?', async()=>{ try{ await doc.ref.set({isOrganiser:false,orgPaused:false},{merge:true}); refreshAdminOrgLists(); }catch(e){ console.error('remove', e); alert('Remove failed: '+(e && (e.code||e.message)||e)); } });
       row.appendChild(pause); row.appendChild(rem); div.appendChild(row); oBox.appendChild(div);
     });
   }catch(e){
@@ -5584,10 +5699,27 @@ async function refreshAdminOrgLists(){
         ok.onclick=async()=>{
           try{
             if(!d.uid){ alert('Missing user id on request'); return; }
-            await db.collection('users').doc(d.uid).set({isOrganiser:true,orgPaused:false},{merge:true});
-            await doc.ref.set({status:'approved', approvedAt:Date.now(), approvedBy:user.uid},{merge:true});
+            // Grant organiser on their users/{uid} profile (create or merge)
+            await db.collection('users').doc(d.uid).set({
+              isOrganiser: true,
+              orgPaused: false,
+              email: d.email || '',
+              displayName: d.displayName || '',
+              organiserApprovedAt: Date.now(),
+              organiserApprovedBy: user.uid
+            }, { merge: true });
+            await doc.ref.set({
+              status: 'approved',
+              approvedAt: Date.now(),
+              approvedBy: user.uid,
+              approvedByEmail: user.email || ''
+            }, { merge: true });
+            try{ alert('Approved. '+(d.email||d.uid)+' is now an organiser.'); }catch(eA){}
             refreshAdminOrgLists();
-          }catch(e){ safeAlert(e); }
+          }catch(e){
+            console.error('approve', e);
+            alert('Approve failed: '+(e && (e.code||e.message)||e)+'\n\nPublish the latest rules and sign in again as maheshdhoni7633@gmail.com');
+          }
         };
         const no=document.createElement('button'); no.type='button'; no.className='btn-danger'; no.textContent='Reject';
         no.onclick=async()=>{
@@ -8401,6 +8533,189 @@ function paintRegEntriesPaged(){
   }
 }
 
+
+function isRegFormOwner(){
+  if(!user) return false;
+  if(typeof isSuperAdmin === 'function' && isSuperAdmin()) return true;
+  if(typeof isAdmin === 'function' && isAdmin()) return true;
+  var form = regHostForm || regFormCurrent;
+  if(form && form.ownerId && form.ownerId === user.uid) return true;
+  return false;
+}
+
+function regEntryAnswer(en, field){
+  if(!en || !field) return '';
+  var v = en.answers && en.answers[field.id];
+  if(v == null || v === ''){
+    try{
+      var k = typeof regFieldKey === 'function' ? regFieldKey(field.title) : '';
+      if(k && en.answers) v = en.answers[k];
+    }catch(e){}
+  }
+  if(Array.isArray(v)) v = v.join(', ');
+  if(v == null) v = '';
+  return String(v).trim();
+}
+
+function regFilteredEntriesForExport(searchId){
+  var entries = regEntriesCache || [];
+  var q = '';
+  try{
+    var el = searchId ? document.getElementById(searchId) : null;
+    q = (el && el.value || '').trim().toLowerCase();
+  }catch(e){}
+  if(!q) return entries.slice();
+  return entries.filter(function(en){
+    var name = (typeof entryDisplayName === 'function') ? entryDisplayName(en) : '';
+    var blob = (name + ' ' + (en.email||'') + ' ' + JSON.stringify(en.answers||{})).toLowerCase();
+    return blob.indexOf(q) >= 0;
+  });
+}
+
+function downloadRegExcelRows(rows, filename){
+  if(typeof XLSX === 'undefined'){
+    alert('Excel library not loaded. Refresh the page and try again.');
+    return;
+  }
+  if(!rows || !rows.length){
+    alert('No records to download.');
+    return;
+  }
+  try{
+    var ws = XLSX.utils.json_to_sheet(rows);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Registrations');
+    var safe = String(filename || 'registrations').replace(/[^\w\-]+/g, '_').slice(0, 60);
+    XLSX.writeFile(wb, safe + '.xlsx');
+    try{ if(typeof announce === 'function') announce('Excel downloaded'); }catch(e){}
+  }catch(e){
+    console.error(e);
+    alert('Download failed: ' + ((e && e.message) || e));
+  }
+}
+
+function closeRegExportModal(){
+  var m = $('regExportModal');
+  if(m){
+    m.classList.add('hidden');
+    m.setAttribute('aria-hidden', 'true');
+    m.style.display = '';
+  }
+  try{ focusEl($('btnRegDownload')); }catch(e){}
+}
+
+function openRegExportColumnPicker(){
+  var fields = (regHostForm && regHostForm.fields) || (regFormCurrent && regFormCurrent.fields) || [];
+  var box = $('regExportCols');
+  if(!box){ alert('Export UI missing'); return; }
+  // Always include Account email as a fixed column option
+  var cols = [];
+  cols.push({ key: '__email', title: 'Account email', fixed: true });
+  fields.forEach(function(f){
+    if(!f || !f.id) return;
+    cols.push({ key: f.id, title: f.title || f.id, field: f });
+  });
+  if(cols.length === 1){
+    // only email — still show it
+  }
+  var h = '';
+  cols.forEach(function(c, i){
+    var id = 'regExCol_' + i;
+    h += '<label for="'+id+'" style="display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 4px;border-bottom:1px solid var(--border);cursor:pointer">'
+      + '<input type="checkbox" id="'+id+'" class="reg-export-col" data-key="'+c.key+'" checked style="width:22px;height:22px;flex-shrink:0" />'
+      + '<span>'+escHtml(c.title)+'</span></label>';
+  });
+  box.innerHTML = h;
+  window._regExportCols = cols;
+  var m = $('regExportModal');
+  if(m){
+    m.classList.remove('hidden');
+    m.setAttribute('aria-hidden', 'false');
+    m.style.display = 'flex';
+  }
+  try{ focusEl($('regExportTitle') || $('btnRegExportGo')); }catch(e){}
+}
+
+function runRegExportSelectedColumns(){
+  var cols = window._regExportCols || [];
+  var selected = [];
+  document.querySelectorAll('.reg-export-col:checked').forEach(function(cb){
+    var key = cb.getAttribute('data-key');
+    var col = cols.find(function(c){ return c.key === key; });
+    if(col) selected.push(col);
+  });
+  if(!selected.length){
+    alert('Select at least one column.');
+    return;
+  }
+  var entries = regFilteredEntriesForExport('regSearch');
+  if(!entries.length){
+    alert('No records to download.');
+    return;
+  }
+  var rows = entries.map(function(en){
+    var row = {};
+    selected.forEach(function(c){
+      if(c.key === '__email'){
+        row[c.title] = en.email || '';
+      } else if(c.field){
+        row[c.title] = regEntryAnswer(en, c.field);
+      } else {
+        row[c.title] = '';
+      }
+    });
+    return row;
+  });
+  var title = (regHostForm && regHostForm.title) || (regFormCurrent && regFormCurrent.title) || 'registrations';
+  downloadRegExcelRows(rows, title + '_registrations');
+  closeRegExportModal();
+}
+
+function downloadRegEntriesAsOrganiser(){
+  var entries = regEntriesCache || [];
+  if(!entries.length){
+    alert('No records to download.');
+    return;
+  }
+  openRegExportColumnPicker();
+}
+
+function downloadRegEntriesAsViewer(){
+  var entries = regFilteredEntriesForExport('regPublicSearch');
+  if(!entries.length){
+    // also try host search if on records screen as non-owner (edge case)
+    if(!entries.length) entries = regFilteredEntriesForExport('regSearch');
+  }
+  if(!entries.length){
+    alert('No records to download.');
+    return;
+  }
+  ask(
+    'Download Excel?',
+    'Are you sure you want to download all the records as an Excel file? Only name and email will be included.',
+    function(){
+      var rows = entries.map(function(en){
+        return {
+          Name: (typeof entryDisplayName === 'function') ? entryDisplayName(en) : (en.displayName || ''),
+          Email: en.email || ''
+        };
+      });
+      var title = (regFormCurrent && regFormCurrent.title) || (regHostForm && regHostForm.title) || 'registrations';
+      downloadRegExcelRows(rows, title + '_name_email');
+    },
+    { yesLabel: 'Yes, download', noLabel: 'Cancel' }
+  );
+}
+
+function onRegDownloadClick(){
+  // Host records screen: organiser gets column picker
+  if(isRegFormOwner()){
+    downloadRegEntriesAsOrganiser();
+  } else {
+    downloadRegEntriesAsViewer();
+  }
+}
+
 function entryDisplayName(en){
   if(!en) return 'Entry';
   var fields = (regHostForm&&regHostForm.fields)||(regFormCurrent&&regFormCurrent.fields)||[];
@@ -9342,6 +9657,19 @@ function wireRegistrationsUi(){
   if($('btnRegCopyLink')) $('btnRegCopyLink').onclick=function(){ copyRegLink(regHostForm); };
   if($('btnRegUserShare')) $('btnRegUserShare').onclick=function(){ closeRegUserMore(); shareRegForm(regFormCurrent); };
   if($('btnRegOpenRecords')) $('btnRegOpenRecords').onclick=function(){ openRegRecordsScreen(); };
+    if($('btnRegDownload')) $('btnRegDownload').onclick = function(){ onRegDownloadClick(); };
+  if($('btnRegPublicDownload')) $('btnRegPublicDownload').onclick = function(){ downloadRegEntriesAsViewer(); };
+  if($('btnRegExportGo')) $('btnRegExportGo').onclick = function(){ runRegExportSelectedColumns(); };
+  if($('btnRegExportCancel')) $('btnRegExportCancel').onclick = function(){ closeRegExportModal(); };
+  if($('btnRegExportAll')) $('btnRegExportAll').onclick = function(){
+    document.querySelectorAll('.reg-export-col').forEach(function(cb){ cb.checked = true; });
+  };
+  if($('btnRegExportNone')) $('btnRegExportNone').onclick = function(){
+    document.querySelectorAll('.reg-export-col').forEach(function(cb){ cb.checked = false; });
+  };
+  if($('regExportModal')) $('regExportModal').addEventListener('click', function(ev){
+    if(ev.target === $('regExportModal')) closeRegExportModal();
+  });
   if($('btnRegAddManual')) $('btnRegAddManual').onclick=function(){
     if(!regHostForm||!regHostForm.id){ alert('No tournament selected'); return; }
     window._regManualMode = true;

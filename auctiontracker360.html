@@ -1577,6 +1577,22 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 #screenGameLive .hc-scorebar .hc-sc-item{text-align:center}
 #screenGameLive .hc-scorebar .hc-sc-label{font-size:10px;font-weight:600;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em}
 #screenGameLive .hc-scorebar .hc-sc-val{font-size:18px;font-weight:800;font-family:var(--font-score);color:#fff}
+/* Host more menu: never leave inline display:flex (it overrides .hidden) */
+#regHostMoreMenu{
+  position:fixed;inset:0;z-index:80;
+  background:rgba(0,0,0,.55);
+  align-items:flex-end;justify-content:center;
+  display:none;
+}
+#regHostMoreMenu:not(.hidden){display:flex !important;}
+#regHostMoreMenu.hidden{
+  display:none !important;
+  pointer-events:none !important;
+  visibility:hidden !important;
+}
+#regHostMoreMenu .reg-more-sheet{
+  width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:16px;margin:0;
+}
 #screenGameLive .hc-leave-btn{
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#e2e8f0;
   border-radius:10px;padding:8px 14px;font-weight:700;font-size:13px;min-height:40px;
@@ -2346,15 +2362,16 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <button type="button" id="btnRegOpenRecords" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">View registrations</button>
     <button type="button" id="btnRegStartAuction" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Start auction</button>
   </div>
-  <div id="regHostMoreMenu" class="hidden" role="menu" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center">
-    <div class="panel" style="width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:16px;margin:0" role="document">
-      <button type="button" id="btnRegModifyRules" class="btn-ok btn-block" role="menuitem">Modify rules</button>
-      <button type="button" id="btnRegViewForm" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Edit registration form</button>
-      <button type="button" id="btnRegViewFormOnly" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">View registration form</button>
-      <button type="button" id="btnRegShare" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Share</button>
-      <button type="button" id="btnRegCopyLink" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Copy link</button>
-      <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block" role="menuitem" style="margin-top:8px">Delete tournament</button>
-      <button type="button" id="btnRegHostMoreClose" class="btn-sec btn-block" style="margin-top:12px">Close</button>
+  <div id="regHostMoreMenu" class="hidden" role="dialog" aria-modal="true" aria-label="More options" aria-hidden="true">
+    <div class="panel reg-more-sheet" role="document">
+      <button type="button" id="btnRegModifyRules" class="btn-ok btn-block">Modify rules</button>
+      <button type="button" id="btnRegViewForm" class="btn-sec btn-block" style="margin-top:8px">Edit tournament</button>
+      <button type="button" id="btnRegViewFormOnly" class="btn-sec btn-block" style="margin-top:8px">View registration form</button>
+      <button type="button" id="btnRegCloseRegs" class="btn-sec btn-block" style="margin-top:8px">Close registrations</button>
+      <button type="button" id="btnRegShare" class="btn-sec btn-block" style="margin-top:8px">Share</button>
+      <button type="button" id="btnRegCopyLink" class="btn-sec btn-block" style="margin-top:8px">Copy link</button>
+      <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block" style="margin-top:8px">Delete tournament</button>
+      <button type="button" id="btnRegHostMoreClose" class="btn-sec btn-block" style="margin-top:12px">Close menu</button>
     </div>
   </div>
 </section>
@@ -4328,8 +4345,9 @@ function showScreen(id, opts){
   }catch(e){}
   window._currentScreenId = id || window._currentScreenId;
   // Persist for refresh — stay on same screen after reload
+  // NEVER overwrite with home/boot/auth (enterHome must not wipe game/auction restore)
   try{
-    if(id && id!=='screenBoot' && id!=='screenAuth'){
+    if(id && id!=='screenBoot' && id!=='screenAuth' && id!=='screenHome'){
       const persist = { screen: id, at: Date.now() };
       if(id==='screenSettings') persist.settingsPanel = window._settingsPanel || 'menu';
       if((id==='screenAuction' || id==='screenWatch' || id==='screenWait' || id==='screenWelcome') && typeof auctionId!=='undefined' && auctionId){
@@ -4879,58 +4897,62 @@ async function refreshProfile(){ if(user) profile=await loadProfile(user); retur
 async function restoreNavAfterRefresh(){
   var raw = null;
   try{ raw = sessionStorage.getItem('at_nav_restore'); }catch(e){}
-  if(!raw) return;
+  if(!raw) return false;
   var nav = null;
-  try{ nav = JSON.parse(raw); }catch(e){ return; }
-  if(!nav || !nav.screen) return;
+  try{ nav = JSON.parse(raw); }catch(e){ return false; }
+  if(!nav || !nav.screen) return false;
   // Ignore stale restores older than 2 hours
   if(nav.at && (Date.now() - nav.at) > 2 * 60 * 60 * 1000){
     try{ sessionStorage.removeItem('at_nav_restore'); }catch(e){}
-    return;
+    return false;
   }
   var scr = nav.screen;
-  if(scr === 'screenHome' || scr === 'screenBoot' || scr === 'screenAuth') return;
+  if(scr === 'screenHome' || scr === 'screenBoot' || scr === 'screenAuth') return false;
   try{
     if(scr === 'screenSettings'){
       showScreen('screenSettings');
       if(typeof showSettingsPanel === 'function'){
         showSettingsPanel(nav.settingsPanel || 'menu');
       }
-      return;
+      return true;
     }
     if(scr === 'screenList'){
       try{
         if($('btnMyAuctions')) $('btnMyAuctions').click();
         else showScreen('screenList');
       }catch(e){ showScreen('screenList'); }
-      return;
+      return true;
     }
     if((scr === 'screenAuction' || scr === 'screenWatch' || scr === 'screenWait' || scr === 'screenWelcome') && nav.auctionId){
       try{
-        // Re-open same auction; openAuction routes setup owners to waiting room
         if(typeof openAuction === 'function'){
           await openAuction(nav.auctionId);
+          return true;
         }
       }catch(e){
         console.warn('restore openAuction', e);
       }
-      return;
+      return false;
     }
     if(scr === 'screenWizard'){
       // Wizard mid-flow is unsafe after full refresh — land on home
-      enterHome();
-      return;
+      return false;
     }
-    // Hand Cricket: rejoin live/lobby game after refresh
+    // Hand Cricket: rejoin live/lobby game after refresh (do not clear game)
     if((scr === 'screenGameLive' || scr === 'screenGameLobby') && nav.gameId){
       try{
         if(typeof openGame === 'function'){
           await openGame(nav.gameId);
+          // Re-write restore so subsequent soft navigations keep the room
+          try{
+            sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen: scr, gameId: nav.gameId, at: Date.now() }));
+          }catch(eS){}
+          return true;
         }
       }catch(eG){
         console.warn('restore openGame', eG);
       }
-      return;
+      return false;
     }
     // Registration screens: reload with form id, or fall back to Home → Registrations
     var regScreens = ['screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
@@ -4939,38 +4961,35 @@ async function restoreNavAfterRefresh(){
       try{
         if(scr === 'screenRegUserTour' && formId && typeof openRegUserTour === 'function'){
           await openRegUserTour(formId);
-          return;
+          return true;
         }
         if(scr === 'screenRegForm' && formId && typeof openRegFormForUser === 'function'){
-          // Re-open form in edit/apply mode; openRegFormForUser detects existing entry
           await openRegFormForUser(formId, false);
-          return;
+          return true;
         }
         if(scr === 'screenRegHost' && formId && typeof openRegHost === 'function'){
           await openRegHost(formId);
-          return;
+          return true;
         }
         if(scr === 'screenRegRecords' && formId && typeof openRegHost === 'function'){
           await openRegHost(formId);
           if(typeof openRegRecordsScreen === 'function') await openRegRecordsScreen();
-          return;
+          return true;
         }
         if(scr === 'screenRegPublicList' && formId && typeof openRegUserTour === 'function'){
           await openRegUserTour(formId);
-          return;
+          return true;
         }
-        // Wizard or missing form id → safe landing
-        enterHome();
-        try{ switchHubTab('regs'); }catch(e4){}
+        return false;
       }catch(eReg){
         console.warn('restore reg screen', eReg);
-        enterHome();
-        try{ switchHubTab('regs'); }catch(e5){}
+        return false;
       }
-      return;
     }
+    return false;
   }catch(e){
     console.warn('restoreNavAfterRefresh', e);
+    return false;
   }
 }
 
@@ -5079,28 +5098,33 @@ auth.onAuthStateChanged(async u=>{
     focusEl($('authTitle'));
     return;
   }
-  // Already signed in (e.g. from hub) — skip Google button, go home
+  // Already signed in (e.g. from hub) — skip Google button
   user=u;
   try{ profile=await loadProfile(u); }catch(e){ profile={}; console.warn(e); }
   try{ await ensureGamePlayerOnLogin(); }catch(e){}
-  enterHome();
+  // Deep links / invites take priority
   if(joinAuctionId){
+    enterHome();
     try{ await handleJoinInvite(); }catch(e){ safeAlert(e); }
   } else if(window._watchDeepLink){
+    enterHome();
     try{
       const wid=window._watchDeepLink; window._watchDeepLink=null;
       try{ history.replaceState({},'',location.pathname);}catch(e){}
       if(typeof openAuction==='function') await openAuction(wid);
     }catch(e){ safeAlert(e); }
   } else if(window._regDeepLink){
+    enterHome();
     try{
       const rid=window._regDeepLink; window._regDeepLink=null;
       try{ history.replaceState({},'',location.pathname);}catch(e){}
       if(typeof handleRegDeepLink==='function') await handleRegDeepLink(rid);
     }catch(e){ safeAlert(e); }
   } else {
-    // Refresh restore: stay on last screen instead of always landing on home
-    try{ await restoreNavAfterRefresh(); }catch(e){ console.warn('restoreNav', e); }
+    // Refresh restore FIRST (before enterHome) so game/auction is not lost
+    var restored = false;
+    try{ restored = !!(await restoreNavAfterRefresh()); }catch(e){ console.warn('restoreNav', e); }
+    if(!restored) enterHome();
   }
   try{
     profileUnsub=db.collection('users').doc(u.uid).onSnapshot(snap=>{
@@ -6357,10 +6381,56 @@ async function presenceJoin(kind, roomId){
   var offlinePayload = presenceBuildPayload(kind, 'offline');
   try{
     await ref.set(onlinePayload);
-    // Server marks offline if tab crashes / network drops
+    // Server marks offline if process dies / network drops
     await ref.onDisconnect().set(offlinePayload);
   }catch(e){ console.warn('presenceJoin', e); }
   presenceListen(kind, roomId);
+  presenceWireVisibility();
+}
+
+/**
+ * Mobile screen-off does NOT kill the RTDB socket immediately, so onDisconnect
+ * often never fires. We mark offline when the page is hidden and online again
+ * when visible. Refresh/pagehide uses offline (not "left") so opponents hear
+ * offline, and restore can bring the user back without "left the room".
+ */
+function presenceWireVisibility(){
+  if(window._presenceVisWired) return;
+  window._presenceVisWired = true;
+  document.addEventListener('visibilitychange', function(){
+    try{
+      if(!window._myPresenceRef || window._presenceSelfLeft) return;
+      if(document.hidden){
+        // Screen off / app background → offline for others
+        presenceSetStatusQuiet('offline');
+      } else {
+        // Back to foreground → online (and refresh onDisconnect hook)
+        presenceSetStatusQuiet('online');
+      }
+    }catch(e){ console.warn('presence visibility', e); }
+  });
+  // pagehide: tab close or refresh — mark offline, do NOT intentional "left"
+  window.addEventListener('pagehide', function(){
+    try{
+      if(!window._myPresenceRef || window._presenceSelfLeft) return;
+      presenceSetStatusQuiet('offline');
+    }catch(e){}
+  });
+}
+
+async function presenceSetStatusQuiet(status){
+  if(!presenceAvailable() || !window._myPresenceRef) return;
+  if(window._presenceSelfLeft) return;
+  try{
+    var kind = window._myPresenceKind || 'auction';
+    var payload = presenceBuildPayload(kind, status);
+    await window._myPresenceRef.set(payload);
+    if(status === 'online'){
+      // Re-arm onDisconnect after coming back
+      var offlinePayload = presenceBuildPayload(kind, 'offline');
+      await window._myPresenceRef.onDisconnect().set(offlinePayload);
+    }
+  }catch(e){ console.warn('presenceSetStatusQuiet', e); }
 }
 
 async function presenceMark(status){
@@ -7434,10 +7504,12 @@ function openRegWizard(existing){
     startDate: existing.startDate||'',
     endDate: existing.endDate||'',
     rulesText: existing.rulesText||'',
+    maxRegistrations: (existing.maxRegistrations != null && existing.maxRegistrations !== '') ? Number(existing.maxRegistrations) : '',
     fields: (existing.fields||[]).map(function(f){ return Object.assign({}, f, { options: (f.options||[]).slice(), showIf: f.showIf||null }); }),
     status: existing.status||'open'
   } : {
     id: null, step: 0, title:'', startDate:'', endDate:'', rulesText:'',
+    maxRegistrations: '',
     fields: defaultRegTemplateFields(),
     status:'open'
   };
@@ -7449,15 +7521,19 @@ function renderRegWizard(){
   if(!regWiz) return;
   var step = regWiz.step||0;
   if($('regWizProgress')) $('regWizProgress').textContent = 'Step '+(step+1)+' of 2';
-  if($('regWizTitle')) $('regWizTitle').textContent = regWiz.id ? 'Edit registration' : 'Create registration';
+  if($('regWizTitle')) $('regWizTitle').textContent = regWiz.id ? 'Edit tournament' : 'Create tournament';
   var body = $('regWizBody');
   var nav = $('regWizNav');
   if(!body||!nav) return;
   nav.innerHTML = '';
   if(step===0){
+    var maxVal = (regWiz.maxRegistrations !== '' && regWiz.maxRegistrations != null) ? String(regWiz.maxRegistrations) : '';
     body.innerHTML =
       '<label for="regTitle">Tournament name</label>'+
       '<input id="regTitle" type="text" value="'+escHtml(regWiz.title)+'" autocomplete="off" />'+
+      '<label for="regMaxSlots">Number of registrations accepted</label>'+
+      '<input id="regMaxSlots" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 100" value="'+escHtml(maxVal)+'" />'+
+      '<p style="color:var(--muted);font-size:13px;margin:4px 0 10px">Leave empty for unlimited. When the limit is reached, new public sign-ups are blocked (organiser can still add manually).</p>'+
       '<label for="regStart">Start date</label>'+
       '<input id="regStart" type="date" value="'+escHtml(regWiz.startDate)+'" />'+
       '<label for="regEnd">End date</label>'+
@@ -7471,6 +7547,14 @@ function renderRegWizard(){
       regWiz.startDate = ($('regStart')&&$('regStart').value)||'';
       regWiz.endDate = ($('regEnd')&&$('regEnd').value)||'';
       regWiz.rulesText = ($('regRules')&&$('regRules').value)||'';
+      var slotsRaw = ($('regMaxSlots')&&$('regMaxSlots').value||'').trim();
+      if(slotsRaw === ''){
+        regWiz.maxRegistrations = '';
+      } else {
+        var n = parseInt(slotsRaw, 10);
+        if(!n || n < 1){ alert('Enter a valid number of registrations (1 or more), or leave empty for unlimited.'); return; }
+        regWiz.maxRegistrations = n;
+      }
       if(!regWiz.title){ alert('Enter tournament name'); return; }
       regWiz.step = 1;
       renderRegWizard();
@@ -7706,13 +7790,18 @@ async function saveRegForm(){
     endDate: regWiz.endDate||'',
     rulesText: regWiz.rulesText||'',
     fields: regWiz.fields,
-    status: 'open',
+    maxRegistrations: (regWiz.maxRegistrations !== '' && regWiz.maxRegistrations != null) ? Number(regWiz.maxRegistrations) : null,
+    status: (regWiz.status === 'closed') ? 'closed' : 'open',
     ownerId: user.uid,
     ownerEmail: user.email||'',
     ownerName: user.displayName||'',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     notifyAt: Date.now()
   };
+  // Editing existing: keep ownerId from original if present
+  if(regWiz.id && regHostForm && regHostForm.ownerId){
+    payload.ownerId = regHostForm.ownerId;
+  }
   try{
     if(regWiz.id){
       await db.collection('registrationForms').doc(regWiz.id).set(payload, { merge:true });
@@ -7877,7 +7966,67 @@ function closeRegUserMore(){
 }
 function closeRegHostMore(){
   var m = $('regHostMoreMenu');
-  if(m){ m.classList.add('hidden'); m.style.display = ''; }
+  if(m){
+    m.classList.add('hidden');
+    m.setAttribute('aria-hidden','true');
+    m.style.display = '';
+  }
+  var host = $('screenRegHost');
+  if(host){
+    host.classList.remove('reg-more-open');
+    try{
+      host.querySelectorAll('.hub-more-grid button, #btnRegHostBack, #btnRegHostMore').forEach(function(el){
+        el.removeAttribute('inert');
+        el.removeAttribute('tabindex');
+      });
+    }catch(e){}
+  }
+  try{ focusEl($('btnRegHostMore')); }catch(e){}
+}
+function openRegHostMore(){
+  var m = $('regHostMoreMenu');
+  if(!m) return;
+  m.classList.remove('hidden');
+  m.setAttribute('aria-hidden','false');
+  m.style.display = ''; // CSS :not(.hidden) handles flex
+  var host = $('screenRegHost');
+  if(host){
+    host.classList.add('reg-more-open');
+    try{
+      host.querySelectorAll('.hub-more-grid button, #btnRegHostBack').forEach(function(el){
+        el.setAttribute('inert','');
+      });
+    }catch(e){}
+  }
+  setTimeout(function(){
+    try{ focusEl($('btnRegModifyRules') || $('btnRegHostMoreClose')); }catch(e){}
+  }, 50);
+}
+async function closeRegistrationsEarly(){
+  if(!regHostForm || !regHostForm.id || !db) return;
+  closeRegHostMore();
+  ask(
+    'Close registrations?',
+    'Are you sure you want to close registrations before the end date? New public sign-ups will no longer be accepted. You can still add players with Add registration (organiser only).',
+    async function(){
+      try{
+        await db.collection('registrationForms').doc(regHostForm.id).set({
+          status: 'closed',
+          closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          closedBy: user.uid,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        regHostForm.status = 'closed';
+        if($('regHostMeta')){
+          var dates = [regHostForm.startDate, regHostForm.endDate].filter(Boolean).join(' → ');
+          var max = regHostForm.maxRegistrations ? (' · Cap '+regHostForm.maxRegistrations) : '';
+          $('regHostMeta').textContent = (dates||'')+' · Closed'+max;
+        }
+        try{ announce('Registrations closed'); }catch(e){}
+        alert('Registrations are now closed. Public sign-ups are blocked; organiser manual entry still works.');
+      }catch(e){ safeAlert(e); }
+    }
+  );
 }
 function openRegRulesModal(opts){
   opts = opts || {};
@@ -7949,6 +8098,12 @@ function regWindowBlockMessage(form, email){
   var end = String(form.endDate||'').trim();
   var today = regTodayYmd();
   var who = (email || (user && user.email) || 'there').trim();
+  if(String(form.status||'') === 'closed'){
+    return {
+      kind: 'closed',
+      message: 'Hi, '+who+'. Registrations for this tournament are closed. Contact the organiser if you still need a place.'
+    };
+  }
   if(start && regCmpYmd(today, start) < 0){
     return {
       kind: 'early',
@@ -7964,20 +8119,61 @@ function regWindowBlockMessage(form, email){
   return null;
 }
 
+/** When public slots are full (maxRegistrations reached). Manual organiser entry bypasses. */
+function regSlotsFullMessage(form, email, count){
+  if(!form || window._regManualMode) return null;
+  var max = form.maxRegistrations != null ? Number(form.maxRegistrations) : 0;
+  if(!max || max < 1) return null;
+  var n = count != null ? Number(count) : 0;
+  if(n < max) return null;
+  var who = (email || (user && user.email) || 'there').trim();
+  return {
+    kind: 'full',
+    message: 'Hi, '+who+'. We\'re sorry — all registration slots for this tournament are full. The organiser set a limit of '+max+' registrations. Tough luck this time, but never give up. Contact the organiser if you have any requests.'
+  };
+}
+
+async function regCountEntries(formId){
+  if(!db || !formId) return 0;
+  try{
+    var snap = await db.collection('registrationForms').doc(formId).collection('entries').get();
+    return snap.size || 0;
+  }catch(e){
+    console.warn('regCountEntries', e);
+    return 0;
+  }
+}
+
 async function openRegFormForUser(formId, isEdit){
   if(!db || !user) return;
   try{
     var doc = await db.collection('registrationForms').doc(formId).get();
     if(!doc.exists){ alert('Registration not found'); return; }
     var data = doc.data();
-    if(!isEdit && data.status !== 'open' && !window._regManualMode){ alert('This registration is closed'); return; }
-    // Date window lock (skip for organiser manual entry / edit of own entry)
+    if(!isEdit && data.status !== 'open' && !window._regManualMode){
+      var whoC = (user.email||'there').trim();
+      ask('Registrations closed', 'Hi, '+whoC+'. Registrations for this tournament are closed. Contact the organiser if you still need a place.', function(){}, { yesLabel:'OK', noLabel:'Close' });
+      return;
+    }
+    // Date / closed lock (skip for organiser manual entry / edit of own entry)
     if(!isEdit && !window._regManualMode){
       var block = regWindowBlockMessage(data, user.email);
       if(block){
-        ask(block.kind==='early' ? 'Registrations not open yet' : 'Registration window closed', block.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
+        var t = block.kind==='early' ? 'Registrations not open yet'
+          : block.kind==='full' ? 'Slots full'
+          : 'Registration closed';
+        ask(t, block.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
         return;
       }
+      // Capacity check
+      try{
+        var cnt = await regCountEntries(formId);
+        var full = regSlotsFullMessage(data, user.email, cnt);
+        if(full){
+          ask('Slots full', full.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
+          return;
+        }
+      }catch(eCap){ console.warn(eCap); }
     }
     var existingSnap = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
     // Manual add: blank form. Manual edit: filled by caller via fillUserRegForm.
@@ -8120,9 +8316,12 @@ async function openRegHost(formId){
     if(!doc.exists){ alert('Not found'); return; }
     regHostForm = Object.assign({id: formId}, doc.data());
     showScreen('screenRegHost');
+    // Always force More menu closed (inline display:flex used to leave it open on desktop)
+    try{ closeRegHostMore(); }catch(e){}
     if($('regHostTitle')) $('regHostTitle').textContent = regHostForm.title||'Registration';
     var dates = [regHostForm.startDate, regHostForm.endDate].filter(Boolean).join(' → ');
-    if($('regHostMeta')) $('regHostMeta').textContent = (dates||'')+(regHostForm.status==='open'?' · Open':' · Closed');
+    var cap = regHostForm.maxRegistrations ? (' · Cap '+regHostForm.maxRegistrations) : '';
+    if($('regHostMeta')) $('regHostMeta').textContent = (dates||'')+(regHostForm.status==='open'?' · Open':' · Closed')+cap;
     try{ focusEl($('regHostTitle')); }catch(e){}
   }catch(e){ safeAlert(e); }
 }
@@ -8400,13 +8599,22 @@ function wireRegShowIf(fields){
 
 async function submitUserRegForm(){
   if(!regFormCurrent||!user||!db) return;
-  // Date window (not for manual organiser entry or editing existing)
+  // Date / closed / capacity (not for manual organiser entry or editing existing)
   if(!window._regManualMode && !window._regFormIsEdit){
     var blockSub = regWindowBlockMessage(regFormCurrent, user.email);
     if(blockSub){
-      ask(blockSub.kind==='early' ? 'Registrations not open yet' : 'Registration window closed', blockSub.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
+      var ts = blockSub.kind==='early' ? 'Registrations not open yet' : 'Registration closed';
+      ask(ts, blockSub.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
       return;
     }
+    try{
+      var cntSub = await regCountEntries(regFormCurrent.id);
+      var fullSub = regSlotsFullMessage(regFormCurrent, user.email, cntSub);
+      if(fullSub){
+        ask('Slots full', fullSub.message, function(){}, { yesLabel:'OK', noLabel:'Close' });
+        return;
+      }
+    }catch(eCap2){ console.warn(eCap2); }
   }
   var fields = regFormCurrent.fields||[];
   var answers = {};
@@ -9023,9 +9231,8 @@ try{
     };
   }
   if($('btnSendManualNotif')) $('btnSendManualNotif').onclick = function(){ sendManualNotification(); };
-  if($('btnRegHostMore')) $('btnRegHostMore').onclick = function(){
-    var m=$('regHostMoreMenu'); if(m){ m.classList.remove('hidden'); m.style.display='flex'; }
-  };
+  if($('btnRegHostMore')) $('btnRegHostMore').onclick = function(){ openRegHostMore(); };
+  if($('btnRegCloseRegs')) $('btnRegCloseRegs').onclick = function(){ closeRegistrationsEarly(); };
   if($('btnRegHostMoreClose')) $('btnRegHostMoreClose').onclick = function(){ closeRegHostMore(); };
   if($('regHostMoreMenu')) $('regHostMoreMenu').addEventListener('click', function(ev){
     if(ev.target===this) closeRegHostMore();
@@ -16078,12 +16285,10 @@ async function openGame(id){
         return;
       }
       G=Object.assign({id:id}, s.data());
-      // Presence for all players in lobby/live
+      // Presence for all players in lobby/live (always re-join after refresh)
       try{
         if(user && G && (G.status==='lobby' || G.status==='live' || G.status==='toss' || G.status==='innings_break')){
-          if(!window._myPresenceRoom || window._myPresenceRoom !== id || window._myPresenceKind !== 'game'){
-            presenceJoin('game', id);
-          }
+          presenceJoin('game', id);
         }
       }catch(eP){}
       routeGameScreen();

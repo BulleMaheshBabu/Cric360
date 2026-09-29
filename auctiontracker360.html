@@ -2239,6 +2239,8 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <label class="set-row"><input type="checkbox" id="ttsPlayer" checked /> Players</label>
     <label class="set-row"><input type="checkbox" id="ttsTimer" checked /> Timer</label>
     <label class="set-row"><input type="checkbox" id="ttsWait" checked /> Waiting room</label>
+    <label class="set-row"><input type="checkbox" id="ttsOwnerStatus" checked /> Owner status (online / offline / left)</label>
+    <label class="set-row"><input type="checkbox" id="ttsPlayerStatus" checked /> Player status (hand cricket online / offline / left)</label>
   </div>
 
   <div id="panelSounds" class="set-panel hidden" aria-label="Sounds">
@@ -2656,12 +2658,14 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBGaYN7aDiO10yOUOr2deRamH5ed1Jon30",
   authDomain: "auctiontracker360.firebaseapp.com",
+  databaseURL: "https://auctiontracker360-default-rtdb.firebaseio.com",
   projectId: "auctiontracker360",
   storageBucket: "auctiontracker360.firebasestorage.app",
   messagingSenderId: "1035286573847",
@@ -2676,7 +2680,7 @@ const FCM_VAPID_KEY = "BEwQKcaPvunimOioBjc5SyDoXXIxNl5d_8bEw9zXh3bbcCnNnsoHZupf0
 let fcmMessaging = null;
 let fcmCurrentToken = null;
 
-let auth, db, user=null, profile=null, profileUnsub=null;
+let auth, db, rtdb=null, user=null, profile=null, profileUnsub=null;
 let T=null, auctionId=null, step=0, wiz={};
 let helperMode=false, ownerMode=false, myTeamId=null;
 let joinAuctionId=null, watchUnsub=null, auctionLiveUnsub=null, waitUnsub=null, timerInterval=null, toolsPage=0, toolsKind=null;
@@ -2830,7 +2834,9 @@ const TTS_DEFAULTS = {
   bid: true,
   player: true,
   timer: true,
-  wait: true
+  wait: true,
+  ownerStatus: true,   /* auction: CSK owner offline / back online / left room */
+  playerStatus: true   /* hand cricket: username offline / back online / left room */
 };
 let ttsPref = Object.assign({}, TTS_DEFAULTS);
 try {
@@ -3911,6 +3917,8 @@ function wireTtsSettings() {
   if ($('ttsPlayer')) $('ttsPlayer').checked = ttsPref.player !== false;
   if ($('ttsTimer')) $('ttsTimer').checked = ttsPref.timer !== false;
   if ($('ttsWait')) $('ttsWait').checked = ttsPref.wait !== false;
+  if ($('ttsOwnerStatus')) $('ttsOwnerStatus').checked = ttsPref.ownerStatus !== false;
+  if ($('ttsPlayerStatus')) $('ttsPlayerStatus').checked = ttsPref.playerStatus !== false;
   const rate = Number(ttsPref.rate) || 1;
   ttsPref.rate = rate;
   if ($('ttsRateLabel')) $('ttsRateLabel').textContent = 'Speed: ' + rate.toFixed(1);
@@ -3981,13 +3989,27 @@ function wireTtsSettings() {
     });
   };
 
-  ['ttsHost', 'ttsBid', 'ttsPlayer', 'ttsTimer', 'ttsWait'].forEach(function (id) {
+  ['ttsHost', 'ttsBid', 'ttsPlayer', 'ttsTimer', 'ttsWait', 'ttsOwnerStatus', 'ttsPlayerStatus'].forEach(function (id) {
     if (!$(id)) return;
     $(id).onchange = function () {
-      const k = id === 'ttsHost' ? 'host' : id === 'ttsBid' ? 'bid' : id === 'ttsPlayer' ? 'player' : id === 'ttsTimer' ? 'timer' : 'wait';
+      const k = id === 'ttsHost' ? 'host'
+        : id === 'ttsBid' ? 'bid'
+        : id === 'ttsPlayer' ? 'player'
+        : id === 'ttsTimer' ? 'timer'
+        : id === 'ttsWait' ? 'wait'
+        : id === 'ttsOwnerStatus' ? 'ownerStatus'
+        : 'playerStatus';
       ttsPref[k] = $(id).checked;
       saveTtsPref();
-      const labels = { host: 'Host announcements', bid: 'Bid announcements', player: 'Player announcements', timer: 'Timer announcements', wait: 'Waiting room announcements' };
+      const labels = {
+        host: 'Host announcements',
+        bid: 'Bid announcements',
+        player: 'Player announcements',
+        timer: 'Timer announcements',
+        wait: 'Waiting room announcements',
+        ownerStatus: 'Owner status announcements',
+        playerStatus: 'Player status announcements'
+      };
       const label = labels[k] || k;
       if (ttsPref.on) {
         ttsSpeakWeb(label + ($(id).checked ? ' on' : ' off'), function () {});
@@ -4470,6 +4492,7 @@ function isPhysical(){ return T && T.mode==='physical'; }
 try{
   firebase.initializeApp(firebaseConfig);
   auth=firebase.auth();
+  try{ rtdb = firebase.database(); }catch(eRtdb){ console.warn('RTDB init', eRtdb); rtdb=null; }
   db=firebase.firestore();
   try{
     if(firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported()){
@@ -4505,11 +4528,23 @@ window.addEventListener('popstate', function(ev){
     }
     // Live / watch / wait / welcome: system Back always leaves room → home (never wizard/assign)
     if(onAuction || onWatch || onWait || onWelcome){
+      try{ presenceLeave(true); }catch(e){}
       try{ stopAuctionLive(); }catch(e){}
       try{ if(watchUnsub){ watchUnsub(); watchUnsub=null; } }catch(e){}
       try{ stopWait(); }catch(e){}
       try{ stopWatchTimer(); }catch(e){}
       enterHome();
+      return;
+    }
+    // Hand cricket lobby / live: system Back → left the room
+    var onGameLive = $('screenGameLive') && !$('screenGameLive').classList.contains('hidden');
+    var onGameLobby = $('screenGameLobby') && !$('screenGameLobby').classList.contains('hidden');
+    var onGameCreate = $('screenGameCreate') && !$('screenGameCreate').classList.contains('hidden');
+    if(onGameLive || onGameLobby){
+      try{ presenceLeave(true); }catch(e){}
+      try{ stopGameLive(); }catch(e){}
+      enterHome();
+      try{ switchHubTab('games'); }catch(e){}
       return;
     }
     // Prefer history.state when present (one step back in our stack)
@@ -6135,14 +6170,242 @@ function startAuctionLive(id){
     console.error('auction live snapshot', err);
     showAppError('Lost connection to live auction. '+friendlyError(err));
   });
-  // Presence heartbeat disabled — owners list is static (joined + team only), less Firestore load
-  if(window._presenceTimer){ clearInterval(window._presenceTimer); window._presenceTimer=null; }
+  // RTDB presence: host + owners + helpers announce online/offline/left
+  try{
+    if(user && (ownerMode || helperMode || (T && T.ownerId === user.uid))){
+      presenceJoin('auction', id);
+    } else if(user){
+      // Viewers still listen so they hear owner status
+      presenceListen('auction', id);
+    }
+  }catch(e){ console.warn('presence start', e); }
   ensureIntermissionTicker();
 }
 
+
+/* ===== RTDB Presence (online / offline / left) =====
+ * Paths:
+ *   presence/auctions/{auctionId}/{uid}
+ *   presence/games/{gameId}/{uid}
+ * Announces (once per transition):
+ *   Auction: "CSK owner offline" | "CSK owner back online" | "CSK owner left the room"
+ *   Game:    "{name} offline" | "{name} back online" | "{name} left the room"
+ * TTS categories: ownerStatus, playerStatus
+ */
+window._presenceUnsub = null;
+window._presenceRef = null;
+window._presenceScope = null; // { kind:'auction'|'game', id }
+window._presenceCache = {};   // uid -> last status
+window._presenceSelfLeft = false;
+window._presenceReady = false; // suppress announces until first snapshot applied
+
+function presenceAvailable(){
+  try{ return !!(rtdb && typeof rtdb.ref === 'function' && user && user.uid); }catch(e){ return false; }
+}
+
+function presenceLabelAuction(d){
+  d = d || {};
+  if(d.role === 'host') return 'Host';
+  var team = String(d.teamName || d.team || '').trim();
+  if(team) return team + ' owner';
+  var nm = String(d.displayName || '').trim();
+  return nm ? (nm + ' owner') : 'An owner';
+}
+
+function presenceLabelGame(d){
+  d = d || {};
+  var nm = String(d.displayName || d.name || '').trim();
+  return nm || 'A player';
+}
+
+function presenceSpeak(kind, d, status){
+  if(!d) return;
+  // Never announce self
+  if(d.uid && user && d.uid === user.uid) return;
+  if(user && window._presenceSelfUid === user.uid && d.uid === window._presenceSelfUid) return;
+  var line = '';
+  var cat = 'ownerStatus';
+  if(kind === 'game'){
+    cat = 'playerStatus';
+    var who = presenceLabelGame(d);
+    if(status === 'offline') line = who + ' offline';
+    else if(status === 'online') line = who + ' back online';
+    else if(status === 'left') line = who + ' left the room';
+  } else {
+    cat = 'ownerStatus';
+    var whoA = presenceLabelAuction(d);
+    if(status === 'offline') line = whoA + ' offline';
+    else if(status === 'online') line = whoA + ' back online';
+    else if(status === 'left') line = whoA + ' left the room';
+  }
+  if(!line) return;
+  try{
+    sayEvent(line, cat, false, { priority: 'normal' });
+  }catch(e){
+    try{ announce(line); }catch(e2){}
+  }
+}
+
+function presenceHandleSnap(kind, uid, d){
+  if(!uid || !d) return;
+  // Skip pure first fill noise: seed cache only until ready
+  var prev = window._presenceCache[uid];
+  var st = String(d.status || (d.online ? 'online' : 'offline'));
+  window._presenceCache[uid] = st;
+  if(!window._presenceReady) return;
+  if(user && uid === user.uid) return;
+  if(prev === st) return;
+  // First time we see a user online — no "back online" on first join
+  if(prev == null && st === 'online') return;
+  if(st === 'offline' || st === 'online' || st === 'left'){
+    presenceSpeak(kind, Object.assign({ uid: uid }, d), st);
+  }
+}
+
+function presenceStopListen(){
+  try{
+    if(window._presenceRef && window._presenceCb){
+      window._presenceRef.off('value', window._presenceCb);
+    }
+  }catch(e){}
+  window._presenceRef = null;
+  window._presenceCb = null;
+  window._presenceCache = {};
+  window._presenceReady = false;
+}
+
+function presenceListen(kind, roomId){
+  if(!presenceAvailable() || !roomId) return;
+  presenceStopListen();
+  window._presenceScope = { kind: kind, id: roomId };
+  window._presenceCache = {};
+  window._presenceReady = false;
+  var path = 'presence/' + (kind === 'game' ? 'games' : 'auctions') + '/' + roomId;
+  var ref = rtdb.ref(path);
+  window._presenceRef = ref;
+  window._presenceCb = function(snap){
+    try{
+      var val = snap.val() || {};
+      Object.keys(val).forEach(function(uid){
+        presenceHandleSnap(kind, uid, val[uid]);
+      });
+      // After first full value, enable transition announces
+      if(!window._presenceReady){
+        setTimeout(function(){ window._presenceReady = true; }, 400);
+      }
+    }catch(e){ console.warn('presence listen', e); }
+  };
+  try{ ref.on('value', window._presenceCb); }catch(e){ console.warn('presence on', e); }
+}
+
+function presenceBuildPayload(kind, status){
+  var teamName = '';
+  var teamId = null;
+  var role = 'viewer';
+  var displayName = (user && (user.displayName || user.email)) || 'User';
+  if(kind === 'auction'){
+    if(user && T && T.ownerId === user.uid){
+      role = 'host';
+      teamName = '';
+    } else if(ownerMode){
+      role = 'owner';
+      teamId = myTeamId || null;
+      try{
+        var teams = (T && T.teams) || [];
+        var tm = teams.find(function(t){ return t && t.id === teamId; });
+        if(tm) teamName = tm.name || '';
+        if(!teamName && T && T.owners){
+          var ow = (T.owners||[]).find(function(o){ return o && o.uid === user.uid; });
+          if(ow){ teamName = ow.teamName || ow.name || ''; teamId = ow.teamId || teamId; }
+        }
+      }catch(e){}
+    } else if(helperMode){
+      role = 'helper';
+    }
+  } else {
+    role = 'player';
+    try{
+      if(G && G.players){
+        var p = (G.players||[]).find(function(x){ return x && x.uid === user.uid; });
+        if(p && p.displayName) displayName = p.displayName;
+      }
+    }catch(e){}
+  }
+  return {
+    online: status === 'online',
+    status: status, // online | offline | left
+    uid: user.uid,
+    email: (user && user.email) || '',
+    displayName: displayName,
+    role: role,
+    teamId: teamId,
+    teamName: teamName,
+    at: firebase.database.ServerValue.TIMESTAMP
+  };
+}
+
+async function presenceJoin(kind, roomId){
+  if(!presenceAvailable() || !roomId) return;
+  window._presenceSelfLeft = false;
+  window._presenceSelfUid = user.uid;
+  var path = 'presence/' + (kind === 'game' ? 'games' : 'auctions') + '/' + roomId + '/' + user.uid;
+  var ref = rtdb.ref(path);
+  window._myPresenceRef = ref;
+  window._myPresenceKind = kind;
+  window._myPresenceRoom = roomId;
+  var onlinePayload = presenceBuildPayload(kind, 'online');
+  var offlinePayload = presenceBuildPayload(kind, 'offline');
+  try{
+    await ref.set(onlinePayload);
+    // Server marks offline if tab crashes / network drops
+    await ref.onDisconnect().set(offlinePayload);
+  }catch(e){ console.warn('presenceJoin', e); }
+  presenceListen(kind, roomId);
+}
+
+async function presenceMark(status){
+  // status: 'left' | 'offline'
+  if(!presenceAvailable()) return;
+  var ref = window._myPresenceRef;
+  if(!ref) return;
+  try{ await ref.onDisconnect().cancel(); }catch(e){}
+  try{
+    var kind = window._myPresenceKind || 'auction';
+    var payload = presenceBuildPayload(kind, status || 'left');
+    await ref.set(payload);
+  }catch(e){ console.warn('presenceMark', e); }
+}
+
+async function presenceLeave(intentional){
+  // intentional true → "left the room"; false → offline (rare client path)
+  if(window._presenceSelfLeft) return;
+  window._presenceSelfLeft = true;
+  try{
+    await presenceMark(intentional ? 'left' : 'offline');
+  }catch(e){}
+  try{
+    if(window._myPresenceRef){
+      // Keep left/offline node so others can hear the transition; optional remove after delay not needed
+    }
+  }catch(e){}
+  window._myPresenceRef = null;
+  presenceStopListen();
+}
+
 function stopPresence(){
+  // Used by stopAuctionLive — mark left if still in room
+  try{
+    if(window._myPresenceRef && !window._presenceSelfLeft){
+      // Fire-and-forget left (system back / stop live)
+      presenceLeave(true);
+      return;
+    }
+  }catch(e){}
+  try{ presenceStopListen(); }catch(e2){}
   if(window._presenceTimer){ clearInterval(window._presenceTimer); window._presenceTimer=null; }
 }
+
+
 
 
 async function openAuction(id){
@@ -13863,8 +14126,9 @@ if($('btnPauseAuc')){
 }
 if($('btnLeaveAuc')){
   $('btnLeaveAuc').onclick=function(){
-    // Owners: leave screen; optional message only — they cannot pause for everyone
+    // Owners: leave screen — announce "left the room"
     ask('Leave auction?','You will leave this live screen. You can rejoin from Live list.', function(){
+      try{ presenceLeave(true); }catch(e){}
       try{ stopAuctionLive(); }catch(e){}
       try{ stopTimer(); }catch(e){}
       ownerMode=false; helperMode=false;
@@ -15579,6 +15843,7 @@ function gameShareUrl(id){
 }
 
 function stopGameLive(){
+  try{ if(window._myPresenceKind==='game') presenceLeave(true); }catch(e){}
   try{ if(gameUnsub){ gameUnsub(); gameUnsub=null; } }catch(e){}
   try{ if(gameTimerIv){ clearInterval(gameTimerIv); gameTimerIv=null; } }catch(e){}
   try{ if(gameBallWatchIv){ clearInterval(gameBallWatchIv); gameBallWatchIv=null; } }catch(e){}
@@ -15806,12 +16071,21 @@ async function openGame(id){
     }
     gameUnsub=db.collection('games').doc(id).onSnapshot(function(s){
       if(!s.exists){
+        try{ presenceLeave(true); }catch(e){}
         stopGameLive();
         enterHome();
         try{ switchHubTab('games'); }catch(e){}
         return;
       }
       G=Object.assign({id:id}, s.data());
+      // Presence for all players in lobby/live
+      try{
+        if(user && G && (G.status==='lobby' || G.status==='live' || G.status==='toss' || G.status==='innings_break')){
+          if(!window._myPresenceRoom || window._myPresenceRoom !== id || window._myPresenceKind !== 'game'){
+            presenceJoin('game', id);
+          }
+        }
+      }catch(eP){}
       routeGameScreen();
     }, function(err){ console.warn('game snap', err); });
   }catch(e){ safeAlert(e); }

@@ -1621,6 +1621,22 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   font-size:22px;line-height:1;
   filter:drop-shadow(0 2px 6px rgba(168,85,247,.5));
 }
+#screenGameLive .hc-scorecard-split{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+}
+#screenGameLive .hc-score-team-card{
+  padding:14px;border-radius:14px;border:1px solid rgba(168,85,247,.35);background:rgba(15,23,42,.55);
+}
+#screenGameLive .hc-chat-list .hc-msg{
+  max-width:85%;margin:6px 0;padding:8px 12px;border-radius:14px;clear:both;
+}
+#screenGameLive .hc-chat-list .hc-msg.me{
+  margin-left:auto;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border-bottom-right-radius:4px;
+}
+#screenGameLive .hc-chat-list .hc-msg.them{
+  margin-right:auto;background:rgba(30,41,59,.9);color:#e2e8f0;border-bottom-left-radius:4px;
+}
+#screenGameLive .hc-chat-list .hc-msg .hc-msg-name{font-size:11px;font-weight:700;opacity:.85;margin-bottom:2px}
 #screenGameLive .hc-ball-timer{
   margin-top:2px;font-size:13px;font-weight:900;font-family:var(--font-score);
   color:#fbbf24;min-height:18px;letter-spacing:.04em;
@@ -1971,14 +1987,14 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       </div>
       <div class="hc-toss-controls">
         <p class="hc-toss-prompt">Flip the Coin</p>
-        <div class="hc-side-row">
-          <button type="button" class="hc-side-btn" id="btnHcSidePrev" aria-label="Previous">«</button>
-          <span class="hc-side-label" id="hcSideLabel">Heads</span>
-          <button type="button" class="hc-side-btn" id="btnHcSideNext" aria-label="Next">»</button>
+        <div class="hc-side-row" role="group" aria-label="Coin side">
+          <button type="button" class="hc-side-btn" id="btnHcSidePrev" aria-label="Previous side">Previous</button>
+          <span class="hc-side-label" id="hcSideLabel" aria-live="polite">Heads</span>
+          <button type="button" class="hc-side-btn" id="btnHcSideNext" aria-label="Next side">Next</button>
         </div>
-        <!-- keep checkboxes for existing JS, visually hidden -->
-        <label class="sr-only"><input type="checkbox" id="gameChkHeads" /> Heads</label>
-        <label class="sr-only"><input type="checkbox" id="gameChkTails" /> Tails</label>
+        <!-- State only — not in accessibility tree -->
+        <input type="checkbox" id="gameChkHeads" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" />
+        <input type="checkbox" id="gameChkTails" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" />
         <button type="button" id="btnGameFlip" class="hc-flip-btn" disabled>Flip Coin</button>
       </div>
     </div>
@@ -2040,6 +2056,10 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   <div class="hc-topbar">
     <button type="button" id="btnGameLiveBack" class="hc-leave-btn" aria-label="Leave">Leave</button>
     <h1 id="gameLiveTitle" class="sr-only" tabindex="-1">Live</h1>
+    <div id="gameVoiceTopBar" class="hidden" style="display:flex;gap:6px;margin-left:auto;align-items:center">
+      <button type="button" id="btnGameVoiceMute" class="btn-sec" style="min-height:40px;padding:0 12px" aria-label="Mute microphone">Mute</button>
+      <button type="button" id="btnGameVoiceEnd" class="btn-danger" style="min-height:40px;padding:0 12px" aria-label="End call">End</button>
+    </div>
   </div>
 
   <!-- Team names + clash fists + ball timer -->
@@ -2047,7 +2067,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <div class="hc-team-name" id="gLiveLeftTeam">Team A</div>
     <div class="hc-clash-wrap" aria-hidden="true">
       <div class="hc-clash">👊💥👊</div>
-      <div class="hc-ball-timer" id="gLiveBallTimer" aria-hidden="true" tabindex="-1">—</div>
+      <div class="hc-ball-timer" id="gLiveBallTimer" role="timer" tabindex="0" aria-label="Remaining time">—</div>
     </div>
     <div class="hc-team-name" id="gLiveRightTeam">Team B</div>
   </div>
@@ -2106,13 +2126,26 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       <button type="button" role="tab" id="gameTabChat" aria-selected="false">Chat</button>
     </nav>
   </div>
-  <div id="gameLivePaneScore" class="hidden hc-pane" style="margin-top:12px;padding-bottom:24px" inert aria-hidden="true"><div id="gameScorecardBody" tabindex="0" aria-label="Scorecard"></div></div>
-  <div id="gameLivePaneChat" class="hidden hc-pane" style="margin-top:12px;padding-bottom:24px" inert aria-hidden="true">
-    <div id="gameChatTurnBadge" class="hidden" style="text-align:center;margin:0 0 10px;padding:8px;border-radius:10px;background:rgba(168,85,247,.25);border:1px solid #a855f7;font-weight:800;font-size:13px;color:#fff" aria-live="off" aria-hidden="true" role="presentation">Your turn</div>
-    <div id="gameChatList" class="hc-chat-list" style="min-height:180px;max-height:45vh;overflow:auto;margin-bottom:10px" tabindex="0" aria-label="Chat messages"></div>
-    <div class="hc-chat-compose" style="display:flex;gap:8px">
-      <input type="text" id="gameChatInput" maxlength="120" placeholder="Message…" style="flex:1;min-height:48px" aria-label="Chat message" />
-      <button type="button" id="btnGameChatSend" class="btn-ok">Send</button>
+  <div id="gameLivePaneScore" class="hidden hc-pane hc-score-pane" style="margin-top:12px;padding-bottom:24px" inert aria-hidden="true">
+    <div id="gameScorecardBody" tabindex="0" aria-label="Scorecard" class="hc-scorecard-split"></div>
+  </div>
+  <div id="gameLivePaneChat" class="hidden hc-pane hc-chat-pane" style="margin-top:12px;display:flex;flex-direction:column;min-height:50vh;padding-bottom:0" inert aria-hidden="true">
+    <div id="gameChatList" class="hc-chat-list" style="flex:1;min-height:200px;max-height:none;overflow:auto;margin:0 0 8px;padding:8px 4px" tabindex="0" aria-label="Chat messages"></div>
+    <div class="hc-chat-compose" style="display:flex;gap:8px;align-items:center;position:sticky;bottom:0;padding:10px 0 12px;background:linear-gradient(180deg,transparent,rgba(15,23,42,.95) 20%);z-index:5">
+      <button type="button" id="btnGameVoiceCall" class="btn-sec" style="min-height:48px;min-width:48px;padding:0 12px;flex-shrink:0" aria-label="Voice call opponent">📞</button>
+      <input type="text" id="gameChatInput" maxlength="120" placeholder="Message…" style="flex:1;min-height:48px;border-radius:24px;padding:0 16px" aria-label="Chat message" />
+      <button type="button" id="btnGameChatSend" class="btn-ok" style="min-height:48px;border-radius:24px">Send</button>
+    </div>
+  </div>
+  <!-- Game voice call incoming -->
+  <div id="gameVoiceRingModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="gameVoiceRingTitle" style="position:fixed;inset:0;z-index:280;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div class="panel" style="width:100%;max-width:360px;padding:20px;border-radius:16px">
+      <h2 id="gameVoiceRingTitle" tabindex="-1" style="margin:0 0 8px">Incoming call</h2>
+      <p id="gameVoiceRingBody" style="margin:0 0 16px;color:var(--muted)"></p>
+      <div class="row" style="gap:8px">
+        <button type="button" id="btnGameVoiceJoin" class="btn-ok" style="flex:1;min-height:48px">Join</button>
+        <button type="button" id="btnGameVoiceReject" class="btn-danger" style="flex:1;min-height:48px">Reject</button>
+      </div>
     </div>
   </div>
 
@@ -6832,19 +6865,30 @@ function wireWatchMoreShell(){
         // Temporarily use watch panel id via ownersMorePanel
         var panel = $('ownersMorePanelWatch');
         if(!panel || !window._lastWatchData) return;
-        var owners = window._lastWatchData.owners || [];
+        var dataW = window._lastWatchData || {};
+        var owners = dataW.owners || [];
+        var pending = dataW.pendingOwners || [];
         if(!panel.classList.contains('hidden') && panel.innerHTML){
           panel.classList.add('hidden'); panel.innerHTML=''; return;
         }
-        var h = '<div class="row" style="justify-content:space-between"><h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners</h3>'+
+        var byUid = {};
+        owners.forEach(function(o){
+          if(!o||!o.uid) return;
+          byUid[o.uid] = { nm: o.displayName||o.email||'Owner', email: o.email||'', team: o.teamName||'—', st: o.teamId ? 'assigned' : 'waiting' };
+        });
+        pending.forEach(function(p){
+          if(!p||!p.uid) return;
+          if(byUid[p.uid] && byUid[p.uid].st === 'assigned') return;
+          byUid[p.uid] = { nm: p.displayName||p.email||'Owner', email: p.email||'', team: 'Waiting for team', st: 'waiting' };
+        });
+        var list = Object.keys(byUid).map(function(k){ return byUid[k]; });
+        var h = '<div class="row" style="justify-content:space-between"><h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners ('+list.length+')</h3>'+
           '<button type="button" id="btnCloseOnlineW" class="btn-sec">Close</button></div>';
-        if(!owners.length) h += '<p style="color:var(--muted)">No owners listed.</p>';
+        if(!list.length) h += '<p style="color:var(--muted)">No owners listed.</p>';
         else {
-          h += '<ul class="plain" role="list">';
-          owners.forEach(function(o){
-            var nm = o.displayName || o.email || 'Owner';
-            var team = o.teamName || '—';
-            h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)"><strong>'+String(nm).replace(/</g,'')+'</strong><br><span style="color:var(--muted)">Team: '+String(team).replace(/</g,'')+'</span></li>';
+          h += '<ul class="plain" role="list" style="max-height:55vh;overflow-y:auto">';
+          list.forEach(function(o){
+            h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)"><strong>'+String(o.nm).replace(/</g,'')+'</strong><br><span style="color:var(--muted)">'+String(o.team).replace(/</g,'')+'</span></li>';
           });
           h += '</ul>';
         }
@@ -11586,18 +11630,38 @@ function paintAssignList(box){
   if(!box) return;
   const pending=T.pendingOwners||[];
   const owners=T.owners||[];
+  // Deduplicate by uid: every joiner in pendingOwners + any assigned owner
+  const seen={};
+  const cards=[];
+  pending.forEach(function(p){
+    if(!p || !p.uid) return;
+    if(seen[p.uid]) return;
+    seen[p.uid]=true;
+    cards.push({ uid:p.uid, email:p.email||'', displayName:p.displayName||'', fromPending:true });
+  });
+  owners.forEach(function(o){
+    if(!o || !o.uid) return;
+    if(seen[o.uid]) return;
+    seen[o.uid]=true;
+    cards.push({ uid:o.uid, email:o.email||'', displayName:o.displayName||'', fromPending:false });
+  });
+  const nAssigned = owners.filter(function(o){ return o && o.teamId; }).length;
+  const nWaiting = cards.filter(function(c){
+    const a = owners.find(function(o){ return o.uid===c.uid && o.teamId; });
+    return !a;
+  }).length;
   let h='<h3>Join requests and assignments</h3>';
-  if(!pending.length && !owners.length){
+  h+='<p style="color:var(--muted);font-size:14px;margin:4px 0 8px" role="status">'+cards.length+' joined · '+nAssigned+' assigned · '+nWaiting+' waiting</p>';
+  if(!cards.length){
     h+='<p style="color:var(--muted)">No owners have joined yet. Share the invite link.</p>';
   }
-  // Only invite-link join requests (viaInvite:true). Manual list openers never appear here.
-  const seen={};
-  pending.filter(function(p){ return p && p.viaInvite === true; }).forEach((p,i)=>{
-    seen[p.uid]=true;
-    const assigned=owners.find(o=>o.uid===p.uid);
-    h+='<div class="panel" style="margin-top:8px"><strong>'+(p.displayName||p.email||'Owner')+'</strong><br>'+
+  h+='<div class="assign-cards" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+  cards.forEach(function(p,i){
+    const assigned=owners.find(o=>o.uid===p.uid && o.teamId);
+    h+='<div class="panel assign-owner-card" style="margin-top:8px" role="group" aria-label="'+(p.displayName||p.email||'Owner')+'">';
+    h+='<strong>'+(p.displayName||p.email||'Owner')+'</strong><br>'+
       '<span style="color:var(--muted)">'+(p.email||'')+'</span>';
-    if(assigned&&assigned.teamId){
+    if(assigned){
       h+='<p>Assigned: <strong>'+(assigned.teamName||'')+'</strong></p>'+
         '<button type="button" class="btn-danger btnUnassign" data-uid="'+p.uid+'">Unassign team</button>';
     } else {
@@ -11610,10 +11674,7 @@ function paintAssignList(box){
     }
     h+='</div>';
   });
-  owners.forEach(o=>{
-    if(seen[o.uid]) return;
-    h+='<div class="panel" style="margin-top:8px"><strong>'+(o.displayName||o.email)+'</strong> · '+(o.teamName||'')+'</div>';
-  });
+  h+='</div>';
   box.innerHTML=h;
 
   box.querySelectorAll('.btnAssign').forEach(btn=>{
@@ -12519,7 +12580,7 @@ function recentLineHtml(recent){
 }
 
 function showOnlineOwners(){
-  // Owners list only on More tab — joined owners + team (no live presence / less Firebase)
+  // Full joined list: assigned owners + waiting (pendingOwners) — not only those with a team
   const panel = $('ownersMorePanel') || $('onlinePanelTop') || $('onlinePanel');
   if(!panel) return;
   if(!panel.classList.contains('hidden') && panel.innerHTML){
@@ -12529,19 +12590,62 @@ function showOnlineOwners(){
     return;
   }
   const owners = (T && T.owners) || [];
+  const pending = (T && T.pendingOwners) || [];
+  const byUid = {};
+  owners.forEach(function(o){
+    if(!o || !o.uid) return;
+    byUid[o.uid] = {
+      uid: o.uid,
+      displayName: o.displayName || '',
+      email: o.email || '',
+      teamId: o.teamId || null,
+      teamName: o.teamName || '',
+      status: o.teamId ? 'assigned' : 'joined'
+    };
+  });
+  pending.forEach(function(p){
+    if(!p || !p.uid) return;
+    if(byUid[p.uid] && byUid[p.uid].teamId){
+      // keep assigned entry; fill missing name/email
+      if(!byUid[p.uid].displayName) byUid[p.uid].displayName = p.displayName || '';
+      if(!byUid[p.uid].email) byUid[p.uid].email = p.email || '';
+      return;
+    }
+    byUid[p.uid] = {
+      uid: p.uid,
+      displayName: p.displayName || '',
+      email: p.email || '',
+      teamId: null,
+      teamName: '',
+      status: 'waiting'
+    };
+  });
+  const list = Object.keys(byUid).map(function(k){ return byUid[k]; });
+  list.sort(function(a,b){
+    if(a.status === 'assigned' && b.status !== 'assigned') return -1;
+    if(b.status === 'assigned' && a.status !== 'assigned') return 1;
+    return String(a.displayName||a.email).localeCompare(String(b.displayName||b.email));
+  });
+  const nAssigned = list.filter(function(x){ return x.status === 'assigned'; }).length;
+  const nWaiting = list.length - nAssigned;
   let h = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px">'+
-    '<h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners</h3>'+
+    '<h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners ('+list.length+')</h3>'+
     '<button type="button" id="btnCloseOnline" class="btn-sec" aria-label="Close owners list">Close</button></div>';
-  if(!owners.length){
-    h += '<p style="color:var(--muted);margin:10px 0 0">No owners joined yet.</p>';
+  h += '<p style="color:var(--muted);font-size:13px;margin:8px 0 0" role="status">'+nAssigned+' assigned · '+nWaiting+' waiting for team</p>';
+  if(!list.length){
+    h += '<p style="color:var(--muted);margin:10px 0 0">No owners have joined yet. Share the invite link.</p>';
   } else {
-    h += '<ul class="plain" style="margin:10px 0 0" role="list">';
-    owners.forEach(function(o){
+    h += '<ul class="plain" style="margin:10px 0 0;max-height:55vh;overflow-y:auto" role="list">';
+    list.forEach(function(o){
       var nm = (o.displayName || o.email || 'Owner');
-      var team = o.teamName || ((T.teams||[]).find(function(t){ return t.id===o.teamId; })||{}).name || '—';
+      var team = o.teamName || ((T.teams||[]).find(function(t){ return t.id===o.teamId; })||{}).name || '';
+      var statusLab = o.status === 'assigned'
+        ? ('Team: ' + (team || o.teamId || '—'))
+        : 'Waiting for team assignment';
       h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)" role="listitem">'+
         '<strong>'+String(nm).replace(/</g,'')+'</strong>'+
-        '<br><span style="color:var(--muted)">Team: '+String(team).replace(/</g,'')+'</span></li>';
+        (o.email ? '<br><span style="color:var(--muted);font-size:13px">'+String(o.email).replace(/</g,'')+'</span>' : '')+
+        '<br><span style="color:var(--muted)">'+String(statusLab).replace(/</g,'')+'</span></li>';
     });
     h += '</ul>';
   }
@@ -16451,7 +16555,7 @@ async function loadGamesHub(){
   box.innerHTML='<p class="hub-empty">Loading…</p>';
   try{
     if(gameHubUnsub){ try{gameHubUnsub();}catch(e){} gameHubUnsub=null; }
-    // Live list = status lobby only (disappears when toss starts)
+    // Only open lobbies — disappears when host starts toss / live / finished
     gameHubUnsub = db.collection('games').where('status','==','lobby').onSnapshot(function(snap){
       var rows=[];
       snap.forEach(function(d){ rows.push(Object.assign({id:d.id}, d.data())); });
@@ -16578,8 +16682,15 @@ async function openGame(id){
     if(!snap.exists){ alert('Game not found'); return; }
     G=Object.assign({id:id}, snap.data());
     if(G.status==='finished'){ alert('This game has ended'); return; }
-    // Auto-join waiting list if lobby
     var inList=(G.players||[]).some(function(p){ return p.uid===user.uid; });
+    // Match already started (toss/live/break) — outsiders cannot join
+    if(!inList && G.status && G.status!=='lobby'){
+      try{ appAlert('Too late, match has already begun. Don\'t regret — create one to play with others.', { title:'Match in progress', okLabel:'OK' }); }
+      catch(eA){ alert('Too late, match has already begun. Don\'t regret — create one to play with others.'); }
+      try{ enterHome(); switchHubTab('games'); }catch(eH){}
+      return;
+    }
+    // Auto-join waiting list if lobby
     if(!inList && G.status==='lobby'){
       await db.runTransaction(async function(tx){
         var ref=db.collection('games').doc(id);
@@ -16589,6 +16700,10 @@ async function openGame(id){
         if(d.status!=='lobby') throw new Error('Lobby closed');
         var players=d.players||[];
         if(players.some(function(p){ return p.uid===user.uid; })) return;
+        // Soft cap: 1v1 rooms max 2 players on teams + host already there
+        if(players.length >= 4){
+          throw new Error('This lobby is full');
+        }
         var joinName = user.displayName||user.email||'Player';
         try{ joinName = await resolveGameDisplayName(); }catch(e){}
         players.push({ uid:user.uid, email:user.email||'', displayName:joinName, teamId:null, playerKey: getMyGamePlayerKey() });
@@ -16613,6 +16728,7 @@ async function openGame(id){
         }
       }catch(eP){}
       routeGameScreen();
+      try{ handleGameVoiceSnapshot(); }catch(eV){}
     }, function(err){ console.warn('game snap', err); });
   }catch(e){ safeAlert(e); }
 }
@@ -17149,15 +17265,16 @@ function newBallState(bowlerUid, batterUid, timerSec){
 function updateGameTimerLabels(){
   var el=$('gLiveBallTimer');
   if(!el||!G) return;
-  // Visual only — never in SR focus path
-  el.setAttribute('aria-hidden','true');
-  el.setAttribute('tabindex','-1');
+  // Focusable: SR reads remaining time only when focused — not continuous
+  el.setAttribute('tabindex','0');
+  el.removeAttribute('aria-hidden');
   var ball=G.currentBall||{};
   if(G.status==='live' && (ball.phase==='wait_bowler'||ball.phase==='wait_batter') && ball.timerEndsAt){
     var leftSec = Math.max(0, Math.ceil((ball.timerEndsAt - Date.now())/1000));
     el.textContent = String(leftSec);
+    el.setAttribute('aria-label', 'Remaining time: '+leftSec+' seconds');
     el.classList.toggle('warn', leftSec <= 10);
-    // Speak only at thresholds (not every tick)
+    // Auto-speak only at 10s and 5s (not every tick, not on every focus)
     if(leftSec===10 || leftSec===5){
       var tkey='tick|'+ball.phase+'|'+ball.timerEndsAt+'|'+leftSec;
       if(window._gameTickKey!==tkey){
@@ -17198,6 +17315,7 @@ function updateGameTimerLabels(){
   } else if(G.status==='innings_break' && G.inningsBreakUntil){
     var leftI = Math.max(0, Math.ceil((G.inningsBreakUntil - Date.now())/1000));
     el.textContent = String(leftI);
+    el.setAttribute('aria-label', 'Break: '+leftI+' seconds');
     el.classList.remove('warn');
     var cd=$('gameInningsCountdown');
     if(cd){
@@ -17205,7 +17323,8 @@ function updateGameTimerLabels(){
       cd.setAttribute('aria-hidden','true');
     }
   } else {
-    el.textContent = '';
+    el.textContent = '—';
+    el.setAttribute('aria-label', 'No active timer');
     el.classList.remove('warn');
   }
 }
@@ -17293,9 +17412,23 @@ function renderGameLive(){
   var leftIsBowlerSide = !leftIsBat;
   var rightIsBowlerSide = leftIsBat;
 
+  // Last completed ball (for display until next bowl selection)
+  var lastLog = (G.ballLog && G.ballLog.length) ? G.ballLog[G.ballLog.length-1] : null;
   if(live){
     if(ball.phase==='wait_bowler'){
-      // Active: Select your ball under bowler; Bowler thinking under batter
+      // Show previous outcome numbers until bowler selects; after select show 0 / 0
+      if(ball.bowlerNumber != null){
+        leftNum = '0'; rightNum = '0';
+      } else if(lastLog){
+        var lb = lastLog.bowlerNumber, lt = lastLog.batterNumber;
+        if(leftIsBat){
+          leftNum = lt!=null ? String(lt) : '';
+          rightNum = lb!=null ? String(lb) : '';
+        } else {
+          leftNum = lb!=null ? String(lb) : '';
+          rightNum = lt!=null ? String(lt) : '';
+        }
+      }
       if(leftIsBowlerSide){
         leftPrompt = amBowler ? 'Select your ball' : 'Bowler thinking';
         rightPrompt = 'Bowler thinking';
@@ -17365,7 +17498,7 @@ function renderGameLive(){
     else $('gLiveRightNum').removeAttribute('aria-label');
   }
 
-  // Hands
+  // Hands — show last outcome until new bowl; after bowl pick fists reset; on done show this ball
   var HC_HANDS={0:'✊',1:'☝️',2:'✌️',3:'🤟',4:'🖖',5:'🖐️',6:'👍'};
   function hcHand(n){ return (n!=null && HC_HANDS[n]!=null) ? HC_HANDS[n] : '✊'; }
   var leftN = leftIsBat ? ball.batterNumber : ball.bowlerNumber;
@@ -17373,6 +17506,15 @@ function renderGameLive(){
   if(ball.phase==='done'){
     if($('gLiveLeftHand')) $('gLiveLeftHand').textContent = hcHand(leftN);
     if($('gLiveRightHand')) $('gLiveRightHand').textContent = hcHand(rightN);
+  } else if(ball.phase==='wait_bowler' && ball.bowlerNumber==null && lastLog){
+    var plB = lastLog.bowlerNumber, plT = lastLog.batterNumber;
+    if(leftIsBat){
+      if($('gLiveLeftHand')) $('gLiveLeftHand').textContent = hcHand(plT);
+      if($('gLiveRightHand')) $('gLiveRightHand').textContent = hcHand(plB);
+    } else {
+      if($('gLiveLeftHand')) $('gLiveLeftHand').textContent = hcHand(plB);
+      if($('gLiveRightHand')) $('gLiveRightHand').textContent = hcHand(plT);
+    }
   } else {
     if($('gLiveLeftHand')) $('gLiveLeftHand').textContent = '✊';
     if($('gLiveRightHand')) $('gLiveRightHand').textContent = '✊';
@@ -17430,15 +17572,11 @@ function renderGameLive(){
     }
   }catch(e){}
 
-  if(live){
-    var meP = playerByUid(me);
-    if(meP&&meP.teamId===bowlingId) gameSpeakOnce('role|'+gameId+'|i'+innings+'|bowl', 'Your team is bowling');
-    if(meP&&meP.teamId===battingId) gameSpeakOnce('role|'+gameId+'|i'+innings+'|bat', 'Your team is batting');
-  }
+  // No repeated "your team is bowling/batting" — only prompts + outcomes
   if(live&&ball.phase==='wait_bowler'&&amBowler){
     gameSpeakOnce('bowl|'+ball.timerEndsAt+'|'+me, 'Select your ball');
   } else if(live&&ball.phase==='wait_batter'&&amBatter){
-    if(ball.freeBall) gameSpeakOnce('freehit|'+ball.timerEndsAt+'|'+me, 'Opponent timed out. Free hit awarded. You cannot be out on this ball. Select your hit');
+    if(ball.freeBall) gameSpeakOnce('freehit|'+ball.timerEndsAt+'|'+me, 'Free hit. Select your hit');
     else gameSpeakOnce('hit|'+ball.timerEndsAt+'|'+me, 'Select your hit');
   } else if(ball.phase==='done'){
     var bn = ball.bowlerNumber!=null ? ball.bowlerNumber : '';
@@ -17496,41 +17634,46 @@ function renderGameScorecard(){
   var s1=G.score&&G.score.t1||{runs:0,wickets:0,balls:0};
   var s2=G.score&&G.score.t2||{runs:0,wickets:0,balls:0};
   var n1=teamName('t1'), n2=teamName('t2');
+  var p1=(playersOn('t1')[0]&&(playersOn('t1')[0].displayName||playersOn('t1')[0].email))||'';
+  var p2=(playersOn('t2')[0]&&(playersOn('t2')[0].displayName||playersOn('t2')[0].email))||'';
   var innings=Number(G.innings)||1;
   var h='';
-  h+='<div class="panel" style="padding:14px;margin-bottom:10px">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">';
-  h+='<strong style="font-size:1.05rem">'+n1+'</strong>';
-  h+='<span style="font-weight:900;font-family:var(--font-score);font-size:1.2rem">'+(s1.runs||0)+'/'+(s1.wickets||0)+'</span>';
+  h+='<div class="hc-score-team-card" aria-label="'+n1+'">';
+  h+='<div style="font-weight:800;font-size:1.05rem;margin-bottom:4px">'+n1+'</div>';
+  if(p1) h+='<div style="color:var(--muted);font-size:12px;margin-bottom:8px">'+p1+'</div>';
+  h+='<div style="font-weight:900;font-family:var(--font-score);font-size:1.35rem">'+(s1.runs||0)+'/'+(s1.wickets||0)+'</div>';
+  h+='<div style="color:var(--muted);font-size:13px;margin-top:4px">'+fmtOvers(s1.balls||0)+' overs</div>';
   h+='</div>';
-  h+='<div style="color:var(--muted);font-size:13px">'+fmtOvers(s1.balls||0)+' overs</div>';
+  h+='<div class="hc-score-team-card" aria-label="'+n2+'">';
+  h+='<div style="font-weight:800;font-size:1.05rem;margin-bottom:4px">'+n2+'</div>';
+  if(p2) h+='<div style="color:var(--muted);font-size:12px;margin-bottom:8px">'+p2+'</div>';
+  h+='<div style="font-weight:900;font-family:var(--font-score);font-size:1.35rem">'+(s2.runs||0)+'/'+(s2.wickets||0)+'</div>';
+  h+='<div style="color:var(--muted);font-size:13px;margin-top:4px">'+fmtOvers(s2.balls||0)+' overs</div>';
   h+='</div>';
-  h+='<div class="panel" style="padding:14px;margin-bottom:10px">';
-  h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">';
-  h+='<strong style="font-size:1.05rem">'+n2+'</strong>';
-  h+='<span style="font-weight:900;font-family:var(--font-score);font-size:1.2rem">'+(s2.runs||0)+'/'+(s2.wickets||0)+'</span>';
-  h+='</div>';
-  h+='<div style="color:var(--muted);font-size:13px">'+fmtOvers(s2.balls||0)+' overs</div>';
-  h+='</div>';
+  var extra='';
   if(innings>1 && G.target!=null){
     var cur = G.battingTeamId==='t2' ? s2 : s1;
     var need=Math.max(0,(G.target||0)-(cur.runs||0));
     var maxBalls=((G.settings&&G.settings.overs)||3)*6;
     var rem=Math.max(0,maxBalls-(cur.balls||0));
-    h+='<div class="panel" style="padding:12px;text-align:center"><strong>Target '+(G.target||'')+'</strong><br><span style="color:var(--muted)">Need '+need+' from '+rem+' balls</span></div>';
+    extra+='<div class="panel" style="grid-column:1/-1;padding:12px;text-align:center;margin-top:4px"><strong>Target '+(G.target||'')+'</strong><br><span style="color:var(--muted)">Need '+need+' from '+rem+' balls</span></div>';
   }
   if(G.status==='finished' && G.resultText){
-    h+='<div class="panel" style="padding:12px;text-align:center;font-weight:700">'+G.resultText+'</div>';
+    extra+='<div class="panel" style="grid-column:1/-1;padding:12px;text-align:center;font-weight:700;margin-top:4px">'+G.resultText+'</div>';
   }
-  box.innerHTML=h;
+  box.innerHTML=h+extra;
 }
 
 function renderGameChat(){
   var box=$('gameChatList');
   if(!box||!G) return;
   var h='';
-  (G.chat||[]).slice(-40).forEach(function(m){
-    h+='<div style="margin:6px 0;padding:8px;background:var(--card);border-radius:10px"><strong style="font-size:12px">'+(m.fromName||'')+'</strong><br>'+(m.text||'')+'</div>';
+  var meUid=user&&user.uid;
+  (G.chat||[]).slice(-60).forEach(function(m){
+    var mine = m.fromUid && m.fromUid===meUid;
+    h+='<div class="hc-msg '+(mine?'me':'them')+'" role="listitem">';
+    if(!mine) h+='<div class="hc-msg-name">'+(m.fromName||'Player')+'</div>';
+    h+=(m.text||'')+'</div>';
   });
   box.innerHTML=h||'<div style="color:var(--muted);padding:12px;text-align:center">No messages yet</div>';
   try{ box.scrollTop = box.scrollHeight; }catch(e){}
@@ -17725,7 +17868,9 @@ function applyBallResultTx(tx, ref, d, res){
   if(res.type==='wicket') score[sk].wickets=(score[sk].wickets||0)+1;
   else score[sk].runs=(score[sk].runs||0)+(res.runs||0);
   var ballLog=(d.ballLog||[]).slice(-80);
-  ballLog.push({ at:Date.now(), type:res.type, runs:res.runs||0, innings:d.innings, batting:batting });
+  ballLog.push({ at:Date.now(), type:res.type, runs:res.runs||0, innings:d.innings, batting:batting,
+    bowlerNumber: res.bowlerNumber!=null ? res.bowlerNumber : null,
+    batterNumber: res.batterNumber!=null ? res.batterNumber : null });
   var maxW=(d.settings&&d.settings.maxWickets)||5;
   var maxBalls=((d.settings&&d.settings.overs)||3)*6;
   var inningsOver=score[sk].wickets>=maxW||score[sk].balls>=maxBalls;
@@ -17884,6 +18029,137 @@ setInterval(function(){
   }catch(e){}
 }, 500);
 
+
+/* ----- Hand cricket voice call (ring via Firestore + LiveKit room game_<id>) ----- */
+function gameOpponentPlayer(){
+  if(!G||!user) return null;
+  var list=G.players||[];
+  for(var i=0;i<list.length;i++){
+    if(list[i]&&list[i].uid&&list[i].uid!==user.uid&&list[i].teamId) return list[i];
+  }
+  for(var j=0;j<list.length;j++){
+    if(list[j]&&list[j].uid&&list[j].uid!==user.uid) return list[j];
+  }
+  return null;
+}
+function updateGameVoiceTopBar(){
+  var bar=$('gameVoiceTopBar');
+  if(!bar) return;
+  var on = !!(window._lkRoom && window._gameVoiceActive);
+  bar.classList.toggle('hidden', !on);
+  bar.style.display = on ? 'flex' : 'none';
+  var muteBtn=$('btnGameVoiceMute');
+  if(muteBtn) muteBtn.textContent = window._lkMuted ? 'Unmute' : 'Mute';
+}
+async function gameRingOpponent(){
+  if(!gameId||!db||!user||!G) return;
+  var opp=gameOpponentPlayer();
+  if(!opp||!opp.uid){ appAlert('No opponent in this match to call.'); return; }
+  try{
+    await db.collection('games').doc(gameId).set({
+      gameVoice: {
+        status: 'ringing',
+        fromUid: user.uid,
+        fromName: user.displayName||user.email||'Player',
+        toUid: opp.uid,
+        toName: opp.displayName||opp.email||'Opponent',
+        at: Date.now()
+      },
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge:true });
+    try{ announce('Calling '+(opp.displayName||'opponent')); }catch(e){}
+  }catch(e){ safeAlert(e); }
+}
+function closeGameVoiceRingModal(){
+  var m=$('gameVoiceRingModal');
+  if(m){ m.classList.add('hidden'); m.style.display=''; }
+}
+async function gameVoiceReject(){
+  if(!gameId||!db) return;
+  closeGameVoiceRingModal();
+  try{
+    await db.collection('games').doc(gameId).set({
+      gameVoice: { status:'rejected', at:Date.now(), fromUid:(G.gameVoice&&G.gameVoice.fromUid)||null, toUid:user&&user.uid },
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge:true });
+  }catch(e){}
+}
+async function gameVoiceJoinIncoming(){
+  closeGameVoiceRingModal();
+  if(!gameId||!db||!user) return;
+  try{
+    await db.collection('games').doc(gameId).set({
+      gameVoice: Object.assign({}, G.gameVoice||{}, { status:'active', joinedAt:Date.now() }),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge:true });
+    window._gameVoiceActive = true;
+    // Reuse LiveKit with synthetic auction room id for game
+    var prevAuction = typeof auctionId!=='undefined' ? auctionId : null;
+    try{
+      auctionId = 'game_'+gameId;
+      await joinVoiceCall(true);
+    }catch(e){
+      safeAlert(e);
+    }finally{
+      if(prevAuction!=null) auctionId = prevAuction;
+      else auctionId = null;
+    }
+    updateGameVoiceTopBar();
+  }catch(e){ safeAlert(e); }
+}
+async function gameVoiceEnd(){
+  try{
+    if(window._lkRoom){
+      try{ await window._lkRoom.disconnect(); }catch(e){}
+      window._lkRoom=null;
+    }
+  }catch(e){}
+  window._gameVoiceActive=false;
+  updateGameVoiceTopBar();
+  if(gameId&&db){
+    try{
+      await db.collection('games').doc(gameId).set({
+        gameVoice: { status:'ended', at:Date.now() },
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+    }catch(e){}
+  }
+}
+function handleGameVoiceSnapshot(){
+  if(!G||!user) return;
+  var gv=G.gameVoice;
+  if(!gv) return;
+  // Incoming ring
+  if(gv.status==='ringing' && gv.toUid===user.uid && gv.fromUid!==user.uid){
+    var m=$('gameVoiceRingModal');
+    if(m && m.classList.contains('hidden')){
+      if($('gameVoiceRingBody')) $('gameVoiceRingBody').textContent = (gv.fromName||'Opponent')+' is calling you.';
+      m.classList.remove('hidden');
+      m.style.display='flex';
+      try{ focusEl($('btnGameVoiceJoin')||$('gameVoiceRingTitle')); }catch(e){}
+      try{ announce((gv.fromName||'Opponent')+' is calling'); }catch(e){}
+    }
+  }
+  // Caller sees reject
+  if(gv.status==='rejected' && gv.fromUid===user.uid){
+    if(window._gameVoiceRejectKey !== (gv.at||'')){
+      window._gameVoiceRejectKey = gv.at||'';
+      try{ appAlert('Call rejected. You can call again.'); }catch(e){}
+    }
+  }
+  // Both join media when active
+  if(gv.status==='active' && (gv.fromUid===user.uid || gv.toUid===user.uid) && !window._lkRoom && !window._voiceJoining){
+    window._gameVoiceActive=true;
+    var prevA = auctionId;
+    auctionId = 'game_'+gameId;
+    joinVoiceCall(true).then(function(){ updateGameVoiceTopBar(); }).catch(function(e){ console.warn(e); }).finally(function(){ auctionId = prevA; });
+  }
+  if(gv.status==='ended'){
+    if(window._gameVoiceActive) gameVoiceEnd();
+  }
+}
+
+
 function wireGameUi(){
   if($('btnCreateGame')) $('btnCreateGame').onclick=openGameCreate;
   if($('btnGameCreateBack')) $('btnGameCreateBack').onclick=function(){ enterHome(); try{switchHubTab('games');}catch(e){} };
@@ -17952,6 +18228,18 @@ function wireGameUi(){
   if($('btnGameChatSend')) $('btnGameChatSend').onclick=gameSendChat;
   if($('gameChatInput')) $('gameChatInput').addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); gameSendChat(); } });
   if($('btnGameResultOk')) $('btnGameResultOk').onclick=closeGameResultAndLeave;
+  if($('btnGameVoiceCall')) $('btnGameVoiceCall').onclick=function(){ gameRingOpponent(); };
+  if($('btnGameVoiceJoin')) $('btnGameVoiceJoin').onclick=function(){ gameVoiceJoinIncoming(); };
+  if($('btnGameVoiceReject')) $('btnGameVoiceReject').onclick=function(){ gameVoiceReject(); };
+  if($('btnGameVoiceMute')) $('btnGameVoiceMute').onclick=async function(){
+    try{
+      if(!window._lkRoom||!window._lkRoom.localParticipant) return;
+      window._lkMuted = !window._lkMuted;
+      await window._lkRoom.localParticipant.setMicrophoneEnabled(!window._lkMuted);
+      updateGameVoiceTopBar();
+    }catch(e){}
+  };
+  if($('btnGameVoiceEnd')) $('btnGameVoiceEnd').onclick=function(){ gameVoiceEnd(); };
 }
 try{ wireGameUi(); }catch(e){ console.warn('wireGameUi', e); }
 try{

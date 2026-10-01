@@ -16496,6 +16496,9 @@ function stopGameLive(){
   window._gameInningsDlg=false;
   window._gameAdvancing=false;
   window._gamePhaseFocusKey=null;
+  window._gameStartSfxFor=null;
+  window._gameTossSfxFor=null;
+  window._gameInningsSfxKey=null;
 }
 
 function gameSpeakOnce(key, msg){
@@ -16507,16 +16510,20 @@ function gameSpeakOnce(key, msg){
 }
 
 function gamePlaySfx(name){
-  // Root or /sounds: start.mp3, win.mp3, crowd.mp3, toss, wicket, 1–6…
+  // Root or /sounds: start, toss, innings, win, lost, crowd, 1–6…
   try{
     var n = String(name||'').toLowerCase().replace(/\.mp3$/i,'');
-    var file = n + '.mp3';
+    var names = (n === 'lost') ? ['lost','looser'] : [n];
     var vol = 0.30;
-    if(n === 'start' || n === 'win' || n === 'looser' || n === 'toss') vol = 0.25;
+    if(n === 'start' || n === 'win' || n === 'lost' || n === 'looser' || n === 'toss' || n === 'innings') vol = 0.25;
     else if(n === 'crowd') vol = 0.10;
     else if(/^[1-6]$/.test(n)) vol = 0.30;
     else if(n === 'wicket' || n === 'danger') vol = 0.30;
-    var urls = ['/' + file, file, './' + file, 'sounds/' + file, './sounds/' + file];
+    var urls = [];
+    names.forEach(function(nn){
+      var file = nn + '.mp3';
+      urls.push('/'+file, file, './'+file, 'sounds/'+file, './sounds/'+file);
+    });
     var a = new Audio();
     a.volume = vol;
     var i = 0;
@@ -16844,10 +16851,15 @@ function routeGameScreen(){
   } else if(st==='lobby' || st==='toss' || st==='live' || st==='innings_break'){
     try{ lobbyCrowdPlay(); }catch(e){}
   }
-  // start.mp3 once when toss begins (host + joiner)
+  // Joiner only: start.mp3 when toss phase arrives (host already played on button)
   if(st==='toss' && window._gameStartSfxFor !== gameId){
     window._gameStartSfxFor = gameId;
     try{ gamePlaySfx('start'); }catch(e){}
+  }
+  // toss.mp3 once when toss UI appears
+  if(st==='toss' && window._gameTossSfxFor !== gameId){
+    window._gameTossSfxFor = gameId;
+    setTimeout(function(){ try{ gamePlaySfx('toss'); }catch(e){} }, 700);
   }
   if(st==='live'||st==='innings_break'){
     try{ closeGameTossModal(); }catch(e){}
@@ -17075,6 +17087,11 @@ function showGameInningsBreakDialog(){
   if(!G) return;
   var m=$('gameInningsModal');
   if(!m) return;
+  var ik = 'innings|'+(gameId||'')+'|'+(G.innings||1);
+  if(window._gameInningsSfxKey !== ik){
+    window._gameInningsSfxKey = ik;
+    try{ gamePlaySfx('innings'); }catch(e){}
+  }
   var firstBat = G.firstInningsBattingTeamId || G.battingTeamId;
   var chase = firstBat==='t1' ? 't2' : 't1';
   var sk = firstBat==='t2' ? 't2' : 't1';
@@ -17149,7 +17166,7 @@ function showGameResultModal(){
     gamePlaySfx('win');
   } else if(iLost){
     title = 'You lost';
-    gamePlaySfx('looser');
+    gamePlaySfx('lost');
   } else {
     title = 'Match over';
   }
@@ -17274,6 +17291,9 @@ async function startGameFromLobby(){
     alert('Need at least one player in each team box.');
     return;
   }
+  // start.mp3 immediately on Start game (before toss UI)
+  window._gameStartSfxFor = gameId;
+  try{ gamePlaySfx('start'); }catch(e){}
   try{
     await db.collection('games').doc(gameId).set({
       status:'toss',
@@ -17293,7 +17313,7 @@ async function gameDoFlip(){
   var callTeam='t1'; // host team (left) is the call
   var callName=teamName(callTeam);
   gameSpeakOnce('flip|'+Date.now(), callName+' flipping the coin');
-  gamePlaySfx('toss');
+  // toss.mp3 already played when toss UI opened
   // show flipping state briefly
   if($('btnGameFlip')){ $('btnGameFlip').disabled=true; $('btnGameFlip').textContent='Flipping…'; }
   await new Promise(function(r){ setTimeout(r, 2000); });

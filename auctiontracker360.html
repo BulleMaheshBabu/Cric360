@@ -1951,6 +1951,10 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 </section>
 
 <section id="screenGameLobby" class="wrap panel hidden" role="region" aria-labelledby="gameLobbyTitle">
+  <div class="setup-bgm-bar" role="region" aria-label="Lobby crowd music" style="margin:0 0 8px">
+    <button type="button" id="btnGameLobbyBgm" class="btn-sec setup-bgm-stop" style="min-height:44px"
+      aria-label="Stop crowd music">Stop music</button>
+  </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
     <button type="button" id="btnGameLobbyBack" class="btn-sec" aria-label="Back">Back</button>
     <h1 id="gameLobbyTitle" class="sr-only" tabindex="-1">Lobby</h1>
@@ -1980,6 +1984,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <div class="hc-toss-header">
       <h2 id="gameTossDialogTitle" tabindex="-1">HAND CRICKET</h2>
       <p>Toss Selection</p>
+      <button type="button" id="btnGameTossBgm" class="btn-sec" style="min-height:40px;margin-top:8px;width:100%" aria-label="Pause crowd music">Pause music</button>
     </div>
     <div id="gameTossStepCoin">
       <div class="hc-coin-wrap">
@@ -2055,6 +2060,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 <section id="screenGameLive" class="wrap panel hidden hc-theme" role="region" aria-labelledby="gameLiveTitle">
   <div class="hc-topbar">
     <button type="button" id="btnGameLiveBack" class="hc-leave-btn" aria-label="Leave">Leave</button>
+    <button type="button" id="btnGameLiveBgm" class="btn-sec" style="min-height:40px;padding:0 12px;margin-left:6px" aria-label="Pause crowd music">Pause music</button>
     <h1 id="gameLiveTitle" class="sr-only" tabindex="-1">Live</h1>
     <div id="gameVoiceTopBar" class="hidden" style="display:flex;gap:6px;margin-left:auto;align-items:center">
       <button type="button" id="btnGameVoiceMute" class="btn-sec" style="min-height:40px;padding:0 12px" aria-label="Mute microphone">Mute</button>
@@ -7459,8 +7465,8 @@ var _setupBgmKind = null; // 'background' | 'waiting'
 var _setupBgmFadeTimer = null;
 var _setupBgmRampTimer = null;
 var _setupBgmUserPaused = false; // soft-paused via Stop — can Resume
-/** Fixed 15% of HTML media element max (0–1). */
-var SETUP_BGM_VOLUME = 0.15;
+/** Fixed 10% of HTML media element max (0–1). */
+var SETUP_BGM_VOLUME = 0.10;
 
 function setupBgmApplyVolume(){
   try{ if(_setupBgm) _setupBgm.volume = SETUP_BGM_VOLUME; }catch(e){}
@@ -7500,7 +7506,7 @@ function setupBgmPause(){
   try{ setupBgmUpdateStopBtn(); }catch(e){}
 }
 
-/** Resume after soft pause, same track, still 15%. */
+/** Resume after soft pause, same track, still 10%. */
 function setupBgmResume(){
   if(!_setupBgm || !_setupBgmKind){
     try{ setupBgmPlay('background'); }catch(e){}
@@ -16473,6 +16479,7 @@ function gameShareUrl(id){
 }
 
 function stopGameLive(){
+  try{ lobbyCrowdStop(); }catch(e){}
   try{ if(window._myPresenceKind==='game') presenceLeave(true); }catch(e){}
   try{ if(gameUnsub){ gameUnsub(); gameUnsub=null; } }catch(e){}
   try{ if(gameTimerIv){ clearInterval(gameTimerIv); gameTimerIv=null; } }catch(e){}
@@ -16500,18 +16507,113 @@ function gameSpeakOnce(key, msg){
 }
 
 function gamePlaySfx(name){
-  // Prefer files in site root: 1.mp3 … 6.mp3, wicket.mp3, toss.mp3, win.mp3, looser.mp3, danger.mp3
+  // Root or /sounds: start.mp3, win.mp3, crowd.mp3, toss, wicket, 1–6…
   try{
-    var file = String(name||'');
-    if(file.indexOf('.')<0) file = file + '.mp3';
-    var a = new Audio('/' + file);
-    a.volume = 0.9;
-    var p = a.play();
-    if(p && p.catch) p.catch(function(){});
+    var n = String(name||'').toLowerCase().replace(/\.mp3$/i,'');
+    var file = n + '.mp3';
+    var vol = 0.30;
+    if(n === 'start' || n === 'win' || n === 'looser' || n === 'toss') vol = 0.25;
+    else if(n === 'crowd') vol = 0.10;
+    else if(/^[1-6]$/.test(n)) vol = 0.30;
+    else if(n === 'wicket' || n === 'danger') vol = 0.30;
+    var urls = ['/' + file, file, './' + file, 'sounds/' + file, './sounds/' + file];
+    var a = new Audio();
+    a.volume = vol;
+    var i = 0;
+    function tryNext(){
+      if(i >= urls.length) return;
+      a.src = urls[i++];
+      var p = a.play();
+      if(p && p.catch) p.catch(function(){ tryNext(); });
+    }
+    tryNext();
     return;
   }catch(e){}
   try{ if(typeof playSfx==='function') playSfx(name); }catch(e2){}
 }
+
+/* Crowd.mp3 loop @ 10% for lobby + toss + live — Pause / Play for both players */
+var _lobbyCrowd = null;
+var _lobbyCrowdPaused = false;
+var LOBBY_CROWD_VOL = 0.10;
+function lobbyCrowdApplyVol(){
+  try{ if(_lobbyCrowd) _lobbyCrowd.volume = LOBBY_CROWD_VOL; }catch(e){}
+}
+function lobbyCrowdUpdateBtn(){
+  var playing = !!(!_lobbyCrowd ? false : (!_lobbyCrowd.paused && !_lobbyCrowdPaused));
+  ['btnGameLobbyBgm','btnGameLiveBgm','btnGameTossBgm'].forEach(function(id){
+    var btn = $(id);
+    if(!btn) return;
+    if(playing){
+      btn.textContent = 'Pause music';
+      btn.setAttribute('aria-label', 'Pause crowd music');
+      btn.setAttribute('aria-pressed', 'false');
+    } else {
+      btn.textContent = 'Play music';
+      btn.setAttribute('aria-label', 'Play crowd music at 10 percent volume');
+      btn.setAttribute('aria-pressed', 'true');
+    }
+  });
+}
+function lobbyCrowdStop(){
+  try{
+    if(_lobbyCrowd){
+      _lobbyCrowd.onended = null;
+      _lobbyCrowd.pause();
+      _lobbyCrowd.removeAttribute('src');
+      try{ _lobbyCrowd.load(); }catch(e2){}
+    }
+  }catch(e){}
+  _lobbyCrowd = null;
+  _lobbyCrowdPaused = false;
+  try{ lobbyCrowdUpdateBtn(); }catch(e){}
+}
+function lobbyCrowdPause(){
+  try{
+    if(_lobbyCrowd && !_lobbyCrowd.paused){ _lobbyCrowd.pause(); _lobbyCrowdPaused = true; }
+  }catch(e){}
+  try{ lobbyCrowdUpdateBtn(); }catch(e){}
+}
+function lobbyCrowdResume(){
+  if(!_lobbyCrowd){ lobbyCrowdPlay(); return; }
+  _lobbyCrowdPaused = false;
+  lobbyCrowdApplyVol();
+  try{ var p=_lobbyCrowd.play(); if(p&&p.catch) p.catch(function(){}); }catch(e){}
+  try{ lobbyCrowdUpdateBtn(); }catch(e){}
+}
+function lobbyCrowdToggle(){
+  if(_lobbyCrowd && !_lobbyCrowd.paused && !_lobbyCrowdPaused) lobbyCrowdPause();
+  else lobbyCrowdResume();
+}
+function lobbyCrowdPlay(){
+  try{
+    if(_lobbyCrowd && !_lobbyCrowd.paused && !_lobbyCrowdPaused){
+      lobbyCrowdApplyVol(); lobbyCrowdUpdateBtn(); return;
+    }
+    if(_lobbyCrowd && _lobbyCrowdPaused){ lobbyCrowdResume(); return; }
+    lobbyCrowdStop();
+    var urls = ['/crowd.mp3','crowd.mp3','./crowd.mp3','sounds/crowd.mp3','./sounds/crowd.mp3'];
+    var a = new Audio();
+    a.loop = true;
+    a.volume = LOBBY_CROWD_VOL;
+    try{ a.setAttribute('playsinline','true'); }catch(e){}
+    _lobbyCrowd = a;
+    _lobbyCrowdPaused = false;
+    var i = 0;
+    function tryUrl(){
+      if(!_lobbyCrowd || i >= urls.length){ lobbyCrowdUpdateBtn(); return; }
+      a.src = urls[i++];
+      lobbyCrowdApplyVol();
+      var p = a.play();
+      if(p && p.then) p.then(function(){ lobbyCrowdApplyVol(); lobbyCrowdUpdateBtn(); }).catch(function(){ tryUrl(); });
+      else lobbyCrowdUpdateBtn();
+    }
+    a.onplay = function(){ lobbyCrowdApplyVol(); };
+    a.onplaying = function(){ lobbyCrowdApplyVol(); };
+    tryUrl();
+  }catch(e){ console.warn('lobbyCrowdPlay', e); }
+}
+
 
 function gameFocusEl(el){
   if(!el) return;
@@ -16736,6 +16838,17 @@ async function openGame(id){
 function routeGameScreen(){
   if(!G) return;
   var st=G.status||'lobby';
+  // Crowd continues lobby → toss → live (10%). Stop only when finished / leave.
+  if(st==='finished'){
+    try{ lobbyCrowdStop(); }catch(e){}
+  } else if(st==='lobby' || st==='toss' || st==='live' || st==='innings_break'){
+    try{ lobbyCrowdPlay(); }catch(e){}
+  }
+  // start.mp3 once when toss begins (host + joiner)
+  if(st==='toss' && window._gameStartSfxFor !== gameId){
+    window._gameStartSfxFor = gameId;
+    try{ gamePlaySfx('start'); }catch(e){}
+  }
   if(st==='live'||st==='innings_break'){
     try{ closeGameTossModal(); }catch(e){}
     if(window._currentScreenId!=='screenGameLive') showScreen('screenGameLive');
@@ -16780,6 +16893,7 @@ function gameLiveSig(g){
 /* ----- Lobby UI ----- */
 function renderGameLobby(){
   if(!G) return;
+  try{ lobbyCrowdPlay(); }catch(e){}
   var left=teamName('t1'), right=teamName('t2');
   if($('gameLobbyLeftName')) $('gameLobbyLeftName').textContent=left;
   if($('gameLobbyRightName')) $('gameLobbyRightName').textContent=right;
@@ -18228,6 +18342,9 @@ function wireGameUi(){
   if($('btnGameChatSend')) $('btnGameChatSend').onclick=gameSendChat;
   if($('gameChatInput')) $('gameChatInput').addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); gameSendChat(); } });
   if($('btnGameResultOk')) $('btnGameResultOk').onclick=closeGameResultAndLeave;
+  if($('btnGameLobbyBgm')) $('btnGameLobbyBgm').onclick=function(){ lobbyCrowdToggle(); };
+  if($('btnGameLiveBgm')) $('btnGameLiveBgm').onclick=function(){ lobbyCrowdToggle(); };
+  if($('btnGameTossBgm')) $('btnGameTossBgm').onclick=function(){ lobbyCrowdToggle(); };
   if($('btnGameVoiceCall')) $('btnGameVoiceCall').onclick=function(){ gameRingOpponent(); };
   if($('btnGameVoiceJoin')) $('btnGameVoiceJoin').onclick=function(){ gameVoiceJoinIncoming(); };
   if($('btnGameVoiceReject')) $('btnGameVoiceReject').onclick=function(){ gameVoiceReject(); };

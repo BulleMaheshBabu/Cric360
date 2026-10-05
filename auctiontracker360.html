@@ -2409,6 +2409,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
       <button type="button" id="btnRegCloseRegs" class="btn-sec btn-block" style="margin-top:8px">Close registrations</button>
       <button type="button" id="btnRegShare" class="btn-sec btn-block" style="margin-top:8px">Share</button>
       <button type="button" id="btnRegCopyLink" class="btn-sec btn-block" style="margin-top:8px">Copy link</button>
+      <button type="button" id="btnRegInvitePlayers" class="btn-ok btn-block" style="margin-top:8px">Invite players</button>
       <button type="button" id="btnRegDeleteForm" class="btn-danger btn-block" style="margin-top:8px">Delete tournament</button>
       <button type="button" id="btnRegHostMoreClose" class="btn-sec btn-block" style="margin-top:12px">Close menu</button>
     </div>
@@ -2447,6 +2448,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
     <div class="panel" style="width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:16px;margin:0" role="document">
       <button type="button" id="btnRegUserViewRules" class="btn-ok btn-block" role="menuitem">View rules</button>
       <button type="button" id="btnRegUserEditEntry" class="btn-sec btn-block hidden" role="menuitem" style="margin-top:8px">Edit my registration</button>
+      <button type="button" id="btnRegUserDeleteEntry" class="btn-danger btn-block hidden" role="menuitem" style="margin-top:8px">Delete my registration</button>
       <button type="button" id="btnRegUserShare" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Share registration</button>
       <button type="button" id="btnRegUserCopyLink" class="btn-sec btn-block" role="menuitem" style="margin-top:8px">Copy link</button>
       <button type="button" id="btnRegUserMoreClose" class="btn-sec btn-block" style="margin-top:12px">Close</button>
@@ -7647,33 +7649,59 @@ function newRegFieldId(){
   return 'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 }
 
-function defaultRegTemplateFields(){
-  return [
+function regTournamentKey(title){
+  return String(title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,'_').slice(0,80);
+}
+function defaultRegTemplateFields(formType){
+  var kind = (formType === 'owners') ? 'owners' : 'players';
+  var base = [
     { id:'f_name', title:'Name', type:'text', required:true, options:[] },
     { id:'f_mobile', title:'Mobile number', type:'number', required:true, options:[] },
     { id:'f_wa_same', title:'Is WhatsApp number same as mobile number?', type:'yesno', required:true, options:['Yes','No'] },
     { id:'f_whatsapp', title:'WhatsApp number', type:'number', required:true, options:[], showIf:{ fieldId:'f_wa_same', equals:'No' } },
     { id:'f_gender', title:'Gender', type:'gender', required:true, options:['Male','Female','Trans'] },
-    { id:'f_age', title:'Age', type:'radio', required:false, options:['10+','20+','30+','40+','50 and above'] },
-    { id:'f_gamer', title:'Gamer ID', type:'text', required:true, options:[] },
-    { id:'f_sub', title:'Subscription type', type:'radio', required:true, options:['Star','Gemstone','Star verified','Gemstone verified'] },
+    { id:'f_age', title:'Age', type:'radio', required:false, options:['10+','20+','30+','40+','50 and above'] }
+  ];
+  if(kind === 'players'){
+    base.push({ id:'f_gamer', title:'Gamer ID', type:'text', required:true, options:[] });
+    base.push({ id:'f_sub', title:'Subscription type', type:'radio', required:true, options:['Star','Gemstone','Star verified','Gemstone verified'] });
+  }
+  base = base.concat([
     { id:'f_address', title:'Address', type:'text', required:true, options:[] },
     { id:'f_village', title:'Village', type:'text', required:false, options:[] },
     { id:'f_town', title:'Town / City', type:'text', required:true, options:[] },
     { id:'f_state', title:'State', type:'text', required:true, options:[] },
-    { id:'f_pincode', title:'Pincode', type:'number', required:true, options:[] },
-    { id:'f_terms', title:'I agree to the terms and conditions', type:'yesno', required:true, options:['Yes','No'] }
-  ];
+    { id:'f_pincode', title:'Pincode', type:'number', required:true, options:[] }
+  ]);
+  if(kind === 'owners'){
+    base.push({ id:'f_utr', title:'UTR number', type:'text', required:true, options:[] });
+  }
+  base.push({ id:'f_terms', title:'I agree to the terms and conditions', type:'yesno', required:true, options:['Yes','No'] });
+  return base;
+}
+function getDeviceRegId(){
+  try{
+    var k = 'at_device_reg_id';
+    var v = localStorage.getItem(k);
+    if(v && v.length > 8) return v;
+    v = 'd_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
+    localStorage.setItem(k, v);
+    return v;
+  }catch(e){ return 'd_unknown'; }
 }
 function regFieldKey(title){
   return String(title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
 
 function openRegWizard(existing){
+  var ft = (existing && existing.formType === 'owners') ? 'owners' : 'players';
+  if(existing && existing.formType === 'players') ft = 'players';
   regWiz = existing ? {
     id: existing.id,
     step: 0,
     title: existing.title||'',
+    formType: ft,
+    tournamentKey: existing.tournamentKey || regTournamentKey(existing.title||''),
     startDate: existing.startDate||'',
     endDate: existing.endDate||'',
     rulesText: existing.rulesText||'',
@@ -7681,9 +7709,10 @@ function openRegWizard(existing){
     fields: (existing.fields||[]).map(function(f){ return Object.assign({}, f, { options: (f.options||[]).slice(), showIf: f.showIf||null }); }),
     status: existing.status||'open'
   } : {
-    id: null, step: 0, title:'', startDate:'', endDate:'', rulesText:'',
+    id: null, step: 0, title:'', formType:'players', tournamentKey:'',
+    startDate:'', endDate:'', rulesText:'',
     maxRegistrations: '',
-    fields: defaultRegTemplateFields(),
+    fields: defaultRegTemplateFields('players'),
     status:'open'
   };
   showScreen('screenRegWizard');
@@ -7701,9 +7730,16 @@ function renderRegWizard(){
   nav.innerHTML = '';
   if(step===0){
     var maxVal = (regWiz.maxRegistrations !== '' && regWiz.maxRegistrations != null) ? String(regWiz.maxRegistrations) : '';
+    var ft = regWiz.formType === 'owners' ? 'owners' : 'players';
     body.innerHTML =
       '<label for="regTitle">Tournament name</label>'+
       '<input id="regTitle" type="text" value="'+escHtml(regWiz.title)+'" autocomplete="off" />'+
+      '<label for="regFormType">Form type</label>'+
+      '<select id="regFormType" aria-label="Form type players or owners" style="width:100%;min-height:48px;font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text)">'+
+      '<option value="players"'+(ft==='players'?' selected':'')+'>Players form</option>'+
+      '<option value="owners"'+(ft==='owners'?' selected':'')+'>Owners form</option>'+
+      '</select>'+
+      '<p style="color:var(--muted);font-size:13px;margin:4px 0 10px">Players form includes Gamer ID. Owners form asks for UTR number after payment (no Gamer ID).</p>'+
       '<label for="regMaxSlots">Number of registrations accepted</label>'+
       '<input id="regMaxSlots" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 100" value="'+escHtml(maxVal)+'" />'+
       '<p style="color:var(--muted);font-size:13px;margin:4px 0 10px">Leave empty for unlimited. When the limit is reached, new public sign-ups are blocked (organiser can still add manually).</p>'+
@@ -7717,6 +7753,14 @@ function renderRegWizard(){
     next.type='button'; next.className='btn-ok'; next.textContent='Next — form fields';
     next.onclick=function(){
       regWiz.title = ($('regTitle')&&$('regTitle').value||'').trim();
+      var newType = ($('regFormType')&&$('regFormType').value==='owners') ? 'owners' : 'players';
+      if(newType !== regWiz.formType && !regWiz.id){
+        regWiz.formType = newType;
+        regWiz.fields = defaultRegTemplateFields(newType);
+      } else {
+        regWiz.formType = newType;
+      }
+      regWiz.tournamentKey = regTournamentKey(regWiz.title);
       regWiz.startDate = ($('regStart')&&$('regStart').value)||'';
       regWiz.endDate = ($('regEnd')&&$('regEnd').value)||'';
       regWiz.rulesText = ($('regRules')&&$('regRules').value)||'';
@@ -7959,6 +8003,8 @@ async function saveRegForm(){
   // Ensure a name-like field exists (first text field)
   var payload = {
     title: regWiz.title,
+    formType: (regWiz.formType === 'owners') ? 'owners' : 'players',
+    tournamentKey: regWiz.tournamentKey || regTournamentKey(regWiz.title),
     startDate: regWiz.startDate||'',
     endDate: regWiz.endDate||'',
     rulesText: regWiz.rulesText||'',
@@ -8030,7 +8076,7 @@ function isRegHostOrAdmin(form){
 async function paintRegsHubList(items){
   var list = $('hubRegsList');
   if(!list) return;
-  // Hide tournaments the current user already applied to (they appear only under Applied)
+  window._regsHubItems = items || [];
   var appliedIds = {};
   if(user && db && items.length){
     try{
@@ -8043,41 +8089,167 @@ async function paintRegsHubList(items){
       }));
     }catch(e){}
   }
-  var visible = items.filter(function(it){
-    if(isRegHostOrAdmin(it)) return true;
-    if(appliedIds[it.id]) return false;
-    return it.status === 'open';
+  // Group by tournamentKey (fallback title)
+  var groups = {};
+  (items||[]).forEach(function(it){
+    var key = it.tournamentKey || regTournamentKey(it.title||it.id);
+    if(!groups[key]) groups[key] = { key:key, title: it.title||'Tournament', forms:[], canManage:false, anyOpen:false };
+    groups[key].forms.push(it);
+    if(isRegHostOrAdmin(it)) groups[key].canManage = true;
+    if(it.status === 'open') groups[key].anyOpen = true;
+    if(it.title) groups[key].title = it.title;
   });
-  if(!visible.length){
+  var visibleKeys = Object.keys(groups).filter(function(k){
+    var g = groups[k];
+    if(g.canManage) return true;
+    // User: show if any open form they have not applied to
+    return g.forms.some(function(f){ return f.status==='open' && !appliedIds[f.id]; });
+  });
+  if(!visibleKeys.length){
     list.innerHTML = '<p class="hub-empty">'+(canCreate()?'No registrations yet. Create one.':'No open registrations right now.')+'</p>';
     return;
   }
   var h = '';
-  visible.forEach(function(it){
-    var isOpen = it.status === 'open';
-    var dates = [it.startDate, it.endDate].filter(Boolean).join(' → ');
-    var canManage = isRegHostOrAdmin(it);
-    if(canManage){
-      h += '<button type="button" class="list-btn reg-host-item" data-id="'+it.id+'" aria-label="'+escHtml(it.title||'Tournament')+', manage">'
-        +escHtml(it.title||'Tournament')
-        +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'No dates')+(isOpen?' · Open':' · Closed')+' · Manage</span></button>';
+  visibleKeys.forEach(function(k){
+    var g = groups[k];
+    var kinds = [];
+    g.forms.forEach(function(f){
+      var t = (f.formType==='owners')?'Owners':'Players';
+      if(kinds.indexOf(t)<0) kinds.push(t);
+    });
+    var dates = '';
+    try{
+      var f0 = g.forms[0];
+      dates = [f0.startDate, f0.endDate].filter(Boolean).join(' → ');
+    }catch(e){}
+    var sub = (dates?dates+' · ':'')+kinds.join(' + ')+(g.anyOpen?' · Open':' · Closed')+(g.canManage?' · Manage':'');
+    if(g.canManage){
+      h += '<button type="button" class="list-btn reg-host-group" data-key="'+escHtml(k)+'" aria-label="'+escHtml(g.title)+', manage">'
+        +escHtml(g.title)
+        +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span></button>';
     } else {
-      h += '<button type="button" class="list-btn reg-user-item" data-id="'+it.id+'" aria-label="'+escHtml(it.title||'Tournament')+'">'
-        +escHtml(it.title||'Tournament')
-        +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(dates||'')+' · Open</span></button>';
+      h += '<button type="button" class="list-btn reg-user-group" data-key="'+escHtml(k)+'" aria-label="'+escHtml(g.title)+'">'
+        +escHtml(g.title)
+        +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+'</span></button>';
     }
   });
   list.innerHTML = h;
-  list.querySelectorAll('.reg-host-item').forEach(function(btn){
-    btn.onclick = function(){ openRegHost(btn.getAttribute('data-id')); };
+  list.querySelectorAll('.reg-host-group').forEach(function(btn){
+    btn.onclick = function(){ openRegTournamentHub(btn.getAttribute('data-key'), true); };
   });
-  list.querySelectorAll('.reg-user-item').forEach(function(btn){
-    btn.onclick = function(){ openRegUserTour(btn.getAttribute('data-id')); };
+  list.querySelectorAll('.reg-user-group').forEach(function(btn){
+    btn.onclick = function(){ openRegTournamentHub(btn.getAttribute('data-key'), false); };
   });
   try{ focusEl(list.querySelector('.list-btn')||$('hubTabRegs')); }catch(e){}
 }
 
+function formsForTournamentKey(key){
+  var items = window._regsHubItems || [];
+  return items.filter(function(it){
+    return (it.tournamentKey || regTournamentKey(it.title||it.id)) === key;
+  });
+}
+
+async function openRegTournamentHub(key, asHost){
+  var forms = formsForTournamentKey(key);
+  if(!forms.length && db){
+    try{
+      var snap = await db.collection('registrationForms').limit(60).get();
+      forms = [];
+      snap.forEach(function(d){
+        var it = Object.assign({id:d.id}, d.data());
+        if((it.tournamentKey || regTournamentKey(it.title||it.id)) === key) forms.push(it);
+      });
+    }catch(e){}
+  }
+  if(!forms.length){ alert('Tournament not found'); return; }
+  window._regTourGroup = { key:key, forms:forms, title: forms[0].title||'Tournament' };
+  if(asHost){
+    openRegHostGroup(window._regTourGroup);
+  } else {
+    openRegUserTourGroup(window._regTourGroup);
+  }
+}
+
+function openRegHostGroup(group){
+  if(!group || !group.forms || !group.forms.length) return;
+  // Prefer owners form as primary host context, else first
+  var primary = group.forms.find(function(f){ return f.formType==='owners'; }) || group.forms[0];
+  regHostForm = Object.assign({}, primary, { id: primary.id });
+  showScreen('screenRegHost');
+  if($('regHostTitle')) $('regHostTitle').textContent = group.title || primary.title || 'Tournament';
+  var kinds = group.forms.map(function(f){ return f.formType==='owners'?'Owners':'Players'; });
+  if($('regHostMeta')){
+    $('regHostMeta').textContent = (kinds.join(' · '))+' · '+(primary.status==='open'?'Open':'Closed');
+  }
+  var box = $('regHostActions') || $('btnRegOpenRecords') && $('btnRegOpenRecords').parentNode;
+  // Rebuild host action buttons
+  var actionsParent = $('btnRegOpenRecords') && $('btnRegOpenRecords').parentElement;
+  if(actionsParent){
+    var ownersForm = group.forms.find(function(f){ return f.formType==='owners'; });
+    var playersForm = group.forms.find(function(f){ return f.formType!=='owners'; });
+    // Also treat missing formType as players
+    if(!playersForm) playersForm = group.forms.find(function(f){ return f.formType!=='owners'; }) || (group.forms.length===1 && group.forms[0].formType!=='owners' ? group.forms[0] : null);
+    if(!playersForm && group.forms.length===1 && (!group.forms[0].formType || group.forms[0].formType==='players')) playersForm = group.forms[0];
+    var html = '';
+    if(ownersForm){
+      html += '<button type="button" id="btnRegViewOwners" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem" data-id="'+ownersForm.id+'">View owners records</button>';
+    }
+    if(playersForm){
+      html += '<button type="button" id="btnRegViewPlayers" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem" data-id="'+playersForm.id+'">View players records</button>';
+    }
+    if(!ownersForm && !playersForm){
+      html += '<button type="button" id="btnRegOpenRecords" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">View registrations</button>';
+    }
+    html += '<button type="button" id="btnRegStartAuction" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Start auction</button>';
+    actionsParent.innerHTML = html;
+    if($('btnRegViewOwners')) $('btnRegViewOwners').onclick=function(){ openRegHost(ownersForm.id).then(function(){ openRegRecordsScreen(); }); };
+    if($('btnRegViewPlayers')) $('btnRegViewPlayers').onclick=function(){ openRegHost(playersForm.id).then(function(){ openRegRecordsScreen(); }); };
+    if($('btnRegOpenRecords')) $('btnRegOpenRecords').onclick=function(){ openRegRecordsScreen(); };
+    if($('btnRegStartAuction')) $('btnRegStartAuction').onclick=function(){ try{ startAuctionFromReg(); }catch(e){ alert('Start auction from More if needed.'); } };
+  }
+  try{ focusEl($('regHostTitle')); }catch(e){}
+}
+
+function openRegUserTourGroup(group){
+  if(!group || !group.forms) return;
+  var ownersForm = group.forms.find(function(f){ return f.formType==='owners' && f.status==='open'; });
+  var playersForm = group.forms.find(function(f){ return f.formType!=='owners' && f.status==='open'; });
+  if(!playersForm) playersForm = group.forms.find(function(f){ return (!f.formType || f.formType==='players') && f.status==='open'; });
+  showScreen('screenRegUserTour');
+  if($('regUserTourTitle')) $('regUserTourTitle').textContent = group.title || 'Tournament';
+  var meta = $('regUserTourMeta');
+  if(meta) meta.textContent = 'Choose how you want to apply';
+  var actions = $('btnRegUserApply') && $('btnRegUserApply').parentElement;
+  if(actions){
+    var html = '';
+    if(ownersForm){
+      html += '<button type="button" id="btnApplyOwner" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Apply as owner</button>';
+    }
+    if(playersForm){
+      html += '<button type="button" id="btnApplyPlayer" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Apply as player</button>';
+    }
+    if(!ownersForm && !playersForm){
+      html += '<p class="hub-empty">Registration is closed.</p>';
+    }
+    // Keep view list if any form
+    var any = ownersForm || playersForm || group.forms[0];
+    if(any){
+      html += '<button type="button" id="btnRegUserViewList" class="btn-sec btn-block" style="min-height:48px;margin-top:8px">View registrations</button>';
+    }
+    actions.innerHTML = html;
+    if($('btnApplyOwner')) $('btnApplyOwner').onclick=function(){ openRegFormForUser(ownersForm.id, false); };
+    if($('btnApplyPlayer')) $('btnApplyPlayer').onclick=function(){ openRegFormForUser(playersForm.id, false); };
+    if($('btnRegUserViewList')) $('btnRegUserViewList').onclick=function(){
+      regFormCurrent = Object.assign({}, any, {id:any.id});
+      openRegPublicList();
+    };
+  }
+  try{ focusEl($('regUserTourTitle')); }catch(e){}
+}
+
 async function openRegUserTour(formId){
+  // Legacy single-form open — also used after submit
   if(!db || !user) return;
   try{
     var doc = await db.collection('registrationForms').doc(formId).get();
@@ -8115,7 +8287,7 @@ async function openRegUserTour(formId){
         applyBtn.onclick = function(){ openRegFormForUser(formId, false); };
       }
     }
-    // More menu: Edit entry only if applied
+    // More menu: Edit / Delete only if applied
     var editEntry = $('btnRegUserEditEntry');
     if(editEntry){
       if(applied){
@@ -8129,6 +8301,16 @@ async function openRegUserTour(formId){
         editEntry.onclick = null;
       }
     }
+    var delEntry = $('btnRegUserDeleteEntry');
+    if(delEntry){
+      if(applied){
+        delEntry.classList.remove('hidden');
+      } else {
+        delEntry.classList.add('hidden');
+      }
+    }
+    // Store current form for single-form tour
+    regFormCurrent = Object.assign({id: formId}, data);
     try{ focusEl($('regUserTourTitle')); }catch(e){}
   }catch(e){ safeAlert(e); }
 }
@@ -8553,16 +8735,44 @@ function paintRegEntriesPaged(){
     return;
   }
   var h = '';
-  slice.forEach(function(en){
+  var hostHere = typeof isRegFormOwner === 'function' && isRegFormOwner();
+  slice.forEach(function(en, idx){
+    var serial = (window._regEntriesPage||0)* (typeof REG_PAGE_SIZE==='number'?REG_PAGE_SIZE:30) + idx + 1;
+    // Prefer stable order index in full filtered list
+    try{
+      var fullIdx = filtered.indexOf(en);
+      if(fullIdx >= 0) serial = fullIdx + 1;
+    }catch(e){}
     var name = entryDisplayName(en);
     var sub = en.email||'';
     var tag = (en.source==='organiser') ? ' · Organiser' : '';
-    h += '<button type="button" class="list-btn reg-entry-btn" data-id="'+en.id+'" aria-label="'+escHtml(String(name))+', '+escHtml(sub+tag)+'">'
-      +escHtml(String(name))+'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+escHtml(tag)+'</span></button>';
+    h += '<div class="reg-entry-row" style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">';
+    h += '<button type="button" class="list-btn reg-entry-btn" style="flex:1;text-align:left" data-id="'+en.id+'" aria-label="Serial '+serial+', '+escHtml(String(name))+', '+escHtml(sub+tag)+'">'
+      +'<span style="font-weight:800;color:var(--accent)">#'+serial+'</span> '+escHtml(String(name))
+      +'<br><span style="font-size:13px;color:var(--muted)">'+escHtml(sub)+escHtml(tag)+'</span></button>';
+    if(hostHere){
+      h += '<button type="button" class="btn-danger reg-entry-del" data-id="'+en.id+'" aria-label="Delete registration for '+escHtml(String(name))+'" style="min-width:72px;flex-shrink:0">Delete</button>';
+    }
+    h += '</div>';
   });
   list.innerHTML = h;
   list.querySelectorAll('.reg-entry-btn').forEach(function(btn){
     btn.onclick = function(){ showRegEntryDetail(btn.getAttribute('data-id'), true); };
+  });
+  list.querySelectorAll('.reg-entry-del').forEach(function(btn){
+    btn.onclick = function(){
+      var eid = btn.getAttribute('data-id');
+      var en = (regEntriesCache||[]).find(function(x){ return x.id===eid; });
+      var nm = en ? entryDisplayName(en) : 'this record';
+      ask('Delete registration?', 'Remove '+nm+' permanently? This cannot be undone.', async function(){
+        try{
+          await db.collection('registrationForms').doc(regHostForm.id).collection('entries').doc(eid).delete();
+          try{ announce('Registration deleted'); }catch(e){}
+          await loadRegEntries(regHostForm.id);
+          paintRegEntriesPaged();
+        }catch(e){ safeAlert(e); }
+      }, { yesLabel:'Yes, delete', noLabel:'Cancel' });
+    };
   });
   if($('btnRegLoadMore')){
     var more = slice.length < filtered.length;
@@ -9016,12 +9226,33 @@ async function submitUserRegForm(){
   var manualEditId = window._regManualEditId || null;
   var entryUid = isManual ? ('manual_'+(manualEditId || (Date.now().toString(36)+Math.random().toString(36).slice(2,8)))) : user.uid;
   if(isManual && manualEditId) entryUid = manualEditId;
+  // Soft: one registration per device per form (public user submits only)
+  var deviceId = '';
+  try{ deviceId = getDeviceRegId(); }catch(e){}
+  if(!isManual && !window._regFormIsEdit && deviceId){
+    try{
+      var allEnt = await db.collection('registrationForms').doc(regFormCurrent.id).collection('entries').get();
+      var deviceTaken = false;
+      allEnt.forEach(function(d){
+        var ed = d.data()||{};
+        if(ed.deviceId === deviceId && d.id !== user.uid) deviceTaken = true;
+      });
+      if(deviceTaken){
+        ask('Already registered on this device',
+          'This device already has a registration for this form. Sign in with the same account to edit, or contact the organiser.',
+          function(){}, { yesLabel:'OK', noLabel:'Close' });
+        return;
+      }
+    }catch(eDev){ console.warn('device check', eDev); }
+  }
   var entry = {
     uid: isManual ? entryUid : user.uid,
     email: isManual ? ('organiser:'+(user.email||'')) : (user.email||''),
     displayName: isManual ? (user.displayName||user.email||'Organiser') : (user.displayName||''),
     answers: answers,
     source: isManual ? 'organiser' : 'user',
+    formType: regFormCurrent.formType || 'players',
+    deviceId: isManual ? '' : deviceId,
     createdBy: user.uid,
     createdByEmail: user.email||'',
     submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -9598,6 +9829,23 @@ try{
     if(!regHostForm) return;
     openRegRulesModal({ edit: true, text: regHostForm.rulesText || '' });
   };
+  if($('btnRegInvitePlayers')) $('btnRegInvitePlayers').onclick = function(){
+    closeRegHostMore();
+    if(!regHostForm){ alert('Open a tournament first'); return; }
+    // Open wizard as new Players form linked to same tournament title/key
+    openRegWizard({
+      id: null,
+      title: regHostForm.title || '',
+      formType: 'players',
+      tournamentKey: regHostForm.tournamentKey || regTournamentKey(regHostForm.title||''),
+      startDate: regHostForm.startDate||'',
+      endDate: regHostForm.endDate||'',
+      rulesText: regHostForm.rulesText||'',
+      maxRegistrations: regHostForm.maxRegistrations,
+      fields: defaultRegTemplateFields('players'),
+      status: 'open'
+    });
+  };
   if($('btnRegUserMore')) $('btnRegUserMore').onclick = function(){
     var m=$('regUserMoreMenu'); if(m){ m.classList.remove('hidden'); m.style.display='flex'; }
   };
@@ -9608,6 +9856,19 @@ try{
   if($('btnRegUserViewRules')) $('btnRegUserViewRules').onclick = function(){
     closeRegUserMore();
     openRegRulesModal({ edit: false, text: (regFormCurrent && regFormCurrent.rulesText) || '' });
+  };
+  if($('btnRegUserDeleteEntry')) $('btnRegUserDeleteEntry').onclick = function(){
+    closeRegUserMore();
+    if(!regFormCurrent || !user || !db) return;
+    ask('Delete my registration?', 'This permanently removes your registration for '+((regFormCurrent&&regFormCurrent.title)||'this tournament')+'. You can apply again later if the form is open.', async function(){
+      try{
+        await db.collection('registrationForms').doc(regFormCurrent.id).collection('entries').doc(user.uid).delete();
+        try{ announce('Your registration was deleted'); }catch(e){}
+        alert('Your registration was deleted.');
+        enterHome();
+        try{ switchHubTab('regs'); }catch(e){}
+      }catch(e){ safeAlert(e); }
+    }, { yesLabel:'Yes, delete', noLabel:'Cancel' });
   };
   if($('btnRegUserCopyLink')) $('btnRegUserCopyLink').onclick = function(){
     closeRegUserMore();
@@ -12493,7 +12754,15 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   // Host Teams control lives in top bar beside Quick settings
   let hostBtns='';
   if($('btnTeamsTop')){ $('btnTeamsTop').classList.add('hidden'); $('btnTeamsTop').setAttribute('aria-hidden','true'); }
-
+  // Host always has Extend / Sold / Unsold during contest (no need to wait for timer)
+  var hostNow = !!(user && T && T.ownerId === user.uid);
+  if(hostNow && b.phase==='contest'){
+    hostBtns =
+      '<div class="btn-stack host-always-actions" style="margin-top:12px" role="group" aria-label="Host lot actions">'+
+      '<button type="button" id="btnHostExtendNow" class="btn-sec btn-block">Extend timer</button>'+
+      (b.leaderTeamId ? '<button type="button" id="btnHostSoldNow" class="btn-ok btn-block">Sold</button>' : '')+
+      '<button type="button" id="btnHostUnsoldNow" class="btn-danger btn-block">Unsold</button></div>';
+  }
 
   const maxSec=rules.contestSeconds||30;
   const msLeft=Math.max(0,(b.timerEndsAt||0)-Date.now());
@@ -12526,6 +12795,24 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   });
   if($('btnQuitLot')) $('btnQuitLot').onclick=function(){ doQuit(); };
   wireUltimateBid(b, rules);
+  if($('btnHostExtendNow')){
+    $('btnHostExtendNow').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Extend timer?','Start a fresh timer for this player?', async function(){ await hostExtend(); });
+    };
+  }
+  if($('btnHostSoldNow')){
+    $('btnHostSoldNow').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Confirm sold?','Sell to '+(b.leaderTeamName||'')+' for '+(b.price||'')+'?', function(){ finalizeSold(b.leaderTeamId, b.price); });
+    };
+  }
+  if($('btnHostUnsoldNow')){
+    $('btnHostUnsoldNow').onclick=function(){
+      if(window._lotBusy) return;
+      ask('Mark unsold?','Mark this player unsold and continue?', function(){ finalizeUnsold(); });
+    };
+  }
 
   // Focus once per player only (avoid double: player + bidding region)
   if(b.phase==='contest' && !opts.skipFocus && !window._modalOpen && !isUiLocked()){
@@ -12748,47 +13035,67 @@ function startTimerLoop(){
     window._countdownSec=null;
     // All clients: local lock when timer ends (before host write arrives)
     if(T.bid.phase==='contest' && T.bid.timerEndsAt && Date.now()>=T.bid.timerEndsAt){
+      var _te = T.bid.timerEndsAt;
       T.bid.phase='await_host';
       if(el){ el.textContent='Waiting for host decision'; el.className='timer-box warn'; }
-      if(window._localAwait!== (T.bid.playerIndex+'|'+T.bid.timerEndsAt)){
-        window._localAwait=T.bid.playerIndex+'|'+T.bid.timerEndsAt;
-        // Soft UI refresh without focus steal
+      var awaitId = T.bid.playerIndex+'|'+_te;
+      if(window._localAwait !== awaitId){
+        window._localAwait = awaitId;
         try{ renderAuction({ skipFocus:true, skipAnnounce:true }); }catch(e){}
       }
-      if(user&&T.ownerId===user.uid){
-        await onTimerExpired();
+      // Host: always try decision path (panel + cloud), even if we already marked localAwait
+      if(user && T.ownerId===user.uid){
+        try{ await onTimerExpired(); }catch(e){ console.warn('onTimerExpired', e); }
+        try{ showHostTimerDecision(!!T.bid.leaderTeamId); }catch(e){}
       }
       return;
+    }
+    // Safety: stuck contest with no timerEndsAt — host can still force decision UI
+    if(T.bid.phase==='contest' && !T.bid.timerEndsAt && user && T.ownerId===user.uid){
+      T.bid.phase='await_host';
+      try{ showHostTimerDecision(!!T.bid.leaderTeamId); }catch(e){}
     }
   }, 400);
 }
 
 async function onTimerExpired(){
-  if(!T.bid || T.bid._handling) return;
+  if(!T || !T.bid) return;
   if(!user || T.ownerId!==user.uid) return;
-  const lotKey='await|'+(T.bid.playerIndex)+'|'+(T.meta&&T.meta.currentIndex);
-  if(window._awaitSaved===lotKey && T.bid.phase==='await_host'){
-    // Still ensure decision buttons are visible
-    try{ showHostTimerDecision(!!(T.bid && T.bid.leaderTeamId)); }catch(e){}
+  // Allow re-entry if previous attempt stuck mid-save (panel must still appear)
+  if(T.bid._handling && T.bid.phase==='await_host'){
+    try{ showHostTimerDecision(!!T.bid.leaderTeamId); }catch(e){}
     return;
   }
+  if(T.bid._handling) return;
+  const lotKey='await|'+(T.bid.playerIndex)+'|'+(T.meta&&T.meta.currentIndex);
   T.bid._handling=true;
   try{
     T.bid.phase='await_host';
-    T.bid.timerEndsAt=null;
+    // Keep timerEndsAt for identity of this lot; null only if already past
+    if(T.bid.timerEndsAt && Date.now() < T.bid.timerEndsAt){
+      /* still running — should not be here */
+    }
     T.bid._announced10=false;
     T.bid._sfxTimer10=false;
     T.bid._sfxTimer12=false;
     T.bid._vibTimer10=false;
     window._countdownSec=null;
     window._awaitSaved=lotKey;
-    // Partial save only — do not rewrite full roster on timer expiry
+    window._hostDecKey=null; // force panel rebuild
+    // Show panel FIRST so host is never stuck if save fails
+    try{ renderAuction({ force: true, skipFocus: true, skipAnnounce: true }); }catch(e){}
+    try{ showHostTimerDecision(!!(T.bid && T.bid.leaderTeamId)); }catch(e){}
+    // Persist await_host so owners stop bidding
+    var bidPayload = Object.assign({}, T.bid, { phase: 'await_host' });
     try{
-      await saveLivePartial({ bid: T.bid, intermissionUntil: null }, true);
+      await saveLivePartial({ bid: bidPayload, intermissionUntil: null }, true);
     }catch(e){
-      try{ await cloudSave(true); }catch(e2){}
+      try{ await cloudSave(true); }catch(e2){
+        console.warn('onTimerExpired save failed', e2||e);
+        // Panel already shown locally — host can still Unsold/Sold/Extend
+      }
     }
-    try{ renderAuction({ force: true }); }catch(e){}
+    // Re-show after save/render in case snapshot wiped DOM
     try{ showHostTimerDecision(!!(T.bid && T.bid.leaderTeamId)); }catch(e){}
   } finally {
     if(T&&T.bid) T.bid._handling=false;
@@ -12796,11 +13103,21 @@ async function onTimerExpired(){
 }
 
 function showHostTimerDecision(hasLeader){
-  if(!T || !user || T.ownerId !== user.uid) return;
+  if(!T || !user) return;
+  var isHost = (T.ownerId === user.uid) || (typeof isAuctionHostUser==='function' && isAuctionHostUser());
+  if(!isHost) return;
+  // Force phase if time already elapsed but phase lagged
+  if(T.bid && T.bid.phase==='contest' && T.bid.timerEndsAt && Date.now()>=T.bid.timerEndsAt){
+    T.bid.phase='await_host';
+  }
   if(!T.bid || T.bid.phase!=='await_host') return;
   // Do NOT return on _lotBusy — panel must stay visible until host acts
   const box=$('aucPlayer');
-  if(!box) return;
+  if(!box){
+    // Auction card not mounted yet — retry shortly
+    setTimeout(function(){ try{ showHostTimerDecision(!!(T&&T.bid&&T.bid.leaderTeamId)); }catch(e){} }, 300);
+    return;
+  }
   const lotKey='dec|'+(T.bid.playerIndex)+'|'+(T.bid.price)+'|'+(T.bid.leaderTeamId||'');
   const firstTime = window._hostDecKey !== lotKey;
   window._hostDecKey = lotKey;

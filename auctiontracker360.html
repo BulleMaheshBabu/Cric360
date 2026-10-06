@@ -1898,6 +1898,35 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   </div>
 
   <!-- GAMES tab -->
+  <div id="hubPaneUpdates" class="hidden" role="tabpanel" aria-labelledby="hubTabUpdates" aria-hidden="true">
+    <div class="hub-subtabs" role="tablist" aria-label="Updates sections" style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap">
+      <button type="button" role="tab" id="updSubNotif" class="btn-sec active" aria-selected="true" style="flex:1;min-height:44px">Notifications</button>
+      <button type="button" role="tab" id="updSubChat" class="btn-sec" aria-selected="false" style="flex:1;min-height:44px">Chat</button>
+      <button type="button" role="tab" id="updSubAdminChats" class="btn-sec hidden" aria-selected="false" style="flex:1;min-height:44px">Queries</button>
+    </div>
+    <div id="updPaneNotif">
+      <div id="updNotifList" class="hub-list" aria-label="Notifications"></div>
+    </div>
+    <div id="updPaneChat" class="hidden">
+      <button type="button" id="btnChatDeveloper" class="list-btn" style="margin-bottom:10px" aria-label="Chat with developer">
+        <span style="font-weight:800">Chat with developer</span><br>
+        <span style="font-size:13px;color:var(--muted)">Ask questions · we reply here</span>
+      </button>
+      <div id="updChatThread" class="hidden" style="display:flex;flex-direction:column;gap:8px;min-height:280px">
+        <button type="button" id="btnUpdChatBack" class="btn-sec" style="align-self:flex-start;min-height:40px">Back</button>
+        <div id="updChatMessages" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;overflow:auto;max-height:50vh;padding:8px;border:1px solid var(--border);border-radius:12px"></div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <label class="sr-only" for="updChatInput">Message</label>
+          <textarea id="updChatInput" rows="2" maxlength="500" placeholder="Type a message…" style="flex:1;min-height:48px;resize:vertical" aria-label="Type a message"></textarea>
+          <button type="button" id="btnUpdChatSend" class="btn-ok" style="min-height:48px;min-width:72px">Send</button>
+        </div>
+      </div>
+    </div>
+    <div id="updPaneAdminChats" class="hidden">
+      <div id="updAdminChatList" class="hub-list" aria-label="User queries"></div>
+    </div>
+  </div>
+
   <div id="hubPaneGames" class="hidden" role="tabpanel" aria-labelledby="hubTabGames">
     <div id="hubGamesAdmin" class="hub-admin" style="margin-bottom:10px">
       <button type="button" id="btnCreateGame" class="btn-ok btn-block">Create game</button>
@@ -1919,6 +1948,7 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   <button type="button" role="tab" id="hubTabLive" class="active" aria-selected="true">Auctions</button>
   <button type="button" role="tab" id="hubTabRegs" aria-selected="false">Registrations</button>
   <button type="button" role="tab" id="hubTabGames" aria-selected="false">Games</button>
+  <button type="button" role="tab" id="hubTabUpdates" aria-selected="false">Updates</button>
   <button type="button" role="tab" id="hubTabMore" aria-selected="false">More</button>
 </nav>
 
@@ -4400,6 +4430,11 @@ function showScreen(id, opts){
             || (typeof regHostForm!=='undefined' && regHostForm && regHostForm.id)
             || null;
           if(fid) histPayload.formId = fid;
+          var tk = (window._regTourGroup && window._regTourGroup.key)
+            || (typeof regFormCurrent!=='undefined' && regFormCurrent && (regFormCurrent.tournamentKey || (typeof regTournamentKey==='function' ? regTournamentKey(regFormCurrent.title||'') : '')))
+            || (typeof regHostForm!=='undefined' && regHostForm && (regHostForm.tournamentKey || (typeof regTournamentKey==='function' ? regTournamentKey(regHostForm.title||'') : '')))
+            || null;
+          if(tk) histPayload.tournamentKey = tk;
         }
         history.pushState(histPayload, '', location.pathname + location.search);
       }
@@ -4424,6 +4459,11 @@ function showScreen(id, opts){
           || (typeof regHostForm!=='undefined' && regHostForm && regHostForm.id)
           || null;
         if(rf) persist.formId = rf;
+        var tk2 = (window._regTourGroup && window._regTourGroup.key)
+          || (typeof regFormCurrent!=='undefined' && regFormCurrent && (regFormCurrent.tournamentKey || (typeof regTournamentKey==='function' ? regTournamentKey(regFormCurrent.title||'') : '')))
+          || (typeof regHostForm!=='undefined' && regHostForm && (regHostForm.tournamentKey || (typeof regTournamentKey==='function' ? regTournamentKey(regHostForm.title||'') : '')))
+          || null;
+        if(tk2) persist.tournamentKey = tk2;
       }
       sessionStorage.setItem('at_nav_restore', JSON.stringify(persist));
     }
@@ -4668,8 +4708,13 @@ window.addEventListener('popstate', function(ev){
       if(st.screen === 'screenRegUserTour' || st.screen === 'screenRegHost' || st.screen === 'screenRegRecords' || st.screen === 'screenRegPublicList'){
         var rid = st.formId || (typeof regFormCurrent!=='undefined' && regFormCurrent && regFormCurrent.id)
           || (typeof regHostForm!=='undefined' && regHostForm && regHostForm.id) || null;
+        var tkey = st.tournamentKey || null;
         window._skipHistoryPush = true;
         try{
+          if(tkey && typeof openRegTournamentHub === 'function'){
+            openRegTournamentHub(tkey, st.screen==='screenRegHost' || st.screen==='screenRegRecords');
+            return;
+          }
           if(st.screen === 'screenRegUserTour' && rid && typeof openRegUserTour === 'function'){
             openRegUserTour(rid);
           } else if(st.screen === 'screenRegHost' && rid && typeof openRegHost === 'function'){
@@ -4902,68 +4947,223 @@ document.addEventListener('keydown', function(ev){
   if(ev.key==='Escape' && isConfirmOpen()){ closeConfirm(true); }
 });
 
-/* ===== Silent auction hotkeys (no UI hints) ===== */
+/* ===== Auction / watch keyboard shortcuts (Alt / Alt+Shift) ===== */
 document.addEventListener('keydown', function(ev){
   try{
     if(!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    const tag = (ev.target && ev.target.tagName) ? ev.target.tagName.toLowerCase() : '';
-    if(tag === 'input' || tag === 'textarea' || tag === 'select' || (ev.target && ev.target.isContentEditable)) return;
-    // Modals / dialogs: ignore
-    if(document.querySelector('.modal:not(.hidden), [role="dialog"]:not([aria-hidden="true"])')){
-      const open = document.querySelector('.modal:not(.hidden)');
-      if(open) return;
+    var k = (ev.key || '').toLowerCase();
+    // Normalize letter from code when browser reports differently
+    var code = ev.code || '';
+    if(code.indexOf('Key') === 0 && code.length === 4) k = code.charAt(3).toLowerCase();
+    var shift = !!ev.shiftKey;
+    var tag = (ev.target && ev.target.tagName) ? ev.target.tagName.toLowerCase() : '';
+    var inField = (tag === 'input' || tag === 'textarea' || tag === 'select' || (ev.target && ev.target.isContentEditable));
+    var onAuction = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
+    var onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
+    if(!onAuction && !onWatch) return;
+
+    function isVisible(el){
+      if(!el) return false;
+      if(el.classList && el.classList.contains('hidden')) return false;
+      if(el.getAttribute && el.getAttribute('aria-hidden') === 'true') return false;
+      try{
+        var st = window.getComputedStyle(el);
+        if(st && (st.display === 'none' || st.visibility === 'hidden')) return false;
+      }catch(e){}
+      return true;
+    }
+    function clickIf(el){
+      if(!el || el.disabled) return false;
+      if(!isVisible(el)) return false;
+      try{ el.click(); return true; }catch(e){ return false; }
+    }
+    function ringOpen(){
+      var m = $('voiceRingModal');
+      return !!(m && !m.classList.contains('hidden'));
+    }
+    function lateJoinOpen(){
+      var m = $('voiceLateJoinModal');
+      return !!(m && !m.classList.contains('hidden'));
+    }
+    function inVoiceCall(){
+      try{
+        if(window._lkRoom) return true;
+      }catch(e){}
+      var mute = $('btnAucMute');
+      var end = $('btnAucEndCall');
+      return isVisible(mute) || isVisible(end);
+    }
+    function ultimateOpen(){
+      return !!(window._chatComposerOpen && $('btnUltimateSend'));
     }
 
-    const onAuction = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
-    const onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
-    const k = (ev.key || '').toLowerCase();
-    const code = ev.code || '';
+    // ——— Alt+Shift: call + send (allowed even when typing) ———
+    if(shift){
+      // Alt+Shift+S — send message or ultimate bid
+      if(k === 's'){
+        if(ultimateOpen()){
+          var us = $('btnUltimateSend');
+          if(us && !us.disabled){
+            ev.preventDefault();
+            ev.stopPropagation();
+            us.click();
+            return;
+          }
+        }
+        if(typeof isMsgPanelOpen === 'function' && isMsgPanelOpen()){
+          var ta = $('msgText');
+          var txt = (ta && ta.value || '').trim();
+          if(txt){
+            ev.preventDefault();
+            ev.stopPropagation();
+            try{ sendRoomMessage('all'); }catch(e){}
+            return;
+          }
+        }
+        return;
+      }
+      // Voice: Join / Reject / Mute / End
+      if(k === 'j'){
+        if(ringOpen() && clickIf($('btnVoiceJoin'))){ ev.preventDefault(); ev.stopPropagation(); return; }
+        if(lateJoinOpen() && clickIf($('btnLateJoinYes'))){ ev.preventDefault(); ev.stopPropagation(); return; }
+        return;
+      }
+      if(k === 'r'){
+        if(ringOpen() && clickIf($('btnVoiceReject'))){ ev.preventDefault(); ev.stopPropagation(); return; }
+        if(lateJoinOpen() && clickIf($('btnLateJoinNo'))){ ev.preventDefault(); ev.stopPropagation(); return; }
+        return;
+      }
+      if(k === 'm'){
+        if(inVoiceCall() || isVisible($('btnAucMute')) || isVisible($('btnCallMute'))){
+          ev.preventDefault();
+          ev.stopPropagation();
+          if(isVisible($('btnAucMute'))) clickIf($('btnAucMute'));
+          else if(isVisible($('btnCallMute'))) clickIf($('btnCallMute'));
+          else if(typeof toggleCallMute === 'function') try{ toggleCallMute(); }catch(e){}
+          return;
+        }
+        return;
+      }
+      if(k === 'e'){
+        if(inVoiceCall() || isVisible($('btnAucEndCall')) || isVisible($('btnCallExit')) || isVisible($('btnCallOptsEnd'))){
+          ev.preventDefault();
+          ev.stopPropagation();
+          if(isVisible($('btnAucEndCall'))) clickIf($('btnAucEndCall'));
+          else if(isVisible($('btnCallOptsEnd'))) clickIf($('btnCallOptsEnd'));
+          else if(isVisible($('btnCallExit'))) clickIf($('btnCallExit'));
+          return;
+        }
+        return;
+      }
+      return; // other Alt+Shift ignored
+    }
 
-    // Tab switching — host auction screen
+    // ——— Alt only: ignore when typing (except we already handled Shift+S) ———
+    if(inField) return;
+
+    // Tabs — Auction screen: A / S / I / T
     if(onAuction){
-      if(k === 'l'){ ev.preventDefault(); try{ switchTab('auction'); }catch(e){} return; }
-      if(k === 's'){ ev.preventDefault(); try{ switchTab('squads'); }catch(e){} return; }
-      if(k === 'i'){ ev.preventDefault(); try{ switchTab('insights'); }catch(e){} return; }
-      if(k === 'm'){ ev.preventDefault(); try{ switchTab('tools'); }catch(e){} return; }
+      if(k === 'a'){ ev.preventDefault(); ev.stopPropagation(); try{ switchTab('auction'); }catch(e){} return; }
+      if(k === 's'){ ev.preventDefault(); ev.stopPropagation(); try{ switchTab('squads'); }catch(e){} return; }
+      if(k === 'i'){ ev.preventDefault(); ev.stopPropagation(); try{ switchTab('insights'); }catch(e){} return; }
+      if(k === 't'){ ev.preventDefault(); ev.stopPropagation(); try{ switchTab('tools'); }catch(e){} return; }
     }
-    // Viewer tabs
+    // Viewer watch: A=live, S, I, T=lists
     if(onWatch){
-      if(k === 'l'){ ev.preventDefault(); try{ switchWatchTab('live'); }catch(e){} return; }
-      if(k === 's'){ ev.preventDefault(); try{ switchWatchTab('squads'); }catch(e){} return; }
-      if(k === 'i'){ ev.preventDefault(); try{ switchWatchTab('insights'); }catch(e){} return; }
-      if(k === 'm'){ ev.preventDefault(); try{ switchWatchTab('lists'); }catch(e){} return; }
+      if(k === 'a'){ ev.preventDefault(); ev.stopPropagation(); try{ switchWatchTab('live'); }catch(e){} return; }
+      if(k === 's'){ ev.preventDefault(); ev.stopPropagation(); try{ switchWatchTab('squads'); }catch(e){} return; }
+      if(k === 'i'){ ev.preventDefault(); ev.stopPropagation(); try{ switchWatchTab('insights'); }catch(e){} return; }
+      if(k === 't'){ ev.preventDefault(); ev.stopPropagation(); try{ switchWatchTab('lists'); }catch(e){} return; }
     }
 
-    // Virtual bidding shortcuts only when owner can act
-    if(!onAuction || !ownerMode) return;
+    // Host: Alt+N — next player
+    if(onAuction && k === 'n'){
+      var isHost = (typeof isAuctionHostUser === 'function' && isAuctionHostUser())
+        || (T && user && T.ownerId === user.uid);
+      if(isHost){
+        var np = $('btnNextPlayer');
+        if(np && !np.disabled && isVisible(np)){
+          ev.preventDefault();
+          ev.stopPropagation();
+          try{ if(typeof hostAdvanceNextPlayer === 'function') hostAdvanceNextPlayer(); else np.click(); }catch(e){}
+          return;
+        }
+      }
+    }
+
+    // Owners (virtual auction only): O / U / Q / V / M / 1–9
+    if(!onAuction) return;
+    if(!ownerMode) return;
     if(typeof isVirtual === 'function' && !isVirtual()) return;
 
-    // Alt+O — open / base bid (first bidRaise with data-inc 0, or only open button)
     if(k === 'o'){
-      const openBtn = document.querySelector('#bidRegion .bidRaise[data-inc="0"], #bidRegion .bidRaise');
+      var openBtn = document.querySelector('#bidRegion .bidRaise[data-inc="0"]')
+        || document.querySelector('#bidRegion .bidRaise');
       if(openBtn && !openBtn.disabled){
         ev.preventDefault();
+        ev.stopPropagation();
         openBtn.click();
       }
       return;
     }
+    if(k === 'u'){
+      var ult = $('btnOpenCustomBid');
+      if(ult && !ult.disabled && isVisible(ult)){
+        ev.preventDefault();
+        ev.stopPropagation();
+        ult.click();
+      }
+      return;
+    }
+    if(k === 'q'){
+      var q = $('btnQuitLot');
+      if(q && !q.disabled && isVisible(q)){
+        ev.preventDefault();
+        ev.stopPropagation();
+        q.click();
+      } else if(typeof doQuit === 'function'){
+        ev.preventDefault();
+        ev.stopPropagation();
+        try{ doQuit(); }catch(e){}
+      }
+      return;
+    }
+    if(k === 'v'){
+      var callBtn = $('btnAucCall');
+      if(callBtn && isVisible(callBtn)){
+        ev.preventDefault();
+        ev.stopPropagation();
+        callBtn.click();
+      }
+      return;
+    }
+    if(k === 'm'){
+      if(typeof canUseRoomMessage === 'function' && canUseRoomMessage()){
+        ev.preventDefault();
+        ev.stopPropagation();
+        try{
+          if(typeof isMsgPanelOpen === 'function' && isMsgPanelOpen()) closeMsgDialog();
+          else openMsgDialog();
+        }catch(e){}
+      }
+      return;
+    }
 
-    // Alt+1..9 — increment buttons in order shown (skip open/base data-inc=0)
-    let digit = -1;
+    // Alt+1..9 — raise increments
+    var digit = -1;
     if(code >= 'Digit1' && code <= 'Digit9') digit = parseInt(code.replace('Digit',''), 10);
     else if(code >= 'Numpad1' && code <= 'Numpad9') digit = parseInt(code.replace('Numpad',''), 10);
     else if(k >= '1' && k <= '9') digit = parseInt(k, 10);
     if(digit >= 1 && digit <= 9){
-      const raises = Array.prototype.slice.call(document.querySelectorAll('#bidRegion .bidRaise'));
-      // Prefer increment buttons (data-inc > 0); if none, use all
-      let list = raises.filter(function(b){
-        const inc = parseInt(b.getAttribute('data-inc')||'0', 10);
-        return inc > 0;
+      var raises = Array.prototype.slice.call(document.querySelectorAll('#bidRegion .bidRaise'));
+      var list = raises.filter(function(b){
+        return parseInt(b.getAttribute('data-inc')||'0', 10) > 0;
       });
       if(!list.length) list = raises;
-      const btn = list[digit - 1];
+      var btn = list[digit - 1];
       if(btn && !btn.disabled){
         ev.preventDefault();
+        ev.stopPropagation();
         btn.click();
       }
     }
@@ -5022,6 +5222,25 @@ async function loadProfile(u){
 async function refreshProfile(){ if(user) profile=await loadProfile(user); return profile; }
 
 /** After full page refresh, reopen last screen so user does not always land on home. */
+
+/** Open auction/form/game from URL query (notification deep links). */
+async function consumeNotificationQueryDeepLink(){
+  try{
+    var q = new URLSearchParams(location.search || '');
+    var auctionId = q.get('auction') || q.get('a');
+    var formId = q.get('form') || q.get('reg');
+    var gameId = q.get('game');
+    if(!auctionId && !formId && !gameId) return false;
+    // Clean query from address without reload
+    try{
+      var clean = location.pathname + (location.hash || '');
+      history.replaceState(history.state || {}, '', clean);
+    }catch(e){}
+    handleNotificationDeepLink({ auctionId: auctionId||'', formId: formId||'', gameId: gameId||'' });
+    return true;
+  }catch(e){ return false; }
+}
+
 async function restoreNavAfterRefresh(){
   var raw = null;
   try{ raw = sessionStorage.getItem('at_nav_restore'); }catch(e){}
@@ -5082,17 +5301,45 @@ async function restoreNavAfterRefresh(){
       }
       return false;
     }
-    // Registration screens: reload with form id, or fall back to Home → Registrations
+    // Registration screens: prefer tournamentKey group, else form id
     var regScreens = ['screenRegWizard','screenRegForm','screenRegHost','screenRegRecords','screenRegUserTour','screenRegPublicList'];
     if(regScreens.indexOf(scr) >= 0){
       var formId = nav.formId || null;
+      var tKey = nav.tournamentKey || null;
       try{
+        if(tKey && typeof openRegTournamentHub === 'function'){
+          var asHost = (scr === 'screenRegHost' || scr === 'screenRegRecords');
+          if(scr === 'screenRegUserTour' || scr === 'screenRegPublicList' || scr === 'screenRegForm'){
+            await openRegTournamentHub(tKey, false);
+            if(scr === 'screenRegForm' && formId && typeof openRegFormForUser === 'function'){
+              await openRegFormForUser(formId, true);
+            }
+            if(scr === 'screenRegPublicList' && formId){
+              try{
+                var dpub = await db.collection('registrationForms').doc(formId).get();
+                if(dpub.exists){
+                  regFormCurrent = Object.assign({id:formId}, dpub.data());
+                  if(typeof openRegPublicList === 'function') await openRegPublicList();
+                }
+              }catch(eP){}
+            }
+            return true;
+          }
+          if(asHost){
+            await openRegTournamentHub(tKey, true);
+            if(scr === 'screenRegRecords' && formId && typeof openRegHost === 'function'){
+              await openRegHost(formId);
+              if(typeof openRegRecordsScreen === 'function') await openRegRecordsScreen();
+            }
+            return true;
+          }
+        }
         if(scr === 'screenRegUserTour' && formId && typeof openRegUserTour === 'function'){
           await openRegUserTour(formId);
           return true;
         }
         if(scr === 'screenRegForm' && formId && typeof openRegFormForUser === 'function'){
-          await openRegFormForUser(formId, false);
+          await openRegFormForUser(formId, true);
           return true;
         }
         if(scr === 'screenRegHost' && formId && typeof openRegHost === 'function'){
@@ -5108,6 +5355,8 @@ async function restoreNavAfterRefresh(){
           await openRegUserTour(formId);
           return true;
         }
+        // Soft fallback: still open regs tab rather than blank home
+        try{ enterHome(); switchHubTab('regs'); return true; }catch(eF){}
         return false;
       }catch(eReg){
         console.warn('restore reg screen', eReg);
@@ -5252,6 +5501,11 @@ auth.onAuthStateChanged(async u=>{
     // Refresh restore FIRST (before enterHome) so game/auction is not lost
     var restored = false;
     try{ restored = !!(await restoreNavAfterRefresh()); }catch(e){ console.warn('restoreNav', e); }
+    if(!restored){
+      try{
+        if(await consumeNotificationQueryDeepLink()) restored = true;
+      }catch(eD){}
+    }
     if(!restored) enterHome();
   }
   try{
@@ -5772,17 +6026,18 @@ async function refreshAdminOrgLists(){
 /* ===== Main hub tabs (Live / Past / More) — Cric360 Live layout ===== */
 function switchHubTab(which){
   which = (which||'live').toLowerCase();
-  if(which!=='live' && which!=='past' && which!=='more' && which!=='regs' && which!=='registrations' && which!=='games' && which!=='game') which='live';
+  if(which!=='live' && which!=='past' && which!=='more' && which!=='regs' && which!=='registrations' && which!=='games' && which!=='game' && which!=='updates' && which!=='update') which='live';
   if(which==='registrations') which='regs';
   if(which==='game') which='games';
+  if(which==='update') which='updates';
   // Past is now a sub-tab under Auctions
   if(which==='past'){
     which='live';
     window._hubAucSub='past';
     setTimeout(function(){ if($('hubSubPast')) $('hubSubPast').click(); }, 0);
   }
-  const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), regs:$('hubPaneRegs'), games:$('hubPaneGames'), more:$('hubPaneMore') };
-  const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), regs:$('hubTabRegs'), games:$('hubTabGames'), more:$('hubTabMore') };
+  const panes={ live:$('hubPaneLive'), past:$('hubPanePast'), regs:$('hubPaneRegs'), games:$('hubPaneGames'), updates:$('hubPaneUpdates'), more:$('hubPaneMore') };
+  const tabs={ live:$('hubTabLive'), past:$('hubTabPast'), regs:$('hubTabRegs'), games:$('hubTabGames'), updates:$('hubTabUpdates'), more:$('hubTabMore') };
   Object.keys(panes).forEach(function(k){
     const on = k===which;
     if(panes[k]){
@@ -5808,6 +6063,8 @@ function switchHubTab(which){
     try{ loadRegistrationsHub(); }catch(e){ console.warn(e); }
   } else if(which==='games'){
     try{ loadGamesHub(); }catch(e){ console.warn(e); }
+  } else if(which==='updates'){
+    try{ openUpdatesHub(); }catch(e){ console.warn(e); }
   } else if(which==='more'){
     try{
       if($('hubMoreHint')){
@@ -5821,6 +6078,7 @@ if($('hubTabLive')) $('hubTabLive').onclick=function(){ switchHubTab('live'); };
 if($('hubTabPast')) $('hubTabPast').onclick=function(){ switchHubTab('past'); };
 if($('hubTabRegs')) $('hubTabRegs').onclick=function(){ switchHubTab('regs'); };
 if($('hubTabGames')) $('hubTabGames').onclick=function(){ switchHubTab('games'); };
+if($('hubTabUpdates')) $('hubTabUpdates').onclick=function(){ switchHubTab('updates'); };
 if($('hubTabMore')) $('hubTabMore').onclick=function(){ switchHubTab('more'); };
 if($('hubSubLive')) $('hubSubLive').onclick=function(){
   window._hubAucSub='live';
@@ -8102,8 +8360,10 @@ async function paintRegsHubList(items){
   var visibleKeys = Object.keys(groups).filter(function(k){
     var g = groups[k];
     if(g.canManage) return true;
-    // User: show if any open form they have not applied to
-    return g.forms.some(function(f){ return f.status==='open' && !appliedIds[f.id]; });
+    // User: show open forms OR forms they already applied to (so they can Edit / View)
+    return g.forms.some(function(f){
+      return (f.status === 'open') || !!appliedIds[f.id];
+    });
   });
   if(!visibleKeys.length){
     list.innerHTML = '<p class="hub-empty">'+(canCreate()?'No registrations yet. Create one.':'No open registrations right now.')+'</p>';
@@ -8167,7 +8427,7 @@ async function openRegTournamentHub(key, asHost){
   if(asHost){
     openRegHostGroup(window._regTourGroup);
   } else {
-    openRegUserTourGroup(window._regTourGroup);
+    await openRegUserTourGroup(window._regTourGroup);
   }
 }
 
@@ -8211,50 +8471,126 @@ function openRegHostGroup(group){
   try{ focusEl($('regHostTitle')); }catch(e){}
 }
 
-function openRegUserTourGroup(group){
+async function openRegUserTourGroup(group){
   if(!group || !group.forms) return;
-  var ownersForm = group.forms.find(function(f){ return f.formType==='owners' && f.status==='open'; });
-  var playersForm = group.forms.find(function(f){ return f.formType!=='owners' && f.status==='open'; });
-  if(!playersForm) playersForm = group.forms.find(function(f){ return (!f.formType || f.formType==='players') && f.status==='open'; });
+  window._regTourGroup = group;
+  // All forms of each type (open or closed) for View; open preferred for Apply
+  var ownersAny = group.forms.find(function(f){ return f.formType==='owners'; });
+  var playersAny = group.forms.find(function(f){ return f.formType!=='owners'; });
+  if(!playersAny) playersAny = group.forms.find(function(f){ return !f.formType || f.formType==='players'; });
+  var ownersOpen = group.forms.find(function(f){ return f.formType==='owners' && f.status==='open'; }) || null;
+  var playersOpen = group.forms.find(function(f){ return (f.formType!=='owners') && f.status==='open'; }) || null;
+  if(!playersOpen) playersOpen = group.forms.find(function(f){ return (!f.formType || f.formType==='players') && f.status==='open'; }) || null;
+
+  // Applied state per form (this account)
+  var appliedOwner = false, appliedPlayer = false;
+  if(user && db){
+    try{
+      if(ownersAny){
+        var eo = await db.collection('registrationForms').doc(ownersAny.id).collection('entries').doc(user.uid).get();
+        appliedOwner = eo.exists;
+      }
+      if(playersAny){
+        var ep = await db.collection('registrationForms').doc(playersAny.id).collection('entries').doc(user.uid).get();
+        appliedPlayer = ep.exists;
+      }
+    }catch(eA){ console.warn(eA); }
+  }
+
   showScreen('screenRegUserTour');
   if($('regUserTourTitle')) $('regUserTourTitle').textContent = group.title || 'Tournament';
   var meta = $('regUserTourMeta');
-  if(meta) meta.textContent = 'Choose how you want to apply';
+  if(meta){
+    var bits = [];
+    if(ownersAny) bits.push(appliedOwner ? 'Owner: applied' : 'Owner: open');
+    if(playersAny) bits.push(appliedPlayer ? 'Player: applied' : 'Player: open');
+    meta.textContent = bits.join(' · ') || 'Tournament';
+  }
+
   var actions = $('btnRegUserApply') && $('btnRegUserApply').parentElement;
   if(actions){
     var html = '';
-    if(ownersForm){
-      html += '<button type="button" id="btnApplyOwner" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Apply as owner</button>';
+    // Apply OR Edit — never both for the same form
+    if(ownersAny){
+      if(appliedOwner){
+        html += '<button type="button" id="btnApplyOwner" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Edit owner registration</button>';
+      } else if(ownersOpen){
+        html += '<button type="button" id="btnApplyOwner" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Apply as owner</button>';
+      }
     }
-    if(playersForm){
-      html += '<button type="button" id="btnApplyPlayer" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Apply as player</button>';
+    if(playersAny){
+      if(appliedPlayer){
+        html += '<button type="button" id="btnApplyPlayer" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Edit player registration</button>';
+      } else if(playersOpen){
+        html += '<button type="button" id="btnApplyPlayer" class="btn-ok btn-block" style="min-height:56px;font-size:1.05rem">Apply as player</button>';
+      }
     }
-    if(!ownersForm && !playersForm){
-      html += '<p class="hub-empty">Registration is closed.</p>';
+    // View lists (always when that form exists)
+    if(ownersAny){
+      html += '<button type="button" id="btnViewOwnersList" class="btn-sec btn-block" style="min-height:48px;margin-top:4px">View owners</button>';
     }
-    // Keep view list if any form
-    var any = ownersForm || playersForm || group.forms[0];
-    if(any){
-      html += '<button type="button" id="btnRegUserViewList" class="btn-sec btn-block" style="min-height:48px;margin-top:8px">View registrations</button>';
+    if(playersAny){
+      html += '<button type="button" id="btnViewPlayersList" class="btn-sec btn-block" style="min-height:48px;margin-top:4px">View players</button>';
+    }
+    if(!ownersAny && !playersAny){
+      html += '<p class="hub-empty">No forms for this tournament.</p>';
     }
     actions.innerHTML = html;
-    if($('btnApplyOwner')) $('btnApplyOwner').onclick=function(){ openRegFormForUser(ownersForm.id, false); };
-    if($('btnApplyPlayer')) $('btnApplyPlayer').onclick=function(){ openRegFormForUser(playersForm.id, false); };
-    if($('btnRegUserViewList')) $('btnRegUserViewList').onclick=function(){
-      regFormCurrent = Object.assign({}, any, {id:any.id});
-      openRegPublicList();
-    };
+
+    if($('btnApplyOwner')){
+      $('btnApplyOwner').onclick = function(){
+        openRegFormForUser(ownersAny.id, !!appliedOwner);
+      };
+    }
+    if($('btnApplyPlayer')){
+      $('btnApplyPlayer').onclick = function(){
+        openRegFormForUser(playersAny.id, !!appliedPlayer);
+      };
+    }
+    if($('btnViewOwnersList')){
+      $('btnViewOwnersList').onclick = function(){
+        regFormCurrent = Object.assign({}, ownersAny, {id: ownersAny.id});
+        openRegPublicList();
+      };
+    }
+    if($('btnViewPlayersList')){
+      $('btnViewPlayersList').onclick = function(){
+        regFormCurrent = Object.assign({}, playersAny, {id: playersAny.id});
+        openRegPublicList();
+      };
+    }
   }
+  // More menu: show delete if either applied
+  try{
+    var delEntry = $('btnRegUserDeleteEntry');
+    var editEntry = $('btnRegUserEditEntry');
+    if(delEntry) delEntry.classList.toggle('hidden', !(appliedOwner || appliedPlayer));
+    if(editEntry) editEntry.classList.add('hidden'); // use main Apply/Edit buttons
+  }catch(eM){}
+  // Default regFormCurrent to first relevant form
+  var def = (appliedOwner && ownersAny) || (appliedPlayer && playersAny) || ownersOpen || playersOpen || ownersAny || playersAny;
+  if(def) regFormCurrent = Object.assign({}, def, {id: def.id});
   try{ focusEl($('regUserTourTitle')); }catch(e){}
 }
 
 async function openRegUserTour(formId){
-  // Legacy single-form open — also used after submit
+  // Prefer grouped tournament hub when key exists
   if(!db || !user) return;
   try{
     var doc = await db.collection('registrationForms').doc(formId).get();
     if(!doc.exists){ alert('Registration not found'); return; }
     var data = Object.assign({id: formId}, doc.data());
+    var tk = data.tournamentKey || regTournamentKey(data.title||'');
+    if(tk && typeof openRegTournamentHub === 'function' && !window._regForceSingleTour){
+      try{
+        // Ensure hub cache has this form
+        if(!window._regsHubItems) window._regsHubItems = [];
+        var found = window._regsHubItems.some(function(it){ return it.id === formId; });
+        if(!found) window._regsHubItems.push(data);
+        await openRegTournamentHub(tk, false);
+        return;
+      }catch(eG){ console.warn('group tour fallback', eG); }
+    }
     regFormCurrent = data;
     showScreen('screenRegUserTour');
     if($('regUserTourTitle')) $('regUserTourTitle').textContent = data.title || 'Tournament';
@@ -8499,6 +8835,28 @@ async function regCountEntries(formId){
   }
 }
 
+async function regDeviceBlockedForForm(formId){
+  // true if this device already has an entry under a different account
+  if(!db || !formId || !user) return false;
+  var deviceId = '';
+  try{ deviceId = getDeviceRegId(); }catch(e){ return false; }
+  if(!deviceId) return false;
+  try{
+    var myEntry = await db.collection('registrationForms').doc(formId).collection('entries').doc(user.uid).get();
+    if(myEntry.exists) return false; // same account — allow edit
+    var allEnt = await db.collection('registrationForms').doc(formId).collection('entries').get();
+    var blocked = false;
+    allEnt.forEach(function(d){
+      var ed = d.data()||{};
+      if(ed.deviceId === deviceId && d.id !== user.uid) blocked = true;
+    });
+    return blocked;
+  }catch(e){
+    console.warn('regDeviceBlockedForForm', e);
+    return false;
+  }
+}
+
 async function openRegFormForUser(formId, isEdit){
   if(!db || !user) return;
   try{
@@ -8509,6 +8867,21 @@ async function openRegFormForUser(formId, isEdit){
       var whoC = (user.email||'there').trim();
       ask('Registrations closed', 'Hi, '+whoC+'. Registrations for this tournament are closed. Contact the organiser if you still need a place.', function(){}, { yesLabel:'OK', noLabel:'Close' });
       return;
+    }
+    // Device limit: check as soon as Apply is pressed (not after filling the form)
+    if(!isEdit && !window._regManualMode){
+      try{
+        var devBlock = await regDeviceBlockedForForm(formId);
+        if(devBlock){
+          ask(
+            'Only one registration per device',
+            'This device has already submitted a record for this form. Only one registration is allowed per form on your device. Contact the organiser if you need multiple registrations.',
+            function(){},
+            { yesLabel:'OK', noLabel:'Close' }
+          );
+          return;
+        }
+      }catch(eDev0){ console.warn(eDev0); }
     }
     // Date / closed lock (skip for organiser manual entry / edit of own entry)
     if(!isEdit && !window._regManualMode){
@@ -9290,7 +9663,12 @@ async function submitUserRegForm(){
     if(isManual && regHostForm){
       openRegRecordsScreen();
     } else {
-      openRegUserTour(regFormCurrent.id);
+      var tk = (regFormCurrent && (regFormCurrent.tournamentKey || regTournamentKey(regFormCurrent.title||''))) || null;
+      if(tk && typeof openRegTournamentHub === 'function'){
+        try{ await openRegTournamentHub(tk, false); }catch(eT){ openRegUserTour(regFormCurrent.id); }
+      } else {
+        openRegUserTour(regFormCurrent.id);
+      }
     }
   }catch(e){ safeAlert(e); }
 }
@@ -9524,6 +9902,342 @@ async function deleteRegTournamentFully(formId){
 }
 
 
+/* ===== Updates hub: notifications inbox + developer chat ===== */
+var _updNotifUnsub = null;
+var _updChatUnsub = null;
+var _updAdminChatsUnsub = null;
+var _updChatPeerUid = null; // admin viewing this user
+var _updSystemReplyDone = {};
+
+function isUpdSuperAdmin(){
+  try{
+    if(typeof isSuperAdmin === 'function' && isSuperAdmin()) return true;
+  }catch(e){}
+  var em = (user && user.email || '').toLowerCase();
+  return em === 'maheshdhoni7633@gmail.com' || em === 'cricthreesixty@gmail.com';
+}
+
+function openUpdatesHub(){
+  var admin = isUpdSuperAdmin();
+  if($('updSubAdminChats')) $('updSubAdminChats').classList.toggle('hidden', !admin);
+  // Default: users → Notifications; admin can still open Notifications
+  switchUpdatesSub('notif');
+  loadUpdatesNotifications();
+  try{ focusEl($('updSubNotif') || $('hubTabUpdates')); }catch(e){}
+}
+
+function switchUpdatesSub(which){
+  which = which || 'notif';
+  var n = $('updPaneNotif'), c = $('updPaneChat'), a = $('updPaneAdminChats');
+  var bn = $('updSubNotif'), bc = $('updSubChat'), ba = $('updSubAdminChats');
+  if(n) n.classList.toggle('hidden', which !== 'notif');
+  if(c) c.classList.toggle('hidden', which !== 'chat');
+  if(a) a.classList.toggle('hidden', which !== 'adminchats');
+  [bn, bc, ba].forEach(function(b){ if(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); }});
+  if(which === 'notif' && bn){ bn.classList.add('active'); bn.setAttribute('aria-selected','true'); }
+  if(which === 'chat' && bc){ bc.classList.add('active'); bc.setAttribute('aria-selected','true'); }
+  if(which === 'adminchats' && ba){ ba.classList.add('active'); ba.setAttribute('aria-selected','true'); }
+  if(which === 'notif') loadUpdatesNotifications();
+  if(which === 'chat'){
+    // user: show developer chip; hide thread until open
+    if($('btnChatDeveloper')) $('btnChatDeveloper').classList.remove('hidden');
+    if($('updChatThread')){ $('updChatThread').classList.add('hidden'); }
+    if(_updChatUnsub){ try{ _updChatUnsub(); }catch(e){} _updChatUnsub = null; }
+  }
+  if(which === 'adminchats') loadAdminChatList();
+}
+
+function notifDocRef(uid, id){
+  return db.collection('userNotifications').doc(uid).collection('items').doc(id);
+}
+
+function loadUpdatesNotifications(){
+  if(!db || !user) return;
+  var list = $('updNotifList');
+  if(!list) return;
+  list.innerHTML = '<p class="hub-empty">Loading…</p>';
+  if(_updNotifUnsub){ try{ _updNotifUnsub(); }catch(e){} _updNotifUnsub = null; }
+  try{
+    _updNotifUnsub = db.collection('userNotifications').doc(user.uid).collection('items')
+      .orderBy('createdAt', 'desc').limit(80)
+      .onSnapshot(function(snap){
+        if(snap.empty){
+          list.innerHTML = '<p class="hub-empty">No notifications yet. Manual and automatic alerts will appear here.</p>';
+          return;
+        }
+        var h = '';
+        snap.forEach(function(doc){
+          var d = doc.data() || {};
+          var title = d.title || 'Update';
+          var body = d.body || '';
+          var ts = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : (d.createdAtMs ? new Date(d.createdAtMs) : null);
+          var when = ts ? ts.toLocaleString() : '';
+          var unread = d.read !== true;
+          h += '<button type="button" class="list-btn upd-notif-item" data-id="'+escHtml(doc.id)+'" data-link="'+escHtml(d.link||'')+'" data-type="'+escHtml(d.type||'')+'" data-auction="'+escHtml(d.auctionId||'')+'" data-form="'+escHtml(d.formId||'')+'" data-game="'+escHtml(d.gameId||'')+'" style="'+(unread?'font-weight:800;':'')+'">'
+            + escHtml(title)
+            + (body ? '<br><span style="font-size:13px;color:var(--muted);font-weight:600">'+escHtml(body)+'</span>' : '')
+            + (when ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(when)+'</span>' : '')
+            + '</button>';
+        });
+        list.innerHTML = h;
+        list.querySelectorAll('.upd-notif-item').forEach(function(btn){
+          btn.onclick = function(){
+            var id = btn.getAttribute('data-id');
+            try{
+              notifDocRef(user.uid, id).set({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            }catch(e){}
+            handleNotificationDeepLink({
+              link: btn.getAttribute('data-link'),
+              type: btn.getAttribute('data-type'),
+              auctionId: btn.getAttribute('data-auction'),
+              formId: btn.getAttribute('data-form'),
+              gameId: btn.getAttribute('data-game')
+            });
+          };
+        });
+      }, function(err){
+        list.innerHTML = '<p class="hub-empty">Could not load notifications. '+(err && err.message ? escHtml(err.message) : '')+'</p>';
+      });
+  }catch(e){
+    list.innerHTML = '<p class="hub-empty">Could not load notifications.</p>';
+  }
+}
+
+/** Deep link from FCM data or inbox item */
+function handleNotificationDeepLink(d){
+  d = d || {};
+  try{
+    var link = (d.link || d.url || '').trim();
+    var auctionId = (d.auctionId || d.auction || '').trim();
+    var formId = (d.formId || d.form || '').trim();
+    var gameId = (d.gameId || d.game || '').trim();
+    var type = (d.type || '').toLowerCase();
+
+    if(link && link.indexOf('http') === 0){
+      try{
+        var u = new URL(link, location.origin);
+        auctionId = auctionId || u.searchParams.get('auction') || u.searchParams.get('a') || '';
+        formId = formId || u.searchParams.get('form') || u.searchParams.get('reg') || '';
+        gameId = gameId || u.searchParams.get('game') || '';
+        // same origin path deep links
+        if(u.origin === location.origin && (auctionId || formId || gameId)){
+          // fall through to in-app open
+        } else if(u.origin !== location.origin){
+          location.href = link;
+          return;
+        }
+      }catch(eU){}
+    }
+    if(auctionId && typeof openAuction === 'function'){
+      openAuction(auctionId);
+      return;
+    }
+    if(formId){
+      if(typeof openRegUserTour === 'function') openRegUserTour(formId);
+      else if(typeof openRegFormForUser === 'function') openRegFormForUser(formId, false);
+      return;
+    }
+    if(gameId && typeof openGame === 'function'){
+      openGame(gameId);
+      return;
+    }
+    if(type.indexOf('reg') >= 0){ try{ switchHubTab('regs'); }catch(e){} return; }
+    if(type.indexOf('auction') >= 0){ try{ switchHubTab('live'); }catch(e){} return; }
+    if(type.indexOf('game') >= 0){ try{ switchHubTab('games'); }catch(e){} return; }
+  }catch(e){ console.warn('deep link', e); }
+}
+
+function openDeveloperChat(peerUid){
+  if(!db || !user) return;
+  var myUid = user.uid;
+  var chatUid = peerUid || myUid; // document id = end-user uid
+  _updChatPeerUid = peerUid || null;
+  if($('btnChatDeveloper')) $('btnChatDeveloper').classList.add('hidden');
+  if($('updChatThread')) $('updChatThread').classList.remove('hidden');
+  if($('updPaneChat')) $('updPaneChat').classList.remove('hidden');
+  if($('updPaneNotif')) $('updPaneNotif').classList.add('hidden');
+  if($('updPaneAdminChats')) $('updPaneAdminChats').classList.add('hidden');
+  // highlight chat tab
+  if($('updSubChat')){ $('updSubChat').classList.add('active'); $('updSubChat').setAttribute('aria-selected','true'); }
+  if($('updSubNotif')){ $('updSubNotif').classList.remove('active'); }
+  if($('updSubAdminChats')){ $('updSubAdminChats').classList.remove('active'); }
+
+  var box = $('updChatMessages');
+  if(box) box.innerHTML = '<p class="hub-empty">Loading…</p>';
+  if(_updChatUnsub){ try{ _updChatUnsub(); }catch(e){} _updChatUnsub = null; }
+
+  var chatRef = db.collection('developerChats').doc(chatUid);
+  // ensure chat meta exists for user
+  if(!peerUid){
+    chatRef.set({
+      userId: myUid,
+      userEmail: user.email || '',
+      userName: user.displayName || user.email || 'User',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(function(){});
+  }
+
+  _updChatUnsub = chatRef.collection('messages').orderBy('createdAt', 'asc').limit(200)
+    .onSnapshot(function(snap){
+      if(!box) return;
+      if(snap.empty){
+        box.innerHTML = '<p class="hub-empty">No messages yet. Say hello.</p>';
+        return;
+      }
+      var h = '';
+      snap.forEach(function(doc){
+        var m = doc.data() || {};
+        var who = m.from === 'admin' ? 'Developer' : (m.from === 'system' ? 'System' : 'You');
+        if(peerUid && m.from === 'user') who = 'User';
+        if(peerUid && m.from === 'admin') who = 'You';
+        var text = m.text || '';
+        h += '<div style="margin:0 0 10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04)">'
+          + '<div style="font-size:12px;color:var(--muted);font-weight:700">'+escHtml(who)+'</div>'
+          + '<div style="margin-top:4px;white-space:pre-wrap">'+escHtml(text)+'</div></div>';
+      });
+      box.innerHTML = h;
+      try{ box.scrollTop = box.scrollHeight; }catch(e){}
+    }, function(err){
+      if(box) box.innerHTML = '<p class="hub-empty">Could not load chat.</p>';
+    });
+
+  // mark admin unread cleared when admin opens
+  if(peerUid && isUpdSuperAdmin()){
+    chatRef.set({ unreadForAdmin: 0 }, { merge: true }).catch(function(){});
+  }
+  if(!peerUid){
+    chatRef.set({ unreadForUser: 0 }, { merge: true }).catch(function(){});
+  }
+  try{ focusEl($('updChatInput')); }catch(e){}
+}
+
+async function sendDeveloperChatMessage(){
+  if(!db || !user) return;
+  var input = $('updChatInput');
+  var text = (input && input.value || '').trim();
+  if(!text) return;
+  var isAdmin = isUpdSuperAdmin() && _updChatPeerUid;
+  var chatUid = isAdmin ? _updChatPeerUid : user.uid;
+  var chatRef = db.collection('developerChats').doc(chatUid);
+  var from = isAdmin ? 'admin' : 'user';
+  try{
+    var meta = {
+      userId: chatUid,
+      lastMessage: text.slice(0, 120),
+      lastAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unreadForAdmin: isAdmin ? 0 : firebase.firestore.FieldValue.increment(1),
+      unreadForUser: isAdmin ? firebase.firestore.FieldValue.increment(1) : 0
+    };
+    if(!isAdmin){
+      meta.userEmail = user.email || '';
+      meta.userName = user.displayName || user.email || 'User';
+    }
+    await chatRef.set(meta, { merge: true });
+    await chatRef.collection('messages').add({
+      text: text,
+      from: from,
+      senderUid: user.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    if(input) input.value = '';
+    // Auto system reply for user (once per session thread burst)
+    if(!isAdmin){
+      var key = chatUid;
+      if(!_updSystemReplyDone[key]){
+        _updSystemReplyDone[key] = true;
+        await chatRef.collection('messages').add({
+          text: 'Thanks for your message. Our team will reply within 1 hour.',
+          from: 'system',
+          senderUid: 'system',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    }
+  }catch(e){
+    alert('Could not send: ' + ((e && e.message) || e));
+  }
+}
+
+function loadAdminChatList(){
+  if(!db || !user || !isUpdSuperAdmin()) return;
+  var list = $('updAdminChatList');
+  if(!list) return;
+  list.innerHTML = '<p class="hub-empty">Loading…</p>';
+  if(_updAdminChatsUnsub){ try{ _updAdminChatsUnsub(); }catch(e){} _updAdminChatsUnsub = null; }
+  _updAdminChatsUnsub = db.collection('developerChats').orderBy('lastAt', 'desc').limit(50)
+    .onSnapshot(function(snap){
+      if(snap.empty){
+        list.innerHTML = '<p class="hub-empty">No queries yet.</p>';
+        return;
+      }
+      var h = '';
+      snap.forEach(function(doc){
+        var d = doc.data() || {};
+        var name = d.userName || d.userEmail || doc.id;
+        var unread = d.unreadForAdmin || 0;
+        var last = d.lastMessage || '';
+        h += '<button type="button" class="list-btn upd-admin-chat" data-uid="'+escHtml(doc.id)+'">'
+          + escHtml(name)
+          + (unread ? ' · <strong>'+unread+' unread</strong>' : '')
+          + (last ? '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(last)+'</span>' : '')
+          + '</button>';
+      });
+      list.innerHTML = h;
+      list.querySelectorAll('.upd-admin-chat').forEach(function(btn){
+        btn.onclick = function(){
+          openDeveloperChat(btn.getAttribute('data-uid'));
+        };
+      });
+    }, function(err){
+      list.innerHTML = '<p class="hub-empty">Could not load chats. Deploy rules if needed.</p>';
+    });
+}
+
+function wireUpdatesHub(){
+  if($('updSubNotif')) $('updSubNotif').onclick = function(){ switchUpdatesSub('notif'); };
+  if($('updSubChat')) $('updSubChat').onclick = function(){ switchUpdatesSub('chat'); };
+  if($('updSubAdminChats')) $('updSubAdminChats').onclick = function(){ switchUpdatesSub('adminchats'); };
+  if($('btnChatDeveloper')) $('btnChatDeveloper').onclick = function(){ openDeveloperChat(null); };
+  if($('btnUpdChatBack')) $('btnUpdChatBack').onclick = function(){
+    if(_updChatUnsub){ try{ _updChatUnsub(); }catch(e){} _updChatUnsub = null; }
+    _updChatPeerUid = null;
+    if(isUpdSuperAdmin() && $('updSubAdminChats') && !$('updSubAdminChats').classList.contains('hidden')){
+      switchUpdatesSub('adminchats');
+    } else {
+      switchUpdatesSub('chat');
+      if($('btnChatDeveloper')) $('btnChatDeveloper').classList.remove('hidden');
+      if($('updChatThread')) $('updChatThread').classList.add('hidden');
+    }
+  };
+  if($('btnUpdChatSend')) $('btnUpdChatSend').onclick = function(){ sendDeveloperChatMessage(); };
+  if($('updChatInput')) $('updChatInput').addEventListener('keydown', function(ev){
+    if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); sendDeveloperChatMessage(); }
+  });
+}
+try{ wireUpdatesHub(); }catch(e){ console.warn(e); }
+
+/** Save a notification into the signed-in user's inbox (client helper; CF also writes). */
+async function saveUserNotificationLocal(payload){
+  if(!db || !user || !payload) return;
+  try{
+    var id = payload.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+    await db.collection('userNotifications').doc(user.uid).collection('items').doc(id).set({
+      title: payload.title || 'Cric360',
+      body: payload.body || '',
+      type: payload.type || 'general',
+      link: payload.link || '',
+      auctionId: payload.auctionId || '',
+      formId: payload.formId || '',
+      gameId: payload.gameId || '',
+      read: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAtMs: Date.now()
+    }, { merge: true });
+  }catch(e){ console.warn('saveUserNotificationLocal', e); }
+}
+
+
 /* ===== FCM client ===== */
 function refreshNotifPanel(){
   var st = $('notifStatus');
@@ -9638,11 +10352,23 @@ function wireFcmForegroundHandler(){
               note.onclick = function(){
                 try{ window.focus(); }catch(e){}
                 try{ note.close(); }catch(e){}
-                if(d && d.link){ try{ location.href = d.link; }catch(e){} }
+                try{ handleNotificationDeepLink(d); }catch(e){}
               };
             }
           }catch(ne){}
         });
+        // Inbox copy for Updates tab
+        try{
+          saveUserNotificationLocal({
+            title: title,
+            body: body,
+            type: d.type || 'push',
+            link: d.link || '',
+            auctionId: d.auctionId || '',
+            formId: d.formId || '',
+            gameId: d.gameId || ''
+          });
+        }catch(eIn){}
         // Soft live-region only — do not assertive-spam screen readers
         try{ if(typeof announce === 'function') announce(title + '. ' + body, true); }catch(e){}
       }catch(e){ console.warn('onMessage handler', e); }
@@ -9937,17 +10663,32 @@ function wireRegistrationsUi(){
   if($('btnRegPrefSave')) $('btnRegPrefSave').onclick=function(){ saveRegPrefFromPanel(); };
   if($('btnRegWizBack')) $('btnRegWizBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
   if($('btnRegFormBack')) $('btnRegFormBack').onclick=function(){
-    if(regFormCurrent) openRegUserTour(regFormCurrent.id);
+    // Form → tournament hub (not home)
+    var tk = (window._regTourGroup && window._regTourGroup.key)
+      || (regFormCurrent && (regFormCurrent.tournamentKey || regTournamentKey(regFormCurrent.title||'')));
+    if(tk) openRegTournamentHub(tk, false);
+    else if(regFormCurrent) openRegUserTour(regFormCurrent.id);
     else { enterHome(); switchHubTab('regs'); }
   };
-  if($('btnRegHostBack')) $('btnRegHostBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
+  if($('btnRegHostBack')) $('btnRegHostBack').onclick=function(){
+    var tk = (window._regTourGroup && window._regTourGroup.key)
+      || (regHostForm && (regHostForm.tournamentKey || regTournamentKey(regHostForm.title||'')));
+    if(tk) openRegTournamentHub(tk, true);
+    else { enterHome(); switchHubTab('regs'); }
+  };
   if($('btnRegRecordsBack')) $('btnRegRecordsBack').onclick=function(){
-    if(regHostForm) openRegHost(regHostForm.id);
+    var tk = (window._regTourGroup && window._regTourGroup.key)
+      || (regHostForm && (regHostForm.tournamentKey || regTournamentKey(regHostForm.title||'')));
+    if(tk) openRegTournamentHub(tk, true);
+    else if(regHostForm) openRegHost(regHostForm.id);
     else { enterHome(); switchHubTab('regs'); }
   };
   if($('btnRegUserTourBack')) $('btnRegUserTourBack').onclick=function(){ enterHome(); switchHubTab('regs'); };
   if($('btnRegPublicBack')) $('btnRegPublicBack').onclick=function(){
-    if(regFormCurrent) openRegUserTour(regFormCurrent.id);
+    var tk = (window._regTourGroup && window._regTourGroup.key)
+      || (regFormCurrent && (regFormCurrent.tournamentKey || regTournamentKey(regFormCurrent.title||'')));
+    if(tk) openRegTournamentHub(tk, false);
+    else if(regFormCurrent) openRegUserTour(regFormCurrent.id);
     else { enterHome(); switchHubTab('regs'); }
   };
   if($('btnRegFormSubmit')) $('btnRegFormSubmit').onclick=function(){ submitUserRegForm(); };

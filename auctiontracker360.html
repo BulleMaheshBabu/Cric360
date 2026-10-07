@@ -10607,10 +10607,12 @@ function startAdminChatListen(){
       var unread = d.unreadForAdmin || 0;
       var last = d.lastMessage || '';
       var initial = (name || '?').charAt(0).toUpperCase();
-      h += '<button type="button" class="upd-chat-entry upd-admin-chat" data-uid="'+escHtml(row.id)+'">' + '<span class="upd-chat-avatar" aria-hidden="true">'+escHtml(initial)+'</span>' + '<span class="upd-chat-meta"><strong>'+escHtml(name)+'</strong>' + '<span>'+(email ? escHtml(email)+' · ' : '')+(unread ? (unread+' unread') : (last ? escHtml(last) : 'No messages'))+'</span>' + '</span></button>';color:var(--muted)">'+escHtml(email)+'</span>' : '')
-        + (unread ? ' · <strong>'+unread+' unread</strong>' : '')
-        + (last ? '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(last)+'</span>' : '')
-        + '</button>';
+      var sub = email ? (email + (unread ? ' · ' + unread + ' unread' : (last ? ' · ' + last : '')))
+        : (unread ? (unread + ' unread') : (last || 'No messages'));
+      h += '<button type="button" class="upd-chat-entry upd-admin-chat" data-uid="'+escHtml(row.id)+'">'
+        + '<span class="upd-chat-avatar" aria-hidden="true">'+escHtml(initial)+'</span>'
+        + '<span class="upd-chat-meta"><strong>'+escHtml(name)+'</strong>'
+        + '<span>'+escHtml(sub)+'</span></span></button>';
     });
     list.innerHTML = h;
     list.querySelectorAll('.upd-admin-chat').forEach(function(btn){

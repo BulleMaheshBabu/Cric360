@@ -1826,6 +1826,11 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
   box-shadow:0 4px 14px rgba(0,0,0,.18);
 }
 .setup-bgm-stop[hidden]{display:none!important}
+
+body.upd-chat-open #hubTabbar,
+body.upd-chat-open .hub-subtabs,
+body.upd-chat-open #hubHeader,
+body.upd-fs-open #hubTabbar { display: none !important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -1899,34 +1904,65 @@ body .leave-auction-ghost{display:none!important;pointer-events:none!important;h
 
   <!-- GAMES tab -->
   <div id="hubPaneUpdates" class="hidden" role="tabpanel" aria-labelledby="hubTabUpdates" aria-hidden="true">
-    <div class="hub-subtabs" role="tablist" aria-label="Updates sections" style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap">
+    <div class="hub-subtabs" id="updSubtabs" role="tablist" aria-label="Updates sections" style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap">
       <button type="button" role="tab" id="updSubNotif" class="btn-sec active" aria-selected="true" style="flex:1;min-height:44px">Notifications</button>
-      <button type="button" role="tab" id="updSubChat" class="btn-sec" aria-selected="false" style="flex:1;min-height:44px">Chat</button>
-      <button type="button" role="tab" id="updSubAdminChats" class="btn-sec hidden" aria-selected="false" style="flex:1;min-height:44px">Queries</button>
+      <button type="button" role="tab" id="updSubChat" class="btn-sec" aria-selected="false" style="flex:1;min-height:44px">Chats</button>
     </div>
+
     <div id="updPaneNotif">
+      <div class="upd-toolbar" style="display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap">
+        <button type="button" id="btnUpdFilterCycle" class="btn-sec" style="min-height:44px;flex:1" aria-label="Filter: All. Tap to change">All</button>
+        <button type="button" id="btnUpdClearNotifs" class="btn-sec" style="min-height:44px" aria-label="Clear notifications">Clear</button>
+        <button type="button" id="btnUpdNotifyAll" class="btn-ok hidden" style="min-height:44px" aria-label="Send notification to everyone">Notify</button>
+      </div>
       <div id="updNotifList" class="hub-list" aria-label="Notifications"></div>
     </div>
+
     <div id="updPaneChat" class="hidden">
-      <button type="button" id="btnChatDeveloper" class="list-btn" style="margin-bottom:10px" aria-label="Chat with developer">
-        <span style="font-weight:800">Chat with developer</span><br>
-        <span style="font-size:13px;color:var(--muted)">Ask questions · we reply here</span>
-      </button>
-      <div id="updChatThread" class="hidden" style="display:flex;flex-direction:column;gap:8px;min-height:280px">
-        <button type="button" id="btnUpdChatBack" class="btn-sec" style="align-self:flex-start;min-height:40px">Back</button>
-        <div id="updChatMessages" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;overflow:auto;max-height:50vh;padding:8px;border:1px solid var(--border);border-radius:12px"></div>
-        <div style="display:flex;gap:8px;align-items:flex-end">
-          <label class="sr-only" for="updChatInput">Message</label>
-          <textarea id="updChatInput" rows="2" maxlength="500" placeholder="Type a message…" style="flex:1;min-height:48px;resize:vertical" aria-label="Type a message"></textarea>
-          <button type="button" id="btnUpdChatSend" class="btn-ok" style="min-height:48px;min-width:72px">Send</button>
-        </div>
+      <div id="updChatListWrap">
+        <button type="button" id="btnChatDeveloper" class="list-btn" style="margin-bottom:10px" aria-label="Chat with developer">
+          <span style="font-weight:800">Chat with developer</span><br>
+          <span style="font-size:13px;color:var(--muted)">Ask questions · we reply here</span>
+        </button>
+        <div id="updAdminChatList" class="hub-list hidden" aria-label="User chats, newest first"></div>
       </div>
     </div>
-    <div id="updPaneAdminChats" class="hidden">
-      <div id="updAdminChatList" class="hub-list" aria-label="User queries"></div>
+
+    <!-- Full-screen chat (WhatsApp-style) -->
+    <div id="updChatFullscreen" class="hidden" role="dialog" aria-modal="true" aria-label="Chat" style="position:fixed;inset:0;z-index:9000;background:var(--bg,#0b1220);display:flex;flex-direction:column;padding:0">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);min-height:52px">
+        <button type="button" id="btnUpdChatBack" class="btn-sec" style="min-height:44px;min-width:44px" aria-label="Back">Back</button>
+        <div id="updChatTitle" style="flex:1;font-weight:800;font-size:16px">Chat</div>
+        <button type="button" id="btnUpdChatClear" class="btn-sec" style="min-height:44px" aria-label="Clear chat">Clear</button>
+      </div>
+      <div id="updChatMessages" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;overflow:auto;padding:12px"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg,#0b1220)">
+        <label class="sr-only" for="updChatInput">Message</label>
+        <textarea id="updChatInput" rows="2" maxlength="500" placeholder="Type a message…" style="flex:1;min-height:48px;resize:none" aria-label="Type a message"></textarea>
+        <button type="button" id="btnUpdChatSend" class="btn-ok" style="min-height:48px;min-width:72px">Send</button>
+      </div>
+    </div>
+
+    <!-- Full-screen broadcast notify (admin) -->
+    <div id="updNotifyFullscreen" class="hidden" role="dialog" aria-modal="true" aria-label="Send notification" style="position:fixed;inset:0;z-index:9001;background:var(--bg,#0b1220);display:flex;flex-direction:column;padding:0">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);min-height:52px">
+        <button type="button" id="btnUpdNotifyBack" class="btn-sec" style="min-height:44px" aria-label="Back">Back</button>
+        <div style="flex:1;font-weight:800;font-size:16px">Notify everyone</div>
+      </div>
+      <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <label for="updNotifyTitle">Title (optional)</label>
+        <input type="text" id="updNotifyTitle" maxlength="80" placeholder="Cric360" style="min-height:44px;width:100%" aria-label="Notification title">
+        <label for="updNotifyBody">Message</label>
+        <textarea id="updNotifyBody" rows="6" maxlength="120" placeholder="Type message for all users…" style="width:100%;min-height:120px;resize:vertical" aria-label="Notification message"></textarea>
+        <span id="updNotifyCount" style="font-size:13px;color:var(--muted)">0 / 120</span>
+      </div>
+      <div style="padding:12px;border-top:1px solid var(--border)">
+        <button type="button" id="btnUpdNotifySend" class="btn-ok" style="width:100%;min-height:48px">Send to everyone</button>
+      </div>
     </div>
   </div>
 
+  
   <div id="hubPaneGames" class="hidden" role="tabpanel" aria-labelledby="hubTabGames">
     <div id="hubGamesAdmin" class="hub-admin" style="margin-bottom:10px">
       <button type="button" id="btnCreateGame" class="btn-ok btn-block">Create game</button>
@@ -9906,8 +9942,10 @@ async function deleteRegTournamentFully(formId){
 var _updNotifUnsub = null;
 var _updChatUnsub = null;
 var _updAdminChatsUnsub = null;
-var _updChatPeerUid = null; // admin viewing this user
+var _updChatPeerUid = null;
 var _updSystemReplyDone = {};
+var _updNotifFilter = 'all'; // all | notifications | updates
+var _updNotifCache = [];
 
 function isUpdSuperAdmin(){
   try{
@@ -9917,10 +9955,24 @@ function isUpdSuperAdmin(){
   return em === 'maheshdhoni7633@gmail.com' || em === 'cricthreesixty@gmail.com';
 }
 
+function setUpdFullscreen(on){
+  try{
+    document.body.classList.toggle('upd-chat-open', !!on);
+    document.body.classList.toggle('upd-fs-open', !!on);
+  }catch(e){}
+  try{
+    if($('hubTabbar')) $('hubTabbar').classList.toggle('hidden', !!on);
+  }catch(e){}
+  try{
+    if($('updSubtabs')) $('updSubtabs').classList.toggle('hidden', !!on);
+  }catch(e){}
+}
+
 function openUpdatesHub(){
   var admin = isUpdSuperAdmin();
-  if($('updSubAdminChats')) $('updSubAdminChats').classList.toggle('hidden', !admin);
-  // Default: users → Notifications; admin can still open Notifications
+  if($('btnUpdNotifyAll')) $('btnUpdNotifyAll').classList.toggle('hidden', !admin);
+  if($('btnChatDeveloper')) $('btnChatDeveloper').classList.toggle('hidden', !!admin);
+  if($('updAdminChatList')) $('updAdminChatList').classList.toggle('hidden', !admin);
   switchUpdatesSub('notif');
   loadUpdatesNotifications();
   try{ focusEl($('updSubNotif') || $('hubTabUpdates')); }catch(e){}
@@ -9928,27 +9980,91 @@ function openUpdatesHub(){
 
 function switchUpdatesSub(which){
   which = which || 'notif';
-  var n = $('updPaneNotif'), c = $('updPaneChat'), a = $('updPaneAdminChats');
-  var bn = $('updSubNotif'), bc = $('updSubChat'), ba = $('updSubAdminChats');
+  closeUpdChatFullscreen();
+  closeUpdNotifyFullscreen();
+  var n = $('updPaneNotif'), c = $('updPaneChat');
+  var bn = $('updSubNotif'), bc = $('updSubChat');
   if(n) n.classList.toggle('hidden', which !== 'notif');
   if(c) c.classList.toggle('hidden', which !== 'chat');
-  if(a) a.classList.toggle('hidden', which !== 'adminchats');
-  [bn, bc, ba].forEach(function(b){ if(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); }});
+  [bn, bc].forEach(function(b){ if(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); }});
   if(which === 'notif' && bn){ bn.classList.add('active'); bn.setAttribute('aria-selected','true'); }
   if(which === 'chat' && bc){ bc.classList.add('active'); bc.setAttribute('aria-selected','true'); }
-  if(which === 'adminchats' && ba){ ba.classList.add('active'); ba.setAttribute('aria-selected','true'); }
   if(which === 'notif') loadUpdatesNotifications();
   if(which === 'chat'){
-    // user: show developer chip; hide thread until open
-    if($('btnChatDeveloper')) $('btnChatDeveloper').classList.remove('hidden');
-    if($('updChatThread')){ $('updChatThread').classList.add('hidden'); }
-    if(_updChatUnsub){ try{ _updChatUnsub(); }catch(e){} _updChatUnsub = null; }
+    if(isUpdSuperAdmin()) loadAdminChatList();
+    else {
+      if($('btnChatDeveloper')) $('btnChatDeveloper').classList.remove('hidden');
+    }
   }
-  if(which === 'adminchats') loadAdminChatList();
+}
+
+function cycleUpdNotifFilter(){
+  var order = ['all', 'notifications', 'updates'];
+  var i = order.indexOf(_updNotifFilter);
+  _updNotifFilter = order[(i + 1) % order.length];
+  var labels = { all: 'All', notifications: 'Notifications', updates: 'Updates' };
+  var btn = $('btnUpdFilterCycle');
+  if(btn){
+    btn.textContent = labels[_updNotifFilter] || 'All';
+    btn.setAttribute('aria-label', 'Filter: ' + (labels[_updNotifFilter] || 'All') + '. Tap to change');
+  }
+  renderUpdNotifList();
+}
+
+function notifCategory(d){
+  var t = String((d && d.type) || '').toLowerCase();
+  if(/update|manual|test|system/.test(t)) return 'updates';
+  if(/reg|auction|match|progress|live|deadline|insight|pause|milestone/.test(t)) return 'notifications';
+  return 'notifications';
 }
 
 function notifDocRef(uid, id){
   return db.collection('userNotifications').doc(uid).collection('items').doc(id);
+}
+
+function renderUpdNotifList(){
+  var list = $('updNotifList');
+  if(!list) return;
+  var items = _updNotifCache || [];
+  if(_updNotifFilter === 'notifications'){
+    items = items.filter(function(x){ return notifCategory(x.data) === 'notifications'; });
+  } else if(_updNotifFilter === 'updates'){
+    items = items.filter(function(x){ return notifCategory(x.data) === 'updates'; });
+  }
+  if(!items.length){
+    list.innerHTML = '<p class="hub-empty">No items in this filter.</p>';
+    return;
+  }
+  var h = '';
+  items.forEach(function(it){
+    var d = it.data || {};
+    var title = d.title || 'Update';
+    var body = d.body || '';
+    var ts = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : (d.createdAtMs ? new Date(d.createdAtMs) : null);
+    var when = ts ? ts.toLocaleString() : '';
+    var unread = d.read !== true;
+    h += '<button type="button" class="list-btn upd-notif-item" data-id="'+escHtml(it.id)+'" data-link="'+escHtml(d.link||'')+'" data-type="'+escHtml(d.type||'')+'" data-auction="'+escHtml(d.auctionId||'')+'" data-form="'+escHtml(d.formId||'')+'" data-game="'+escHtml(d.gameId||'')+'" style="'+(unread?'font-weight:800;':'')+'">'
+      + escHtml(title)
+      + (body ? '<br><span style="font-size:13px;color:var(--muted);font-weight:600">'+escHtml(body)+'</span>' : '')
+      + (when ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(when)+'</span>' : '')
+      + '</button>';
+  });
+  list.innerHTML = h;
+  list.querySelectorAll('.upd-notif-item').forEach(function(btn){
+    btn.onclick = function(){
+      var id = btn.getAttribute('data-id');
+      try{
+        notifDocRef(user.uid, id).set({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      }catch(e){}
+      handleNotificationDeepLink({
+        link: btn.getAttribute('data-link'),
+        type: btn.getAttribute('data-type'),
+        auctionId: btn.getAttribute('data-auction'),
+        formId: btn.getAttribute('data-form'),
+        gameId: btn.getAttribute('data-game')
+      });
+    };
+  });
 }
 
 function loadUpdatesNotifications(){
@@ -9959,47 +10075,84 @@ function loadUpdatesNotifications(){
   if(_updNotifUnsub){ try{ _updNotifUnsub(); }catch(e){} _updNotifUnsub = null; }
   try{
     _updNotifUnsub = db.collection('userNotifications').doc(user.uid).collection('items')
-      .orderBy('createdAt', 'desc').limit(80)
+      .orderBy('createdAt', 'desc').limit(100)
       .onSnapshot(function(snap){
-        if(snap.empty){
-          list.innerHTML = '<p class="hub-empty">No notifications yet. Manual and automatic alerts will appear here.</p>';
+        _updNotifCache = [];
+        snap.forEach(function(doc){
+          _updNotifCache.push({ id: doc.id, data: doc.data() || {} });
+        });
+        if(!_updNotifCache.length){
+          list.innerHTML = '<p class="hub-empty">No notifications yet.</p>';
           return;
         }
-        var h = '';
-        snap.forEach(function(doc){
-          var d = doc.data() || {};
-          var title = d.title || 'Update';
-          var body = d.body || '';
-          var ts = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : (d.createdAtMs ? new Date(d.createdAtMs) : null);
-          var when = ts ? ts.toLocaleString() : '';
-          var unread = d.read !== true;
-          h += '<button type="button" class="list-btn upd-notif-item" data-id="'+escHtml(doc.id)+'" data-link="'+escHtml(d.link||'')+'" data-type="'+escHtml(d.type||'')+'" data-auction="'+escHtml(d.auctionId||'')+'" data-form="'+escHtml(d.formId||'')+'" data-game="'+escHtml(d.gameId||'')+'" style="'+(unread?'font-weight:800;':'')+'">'
-            + escHtml(title)
-            + (body ? '<br><span style="font-size:13px;color:var(--muted);font-weight:600">'+escHtml(body)+'</span>' : '')
-            + (when ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(when)+'</span>' : '')
-            + '</button>';
-        });
-        list.innerHTML = h;
-        list.querySelectorAll('.upd-notif-item').forEach(function(btn){
-          btn.onclick = function(){
-            var id = btn.getAttribute('data-id');
-            try{
-              notifDocRef(user.uid, id).set({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            }catch(e){}
-            handleNotificationDeepLink({
-              link: btn.getAttribute('data-link'),
-              type: btn.getAttribute('data-type'),
-              auctionId: btn.getAttribute('data-auction'),
-              formId: btn.getAttribute('data-form'),
-              gameId: btn.getAttribute('data-game')
-            });
-          };
-        });
+        renderUpdNotifList();
       }, function(err){
-        list.innerHTML = '<p class="hub-empty">Could not load notifications. '+(err && err.message ? escHtml(err.message) : '')+'</p>';
+        list.innerHTML = '<p class="hub-empty">Could not load. '+(err && err.message ? escHtml(err.message) : '')+'</p>';
       });
   }catch(e){
     list.innerHTML = '<p class="hub-empty">Could not load notifications.</p>';
+  }
+}
+
+async function clearAllUpdNotifications(){
+  if(!db || !user) return;
+  if(!confirm('Clear all notifications from your list?')) return;
+  try{
+    var snap = await db.collection('userNotifications').doc(user.uid).collection('items').limit(200).get();
+    var batch = db.batch();
+    var n = 0;
+    snap.forEach(function(doc){
+      batch.delete(doc.ref);
+      n++;
+    });
+    if(n) await batch.commit();
+    _updNotifCache = [];
+    renderUpdNotifList();
+    try{ if(typeof announce==='function') announce('Notifications cleared', true); }catch(e){}
+  }catch(e){
+    alert('Could not clear: ' + ((e && e.message) || e));
+  }
+}
+
+function openUpdNotifyFullscreen(){
+  if(!isUpdSuperAdmin()) return;
+  if($('updNotifyFullscreen')){
+    $('updNotifyFullscreen').classList.remove('hidden');
+    $('updNotifyFullscreen').style.display = 'flex';
+  }
+  setUpdFullscreen(true);
+  try{ focusEl($('updNotifyBody')); }catch(e){}
+}
+
+function closeUpdNotifyFullscreen(){
+  if($('updNotifyFullscreen')){
+    $('updNotifyFullscreen').classList.add('hidden');
+    $('updNotifyFullscreen').style.display = 'none';
+  }
+  if(!$('updChatFullscreen') || $('updChatFullscreen').classList.contains('hidden')){
+    setUpdFullscreen(false);
+  }
+}
+
+async function sendUpdNotifyAll(){
+  if(!isUpdSuperAdmin()) return;
+  var title = (($('updNotifyTitle') && $('updNotifyTitle').value) || '').trim() || 'Cric360';
+  var body = (($('updNotifyBody') && $('updNotifyBody').value) || '').trim();
+  if(!body){ alert('Type a message first.'); return; }
+  try{
+    var fn = firebase.app().functions('asia-south1').httpsCallable('sendManualNotification');
+    var res = await fn({ title: title, body: body });
+    var d = (res && res.data) || {};
+    if(d.ok && (d.success || 0) > 0){
+      alert('Sent to ' + (d.success || 0) + ' device(s).');
+      if($('updNotifyBody')) $('updNotifyBody').value = '';
+      if($('updNotifyCount')) $('updNotifyCount').textContent = '0 / 120';
+      closeUpdNotifyFullscreen();
+    } else {
+      alert((d.error || 'Not delivered.') + ' Tokens: ' + (d.tokenCount || 0));
+    }
+  }catch(e){
+    alert('Send failed: ' + ((e && e.message) || e));
   }
 }
 
@@ -10019,9 +10172,7 @@ function handleNotificationDeepLink(d){
         auctionId = auctionId || u.searchParams.get('auction') || u.searchParams.get('a') || '';
         formId = formId || u.searchParams.get('form') || u.searchParams.get('reg') || '';
         gameId = gameId || u.searchParams.get('game') || '';
-        // same origin path deep links
         if(u.origin === location.origin && (auctionId || formId || gameId)){
-          // fall through to in-app open
         } else if(u.origin !== location.origin){
           location.href = link;
           return;
@@ -10050,32 +10201,44 @@ function handleNotificationDeepLink(d){
 function openDeveloperChat(peerUid){
   if(!db || !user) return;
   var myUid = user.uid;
-  var chatUid = peerUid || myUid; // document id = end-user uid
+  var chatUid = peerUid || myUid;
   _updChatPeerUid = peerUid || null;
-  if($('btnChatDeveloper')) $('btnChatDeveloper').classList.add('hidden');
-  if($('updChatThread')) $('updChatThread').classList.remove('hidden');
-  if($('updPaneChat')) $('updPaneChat').classList.remove('hidden');
-  if($('updPaneNotif')) $('updPaneNotif').classList.add('hidden');
-  if($('updPaneAdminChats')) $('updPaneAdminChats').classList.add('hidden');
-  // highlight chat tab
-  if($('updSubChat')){ $('updSubChat').classList.add('active'); $('updSubChat').setAttribute('aria-selected','true'); }
-  if($('updSubNotif')){ $('updSubNotif').classList.remove('active'); }
-  if($('updSubAdminChats')){ $('updSubAdminChats').classList.remove('active'); }
+  var isAdminView = !!peerUid;
+
+  if($('updChatFullscreen')){
+    $('updChatFullscreen').classList.remove('hidden');
+    $('updChatFullscreen').style.display = 'flex';
+  }
+  setUpdFullscreen(true);
+  if($('updChatTitle')){
+    $('updChatTitle').textContent = isAdminView ? ('Chat · ' + (peerUid || '').slice(0, 8)) : 'Developer';
+  }
+  if($('btnUpdChatClear')){
+    $('btnUpdChatClear').classList.toggle('hidden', isAdminView);
+  }
 
   var box = $('updChatMessages');
   if(box) box.innerHTML = '<p class="hub-empty">Loading…</p>';
   if(_updChatUnsub){ try{ _updChatUnsub(); }catch(e){} _updChatUnsub = null; }
 
   var chatRef = db.collection('developerChats').doc(chatUid);
-  // ensure chat meta exists for user
   if(!peerUid){
     chatRef.set({
       userId: myUid,
       userEmail: user.email || '',
-      userName: user.displayName || user.email || 'User',
+      userName: (user.displayName || user.email || 'User'),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true }).catch(function(){});
   }
+
+  // Mark read for this side
+  try{
+    if(isAdminView){
+      chatRef.set({ unreadForAdmin: 0 }, { merge: true });
+    } else {
+      chatRef.set({ unreadForUser: 0 }, { merge: true });
+    }
+  }catch(e){}
 
   _updChatUnsub = chatRef.collection('messages').orderBy('createdAt', 'asc').limit(200)
     .onSnapshot(function(snap){
@@ -10085,30 +10248,83 @@ function openDeveloperChat(peerUid){
         return;
       }
       var h = '';
+      var toMark = [];
       snap.forEach(function(doc){
         var m = doc.data() || {};
-        var who = m.from === 'admin' ? 'Developer' : (m.from === 'system' ? 'System' : 'You');
-        if(peerUid && m.from === 'user') who = 'User';
-        if(peerUid && m.from === 'admin') who = 'You';
+        var from = m.from || '';
+        var who = from === 'admin' ? 'Developer' : (from === 'system' ? 'System' : 'You');
+        if(isAdminView && from === 'user') who = 'User';
+        if(isAdminView && from === 'admin') who = 'You';
         var text = m.text || '';
+        var st = m.status || 'sent';
+        var ticks = '';
+        if(from === 'admin' && isAdminView) ticks = statusTicks(st);
+        if(from === 'user' && !isAdminView) ticks = statusTicks(st);
         h += '<div style="margin:0 0 10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04)">'
           + '<div style="font-size:12px;color:var(--muted);font-weight:700">'+escHtml(who)+'</div>'
-          + '<div style="margin-top:4px;white-space:pre-wrap">'+escHtml(text)+'</div></div>';
+          + '<div style="margin-top:4px;white-space:pre-wrap">'+escHtml(text)+'</div>'
+          + (ticks ? '<div style="font-size:11px;color:var(--muted);text-align:right">'+ticks+'</div>' : '')
+          + '</div>';
+        // delivered when recipient has listener open
+        if(isAdminView && from === 'user' && st === 'sent') toMark.push(doc.ref);
+        if(!isAdminView && from === 'admin' && st === 'sent') toMark.push(doc.ref);
       });
       box.innerHTML = h;
       try{ box.scrollTop = box.scrollHeight; }catch(e){}
+      toMark.forEach(function(ref){
+        ref.set({ status: 'delivered', deliveredAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function(){});
+      });
+      // mark read
+      snap.forEach(function(doc){
+        var m = doc.data() || {};
+        if(isAdminView && m.from === 'user' && m.status !== 'read'){
+          doc.ref.set({ status: 'read', readAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function(){});
+        }
+        if(!isAdminView && m.from === 'admin' && m.status !== 'read'){
+          doc.ref.set({ status: 'read', readAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function(){});
+        }
+      });
     }, function(err){
-      if(box) box.innerHTML = '<p class="hub-empty">Could not load chat.</p>';
+      if(box) box.innerHTML = '<p class="hub-empty">Could not load chat. '+(err && err.message ? escHtml(err.message) : '')+'</p>';
     });
-
-  // mark admin unread cleared when admin opens
-  if(peerUid && isUpdSuperAdmin()){
-    chatRef.set({ unreadForAdmin: 0 }, { merge: true }).catch(function(){});
-  }
-  if(!peerUid){
-    chatRef.set({ unreadForUser: 0 }, { merge: true }).catch(function(){});
-  }
   try{ focusEl($('updChatInput')); }catch(e){}
+}
+
+function statusTicks(st){
+  if(st === 'read') return '✓✓';
+  if(st === 'delivered') return '✓✓';
+  return '✓';
+}
+
+function closeUpdChatFullscreen(){
+  if(_updChatUnsub){ try{ _updChatUnsub(); }catch(e){} _updChatUnsub = null; }
+  _updChatPeerUid = null;
+  if($('updChatFullscreen')){
+    $('updChatFullscreen').classList.add('hidden');
+    $('updChatFullscreen').style.display = 'none';
+  }
+  setUpdFullscreen(false);
+}
+
+async function clearDeveloperChat(){
+  if(!db || !user) return;
+  if(_updChatPeerUid){ alert('Admin clear is not available here.'); return; }
+  if(!confirm('Clear this chat on your side?')) return;
+  try{
+    var chatUid = user.uid;
+    var snap = await db.collection('developerChats').doc(chatUid).collection('messages').limit(200).get();
+    var batch = db.batch();
+    snap.forEach(function(doc){ batch.delete(doc.ref); });
+    if(!snap.empty) await batch.commit();
+    await db.collection('developerChats').doc(chatUid).set({
+      lastMessage: '',
+      lastAt: firebase.firestore.FieldValue.serverTimestamp(),
+      clearedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    if($('updChatMessages')) $('updChatMessages').innerHTML = '<p class="hub-empty">Chat cleared.</p>';
+  }catch(e){
+    alert('Could not clear: ' + ((e && e.message) || e));
+  }
 }
 
 async function sendDeveloperChatMessage(){
@@ -10116,13 +10332,12 @@ async function sendDeveloperChatMessage(){
   var input = $('updChatInput');
   var text = (input && input.value || '').trim();
   if(!text) return;
-  var isAdmin = isUpdSuperAdmin() && _updChatPeerUid;
-  var chatUid = isAdmin ? _updChatPeerUid : user.uid;
-  var chatRef = db.collection('developerChats').doc(chatUid);
+  var isAdmin = isUpdSuperAdmin() && !!_updChatPeerUid;
+  var chatUid = _updChatPeerUid || user.uid;
   var from = isAdmin ? 'admin' : 'user';
   try{
+    var chatRef = db.collection('developerChats').doc(chatUid);
     var meta = {
-      userId: chatUid,
       lastMessage: text.slice(0, 120),
       lastAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -10130,6 +10345,7 @@ async function sendDeveloperChatMessage(){
       unreadForUser: isAdmin ? firebase.firestore.FieldValue.increment(1) : 0
     };
     if(!isAdmin){
+      meta.userId = user.uid;
       meta.userEmail = user.email || '';
       meta.userName = user.displayName || user.email || 'User';
     }
@@ -10138,10 +10354,10 @@ async function sendDeveloperChatMessage(){
       text: text,
       from: from,
       senderUid: user.uid,
+      status: 'sent',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     if(input) input.value = '';
-    // Auto system reply for user (once per session thread burst)
     if(!isAdmin){
       var key = chatUid;
       if(!_updSystemReplyDone[key]){
@@ -10150,6 +10366,7 @@ async function sendDeveloperChatMessage(){
           text: 'Thanks for your message. Our team will reply within 1 hour.',
           from: 'system',
           senderUid: 'system',
+          status: 'sent',
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
       }
@@ -10163,22 +10380,25 @@ function loadAdminChatList(){
   if(!db || !user || !isUpdSuperAdmin()) return;
   var list = $('updAdminChatList');
   if(!list) return;
+  list.classList.remove('hidden');
   list.innerHTML = '<p class="hub-empty">Loading…</p>';
   if(_updAdminChatsUnsub){ try{ _updAdminChatsUnsub(); }catch(e){} _updAdminChatsUnsub = null; }
-  _updAdminChatsUnsub = db.collection('developerChats').orderBy('lastAt', 'desc').limit(50)
+  _updAdminChatsUnsub = db.collection('developerChats').orderBy('lastAt', 'desc').limit(80)
     .onSnapshot(function(snap){
       if(snap.empty){
-        list.innerHTML = '<p class="hub-empty">No queries yet.</p>';
+        list.innerHTML = '<p class="hub-empty">No chats yet.</p>';
         return;
       }
       var h = '';
       snap.forEach(function(doc){
         var d = doc.data() || {};
         var name = d.userName || d.userEmail || doc.id;
+        var email = d.userEmail || '';
         var unread = d.unreadForAdmin || 0;
         var last = d.lastMessage || '';
         h += '<button type="button" class="list-btn upd-admin-chat" data-uid="'+escHtml(doc.id)+'">'
-          + escHtml(name)
+          + '<strong>'+escHtml(name)+'</strong>'
+          + (email ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(email)+'</span>' : '')
           + (unread ? ' · <strong>'+unread+' unread</strong>' : '')
           + (last ? '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(last)+'</span>' : '')
           + '</button>';
@@ -10190,32 +10410,36 @@ function loadAdminChatList(){
         };
       });
     }, function(err){
-      list.innerHTML = '<p class="hub-empty">Could not load chats. Deploy rules if needed.</p>';
+      list.innerHTML = '<p class="hub-empty">Could not load chats. '+(err && err.message ? escHtml(err.message) : 'Check rules.')+'</p>';
     });
 }
 
 function wireUpdatesHub(){
   if($('updSubNotif')) $('updSubNotif').onclick = function(){ switchUpdatesSub('notif'); };
   if($('updSubChat')) $('updSubChat').onclick = function(){ switchUpdatesSub('chat'); };
-  if($('updSubAdminChats')) $('updSubAdminChats').onclick = function(){ switchUpdatesSub('adminchats'); };
   if($('btnChatDeveloper')) $('btnChatDeveloper').onclick = function(){ openDeveloperChat(null); };
   if($('btnUpdChatBack')) $('btnUpdChatBack').onclick = function(){
-    if(_updChatUnsub){ try{ _updChatUnsub(); }catch(e){} _updChatUnsub = null; }
-    _updChatPeerUid = null;
-    if(isUpdSuperAdmin() && $('updSubAdminChats') && !$('updSubAdminChats').classList.contains('hidden')){
-      switchUpdatesSub('adminchats');
-    } else {
-      switchUpdatesSub('chat');
-      if($('btnChatDeveloper')) $('btnChatDeveloper').classList.remove('hidden');
-      if($('updChatThread')) $('updChatThread').classList.add('hidden');
-    }
+    closeUpdChatFullscreen();
+    if(isUpdSuperAdmin()) switchUpdatesSub('chat');
+    else switchUpdatesSub('chat');
   };
   if($('btnUpdChatSend')) $('btnUpdChatSend').onclick = function(){ sendDeveloperChatMessage(); };
+  if($('btnUpdChatClear')) $('btnUpdChatClear').onclick = function(){ clearDeveloperChat(); };
   if($('updChatInput')) $('updChatInput').addEventListener('keydown', function(ev){
     if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); sendDeveloperChatMessage(); }
   });
+  if($('btnUpdFilterCycle')) $('btnUpdFilterCycle').onclick = function(){ cycleUpdNotifFilter(); };
+  if($('btnUpdClearNotifs')) $('btnUpdClearNotifs').onclick = function(){ clearAllUpdNotifications(); };
+  if($('btnUpdNotifyAll')) $('btnUpdNotifyAll').onclick = function(){ openUpdNotifyFullscreen(); };
+  if($('btnUpdNotifyBack')) $('btnUpdNotifyBack').onclick = function(){ closeUpdNotifyFullscreen(); };
+  if($('btnUpdNotifySend')) $('btnUpdNotifySend').onclick = function(){ sendUpdNotifyAll(); };
+  if($('updNotifyBody')) $('updNotifyBody').addEventListener('input', function(){
+    var n = (this.value || '').length;
+    if($('updNotifyCount')) $('updNotifyCount').textContent = n + ' / 120';
+  });
 }
 try{ wireUpdatesHub(); }catch(e){ console.warn(e); }
+
 
 /** Save a notification into the signed-in user's inbox (client helper; CF also writes). */
 async function saveUserNotificationLocal(payload){

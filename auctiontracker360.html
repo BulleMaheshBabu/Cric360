@@ -1831,6 +1831,136 @@ body.upd-chat-open #hubTabbar,
 body.upd-chat-open .hub-subtabs,
 body.upd-chat-open #hubHeader,
 body.upd-fs-open #hubTabbar { display: none !important; }
+/* ===== Updates tab UI polish (design analysis) ===== */
+.upd-seg{
+  display:flex;padding:4px;gap:4px;margin:0 0 12px;
+  background:var(--bg-surface-elevated,#1e293b);border-radius:999px;
+  border:1px solid var(--border-soft);
+}
+.upd-seg button{
+  flex:1;min-height:44px;border-radius:999px;border:none;
+  background:transparent;color:var(--muted);font-weight:700;font-size:14px;
+  cursor:pointer;transition:background .15s,color .15s,box-shadow .15s;
+}
+.upd-seg button.active{
+  background:#00A8FF;color:#fff;box-shadow:0 2px 10px rgba(0,168,255,.35);
+}
+.upd-seg button:focus-visible{outline:2px solid #00A8FF;outline-offset:2px}
+.upd-toolbar{display:flex;gap:8px;align-items:center;margin:0 0 12px;flex-wrap:wrap}
+.upd-filter-pill{
+  flex:1;min-height:40px;border-radius:999px;border:1px solid var(--border-soft);
+  background:var(--bg-surface,#131a29);color:var(--text);font-weight:700;font-size:13px;
+  padding:0 14px;cursor:pointer;
+}
+.upd-filter-pill:focus-visible{outline:2px solid #00A8FF;outline-offset:2px}
+.upd-btn-clear{
+  min-height:40px;min-width:44px;padding:0 14px;border-radius:12px;
+  border:1px solid rgba(239,68,68,.45);background:transparent;
+  color:#ef4444;font-weight:700;font-size:13px;cursor:pointer;
+}
+.upd-btn-clear:hover,.upd-btn-clear:focus-visible{
+  background:rgba(239,68,68,.12);outline:2px solid #ef4444;outline-offset:1px;
+}
+.upd-btn-notify{
+  min-height:40px;padding:0 14px;border-radius:12px;border:none;
+  background:#00A8FF;color:#fff;font-weight:800;font-size:13px;cursor:pointer;
+}
+.upd-notif-card{
+  display:block;width:100%;text-align:left;padding:16px;
+  border-radius:14px;border:1px solid var(--border);
+  background:var(--bg-surface,#131a29);cursor:pointer;
+  margin:0 0 8px;font:inherit;color:inherit;
+}
+.upd-notif-card:focus-visible{outline:2px solid #00A8FF;outline-offset:2px}
+.upd-notif-card.unread{border-color:rgba(0,168,255,.35);box-shadow:0 0 0 1px rgba(0,168,255,.15)}
+.upd-notif-title{font-size:15px;font-weight:800;color:#fff;line-height:1.3;margin:0 0 6px}
+body.light .upd-notif-title{color:#0f172a}
+.upd-notif-body{font-size:13px;font-weight:500;color:#cbd5e1;line-height:1.4;margin:0 0 8px}
+body.light .upd-notif-body{color:#475569}
+.upd-notif-time{font-size:11px;font-weight:600;color:#64748b;margin:0}
+.upd-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 20px;text-align:center;gap:12px;color:var(--muted);
+}
+.upd-empty svg{opacity:.55;width:72px;height:72px}
+.upd-empty p{margin:0;font-weight:600;font-size:14px;max-width:260px}
+.upd-chat-entry{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:14px 16px;border-radius:14px;border:1px solid var(--border);
+  background:var(--bg-surface,#131a29);cursor:pointer;margin:0 0 10px;
+  font:inherit;color:inherit;
+}
+.upd-chat-entry:focus-visible{outline:2px solid #00A8FF;outline-offset:2px}
+.upd-chat-avatar{
+  width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#00A8FF,#6366f1);
+  display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;flex-shrink:0;
+}
+.upd-chat-meta{flex:1;min-width:0}
+.upd-chat-meta strong{display:block;font-size:15px;font-weight:800}
+.upd-chat-meta span{font-size:13px;color:var(--muted)}
+#updChatFullscreen.upd-fs-chat{
+  position:fixed;inset:0;z-index:9000;display:none;flex-direction:column;
+  background:var(--bg-base,#0b0f19);padding:0;
+}
+#updChatFullscreen.upd-fs-chat:not(.hidden){display:flex}
+.upd-chat-topbar{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-bottom:1px solid var(--border);min-height:56px;
+  background:var(--bg-surface,#131a29);
+}
+.upd-chat-back{
+  width:44px;height:44px;border-radius:12px;border:1px solid var(--border);
+  background:transparent;color:var(--text);font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.upd-chat-back:focus-visible{outline:2px solid #00A8FF}
+.upd-chat-top-title{flex:1;min-width:0}
+.upd-chat-top-title .t{font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px}
+.upd-online-dot{
+  width:8px;height:8px;border-radius:50%;background:#22c55e;
+  box-shadow:0 0 0 3px rgba(34,197,94,.25);flex-shrink:0;
+}
+.upd-chat-top-title .s{font-size:12px;color:var(--muted);font-weight:600}
+.upd-chat-msgs{
+  flex:1;overflow:auto;padding:16px 12px;display:flex;flex-direction:column;gap:10px;
+  -webkit-overflow-scrolling:touch;
+}
+.upd-bubble-row{display:flex;width:100%}
+.upd-bubble-row.me{justify-content:flex-end}
+.upd-bubble-row.them{justify-content:flex-start}
+.upd-bubble{
+  max-width:78%;padding:10px 12px 6px;position:relative;
+  word-break:break-word;white-space:pre-wrap;font-size:14px;line-height:1.4;
+}
+.upd-bubble.me{background:#0084FF;color:#fff;border-radius:16px 16px 4px 16px}
+.upd-bubble.them{background:#1E2638;color:#E2E8F0;border-radius:16px 16px 16px 4px}
+body.light .upd-bubble.them{background:#e2e8f0;color:#0f172a}
+.upd-bubble.system{
+  background:rgba(148,163,184,.12);color:var(--muted);
+  border-radius:12px;max-width:90%;font-size:13px;text-align:center;margin:0 auto;
+}
+.upd-bubble-foot{
+  display:flex;align-items:center;justify-content:flex-end;gap:6px;
+  margin-top:4px;font-size:11px;opacity:.85;
+}
+.upd-bubble.me .upd-bubble-foot{color:rgba(255,255,255,.85)}
+.upd-bubble.them .upd-bubble-foot{color:#94a3b8}
+.upd-chat-dock{
+  display:flex;gap:8px;align-items:center;padding:10px 12px 12px;
+  border-top:1px solid var(--border);
+  background:#111827;padding-bottom:max(12px, env(safe-area-inset-bottom));
+}
+body.light .upd-chat-dock{background:#f8fafc}
+.upd-chat-dock input{
+  flex:1;min-height:48px;border-radius:24px;padding:0 16px;font-size:16px;
+  border:1px solid var(--border);background:var(--bg-surface);color:var(--text);
+}
+.upd-chat-dock input:focus{outline:2px solid #00A8FF;border-color:transparent}
+.upd-chat-dock .btn-send{
+  min-height:48px;min-width:72px;border-radius:24px;border:none;
+  background:#00A8FF;color:#fff;font-weight:800;cursor:pointer;
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -1904,67 +2034,68 @@ body.upd-fs-open #hubTabbar { display: none !important; }
 
   <!-- GAMES tab -->
   <div id="hubPaneUpdates" class="hidden" role="tabpanel" aria-labelledby="hubTabUpdates" aria-hidden="true">
-    <div class="hub-subtabs" id="updSubtabs" role="tablist" aria-label="Updates sections" style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap">
-      <button type="button" role="tab" id="updSubNotif" class="btn-sec active" aria-selected="true" style="flex:1;min-height:44px">Notifications</button>
-      <button type="button" role="tab" id="updSubChat" class="btn-sec" aria-selected="false" style="flex:1;min-height:44px">Chats</button>
+    <div class="upd-seg hub-subtabs" id="updSubtabs" role="tablist" aria-label="Updates sections">
+      <button type="button" role="tab" id="updSubNotif" class="active" aria-selected="true">Notifications</button>
+      <button type="button" role="tab" id="updSubChat" aria-selected="false">Chats</button>
     </div>
 
     <div id="updPaneNotif">
-      <div class="upd-toolbar" style="display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap">
-        <button type="button" id="btnUpdFilterCycle" class="btn-sec" style="min-height:44px;flex:1" aria-label="Filter: All. Tap to change">All</button>
-        <button type="button" id="btnUpdClearNotifs" class="btn-sec" style="min-height:44px" aria-label="Clear notifications">Clear</button>
-        <button type="button" id="btnUpdNotifyAll" class="btn-ok hidden" style="min-height:44px" aria-label="Send notification to everyone">Notify</button>
+      <div class="upd-toolbar">
+        <button type="button" id="btnUpdFilterCycle" class="upd-filter-pill" aria-label="Filter: All. Tap to change">All</button>
+        <button type="button" id="btnUpdClearNotifs" class="upd-btn-clear" aria-label="Clear notifications">Clear</button>
+        <button type="button" id="btnUpdNotifyAll" class="upd-btn-notify hidden" aria-label="Send notification to everyone">Notify</button>
       </div>
       <div id="updNotifList" class="hub-list" aria-label="Notifications"></div>
     </div>
 
     <div id="updPaneChat" class="hidden">
       <div id="updChatListWrap">
-        <button type="button" id="btnChatDeveloper" class="list-btn" style="margin-bottom:10px" aria-label="Chat with developer">
-          <span style="font-weight:800">Chat with developer</span><br>
-          <span style="font-size:13px;color:var(--muted)">Ask questions · we reply here</span>
+        <button type="button" id="btnChatDeveloper" class="upd-chat-entry" aria-label="Chat with developer">
+          <span class="upd-chat-avatar" aria-hidden="true">D</span>
+          <span class="upd-chat-meta">
+            <strong>Chat with developer</strong>
+            <span>Ask questions · we reply here</span>
+          </span>
         </button>
         <div id="updAdminChatList" class="hub-list hidden" aria-label="User chats, newest first"></div>
       </div>
     </div>
 
-    <!-- Full-screen chat (WhatsApp-style) -->
-    <div id="updChatFullscreen" class="hidden" role="dialog" aria-modal="true" aria-label="Chat" style="position:fixed;inset:0;z-index:9000;background:var(--bg,#0b1220);display:flex;flex-direction:column;padding:0">
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);min-height:52px">
-        <button type="button" id="btnUpdChatBack" class="btn-sec" style="min-height:44px;min-width:44px" aria-label="Back">Back</button>
-        <div id="updChatTitle" style="flex:1;font-weight:800;font-size:16px">Chat</div>
-        <button type="button" id="btnUpdChatClear" class="btn-sec" style="min-height:44px" aria-label="Clear chat">Clear</button>
+    <div id="updChatFullscreen" class="hidden upd-fs-chat" role="dialog" aria-modal="true" aria-label="Developer support chat">
+      <div class="upd-chat-topbar">
+        <button type="button" id="btnUpdChatBack" class="upd-chat-back" aria-label="Back">&#8592;</button>
+        <div class="upd-chat-top-title">
+          <div class="t"><span id="updChatTitle">Developer Support</span><span class="upd-online-dot" title="Online" aria-label="Online"></span></div>
+          <div class="s" id="updChatSubtitle">Support team</div>
+        </div>
+        <button type="button" id="btnUpdChatClear" class="upd-btn-clear" aria-label="Clear chat">Clear</button>
       </div>
-      <div id="updChatMessages" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;overflow:auto;padding:12px"></div>
-      <div class="chat-composer" style="display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg,#0b1220)">
+      <div id="updChatMessages" class="upd-chat-msgs" role="log" aria-live="polite" aria-label="Chat messages"></div>
+      <div class="upd-chat-dock chat-composer">
         <label class="sr-only" for="updChatInput">Chat message</label>
-        <input type="text" id="updChatInput" maxlength="500" placeholder="Message…" autocomplete="off"
-          style="flex:1;min-height:48px;border-radius:24px;padding:0 16px;font-size:16px"
-          aria-label="Chat message" />
-        <button type="button" id="btnUpdChatSend" class="btn-ok" style="min-height:48px;min-width:72px;border-radius:24px" aria-label="Send message">Send</button>
+        <input type="text" id="updChatInput" maxlength="500" placeholder="Message..." autocomplete="off" aria-label="Chat message" />
+        <button type="button" id="btnUpdChatSend" class="btn-send" aria-label="Send message">Send</button>
       </div>
     </div>
 
-    <!-- Full-screen broadcast notify (admin) -->
-    <div id="updNotifyFullscreen" class="hidden" role="dialog" aria-modal="true" aria-label="Send notification" style="position:fixed;inset:0;z-index:9001;background:var(--bg,#0b1220);display:flex;flex-direction:column;padding:0">
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);min-height:52px">
-        <button type="button" id="btnUpdNotifyBack" class="btn-sec" style="min-height:44px" aria-label="Back">Back</button>
-        <div style="flex:1;font-weight:800;font-size:16px">Notify everyone</div>
+    <div id="updNotifyFullscreen" class="hidden upd-fs-chat" role="dialog" aria-modal="true" aria-label="Send notification" style="position:fixed;inset:0;z-index:9001;flex-direction:column;background:var(--bg-base,#0b0f19);padding:0">
+      <div class="upd-chat-topbar">
+        <button type="button" id="btnUpdNotifyBack" class="upd-chat-back" aria-label="Back">&#8592;</button>
+        <div class="upd-chat-top-title"><div class="t">Notify everyone</div></div>
       </div>
       <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px">
         <label for="updNotifyTitle">Title (optional)</label>
-        <input type="text" id="updNotifyTitle" maxlength="80" placeholder="Cric360" style="min-height:44px;width:100%" aria-label="Notification title">
+        <input type="text" id="updNotifyTitle" maxlength="80" placeholder="Cric360" style="min-height:44px;width:100%;border-radius:12px;padding:0 12px;font-size:16px" aria-label="Notification title">
         <label for="updNotifyBody">Message</label>
-        <textarea id="updNotifyBody" rows="6" maxlength="120" placeholder="Type message for all users…" style="width:100%;min-height:120px;resize:vertical" aria-label="Notification message"></textarea>
+        <textarea id="updNotifyBody" rows="6" maxlength="120" placeholder="Type message for all users..." style="width:100%;min-height:120px;resize:vertical;border-radius:12px;padding:12px;font-size:16px" aria-label="Notification message"></textarea>
         <span id="updNotifyCount" style="font-size:13px;color:var(--muted)">0 / 120</span>
       </div>
-      <div style="padding:12px;border-top:1px solid var(--border)">
-        <button type="button" id="btnUpdNotifySend" class="btn-ok" style="width:100%;min-height:48px">Send to everyone</button>
+      <div class="upd-chat-dock">
+        <button type="button" id="btnUpdNotifySend" class="btn-send" style="width:100%">Send to everyone</button>
       </div>
     </div>
   </div>
 
-  
   <div id="hubPaneGames" class="hidden" role="tabpanel" aria-labelledby="hubTabGames">
     <div id="hubGamesAdmin" class="hub-admin" style="margin-bottom:10px">
       <button type="button" id="btnCreateGame" class="btn-ok btn-block">Create game</button>
@@ -9941,6 +10072,30 @@ async function deleteRegTournamentFully(formId){
 
 
 /* ===== Updates hub: notifications inbox + developer chat ===== */
+function updRelativeTime(ts){
+  if(!ts) return '';
+  var d = ts instanceof Date ? ts : new Date(ts);
+  if(isNaN(d.getTime())) return '';
+  var now = Date.now();
+  var diff = Math.max(0, now - d.getTime());
+  if(diff < 60e3) return 'Just now';
+  if(diff < 3600e3) return Math.floor(diff/60e3) + 'm ago';
+  if(diff < 86400e3) return Math.floor(diff/3600e3) + 'h ago';
+  var today = new Date(); today.setHours(0,0,0,0);
+  var that = new Date(d); that.setHours(0,0,0,0);
+  var tstr = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  if(that.getTime() === today.getTime()) return 'Today, ' + tstr;
+  var yest = new Date(today); yest.setDate(yest.getDate()-1);
+  if(that.getTime() === yest.getTime()) return 'Yesterday, ' + tstr;
+  return d.toLocaleDateString([], {day:'numeric', month:'short'}) + ', ' + tstr;
+}
+function updEmptyHtml(kind, msg){
+  var bell = '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M32 8c-8 0-14 6-14 14v8c0 4-2 7-4 9h36c-2-2-4-5-4-9v-8c0-8-6-14-14-14z" stroke="currentColor" stroke-width="3"/><path d="M26 50c2 3 4 4 6 4s4-1 6-4" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M16 16l32 32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+  var chat = '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 18c0-4 3-8 8-8h24c5 0 8 4 8 8v18c0 4-3 8-8 8H28l-10 10v-10h-6c-5 0-8-4-8-8V18z" stroke="currentColor" stroke-width="3"/></svg>';
+  var svg = kind === 'chat' ? chat : bell;
+  return '<div class="upd-empty">'+svg+'<p>'+escHtml(msg||'Nothing here yet.')+'</p></div>';
+}
+
 var _updNotifUnsub = null;
 var _updChatUnsub = null;
 var _updAdminChatsUnsub = null;
@@ -9957,6 +10112,22 @@ function isUpdSuperAdmin(){
   return em === 'maheshdhoni7633@gmail.com' || em === 'cricthreesixty@gmail.com';
 }
 
+async function ensureAdminUserDoc(){
+  try{
+    if(!db || !user) return;
+    var em = (user.email || '').toLowerCase();
+    if(em !== 'maheshdhoni7633@gmail.com' && em !== 'cricthreesixty@gmail.com') return;
+    await db.collection('users').doc(user.uid).set({
+      superAdmin: true,
+      isAdmin: true,
+      isOrganiser: true,
+      email: user.email || '',
+      displayName: user.displayName || '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }catch(e){ console.warn('ensureAdminUserDoc', e); }
+}
+
 function setUpdFullscreen(on){
   try{
     document.body.classList.toggle('upd-chat-open', !!on);
@@ -9971,6 +10142,7 @@ function setUpdFullscreen(on){
 }
 
 function openUpdatesHub(){
+  try{ ensureAdminUserDoc(); }catch(e){}
   var admin = isUpdSuperAdmin();
   if($('btnUpdNotifyAll')) $('btnUpdNotifyAll').classList.toggle('hidden', !admin);
   if($('btnChatDeveloper')) $('btnChatDeveloper').classList.toggle('hidden', !!admin);
@@ -10034,7 +10206,7 @@ function renderUpdNotifList(){
     items = items.filter(function(x){ return notifCategory(x.data) === 'updates'; });
   }
   if(!items.length){
-    list.innerHTML = '<p class="hub-empty">No items in this filter.</p>';
+    list.innerHTML = updEmptyHtml('bell', 'No items in this filter.');
     return;
   }
   var h = '';
@@ -10043,12 +10215,12 @@ function renderUpdNotifList(){
     var title = d.title || 'Update';
     var body = d.body || '';
     var ts = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : (d.createdAtMs ? new Date(d.createdAtMs) : null);
-    var when = ts ? ts.toLocaleString() : '';
+    var when = updRelativeTime(ts);
     var unread = d.read !== true;
-    h += '<button type="button" class="list-btn upd-notif-item" data-id="'+escHtml(it.id)+'" data-link="'+escHtml(d.link||'')+'" data-type="'+escHtml(d.type||'')+'" data-auction="'+escHtml(d.auctionId||'')+'" data-form="'+escHtml(d.formId||'')+'" data-game="'+escHtml(d.gameId||'')+'" style="'+(unread?'font-weight:800;':'')+'">'
-      + escHtml(title)
-      + (body ? '<br><span style="font-size:13px;color:var(--muted);font-weight:600">'+escHtml(body)+'</span>' : '')
-      + (when ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(when)+'</span>' : '')
+    h += '<button type="button" class="upd-notif-card upd-notif-item'+(unread?' unread':'')+'" data-id="'+escHtml(it.id)+'" data-link="'+escHtml(d.link||'')+'" data-type="'+escHtml(d.type||'')+'" data-auction="'+escHtml(d.auctionId||'')+'" data-form="'+escHtml(d.formId||'')+'" data-game="'+escHtml(d.gameId||'')+'">'
+      + '<div class="upd-notif-title">'+escHtml(title)+'</div>'
+      + (body ? '<div class="upd-notif-body">'+escHtml(body)+'</div>' : '')
+      + (when ? '<div class="upd-notif-time">'+escHtml(when)+'</div>' : '')
       + '</button>';
   });
   list.innerHTML = h;
@@ -10084,7 +10256,7 @@ function loadUpdatesNotifications(){
           _updNotifCache.push({ id: doc.id, data: doc.data() || {} });
         });
         if(!_updNotifCache.length){
-          list.innerHTML = '<p class="hub-empty">No notifications yet.</p>';
+          list.innerHTML = updEmptyHtml('bell', 'No notifications yet.');
           return;
         }
         renderUpdNotifList();
@@ -10219,7 +10391,8 @@ function openDeveloperChat(peerUid){
   }
   setUpdFullscreen(true);
   if($('updChatTitle')){
-    $('updChatTitle').textContent = isAdminView ? ('Chat · ' + (peerUid || '').slice(0, 8)) : 'Developer';
+    if($('updChatTitle')) $('updChatTitle').textContent = isAdminView ? 'User support' : 'Developer Support';
+  if($('updChatSubtitle')) $('updChatSubtitle').textContent = isAdminView ? 'Conversation with user' : 'Usually replies within 1 hour';
   }
   if($('btnUpdChatClear')){
     $('btnUpdChatClear').classList.toggle('hidden', isAdminView);
@@ -10252,7 +10425,7 @@ function openDeveloperChat(peerUid){
     .onSnapshot(function(snap){
       if(!box) return;
       if(snap.empty){
-        box.innerHTML = '<p class="hub-empty">No messages yet. Say hello.</p>';
+        box.innerHTML = updEmptyHtml('chat', 'No messages yet. Say hello.');
         return;
       }
       var h = '';
@@ -10260,20 +10433,24 @@ function openDeveloperChat(peerUid){
       snap.forEach(function(doc){
         var m = doc.data() || {};
         var from = m.from || '';
-        var who = from === 'admin' ? 'Developer' : (from === 'system' ? 'System' : 'You');
-        if(isAdminView && from === 'user') who = 'User';
-        if(isAdminView && from === 'admin') who = 'You';
-        var text = m.text || '';
+        var textMsg = m.text || '';
         var st = m.status || 'sent';
+        var tsMsg = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
+        var whenMsg = updRelativeTime(tsMsg);
         var ticks = '';
-        if(from === 'admin' && isAdminView) ticks = statusTicks(st);
-        if(from === 'user' && !isAdminView) ticks = statusTicks(st);
-        h += '<div style="margin:0 0 10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04)">'
-          + '<div style="font-size:12px;color:var(--muted);font-weight:700">'+escHtml(who)+'</div>'
-          + '<div style="margin-top:4px;white-space:pre-wrap">'+escHtml(text)+'</div>'
-          + (ticks ? '<div style="font-size:11px;color:var(--muted);text-align:right">'+ticks+'</div>' : '')
-          + '</div>';
-        // delivered when recipient has listener open
+        if(from === 'system'){
+          h += '<div class="upd-bubble-row"><div class="upd-bubble system">'+escHtml(textMsg)+'</div></div>';
+        } else {
+          var isMe = isAdminView ? (from === 'admin') : (from === 'user');
+          if(isMe) ticks = statusTicks(st);
+          var side = isMe ? 'me' : 'them';
+          h += '<div class="upd-bubble-row '+side+'"><div class="upd-bubble '+side+'">'
+            + escHtml(textMsg)
+            + '<div class="upd-bubble-foot">'
+            + (whenMsg ? '<span>'+escHtml(whenMsg)+'</span>' : '')
+            + (ticks ? '<span aria-label="Status">'+ticks+'</span>' : '')
+            + '</div></div></div>';
+        }
         if(isAdminView && from === 'user' && st === 'sent') toMark.push(doc.ref);
         if(!isAdminView && from === 'admin' && st === 'sent') toMark.push(doc.ref);
       });
@@ -10402,6 +10579,15 @@ function loadAdminChatList(){
   list.innerHTML = '<p class="hub-empty">Loading…</p>';
   if(_updAdminChatsUnsub){ try{ _updAdminChatsUnsub(); }catch(e){} _updAdminChatsUnsub = null; }
 
+  // Ensure users/{uid}.isAdmin=true so Firestore rules isAdmin() passes
+  ensureAdminUserDoc().then(function(){ startAdminChatListen(); }).catch(function(){ startAdminChatListen(); });
+}
+
+function startAdminChatListen(){
+  var list = $('updAdminChatList');
+  if(!list || !db || !user) return;
+  if(_updAdminChatsUnsub){ try{ _updAdminChatsUnsub(); }catch(e){} _updAdminChatsUnsub = null; }
+
   function renderAdminChats(snap){
     if(!snap || snap.empty){
       list.innerHTML = '<p class="hub-empty">No chats yet. When a user messages the developer, they appear here.</p>';
@@ -10420,9 +10606,8 @@ function loadAdminChatList(){
       var email = d.userEmail || '';
       var unread = d.unreadForAdmin || 0;
       var last = d.lastMessage || '';
-      h += '<button type="button" class="list-btn upd-admin-chat" data-uid="'+escHtml(row.id)+'">'
-        + '<strong>'+escHtml(name)+'</strong>'
-        + (email ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(email)+'</span>' : '')
+      var initial = (name || '?').charAt(0).toUpperCase();
+      h += '<button type="button" class="upd-chat-entry upd-admin-chat" data-uid="'+escHtml(row.id)+'">' + '<span class="upd-chat-avatar" aria-hidden="true">'+escHtml(initial)+'</span>' + '<span class="upd-chat-meta"><strong>'+escHtml(name)+'</strong>' + '<span>'+(email ? escHtml(email)+' · ' : '')+(unread ? (unread+' unread') : (last ? escHtml(last) : 'No messages'))+'</span>' + '</span></button>';color:var(--muted)">'+escHtml(email)+'</span>' : '')
         + (unread ? ' · <strong>'+unread+' unread</strong>' : '')
         + (last ? '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(last)+'</span>' : '')
         + '</button>';
@@ -10435,17 +10620,15 @@ function loadAdminChatList(){
     });
   }
 
-  // Prefer ordered query; fall back to plain get if rules/index block orderBy
-  _updAdminChatsUnsub = db.collection('developerChats').orderBy('lastAt', 'desc').limit(80)
+  // Plain list + client sort (avoids index + rule edge cases with orderBy)
+  var em = (user && user.email) ? user.email : '(no email)';
+  _updAdminChatsUnsub = db.collection('developerChats').limit(100)
     .onSnapshot(function(snap){ renderAdminChats(snap); }, function(err){
-      console.warn('admin chats orderBy failed', err);
-      db.collection('developerChats').limit(80).get().then(function(snap){
-        renderAdminChats(snap);
-      }).catch(function(err2){
-        list.innerHTML = '<p class="hub-empty">Could not load chats. ' +
-          escHtml((err2 && err2.message) || (err && err.message) || 'Permission denied') +
-          '. Deploy firestore.rules from the project root (not the functions folder), then hard-refresh.</p>';
-      });
+      console.warn('admin chats failed', err);
+      list.innerHTML = '<p class="hub-empty">Could not load chats.</p>'
+        + '<p class="hub-empty">Signed in as: <strong>' + escHtml(em) + '</strong></p>'
+        + '<p class="hub-empty">' + escHtml((err && (err.code || '')) + ' ' + ((err && err.message) || '')) + '</p>'
+        + '<p class="hub-empty">Admin rules only allow maheshdhoni7633@gmail.com or cricthreesixty@gmail.com. Publish the latest rules in Firebase Console → Firestore → Rules, then sign out and sign in again.</p>';
     });
 }
 

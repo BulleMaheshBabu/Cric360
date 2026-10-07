@@ -1936,10 +1936,12 @@ body.upd-fs-open #hubTabbar { display: none !important; }
         <button type="button" id="btnUpdChatClear" class="btn-sec" style="min-height:44px" aria-label="Clear chat">Clear</button>
       </div>
       <div id="updChatMessages" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;overflow:auto;padding:12px"></div>
-      <div style="display:flex;gap:8px;align-items:flex-end;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg,#0b1220)">
-        <label class="sr-only" for="updChatInput">Message</label>
-        <textarea id="updChatInput" rows="2" maxlength="500" placeholder="Type a message…" style="flex:1;min-height:48px;resize:none" aria-label="Type a message"></textarea>
-        <button type="button" id="btnUpdChatSend" class="btn-ok" style="min-height:48px;min-width:72px">Send</button>
+      <div class="chat-composer" style="display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg,#0b1220)">
+        <label class="sr-only" for="updChatInput">Chat message</label>
+        <input type="text" id="updChatInput" maxlength="500" placeholder="Message…" autocomplete="off"
+          style="flex:1;min-height:48px;border-radius:24px;padding:0 16px;font-size:16px"
+          aria-label="Chat message" />
+        <button type="button" id="btnUpdChatSend" class="btn-ok" style="min-height:48px;min-width:72px;border-radius:24px" aria-label="Send message">Send</button>
       </div>
     </div>
 
@@ -10096,7 +10098,12 @@ function loadUpdatesNotifications(){
 
 async function clearAllUpdNotifications(){
   if(!db || !user) return;
-  if(!confirm('Clear all notifications from your list?')) return;
+  ask('Clear notifications', 'Clear all notifications from your list?', function(){
+    clearAllUpdNotificationsDo();
+  });
+}
+async function clearAllUpdNotificationsDo(){
+  if(!db || !user) return;
   try{
     var snap = await db.collection('userNotifications').doc(user.uid).collection('items').limit(200).get();
     var batch = db.batch();
@@ -10107,10 +10114,11 @@ async function clearAllUpdNotifications(){
     });
     if(n) await batch.commit();
     _updNotifCache = [];
-    renderUpdNotifList();
+    if($('updNotifList') && !n) $('updNotifList').innerHTML = '<p class="hub-empty">No notifications yet.</p>';
+    else renderUpdNotifList();
     try{ if(typeof announce==='function') announce('Notifications cleared', true); }catch(e){}
   }catch(e){
-    alert('Could not clear: ' + ((e && e.message) || e));
+    appAlert('Could not clear: ' + ((e && e.message) || e));
   }
 }
 
@@ -10138,21 +10146,21 @@ async function sendUpdNotifyAll(){
   if(!isUpdSuperAdmin()) return;
   var title = (($('updNotifyTitle') && $('updNotifyTitle').value) || '').trim() || 'Cric360';
   var body = (($('updNotifyBody') && $('updNotifyBody').value) || '').trim();
-  if(!body){ alert('Type a message first.'); return; }
+  if(!body){ appAlert('Type a message first.'); return; }
   try{
     var fn = firebase.app().functions('asia-south1').httpsCallable('sendManualNotification');
     var res = await fn({ title: title, body: body });
     var d = (res && res.data) || {};
     if(d.ok && (d.success || 0) > 0){
-      alert('Sent to ' + (d.success || 0) + ' device(s).');
+      appAlert('Sent to ' + (d.success || 0) + ' device(s).');
       if($('updNotifyBody')) $('updNotifyBody').value = '';
       if($('updNotifyCount')) $('updNotifyCount').textContent = '0 / 120';
       closeUpdNotifyFullscreen();
     } else {
-      alert((d.error || 'Not delivered.') + ' Tokens: ' + (d.tokenCount || 0));
+      appAlert((d.error || 'Not delivered.') + ' Tokens: ' + (d.tokenCount || 0));
     }
   }catch(e){
-    alert('Send failed: ' + ((e && e.message) || e));
+    appAlert('Send failed: ' + ((e && e.message) || e));
   }
 }
 
@@ -10287,7 +10295,13 @@ function openDeveloperChat(peerUid){
     }, function(err){
       if(box) box.innerHTML = '<p class="hub-empty">Could not load chat. '+(err && err.message ? escHtml(err.message) : '')+'</p>';
     });
-  try{ focusEl($('updChatInput')); }catch(e){}
+  try{
+    var inp = $('updChatInput');
+    if(inp){ inp.removeAttribute('disabled'); inp.removeAttribute('aria-hidden');
+      setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 100);
+      setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 400);
+    }
+  }catch(e){}
 }
 
 function statusTicks(st){
@@ -10308,8 +10322,11 @@ function closeUpdChatFullscreen(){
 
 async function clearDeveloperChat(){
   if(!db || !user) return;
-  if(_updChatPeerUid){ alert('Admin clear is not available here.'); return; }
-  if(!confirm('Clear this chat on your side?')) return;
+  if(_updChatPeerUid){ appAlert('Admin clear is not available here.'); return; }
+  ask('Clear chat', 'Clear this chat on your side?', function(){ clearDeveloperChatDo(); });
+}
+async function clearDeveloperChatDo(){
+  if(!db || !user) return;
   try{
     var chatUid = user.uid;
     var snap = await db.collection('developerChats').doc(chatUid).collection('messages').limit(200).get();
@@ -10322,8 +10339,9 @@ async function clearDeveloperChat(){
       clearedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     if($('updChatMessages')) $('updChatMessages').innerHTML = '<p class="hub-empty">Chat cleared.</p>';
+    try{ if(typeof announce==='function') announce('Chat cleared', true); }catch(e){}
   }catch(e){
-    alert('Could not clear: ' + ((e && e.message) || e));
+    appAlert('Could not clear: ' + ((e && e.message) || e));
   }
 }
 
@@ -10372,7 +10390,7 @@ async function sendDeveloperChatMessage(){
       }
     }
   }catch(e){
-    alert('Could not send: ' + ((e && e.message) || e));
+    appAlert('Could not send: ' + ((e && e.message) || e));
   }
 }
 
@@ -10383,34 +10401,51 @@ function loadAdminChatList(){
   list.classList.remove('hidden');
   list.innerHTML = '<p class="hub-empty">Loading…</p>';
   if(_updAdminChatsUnsub){ try{ _updAdminChatsUnsub(); }catch(e){} _updAdminChatsUnsub = null; }
+
+  function renderAdminChats(snap){
+    if(!snap || snap.empty){
+      list.innerHTML = '<p class="hub-empty">No chats yet. When a user messages the developer, they appear here.</p>';
+      return;
+    }
+    var rows = [];
+    snap.forEach(function(doc){
+      var d = doc.data() || {};
+      rows.push({ id: doc.id, data: d, lastAt: (d.lastAt && d.lastAt.toMillis) ? d.lastAt.toMillis() : (d.lastAtMs || 0) });
+    });
+    rows.sort(function(a,b){ return (b.lastAt||0) - (a.lastAt||0); });
+    var h = '';
+    rows.forEach(function(row){
+      var d = row.data || {};
+      var name = d.userName || d.userEmail || row.id;
+      var email = d.userEmail || '';
+      var unread = d.unreadForAdmin || 0;
+      var last = d.lastMessage || '';
+      h += '<button type="button" class="list-btn upd-admin-chat" data-uid="'+escHtml(row.id)+'">'
+        + '<strong>'+escHtml(name)+'</strong>'
+        + (email ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(email)+'</span>' : '')
+        + (unread ? ' · <strong>'+unread+' unread</strong>' : '')
+        + (last ? '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(last)+'</span>' : '')
+        + '</button>';
+    });
+    list.innerHTML = h;
+    list.querySelectorAll('.upd-admin-chat').forEach(function(btn){
+      btn.onclick = function(){
+        openDeveloperChat(btn.getAttribute('data-uid'));
+      };
+    });
+  }
+
+  // Prefer ordered query; fall back to plain get if rules/index block orderBy
   _updAdminChatsUnsub = db.collection('developerChats').orderBy('lastAt', 'desc').limit(80)
-    .onSnapshot(function(snap){
-      if(snap.empty){
-        list.innerHTML = '<p class="hub-empty">No chats yet.</p>';
-        return;
-      }
-      var h = '';
-      snap.forEach(function(doc){
-        var d = doc.data() || {};
-        var name = d.userName || d.userEmail || doc.id;
-        var email = d.userEmail || '';
-        var unread = d.unreadForAdmin || 0;
-        var last = d.lastMessage || '';
-        h += '<button type="button" class="list-btn upd-admin-chat" data-uid="'+escHtml(doc.id)+'">'
-          + '<strong>'+escHtml(name)+'</strong>'
-          + (email ? '<br><span style="font-size:12px;color:var(--muted)">'+escHtml(email)+'</span>' : '')
-          + (unread ? ' · <strong>'+unread+' unread</strong>' : '')
-          + (last ? '<br><span style="font-size:13px;color:var(--muted)">'+escHtml(last)+'</span>' : '')
-          + '</button>';
+    .onSnapshot(function(snap){ renderAdminChats(snap); }, function(err){
+      console.warn('admin chats orderBy failed', err);
+      db.collection('developerChats').limit(80).get().then(function(snap){
+        renderAdminChats(snap);
+      }).catch(function(err2){
+        list.innerHTML = '<p class="hub-empty">Could not load chats. ' +
+          escHtml((err2 && err2.message) || (err && err.message) || 'Permission denied') +
+          '. Deploy firestore.rules from the project root (not the functions folder), then hard-refresh.</p>';
       });
-      list.innerHTML = h;
-      list.querySelectorAll('.upd-admin-chat').forEach(function(btn){
-        btn.onclick = function(){
-          openDeveloperChat(btn.getAttribute('data-uid'));
-        };
-      });
-    }, function(err){
-      list.innerHTML = '<p class="hub-empty">Could not load chats. '+(err && err.message ? escHtml(err.message) : 'Check rules.')+'</p>';
     });
 }
 
@@ -10426,7 +10461,7 @@ function wireUpdatesHub(){
   if($('btnUpdChatSend')) $('btnUpdChatSend').onclick = function(){ sendDeveloperChatMessage(); };
   if($('btnUpdChatClear')) $('btnUpdChatClear').onclick = function(){ clearDeveloperChat(); };
   if($('updChatInput')) $('updChatInput').addEventListener('keydown', function(ev){
-    if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); sendDeveloperChatMessage(); }
+    if(ev.key === 'Enter'){ ev.preventDefault(); sendDeveloperChatMessage(); }
   });
   if($('btnUpdFilterCycle')) $('btnUpdFilterCycle').onclick = function(){ cycleUpdNotifFilter(); };
   if($('btnUpdClearNotifs')) $('btnUpdClearNotifs').onclick = function(){ clearAllUpdNotifications(); };

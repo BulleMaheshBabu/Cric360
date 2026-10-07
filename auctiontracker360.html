@@ -1961,6 +1961,78 @@ body.light .upd-chat-dock{background:#f8fafc}
   background:#00A8FF;color:#fff;font-weight:800;cursor:pointer;
 }
 
+
+/* ===== Updates polish v2: groups, badges, swipe, typing ===== */
+.upd-bubble-row{margin-bottom:10px}
+.upd-bubble-row.group-follow{margin-bottom:3px}
+.upd-bubble-row.group-follow .upd-bubble.them{border-radius:4px 16px 16px 4px}
+.upd-bubble-row.group-start.group-has-more .upd-bubble.them{border-radius:16px 16px 16px 4px}
+.upd-bubble-row.group-mid .upd-bubble.them{border-radius:4px 16px 16px 4px}
+.upd-bubble-row.group-end .upd-bubble.them{border-radius:4px 16px 16px 16px}
+.upd-bubble-row.group-follow .upd-bubble.me{border-radius:16px 4px 4px 16px}
+.upd-bubble-row.group-mid .upd-bubble.me{border-radius:16px 4px 4px 16px}
+.upd-bubble-row.group-end .upd-bubble.me{border-radius:16px 4px 16px 16px}
+.upd-bubble-row.group-start.group-has-more .upd-bubble.me{border-radius:16px 16px 4px 16px}
+.upd-bubble-row.group-follow .upd-bubble-foot{display:none}
+.upd-bubble-row.group-mid .upd-bubble-foot{display:none}
+.upd-bubble-row.group-start:not(.group-end) .upd-bubble-foot{display:none}
+
+.upd-typing{
+  display:inline-flex;align-items:center;gap:4px;padding:12px 14px;
+  background:#1E2638;border-radius:16px 16px 16px 4px;min-width:52px;
+}
+body.light .upd-typing{background:#e2e8f0}
+.upd-typing span{
+  width:6px;height:6px;border-radius:50%;background:#94a3b8;
+  animation:updDot 1.2s ease-in-out infinite;
+}
+.upd-typing span:nth-child(2){animation-delay:.2s}
+.upd-typing span:nth-child(3){animation-delay:.4s}
+@keyframes updDot{
+  0%,60%,100%{transform:translateY(0);opacity:.4}
+  30%{transform:translateY(-4px);opacity:1}
+}
+
+.upd-notif-card{
+  position:relative;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .15s,opacity .2s,box-shadow .15s;
+}
+.upd-notif-card::after{
+  content:'';position:absolute;inset:0;background:currentColor;opacity:0;
+  transition:opacity .2s;pointer-events:none;
+}
+.upd-notif-card:active::after{opacity:.08}
+.upd-notif-card.swiping{transition:none}
+.upd-notif-card.dismissing{
+  opacity:0;transform:translateX(-110%);pointer-events:none;
+}
+.upd-notif-badge{
+  position:absolute;top:10px;right:10px;
+  font-size:10px;font-weight:800;letter-spacing:.03em;
+  padding:3px 8px;border-radius:999px;line-height:1.2;
+}
+.upd-notif-badge.live{background:rgba(239,68,68,.2);color:#f87171}
+.upd-notif-badge.deadline{background:rgba(245,158,11,.2);color:#fbbf24}
+.upd-notif-badge.announce{background:rgba(0,168,255,.2);color:#38bdf8}
+.upd-notif-card .upd-notif-title{padding-right:88px}
+
+.hub-user-pill{
+  display:none;align-items:center;gap:8px;margin:0 0 12px;
+  padding:6px 10px 6px 6px;border-radius:999px;width:fit-content;
+  background:var(--bg-surface);border:1px solid var(--border);
+}
+body.show-user-pill .hub-user-pill{display:inline-flex}
+.hub-user-pill .av{
+  width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,#00A8FF,#6366f1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#fff;
+}
+.hub-user-pill .nm{font-size:13px;font-weight:700;color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#homeHello.hub-hello-hidden{display:none!important}
+body.upd-tab-active #homeHello{display:none!important}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -2000,6 +2072,7 @@ body.light .upd-chat-dock{background:#f8fafc}
 <section id="screenHome" class="wrap panel hidden" role="region" aria-labelledby="homeTitle">
   <h1 id="homeTitle" class="sr-only" tabindex="-1">Auction Tracker 360</h1>
   <p class="hub-hello" id="homeHello"></p>
+  <div class="hub-user-pill" id="homeUserPill" aria-hidden="true"><span class="av" id="homeUserAv">?</span><span class="nm" id="homeUserNm"></span></div>
 
   <!-- LIVE tab: organisers get Create + Manage; everyone sees live list (no extra heading) -->
   <div id="hubPaneLive" role="tabpanel" aria-labelledby="hubTabLive">
@@ -5601,6 +5674,12 @@ function enterHome(){
   const ban=$('timerBanner'); if(ban){ ban.classList.add('hidden'); ban.textContent=''; }
   showScreen('screenHome');
   if($('homeHello')) $('homeHello').textContent=(user.displayName||user.email||'Signed in');
+  try{
+    var nm = (user.displayName||user.email||'User');
+    var av = (nm||'?').charAt(0).toUpperCase();
+    if($('homeUserAv')) $('homeUserAv').textContent = av;
+    if($('homeUserNm')) $('homeUserNm').textContent = nm;
+  }catch(ePill){}
   const allow=canCreate();
   try{
     const admin=$('hubAdminActions');
@@ -6194,6 +6273,7 @@ async function refreshAdminOrgLists(){
 
 /* ===== Main hub tabs (Live / Past / More) — Cric360 Live layout ===== */
 function switchHubTab(which){
+  try{ document.body.classList.toggle('upd-tab-active', which==='updates'); }catch(e){}
   which = (which||'live').toLowerCase();
   if(which!=='live' && which!=='past' && which!=='more' && which!=='regs' && which!=='registrations' && which!=='games' && which!=='game' && which!=='updates' && which!=='update') which='live';
   if(which==='registrations') which='regs';
@@ -6233,7 +6313,7 @@ function switchHubTab(which){
   } else if(which==='games'){
     try{ loadGamesHub(); }catch(e){ console.warn(e); }
   } else if(which==='updates'){
-    try{ openUpdatesHub(); }catch(e){ console.warn(e); }
+    try{ document.body.classList.add('upd-tab-active'); openUpdatesHub(); }catch(e){ console.warn(e); }
   } else if(which==='more'){
     try{
       if($('hubMoreHint')){
@@ -10089,6 +10169,46 @@ function updRelativeTime(ts){
   if(that.getTime() === yest.getTime()) return 'Yesterday, ' + tstr;
   return d.toLocaleDateString([], {day:'numeric', month:'short'}) + ', ' + tstr;
 }
+function wireNotifSwipe(btn){
+  if(!btn || btn._swipeOn) return;
+  btn._swipeOn = true;
+  var startX = 0, dx = 0, active = false;
+  btn.addEventListener('touchstart', function(ev){
+    if(!ev.touches || !ev.touches[0]) return;
+    startX = ev.touches[0].clientX; dx = 0; active = true;
+    btn.classList.add('swiping');
+  }, {passive:true});
+  btn.addEventListener('touchmove', function(ev){
+    if(!active || !ev.touches || !ev.touches[0]) return;
+    dx = ev.touches[0].clientX - startX;
+    if(dx > 0) dx = 0;
+    if(dx < -120) dx = -120;
+    btn.style.transform = 'translateX('+dx+'px)';
+  }, {passive:true});
+  btn.addEventListener('touchend', function(){
+    active = false; btn.classList.remove('swiping');
+    if(dx < -72){
+      btn._swiped = true;
+      btn.classList.add('dismissing');
+      var id = btn.getAttribute('data-id');
+      setTimeout(function(){
+        try{ if(id && user) notifDocRef(user.uid, id).delete(); }catch(e){}
+      }, 200);
+    } else {
+      btn.style.transform = '';
+    }
+    dx = 0;
+  });
+}
+function updNotifBadge(d){
+  var t = String((d && d.type) || '').toLowerCase();
+  var title = String((d && d.title) || '').toLowerCase();
+  if(/live|auction|match|progress|sold|go_live|golive/.test(t) || /\blive\b/.test(title))
+    return {cls:'live', label:'LIVE'};
+  if(/deadline|soon|reg_soon|closing|countdown/.test(t) || /deadline|closing|soon/.test(title))
+    return {cls:'deadline', label:'DEADLINE'};
+  return {cls:'announce', label:'ANNOUNCEMENT'};
+}
 function updEmptyHtml(kind, msg){
   var bell = '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M32 8c-8 0-14 6-14 14v8c0 4-2 7-4 9h36c-2-2-4-5-4-9v-8c0-8-6-14-14-14z" stroke="currentColor" stroke-width="3"/><path d="M26 50c2 3 4 4 6 4s4-1 6-4" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M16 16l32 32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
   var chat = '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 18c0-4 3-8 8-8h24c5 0 8 4 8 8v18c0 4-3 8-8 8H28l-10 10v-10h-6c-5 0-8-4-8-8V18z" stroke="currentColor" stroke-width="3"/></svg>';
@@ -10142,6 +10262,7 @@ function setUpdFullscreen(on){
 }
 
 function openUpdatesHub(){
+  try{ document.body.classList.add('upd-tab-active'); }catch(e){}
   try{ ensureAdminUserDoc(); }catch(e){}
   var admin = isUpdSuperAdmin();
   if($('btnUpdNotifyAll')) $('btnUpdNotifyAll').classList.toggle('hidden', !admin);
@@ -10217,7 +10338,9 @@ function renderUpdNotifList(){
     var ts = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : (d.createdAtMs ? new Date(d.createdAtMs) : null);
     var when = updRelativeTime(ts);
     var unread = d.read !== true;
+    var badge = updNotifBadge(d);
     h += '<button type="button" class="upd-notif-card upd-notif-item'+(unread?' unread':'')+'" data-id="'+escHtml(it.id)+'" data-link="'+escHtml(d.link||'')+'" data-type="'+escHtml(d.type||'')+'" data-auction="'+escHtml(d.auctionId||'')+'" data-form="'+escHtml(d.formId||'')+'" data-game="'+escHtml(d.gameId||'')+'">'
+      + '<span class="upd-notif-badge '+badge.cls+'" aria-label="'+escHtml(badge.label)+'">'+escHtml(badge.label)+'</span>'
       + '<div class="upd-notif-title">'+escHtml(title)+'</div>'
       + (body ? '<div class="upd-notif-body">'+escHtml(body)+'</div>' : '')
       + (when ? '<div class="upd-notif-time">'+escHtml(when)+'</div>' : '')
@@ -10226,6 +10349,7 @@ function renderUpdNotifList(){
   list.innerHTML = h;
   list.querySelectorAll('.upd-notif-item').forEach(function(btn){
     btn.onclick = function(){
+      if(btn._swiped) return;
       var id = btn.getAttribute('data-id');
       try{
         notifDocRef(user.uid, id).set({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
@@ -10238,6 +10362,7 @@ function renderUpdNotifList(){
         gameId: btn.getAttribute('data-game')
       });
     };
+    wireNotifSwipe(btn);
   });
 }
 
@@ -10428,34 +10553,58 @@ function openDeveloperChat(peerUid){
         box.innerHTML = updEmptyHtml('chat', 'No messages yet. Say hello.');
         return;
       }
-      var h = '';
+      var msgs = [];
       var toMark = [];
       snap.forEach(function(doc){
         var m = doc.data() || {};
+        msgs.push({ id: doc.id, ref: doc.ref, m: m });
+      });
+      var h = '';
+      for(var i=0;i<msgs.length;i++){
+        var m = msgs[i].m || {};
         var from = m.from || '';
         var textMsg = m.text || '';
         var st = m.status || 'sent';
         var tsMsg = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
         var whenMsg = updRelativeTime(tsMsg);
         var ticks = '';
+        var prevFrom = i>0 ? (msgs[i-1].m.from||'') : '';
+        var nextFrom = i<msgs.length-1 ? (msgs[i+1].m.from||'') : '';
         if(from === 'system'){
           h += '<div class="upd-bubble-row"><div class="upd-bubble system">'+escHtml(textMsg)+'</div></div>';
         } else {
           var isMe = isAdminView ? (from === 'admin') : (from === 'user');
           if(isMe) ticks = statusTicks(st);
           var side = isMe ? 'me' : 'them';
-          h += '<div class="upd-bubble-row '+side+'"><div class="upd-bubble '+side+'">'
+          var samePrev = prevFrom === from && from !== 'system';
+          var sameNext = nextFrom === from && from !== 'system';
+          var gcls = side;
+          if(samePrev) gcls += ' group-follow group-mid';
+          else gcls += ' group-start';
+          if(!sameNext) gcls += ' group-end';
+          else gcls += ' group-has-more';
+          h += '<div class="upd-bubble-row '+gcls+'"><div class="upd-bubble '+side+'">'
             + escHtml(textMsg)
             + '<div class="upd-bubble-foot">'
             + (whenMsg ? '<span>'+escHtml(whenMsg)+'</span>' : '')
             + (ticks ? '<span aria-label="Status">'+ticks+'</span>' : '')
             + '</div></div></div>';
         }
-        if(isAdminView && from === 'user' && st === 'sent') toMark.push(doc.ref);
-        if(!isAdminView && from === 'admin' && st === 'sent') toMark.push(doc.ref);
-      });
+        if(isAdminView && from === 'user' && st === 'sent') toMark.push(msgs[i].ref);
+        if(!isAdminView && from === 'admin' && st === 'sent') toMark.push(msgs[i].ref);
+      }
+      // typing indicator when user awaits admin reply
+      var lastFrom = msgs.length ? (msgs[msgs.length-1].m.from||'') : '';
+      if(!isAdminView && lastFrom === 'user'){
+        h += '<div class="upd-bubble-row them" id="updTypingRow" aria-label="Developer is typing"><div class="upd-typing"><span></span><span></span><span></span></div></div>';
+      }
       box.innerHTML = h;
-      try{ box.scrollTop = box.scrollHeight; }catch(e){}
+      try{
+        requestAnimationFrame(function(){
+          try{ box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' }); }
+          catch(e1){ box.scrollTop = box.scrollHeight; }
+        });
+      }catch(e){ try{ box.scrollTop = box.scrollHeight; }catch(e2){} }
       toMark.forEach(function(ref){
         ref.set({ status: 'delivered', deliveredAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function(){});
       });
@@ -10553,6 +10702,12 @@ async function sendDeveloperChatMessage(){
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     if(input) input.value = '';
+    try{
+      var box = $('updChatMessages');
+      if(box) requestAnimationFrame(function(){
+        try{ box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' }); }catch(e){ box.scrollTop = box.scrollHeight; }
+      });
+    }catch(eS){}
     if(!isAdmin){
       var key = chatUid;
       if(!_updSystemReplyDone[key]){

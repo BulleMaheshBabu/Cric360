@@ -1374,37 +1374,113 @@ body.light .badge.unsold{background:rgba(225,29,72,.1)!important;color:#be123c!i
 #tabTools h1{margin:4px 0 8px;font-size:1.15rem}
 
 
-/* Owner bid layout: 6 buttons per row, compact, single-screen */
+/* Owner bid layout: everything visible without page scroll */
 #bidRegion.bid-grid-owner{
   display:grid;
   grid-template-columns:repeat(6, minmax(0, 1fr));
-  gap:6px;
-  margin:6px 0 0;
+  gap:5px;
+  margin:4px 0 0;
   align-items:stretch;
+  /* Keep actions on-screen above tab bar */
+  position:sticky;
+  bottom:calc(56px + env(safe-area-inset-bottom, 0px));
+  z-index:35;
+  padding:8px 6px 6px;
+  background:linear-gradient(180deg, transparent 0%, var(--bg-base, #0b0f19) 18%, var(--bg-base, #0b0f19) 100%);
+  border-radius:14px 14px 0 0;
 }
 #bidRegion.bid-grid-owner .bidRaise,
 #bidRegion.bid-grid-owner #btnQuitLot,
 #bidRegion.bid-grid-owner #btnOpenCustomBid{
-  min-height:48px;
+  min-height:42px;
   min-width:0;
-  padding:8px 4px;
-  font-size:13px;
+  padding:6px 2px;
+  font-size:12px;
   font-weight:800;
-  border-radius:12px;
+  border-radius:10px;
   margin:0;
   width:100%;
+  line-height:1.15;
 }
+/* Opening bid: full width but shorter */
 #bidRegion.bid-grid-owner .bidRaise-open,
 #bidRegion .bidRaise-open{
   grid-column:1 / -1;
-  min-height:56px;
-  font-size:18px;
-  border-radius:16px;
+  min-height:48px;
+  font-size:16px;
+  border-radius:12px;
   letter-spacing:.02em;
 }
-#bidRegion.bid-grid-owner #btnQuitLot{ grid-column:1 / -1; }
-#bidRegion.bid-grid-owner #btnOpenCustomBid{ grid-column:1 / -1; }
-#bidRegion.bid-grid-owner .bid-status-msg{ grid-column:1 / -1; margin:0; }
+/* Quit + Ultimate share one row (not stacked full-width) */
+#bidRegion.bid-grid-owner #btnQuitLot{
+  grid-column:span 3;
+  min-height:44px;
+  font-size:13px;
+}
+#bidRegion.bid-grid-owner #btnOpenCustomBid{
+  grid-column:span 3;
+  min-height:44px;
+  font-size:13px;
+}
+/* If only Quit (no ultimate): full width */
+#bidRegion.bid-grid-owner #btnQuitLot:only-of-type,
+#bidRegion.bid-grid-owner #btnQuitLot:last-child:first-child{
+  grid-column:1 / -1;
+}
+#bidRegion.bid-grid-owner .bid-status-msg{ grid-column:1 / -1; margin:0; font-size:13px; }
+
+/* Compact auction stage so bids fit above fold */
+#screenAuction .player-stage{
+  padding:8px 10px!important;
+  margin:4px 0!important;
+}
+#screenAuction .player-name{
+  font-size:1.05rem!important;
+  margin:2px 0 0!important;
+  line-height:1.25!important;
+}
+#screenAuction .timer-box{
+  margin:4px 0!important;
+  padding:6px 8px!important;
+  font-size:1.05rem!important;
+}
+#screenAuction #leadLine{
+  margin:2px 0 4px!important;
+  font-size:13px!important;
+}
+#screenAuction .recent-line{
+  margin:4px 0 0!important;
+  font-size:12px!important;
+  padding:4px 0!important;
+}
+/* Host extend/sold row also compact */
+#screenAuction .host-now-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:6px;
+  margin:6px 0 0;
+}
+#screenAuction .host-now-actions .btn-block{
+  min-height:42px!important;
+  margin:0!important;
+  font-size:13px!important;
+  padding:6px 4px!important;
+}
+/* Default (non-owner) bid chips: denser 4-up */
+#bidRegion{
+  display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px;
+  align-items:stretch;justify-content:flex-start;
+}
+#bidRegion .bidRaise,
+#bidRegion #btnQuitLot,
+#bidRegion > button{
+  flex:1 1 calc(25% - 6px);min-width:56px;min-height:48px;
+  padding:8px 4px;font-size:14px;font-weight:800;border-radius:12px;
+  touch-action:manipulation;
+}
+#bidRegion #btnQuitLot{flex:1 1 calc(50% - 6px)}
+#bidRegion #btnOpenCustomBid{flex:1 1 calc(50% - 6px)}
+
 /* Sticky stats under toolbar — focusable */
 .auc-stats-sticky{
   display:grid;
@@ -6865,13 +6941,10 @@ function startAuctionLive(id){
     console.error('auction live snapshot', err);
     showAppError('Lost connection to live auction. '+friendlyError(err));
   });
-  // RTDB presence: host + owners + helpers announce online/offline/left
+  // RTDB presence: every signed-in client in the live room joins + listens
   try{
-    if(user && (ownerMode || helperMode || (T && T.ownerId === user.uid))){
+    if(user){
       presenceJoin('auction', id);
-    } else if(user){
-      // Viewers still listen so they hear owner status
-      presenceListen('auction', id);
     }
   }catch(e){ console.warn('presence start', e); }
   ensureIntermissionTicker();
@@ -6941,17 +7014,23 @@ function presenceSpeak(kind, d, status){
   }
 }
 
-function presenceHandleSnap(kind, uid, d){
+function presenceHandleSnap(kind, uid, d, opts){
+  opts = opts || {};
   if(!uid || !d) return;
-  // Skip pure first fill noise: seed cache only until ready
   var prev = window._presenceCache[uid];
   var st = String(d.status || (d.online ? 'online' : 'offline'));
   window._presenceCache[uid] = st;
-  if(!window._presenceReady) return;
   if(user && uid === user.uid) return;
+  // Seed phase: cache only, no speak
+  if(!window._presenceReady && !opts.force) return;
   if(prev === st) return;
-  // First time we see a user online — no "back online" on first join
+  // First sighting as online = joined quietly (no "back online")
   if(prev == null && st === 'online') return;
+  // Only announce host/owner/helper for auction rooms
+  if(kind !== 'game'){
+    var role = String(d.role || '');
+    if(role && role !== 'host' && role !== 'owner' && role !== 'helper') return;
+  }
   if(st === 'offline' || st === 'online' || st === 'left'){
     presenceSpeak(kind, Object.assign({ uid: uid }, d), st);
   }
@@ -6959,14 +7038,19 @@ function presenceHandleSnap(kind, uid, d){
 
 function presenceStopListen(){
   try{
-    if(window._presenceRef && window._presenceCb){
-      window._presenceRef.off('value', window._presenceCb);
+    if(window._presenceRef){
+      try{ window._presenceRef.off(); }catch(e0){}
     }
   }catch(e){}
   window._presenceRef = null;
   window._presenceCb = null;
+  window._presenceChildCb = null;
   window._presenceCache = {};
   window._presenceReady = false;
+  if(window._presenceHeartbeat){
+    try{ clearInterval(window._presenceHeartbeat); }catch(e1){}
+    window._presenceHeartbeat = null;
+  }
 }
 
 function presenceListen(kind, roomId){
@@ -6978,19 +7062,41 @@ function presenceListen(kind, roomId){
   var path = 'presence/' + (kind === 'game' ? 'games' : 'auctions') + '/' + roomId;
   var ref = rtdb.ref(path);
   window._presenceRef = ref;
+  // 1) Seed cache from full tree (no announcements)
   window._presenceCb = function(snap){
     try{
       var val = snap.val() || {};
       Object.keys(val).forEach(function(uid){
-        presenceHandleSnap(kind, uid, val[uid]);
+        var d = val[uid] || {};
+        var st = String(d.status || (d.online ? 'online' : 'offline'));
+        window._presenceCache[uid] = st;
       });
-      // After first full value, enable transition announces
       if(!window._presenceReady){
-        setTimeout(function(){ window._presenceReady = true; }, 400);
+        setTimeout(function(){ window._presenceReady = true; }, 500);
       }
-    }catch(e){ console.warn('presence listen', e); }
+    }catch(e){ console.warn('presence seed', e); }
   };
-  try{ ref.on('value', window._presenceCb); }catch(e){ console.warn('presence on', e); }
+  // 2) Child changes = real transitions after seed
+  window._presenceChildCb = function(snap){
+    try{
+      if(!window._presenceReady) return;
+      presenceHandleSnap(kind, snap.key, snap.val() || {}, { force: true });
+    }catch(e){ console.warn('presence child', e); }
+  };
+  try{
+    ref.once('value', window._presenceCb);
+    ref.on('child_changed', window._presenceChildCb);
+    ref.on('child_added', function(snap){
+      try{
+        if(!window._presenceReady){
+          var d = snap.val() || {};
+          window._presenceCache[snap.key] = String(d.status || (d.online ? 'online' : 'offline'));
+          return;
+        }
+        presenceHandleSnap(kind, snap.key, snap.val() || {}, { force: true });
+      }catch(e){}
+    });
+  }catch(e){ console.warn('presence on', e); }
 }
 
 function presenceBuildPayload(kind, status){
@@ -7052,11 +7158,27 @@ async function presenceJoin(kind, roomId){
   var offlinePayload = presenceBuildPayload(kind, 'offline');
   try{
     await ref.set(onlinePayload);
-    // Server marks offline if process dies / network drops
     await ref.onDisconnect().set(offlinePayload);
-  }catch(e){ console.warn('presenceJoin', e); }
+  }catch(e){
+    console.error('presenceJoin FAILED', e && (e.code || e.message) || e);
+    // Common: RTDB rules not published — presence will stay silent
+    try{
+      if(String(e && e.code || '').indexOf('permission') >= 0 || /permission/i.test(String(e && e.message || ''))){
+        console.error('Deploy Realtime Database rules (database.rules.json), not only Firestore rules.');
+      }
+    }catch(e2){}
+  }
   presenceListen(kind, roomId);
   presenceWireVisibility();
+  // Heartbeat keeps "online" fresh; helps after flaky mobile networks
+  if(window._presenceHeartbeat) clearInterval(window._presenceHeartbeat);
+  window._presenceHeartbeat = setInterval(function(){
+    try{
+      if(window._presenceSelfLeft || !window._myPresenceRef) return;
+      if(document.hidden) return;
+      presenceSetStatusQuiet('online');
+    }catch(e){}
+  }, 25000);
 }
 
 /**
@@ -14098,10 +14220,10 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   var hostNow = !!(user && T && T.ownerId === user.uid);
   if(hostNow && b.phase==='contest'){
     hostBtns =
-      '<div class="btn-stack host-always-actions" style="margin-top:12px" role="group" aria-label="Host lot actions">'+
-      '<button type="button" id="btnHostExtendNow" class="btn-sec btn-block">Extend timer</button>'+
-      (b.leaderTeamId ? '<button type="button" id="btnHostSoldNow" class="btn-ok btn-block">Sold</button>' : '')+
-      '<button type="button" id="btnHostUnsoldNow" class="btn-danger btn-block">Unsold</button></div>';
+      '<div class="host-now-actions host-always-actions" role="group" aria-label="Host lot actions">'+
+      '<button type="button" id="btnHostExtendNow" class="btn-sec">Extend</button>'+
+      (b.leaderTeamId ? '<button type="button" id="btnHostSoldNow" class="btn-ok">Sold</button>' : '<span></span>')+
+      '<button type="button" id="btnHostUnsoldNow" class="btn-danger">Unsold</button></div>';
   }
 
   const maxSec=rules.contestSeconds||30;

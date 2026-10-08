@@ -2109,6 +2109,123 @@ body.show-user-pill .hub-user-pill{display:inline-flex}
 #homeHello.hub-hello-hidden{display:none!important}
 body.upd-tab-active #homeHello{display:none!important}
 
+
+/* ===== Clean auction UI pass ===== */
+#screenAuction .auc-topbar{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  position:sticky;top:0;z-index:50;
+  background:var(--bg-base,#0b0f19);
+  border-bottom:1px solid var(--border);
+}
+#screenAuction .auc-leave-top{
+  min-height:40px;min-width:40px;padding:0 12px;border-radius:12px;
+  font-size:13px;font-weight:800;flex-shrink:0;
+}
+#screenAuction .auc-toolbar{flex:1;min-width:0}
+#screenAuction .auc-stats-sticky{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
+  margin:8px 0 10px;padding:0;
+}
+#screenAuction .stat-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;min-height:64px;padding:10px 8px;margin:0;
+  border-radius:14px;
+  border:1.5px solid rgba(56,189,248,.28);
+  background:linear-gradient(165deg, rgba(30,41,59,.95) 0%, rgba(15,23,42,.98) 100%);
+  box-shadow:0 4px 14px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.06);
+  color:var(--text);font-weight:700;font-size:12px;letter-spacing:.04em;
+  text-transform:uppercase;cursor:pointer;
+}
+#screenAuction .stat-btn strong{
+  font-size:1.35rem;font-weight:900;letter-spacing:0;
+  text-transform:none;color:#38bdf8;
+}
+#screenAuction .stat-btn#statSold{border-color:rgba(16,185,129,.4)}
+#screenAuction .stat-btn#statSold strong{color:#34d399}
+#screenAuction .stat-btn#statUnsold{border-color:rgba(244,63,94,.35)}
+#screenAuction .stat-btn#statUnsold strong{color:#fb7185}
+#screenAuction .stat-btn#statRemaining{border-color:rgba(251,191,36,.35)}
+#screenAuction .stat-btn#statRemaining strong{color:#fbbf24}
+body.light #screenAuction .stat-btn{
+  background:linear-gradient(165deg,#fff 0%,#f8fafc 100%);
+  box-shadow:0 2px 10px rgba(15,23,42,.08);
+}
+#screenAuction #bidRegion.bid-grid-owner,
+#screenAuction #bidRegion{
+  position:sticky;
+  bottom:calc(58px + env(safe-area-inset-bottom, 0px));
+  z-index:40;
+  margin:8px 0 0;
+  padding:10px 8px 8px;
+  background:var(--bg-surface,#131a29);
+  border:1px solid var(--border);
+  border-radius:16px 16px 12px 12px;
+  box-shadow:0 -6px 20px rgba(0,0,0,.35);
+}
+#screenAuction #bidRegion .bidRaise[disabled],
+#screenAuction #bidRegion button[disabled]{
+  opacity:.45;cursor:not-allowed;filter:grayscale(.15);
+}
+#screenAuction .bid-lead-banner{
+  grid-column:1 / -1;text-align:center;margin:0 0 4px;
+  font-size:13px;font-weight:800;color:#34d399;
+}
+#screenWait .wait-hero{text-align:center;padding:16px 12px 8px}
+#screenWait .wait-hero h1{margin:0 0 8px;font-size:1.15rem;font-weight:800}
+#screenWait .wait-banner{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;
+  background:rgba(0,168,255,.12);border:1px solid rgba(0,168,255,.35);color:#7dd3fc;
+}
+#screenWait .wait-team-card{
+  margin:16px 0;padding:18px 16px;border-radius:16px;
+  border:1.5px solid rgba(56,189,248,.3);
+  background:linear-gradient(160deg, rgba(30,41,59,.9), rgba(15,23,42,.95));
+  box-shadow:0 8px 24px rgba(0,0,0,.3);
+  text-align:center;
+}
+#screenWait .wait-team-card .wt-name{
+  font-size:1.4rem;font-weight:900;margin:0 0 6px;letter-spacing:.02em;
+}
+#screenWait .wait-team-card .wt-meta{
+  font-size:14px;color:var(--muted);font-weight:600;margin:0;line-height:1.45;
+}
+#screenWait .wait-owners-title{
+  font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);margin:16px 0 8px;
+}
+#screenWait .wait-owner-row{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;margin:0 0 8px;
+  border-radius:12px;border:1px solid var(--border);background:var(--bg-surface);
+}
+#screenWait .wait-owner-row .av{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#00A8FF,#6366f1);
+  display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;
+}
+#screenWait .wait-owner-row .meta strong{display:block;font-size:14px}
+#screenWait .wait-owner-row .meta span{font-size:12px;color:var(--muted)}
+#playerSearchModal #psHint{display:none!important}
+#playerSearchModal #psInput{
+  width:100%;min-height:48px;font-size:16px;border-radius:14px;
+  border:1.5px solid var(--border);padding:0 14px;margin:0;
+  background:var(--bg-surface);color:var(--text);
+}
+#playerSearchModal #psResults .ps-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 14px;margin:0 0 8px;border-radius:12px;
+  border:1px solid var(--border);background:var(--bg-surface);
+  text-align:left;width:100%;font:inherit;color:inherit;
+}
+#playerSearchModal #psResults .ps-row .ps-name{font-weight:800;font-size:15px}
+#playerSearchModal #psResults .ps-row .ps-status{
+  font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;flex-shrink:0;
+}
+#playerSearchModal #psResults .ps-row .ps-status.sold{background:rgba(16,185,129,.2);color:#34d399}
+#playerSearchModal #psResults .ps-row .ps-status.unsold{background:rgba(244,63,94,.2);color:#fb7185}
+#playerSearchModal #psResults .ps-row .ps-status.pending{background:rgba(251,191,36,.2);color:#fbbf24}
+#screenAuction #aucHostFooter #btnLeaveAuc{display:none!important}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -2580,12 +2697,14 @@ body.upd-tab-active #homeHello{display:none!important}
 </section>
 
 <section id="screenWait" class="wrap panel hidden" role="region" aria-labelledby="waitTitle">
-  <button type="button" id="btnWaitHome" class="btn-sec" aria-label="Back to home">Back to home</button>
-  <h1 id="waitTitle" tabindex="-1">Waiting room</h1>
-  <p id="waitStatus" role="status" style="font-weight:700"></p>
-  <div id="waitTeam" class="player-stage hidden" style="margin-top:12px"></div>
-  <div id="waitOwners" style="margin-top:14px"></div>
-  <p id="waitHint" style="color:var(--muted);margin-top:12px"></p>
+  <button type="button" id="btnWaitHome" class="btn-sec auc-leave-top" aria-label="Back to home">Back</button>
+  <div class="wait-hero">
+    <h1 id="waitTitle" tabindex="-1">Auction</h1>
+    <p id="waitStatus" class="wait-banner" role="status">Waiting for host to begin</p>
+  </div>
+  <div id="waitTeam" class="wait-team-card hidden" role="region" aria-label="Your team"></div>
+  <div id="waitOwners" aria-label="Teams"></div>
+  <p id="waitHint" class="sr-only"></p>
 </section>
 
 <section id="screenWelcome" class="wrap panel hidden" role="region" aria-labelledby="welcomeTitle">
@@ -2870,6 +2989,7 @@ body.upd-tab-active #homeHello{display:none!important}
   <div class="wrap auc-host-wrap">
     <!-- Sticky host utilities — visible on ALL admin tabs -->
     <div class="auc-topbar" role="region" aria-label="Auction controls">
+      <button type="button" id="btnLeaveAuc" class="btn-sec auc-leave-top hidden" aria-label="Leave auction">Leave</button>
       <div class="auc-toolbar" role="toolbar" aria-label="Messages and voice call">
         <div class="auc-tb-left">
           <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
@@ -2917,7 +3037,6 @@ body.upd-tab-active #homeHello{display:none!important}
       <div id="aucPlayer" role="region" aria-label="Current player and timer"></div>
       <div class="auc-home-row" id="aucHostFooter" style="display:flex;flex-direction:column;gap:8px">
         <button type="button" id="btnPauseAuc" class="btn-sec btn-block hidden">Pause bidding</button>
-        <button type="button" id="btnLeaveAuc" class="btn-sec btn-block hidden">Leave auction</button>
         <button type="button" id="btnEndAuction" class="btn-sec btn-block hidden">End this auction</button>
       </div>
     </div>
@@ -3011,8 +3130,8 @@ body.upd-tab-active #homeHello{display:none!important}
       <h2 id="psTitle" tabindex="-1" style="margin:0;font-size:1.15rem">Search player</h2>
       <button type="button" id="btnPsClose" class="btn-sec" style="min-height:40px" aria-label="Close search">Close</button>
     </div>
-    <label for="psInput">Player name</label>
-    <input id="psInput" type="search" autocomplete="off" enterkeyhint="search" placeholder="" aria-label="Type a player name" style="width:100%;min-height:48px;font-size:16px" />
+    <label for="psInput" class="sr-only">Player name</label>
+    <input id="psInput" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search player…" aria-label="Search player" />
     <p id="psHint" style="color:var(--muted);font-size:13px;margin:8px 0 0">Type to find players. Sold shows team and price.</p>
     <div id="psResults" role="list" aria-label="Search results" style="margin-top:12px;max-height:50vh;overflow:auto"></div>
   </div>
@@ -5927,12 +6046,12 @@ function enterWaitingRoom(id){
   }catch(e){}
   showScreen('screenWait', { skipPush: true });
   try{ if(typeof setupBgmPlay==='function') setupBgmPlay('waiting'); }catch(e){}
-  $('waitStatus').textContent = 'Connecting…';
+  $('waitStatus').textContent = 'Waiting for host to begin';
   $('waitTeam').classList.add('hidden');
   $('waitOwners').innerHTML = '';
-  $('waitHint').textContent = 'Stay on this screen. You will move automatically when the host starts the auction.';
+  if($('waitHint')) $('waitHint').textContent = '';
   focusEl($('waitTitle'));
-  announce('Waiting room. Waiting for host approval.');
+  announce('Waiting for host to begin');
   try{
     sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenWait', auctionId:id, at:Date.now() }));
   }catch(e){}
@@ -5998,10 +6117,10 @@ function showSetupLobby(id, data){
   }catch(e){}
   showScreen('screenWait');
   if($('waitTitle')) $('waitTitle').textContent = (data && data.title) || 'Auction';
-  $('waitStatus').textContent = 'Waiting host to begin the auction.';
-  $('waitHint').textContent = '';
+  $('waitStatus').textContent = 'Waiting for host to begin';
+  if($('waitHint')) $('waitHint').textContent = '';
   $('waitTeam').classList.remove('hidden');
-  $('waitTeam').innerHTML = '<p id="waitRoleLine" tabindex="-1" style="margin:8px 0;font-weight:700">You are a viewer for this auction. Enjoy once it begins.</p>';
+  $('waitTeam').innerHTML = '<p class="wt-name" id="waitRoleLine" tabindex="-1">Viewer</p><p class="wt-meta">You will see the auction when the host goes live</p>';
   function paintLobby(d){
     var h = '<h2 style="font-size:1rem;margin-top:12px">Teams</h2>';
     var owners = (d.owners||[]).filter(function(o){ return o && o.teamId; });
@@ -6051,49 +6170,53 @@ function renderWaitingRoom(id, data){
   if($('waitTitle')) $('waitTitle').textContent = data.title || 'Auction';
 
   if(meOwner && meOwner.teamId){
-    // Approved owner
-    $('waitStatus').textContent = 'Waiting host to begin.';
+    $('waitStatus').textContent = 'Waiting for host to begin';
     $('waitTeam').classList.remove('hidden');
-    var line = 'You are assigned to team '+(meOwner.teamName||meOwner.teamId);
-    $('waitTeam').innerHTML = '<p id="waitTeamName" class="player-name" tabindex="-1" style="margin:8px 0;font-size:1.25rem">'+line+'</p>';
+    var teamNm = meOwner.teamName||meOwner.teamId||'Team';
+    var whoNm = meOwner.displayName||meOwner.email||'You';
+    $('waitTeam').innerHTML =
+      '<p class="wt-name" id="waitTeamName" tabindex="-1">'+teamNm+'</p>'+
+      '<p class="wt-meta">Owner · '+whoNm+'</p>';
     focusEl($('waitTeamName'));
     if(window._ttsAssignKey !== (meOwner.teamId||'')+'|setup'){
       window._ttsAssignKey = (meOwner.teamId||'')+'|setup';
-      announce(line+'. Waiting host to begin.');
-      sayEvent(line+'. Waiting for the host to begin the auction.', 'wait');
+      announce(teamNm+' team. Waiting for host to begin.');
+      sayEvent(teamNm+' team. Waiting for the host to begin the auction.', 'wait');
     }
   } else if(mePending){
-    $('waitStatus').textContent = 'Waiting for host approval.';
+    $('waitStatus').textContent = 'Waiting for host approval';
     $('waitTeam').classList.add('hidden');
     if(window._ttsWaitKey !== 'pending'){
       window._ttsWaitKey = 'pending';
       sayEvent('Waiting for host approval and team assignment.', 'wait');
     }
   } else {
-    // Viewer (or not yet assigned)
-    $('waitStatus').textContent = 'Waiting host to begin the auction.';
+    $('waitStatus').textContent = 'Waiting for host to begin';
     $('waitTeam').classList.remove('hidden');
-    $('waitTeam').innerHTML = '<p id="waitRoleLine" tabindex="-1" style="margin:8px 0;font-weight:700">You are a viewer for this auction. Enjoy once it begins.</p>';
+    $('waitTeam').innerHTML = '<p class="wt-name" id="waitRoleLine" tabindex="-1">Viewer</p><p class="wt-meta">You will see the auction when the host goes live</p>';
   }
 
-  // Single-line list for screen readers: "Name of Team team"
-  var h = '<h2 style="font-size:1rem;margin-top:12px">Teams</h2>';
+  var h = '<p class="wait-owners-title">Teams in this auction</p>';
   var listed = false;
   owners.forEach(function(o){
     if(!o.teamId) return;
     listed = true;
     var who = o.displayName||o.email||'Owner';
     var team = o.teamName||o.teamId;
-    h += '<div class="panel" style="margin-top:6px;padding:10px" aria-label="'+who+' of '+team+' team">'+
-      '<strong>'+who+'</strong> of <strong>'+team+'</strong> team</div>';
+    var av = (team||'?').charAt(0).toUpperCase();
+    h += '<div class="wait-owner-row" aria-label="'+team+' team, owner '+who+'">'+
+      '<span class="av" aria-hidden="true">'+av+'</span>'+
+      '<span class="meta"><strong>'+team+'</strong><span>'+who+'</span></span></div>';
   });
   if(!listed){
-    (data.teams||[]).forEach(function(t){
+    (data.teams||[]).forEach(function(tm){
       listed = true;
-      h += '<div class="panel" style="margin-top:6px;padding:10px"><strong>'+(t.name||'Team')+'</strong></div>';
+      var nm = tm.name||'Team';
+      var av = nm.charAt(0).toUpperCase();
+      h += '<div class="wait-owner-row" aria-label="'+nm+'"><span class="av" aria-hidden="true">'+av+'</span><span class="meta"><strong>'+nm+'</strong><span>Open</span></span></div>';
     });
   }
-  if(!listed) h += '<p style="color:var(--muted)">No teams assigned yet.</p>';
+  if(!listed) h += '<p style="color:var(--muted);text-align:center">No teams assigned yet</p>';
   if($('waitOwners')) $('waitOwners').innerHTML = h;
 }
 
@@ -12294,7 +12417,7 @@ function openPlayerSearch(){
       // Mobile: focus should open keyboard
     }, 50);
   }
-  try{ if(typeof announce==='function') announce('Search player. Type a name.'); }catch(e){}
+  try{ if(typeof announce==='function') announce('Search player'); }catch(e){}
 }
 function closePlayerSearch(){
   const modal = $('playerSearchModal');
@@ -12310,7 +12433,7 @@ function runPlayerSearch(){
     return;
   }
   if(!q){
-    box.innerHTML = '<p style="color:var(--muted)">Start typing a player name.</p>';
+    box.innerHTML = '';
     return;
   }
   const matches = [];
@@ -12347,10 +12470,11 @@ function runPlayerSearch(){
       badge = 'badge unsold';
     }
     const role = p.role || p.type || '';
-    h += '<div role="listitem" class="panel" style="margin:0 0 8px;padding:12px">'+
-      '<p style="margin:0;font-weight:800">'+(p.name||'')+'</p>'+
-      '<p style="margin:4px 0 0;font-size:13px"><span class="'+badge+'">'+status+'</span>'+
-      (role ? (' · '+role) : '')+detail+'</p></div>';
+    var stCls = p.sold ? 'sold' : (p.unsold ? 'unsold' : 'pending');
+    var stLabel = p.sold ? ('Sold'+(detail||'')) : (p.unsold ? 'Unsold' : ('#'+(m.i+1)+(role?(' · '+role):'')));
+    h += '<div role="listitem" class="ps-row" aria-label="'+(p.name||'')+', '+stLabel+'">'+
+      '<span class="ps-name">'+(p.name||'')+'</span>'+
+      '<span class="ps-status '+stCls+'">'+status+(p.sold && detail ? detail.replace(/^ · /,' · ') : '')+'</span></div>';
   });
   if(matches.length > 40) h += '<p style="color:var(--muted);font-size:13px">Showing 40 of '+matches.length+' matches.</p>';
   box.innerHTML = h;
@@ -14196,9 +14320,30 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
       });
       raiseBtns+='<button type="button" class="btn-danger" id="btnQuitLot" aria-label="Quit this player">Quit</button>';
     }
+  } else if(ownerMode && b.leaderTeamId===myTeamId && b.phase==='contest'){
+    raiseBtns = '<p class="bid-lead-banner" role="status">You are leading</p>';
+    const minIncL=rules.minRaise||10;
+    const maxIncL=rules.maxRaise||minIncL*10;
+    var raiseSetL = [minIncL];
+    if(rules.customOn && rules.customBids){
+      rules.customBids.forEach(function(inc){
+        inc = Number(inc);
+        if(inc>=minIncL && inc<=maxIncL && raiseSetL.indexOf(inc)<0) raiseSetL.push(inc);
+      });
+    }
+    raiseSetL.sort(function(a,b){ return a-b; });
+    raiseSetL = raiseSetL.slice(0, 6);
+    raiseSetL.forEach(function(inc, i){
+      const tg = b.price + inc;
+      const cls = (i===0) ? 'btn-ok bidRaise' : 'btn-sec bidRaise';
+      raiseBtns+='<button type="button" class="'+cls+'" disabled aria-disabled="true" data-inc="'+inc+'" data-target="'+tg+'" aria-label="Increase by '+inc+', disabled while you lead">+'+inc+'</button>';
+    });
+    raiseBtns+='<button type="button" class="btn-danger" id="btnQuitLot" disabled aria-disabled="true" aria-label="Quit, disabled while you lead">Quit</button>';
+    if(rules.ultimateOn){
+      raiseBtns+='<button type="button" id="btnOpenCustomBid" class="btn-sec" disabled aria-disabled="true" aria-label="Ultimate bid, disabled while you lead">Ultimate bid</button>';
+    }
   } else if(ownerMode){
-    if(b.leaderTeamId===myTeamId) raiseBtns='<p class="lead-line bid-status-msg" role="status">You are leading</p>';
-    else if(myStatusOut(b)) raiseBtns='<p class="bid-status-msg" role="status">You cannot bid on this player</p>';
+    if(myStatusOut(b)) raiseBtns='<p class="bid-status-msg" role="status">You cannot bid on this player</p>';
   }
 
   // Ultimate / custom bid — composer only (keyboard + send); hides keys + tab bar
@@ -14244,7 +14389,7 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
     '</div>'+
     '<p class="timer-box" id="pTimer" role="timer" aria-label="Time remaining '+sec+' seconds"><span aria-hidden="true">'+sec+'s</span><span class="sr-only">Time remaining '+sec+' seconds</span></p>'+
     '<p class="'+leadCls+'" id="leadLine" aria-live="off">'+leadText+'</p>'+
-    '<div id="bidRegion" class="'+(ownerMode && canRaise ? 'bid-grid-owner' : '')+'" role="group" aria-label="Bidding actions">'+
+    '<div id="bidRegion" class="'+(ownerMode && (canRaise || (b.leaderTeamId===myTeamId && b.phase==='contest')) ? 'bid-grid-owner' : '')+'" role="group" aria-label="Bidding actions">'+
     raiseBtns+chat+
     '</div>'+
     hostBtns+

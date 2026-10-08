@@ -2226,6 +2226,51 @@ body.light #screenAuction .stat-btn{
 #playerSearchModal #psResults .ps-row .ps-status.pending{background:rgba(251,191,36,.2);color:#fbbf24}
 #screenAuction #aucHostFooter #btnLeaveAuc{display:none!important}
 
+
+/* App-style back control (no "Leave" word) */
+#screenAuction .auc-back-btn,
+#screenWait .auc-back-btn{
+  width:44px;min-width:44px;height:44px;min-height:44px;padding:0;
+  border-radius:12px;font-size:22px;font-weight:700;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+/* Amazon-style player search: results top, keyboard dock bottom */
+#playerSearchModal.ps-amazon{
+  align-items:stretch;justify-content:flex-end;padding:0;
+  background:rgba(0,0,0,.55);
+}
+#playerSearchModal.ps-amazon .ps-sheet{
+  width:100%;max-width:100%;height:100%;max-height:100%;
+  margin:0;border-radius:0;display:flex;flex-direction:column;
+  background:var(--bg-base,#0b0f19);padding:0;
+}
+#playerSearchModal.ps-amazon .ps-top{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#playerSearchModal.ps-amazon .ps-results{
+  flex:1;overflow:auto;padding:10px 12px;
+  -webkit-overflow-scrolling:touch;
+}
+#playerSearchModal.ps-amazon .ps-dock{
+  flex-shrink:0;padding:10px 12px;
+  padding-bottom:max(12px, env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);
+  background:var(--bg-surface,#131a29);
+}
+#playerSearchModal.ps-amazon .ps-row{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:12px 12px;margin:0 0 8px;border-radius:12px;
+  border:1px solid var(--border);background:var(--bg-surface);
+}
+#playerSearchModal.ps-amazon .ps-sl{
+  font-weight:800;font-size:13px;color:var(--muted);min-width:2.2em;padding-top:2px;
+}
+#playerSearchModal.ps-amazon .ps-main{flex:1;min-width:0}
+#playerSearchModal.ps-amazon .ps-name{font-weight:800;font-size:15px;display:block}
+#playerSearchModal.ps-amazon .ps-status{font-size:13px;font-weight:600;color:var(--muted);margin-top:2px;display:block}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -2697,7 +2742,7 @@ body.light #screenAuction .stat-btn{
 </section>
 
 <section id="screenWait" class="wrap panel hidden" role="region" aria-labelledby="waitTitle">
-  <button type="button" id="btnWaitHome" class="btn-sec auc-leave-top" aria-label="Back to home">Back</button>
+  <button type="button" id="btnWaitHome" class="btn-sec auc-back-btn" aria-label="Back">←</button>
   <div class="wait-hero">
     <h1 id="waitTitle" tabindex="-1">Auction</h1>
     <p id="waitStatus" class="wait-banner" role="status">Waiting for host to begin</p>
@@ -2989,7 +3034,7 @@ body.light #screenAuction .stat-btn{
   <div class="wrap auc-host-wrap">
     <!-- Sticky host utilities — visible on ALL admin tabs -->
     <div class="auc-topbar" role="region" aria-label="Auction controls">
-      <button type="button" id="btnLeaveAuc" class="btn-sec auc-leave-top hidden" aria-label="Leave auction">Leave</button>
+      <button type="button" id="btnLeaveAuc" class="btn-sec auc-back-btn hidden" aria-label="Back">←</button>
       <div class="auc-toolbar" role="toolbar" aria-label="Messages and voice call">
         <div class="auc-tb-left">
           <button type="button" id="btnMsgFab" class="btn-sec msg-fab hidden" aria-label="Room message">Message</button>
@@ -3124,21 +3169,20 @@ body.light #screenAuction .stat-btn{
 </section>
 
 
-<div id="playerSearchModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="psTitle">
-  <div class="modal-box" style="max-width:520px;width:100%">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
-      <h2 id="psTitle" tabindex="-1" style="margin:0;font-size:1.15rem">Search player</h2>
-      <button type="button" id="btnPsClose" class="btn-sec" style="min-height:40px" aria-label="Close search">Close</button>
+<div id="playerSearchModal" class="modal hidden ps-amazon" role="dialog" aria-modal="true" aria-labelledby="psTitle">
+  <div class="modal-box ps-sheet">
+    <div class="ps-top">
+      <button type="button" id="btnPsClose" class="btn-sec auc-back-btn" aria-label="Back">←</button>
+      <h2 id="psTitle" tabindex="-1" style="margin:0;font-size:1.05rem;flex:1">Search</h2>
     </div>
-    <label for="psInput" class="sr-only">Player name</label>
-    <input id="psInput" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search player…" aria-label="Search player" />
-    <p id="psHint" style="color:var(--muted);font-size:13px;margin:8px 0 0">Type to find players. Sold shows team and price.</p>
-    <div id="psResults" role="list" aria-label="Search results" style="margin-top:12px;max-height:50vh;overflow:auto"></div>
+    <div id="psResults" class="ps-results" role="list" aria-label="Search results"></div>
+    <div class="ps-dock">
+      <label for="psInput" class="sr-only">Search player</label>
+      <input id="psInput" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search player…" aria-label="Search player" />
+      <p id="psHint" class="sr-only">Type to search roster and squads</p>
+    </div>
   </div>
-</div>
-
-
-<div id="voiceRingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="vrTitle">
+</div> class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="vrTitle">
   <div class="modal-box">
     <h2 id="vrTitle" tabindex="-1" style="margin-top:0">Incoming voice call</h2>
     <p id="vrMsg">Host wants to talk with you.</p>
@@ -4592,9 +4636,14 @@ function focusBidArea(){
   if(document.body.classList.contains('chat-open')) return;
   dismissKeyboard();
   const region = $('bidRegion');
-  // Always first raise / open-bid button for direct touch + TalkBack
   let first = null;
-  if(region){
+  // Prefer the same raise chip the user last used (TalkBack double-tap stays put)
+  var wantInc = window._lastRaiseInc;
+  if(region && wantInc != null && wantInc !== ''){
+    first = region.querySelector('button.bidRaise[data-inc="'+wantInc+'"]:not([disabled])');
+    if(!first) first = region.querySelector('button.bidRaise[data-inc="'+wantInc+'"]');
+  }
+  if(!first && region){
     first = region.querySelector('button.bidRaise:not([disabled])');
   }
   if(!first) first = document.querySelector('#bidRegion button.bidRaise:not([disabled])');
@@ -4607,11 +4656,9 @@ function focusBidArea(){
     return;
   }
   try{ first.setAttribute('tabindex','0'); }catch(e){}
-  // Double rAF so DOM from re-render is ready before focus (TalkBack + touch)
   requestAnimationFrame(function(){
     requestAnimationFrame(function(){
       try{ focusEl(first); }catch(e){}
-      try{ first.scrollIntoView({ block:'center', behavior:'auto' }); }catch(e){}
     });
   });
 }
@@ -8177,7 +8224,17 @@ function renderWatch(data){
         let lh='<button type="button" id="wListBack" class="btn-sec">Back to list types</button>'+
           '<h2 tabindex="-1" id="wListH">'+title+'</h2>'+
           '<p style="color:var(--muted)">Page '+(page+1)+' of '+totalPages+'</p><ul class="plain">';
-        slice.forEach(p=>{ lh+='<li>'+(p.name||'Unnamed')+'</li>'; });
+        slice.forEach(function(p, n){
+          var sl = (p.serial != null && p.serial !== '') ? p.serial : (page*pageSize + n + 1);
+          var st = 'Remaining';
+          if(p.sold || p.status==='sold'){
+            var sale = (typeof resolvePlayerSaleForSearch==='function') ? resolvePlayerSaleForSearch(p, teams) : { team: p.soldTeam||p.team||'', price: p.soldPrice!=null?p.soldPrice:p.price };
+            st = 'Sold'+(sale.team ? (' · '+sale.team) : '')+(sale.price!=null ? (' · '+sale.price) : '');
+          } else if(p.unsold || p.status==='unsold'){
+            st = 'Unsold';
+          }
+          lh += '<li aria-label="Serial '+sl+', '+(p.name||'Unnamed')+', '+st+'"><strong>'+sl+'.</strong> '+(p.name||'Unnamed')+' — '+st+'</li>';
+        });
         if(!slice.length) lh+='<li>None</li>';
         lh+='</ul><div class="row">';
         if(page>0) lh+='<button type="button" id="wListPrev" class="btn-sec">Previous</button>';
@@ -12417,7 +12474,7 @@ function openPlayerSearch(){
       // Mobile: focus should open keyboard
     }, 50);
   }
-  try{ if(typeof announce==='function') announce('Search player'); }catch(e){}
+  try{ if(typeof announce==='function') announce('Search'); }catch(e){}
 }
 function closePlayerSearch(){
   const modal = $('playerSearchModal');
@@ -12429,54 +12486,78 @@ function runPlayerSearch(){
   const box = $('psResults');
   if(!box) return;
   if(!T || !Array.isArray(T.players)){
-    box.innerHTML = '<p style="color:var(--muted)">No auction loaded.</p>';
+    box.innerHTML = '<p style="color:var(--muted);padding:12px">No auction loaded.</p>';
     return;
   }
   if(!q){
     box.innerHTML = '';
     return;
   }
-  const matches = [];
-  (T.players || []).forEach(function(p, i){
+  // Merge roster + squad entries so sold status is accurate
+  var byKey = {};
+  function keyOf(p){
+    if(!p) return '';
+    if(p.id) return 'id:'+p.id;
+    if(p.serial != null && p.serial !== '') return 's:'+p.serial;
+    if(p.gamerId) return 'g:'+p.gamerId;
+    return 'n:'+String(p.name||'').toLowerCase();
+  }
+  (T.players||[]).forEach(function(p, i){
     if(!p || !p.name) return;
-    if(String(p.name).toLowerCase().indexOf(q) < 0) return;
-    matches.push({ p: p, i: i });
+    var k = keyOf(p) || ('i:'+i);
+    byKey[k] = {
+      name: p.name,
+      index: (p.index != null ? p.index : i),
+      serial: p.serial,
+      sold: !!(p.sold || p.status==='sold'),
+      unsold: !!(p.unsold || p.status==='unsold'),
+      team: p.soldTeam || p.team || '',
+      price: p.soldPrice != null ? p.soldPrice : p.price
+    };
+  });
+  (T.teams||[]).forEach(function(tm){
+    (tm.players||[]).forEach(function(sp){
+      if(!sp || !sp.name) return;
+      var k = keyOf(sp) || ('n:'+String(sp.name).toLowerCase());
+      var cur = byKey[k] || { name: sp.name, index: 0 };
+      cur.sold = true;
+      cur.unsold = false;
+      cur.team = tm.name || tm.id || cur.team || '';
+      if(sp.price != null) cur.price = sp.price;
+      byKey[k] = cur;
+    });
+  });
+  var matches = [];
+  Object.keys(byKey).forEach(function(k){
+    var p = byKey[k];
+    if(String(p.name||'').toLowerCase().indexOf(q) < 0) return;
+    matches.push(p);
   });
   if(!matches.length){
-    box.innerHTML = '<p style="color:var(--muted)">No players match “'+String(q).replace(/</g,'')+'”.</p>';
+    box.innerHTML = '<p style="color:var(--muted);padding:12px">No match</p>';
     return;
   }
-  // Prefer exact-ish and starts-with
   matches.sort(function(a,b){
-    const an = String(a.p.name).toLowerCase(), bn = String(b.p.name).toLowerCase();
-    const as = an.indexOf(q) === 0 ? 0 : 1;
-    const bs = bn.indexOf(q) === 0 ? 0 : 1;
+    var an = String(a.name).toLowerCase(), bn = String(b.name).toLowerCase();
+    var as = an.indexOf(q)===0 ? 0 : 1, bs = bn.indexOf(q)===0 ? 0 : 1;
     if(as !== bs) return as - bs;
-    return an.localeCompare(bn);
+    return (a.index||0) - (b.index||0) || an.localeCompare(bn);
   });
-  let h = '';
-  matches.slice(0, 40).forEach(function(m){
-    const p = m.p;
-    let status = 'Remaining';
-    let detail = '';
-    let badge = 'badge';
+  var h = '';
+  matches.slice(0, 50).forEach(function(p){
+    var sl = (p.serial != null && p.serial !== '') ? p.serial : ((p.index||0)+1);
+    var st = 'Remaining';
     if(p.sold){
-      status = 'Sold';
-      badge = 'badge sold';
-      const sale = resolvePlayerSaleForSearch(p, T.teams);
-      detail = (sale.team ? (' · ' + sale.team) : '') + (sale.price != null ? (' · ' + sale.price) : '');
+      st = 'Sold'+(p.team ? (' · '+p.team) : '')+(p.price != null ? (' · '+p.price) : '');
     } else if(p.unsold){
-      status = 'Unsold';
-      badge = 'badge unsold';
+      st = 'Unsold';
     }
-    const role = p.role || p.type || '';
-    var stCls = p.sold ? 'sold' : (p.unsold ? 'unsold' : 'pending');
-    var stLabel = p.sold ? ('Sold'+(detail||'')) : (p.unsold ? 'Unsold' : ('#'+(m.i+1)+(role?(' · '+role):'')));
-    h += '<div role="listitem" class="ps-row" aria-label="'+(p.name||'')+', '+stLabel+'">'+
-      '<span class="ps-name">'+(p.name||'')+'</span>'+
-      '<span class="ps-status '+stCls+'">'+status+(p.sold && detail ? detail.replace(/^ · /,' · ') : '')+'</span></div>';
+    var aria = 'Serial '+sl+', '+p.name+', '+st;
+    h += '<div role="listitem" class="ps-row" aria-label="'+aria.replace(/"/g,'')+'">'+
+      '<span class="ps-sl">'+sl+'</span>'+
+      '<span class="ps-main"><span class="ps-name">'+String(p.name||'').replace(/</g,'')+'</span>'+
+      '<span class="ps-status">'+st+'</span></span></div>';
   });
-  if(matches.length > 40) h += '<p style="color:var(--muted);font-size:13px">Showing 40 of '+matches.length+' matches.</p>';
   box.innerHTML = h;
 }
 function wirePlayerSearch(){
@@ -14398,8 +14479,21 @@ function renderVirtualAuctionUI(box, p, idx, recent, opts){
   startTimerLoop();
 
   box.querySelectorAll('.bidRaise').forEach(btn=>{
-    btn.onclick=()=> doRaise(parseInt(btn.getAttribute('data-target'),10), parseInt(btn.getAttribute('data-inc')||'0',10), false);
+    btn.onclick=function(){
+      try{ window._lastRaiseInc = btn.getAttribute('data-inc')||'0'; }catch(e){}
+      doRaise(parseInt(btn.getAttribute('data-target'),10), parseInt(btn.getAttribute('data-inc')||'0',10), false);
+    };
   });
+  // Keep TalkBack on the same raise chip when grid re-enables
+  if(ownerMode && window._lastRaiseInc != null && !window._modalOpen){
+    try{
+      var keep = box.querySelector('#bidRegion button.bidRaise[data-inc="'+window._lastRaiseInc+'"]')
+        || document.querySelector('#bidRegion button.bidRaise[data-inc="'+window._lastRaiseInc+'"]');
+      if(keep){
+        requestAnimationFrame(function(){ try{ focusEl(keep); }catch(e){} });
+      }
+    }catch(e){}
+  }
   if($('btnQuitLot')) $('btnQuitLot').onclick=function(){ doQuit(); };
   wireUltimateBid(b, rules);
   if($('btnHostExtendNow')){
@@ -14923,6 +15017,7 @@ function wireUltimateBid(b, rules, fromComposer){
 
 async function doRaise(targetPrice, inc, isUltimate){
   if(!ownerMode||!myTeamId||!auctionId) return;
+  try{ window._lastRaiseInc = (inc != null ? String(inc) : '0'); }catch(e){}
   if(T && T.status==='ended'){
     announce('Auction is closed. Bidding is not available.');
     renderAuction();
@@ -16392,20 +16487,23 @@ function renderToolsBook(){
     h+='<p>No players in this list.</p>';
   } else {
     h+='<ul class="plain">';
-    slice.forEach((p,i)=>{
-      let extra='';
+    slice.forEach(function(p,i){
+      var sl = (p.serial != null && p.serial !== '') ? p.serial : (start+i+1);
+      var st = 'Remaining';
       if(p.sold || p.status==='sold'){
-        const team = p.soldTeam || p.team || '';
-        const price = (p.soldPrice!=null ? p.soldPrice : (p.price!=null ? p.price : ''));
-        if(team || price!=='') extra = ' · '+(team||'—')+' · '+(price!==''?price:'—');
-        else {
-          const info=findPlayerTeamInfo(p);
-          if(info) extra = ' · '+info.team.name+' · '+info.price;
+        var team = p.soldTeam || p.team || '';
+        var price = (p.soldPrice!=null ? p.soldPrice : (p.price!=null ? p.price : ''));
+        if(!team){
+          try{
+            var info=findPlayerTeamInfo(p);
+            if(info){ team = info.team.name; if(price===''||price==null) price = info.price; }
+          }catch(e){}
         }
+        st = 'Sold'+(team ? (' · '+team) : '')+(price!=='' && price!=null ? (' · '+price) : '');
       } else if(p.unsold || p.status==='unsold'){
-        extra = ' · Unsold';
+        st = 'Unsold';
       }
-      h+='<li><strong>'+(start+i+1)+'.</strong> '+(p.serial?p.serial+' · ':'')+escHtml(p.name||'Unnamed')+extra+'</li>';
+      h += '<li aria-label="Serial '+sl+', '+escHtml(p.name||'Unnamed')+', '+st+'"><strong>'+sl+'.</strong> '+escHtml(p.name||'Unnamed')+' — '+st+'</li>';
     });
     h+='</ul>';
   }
@@ -16687,7 +16785,7 @@ if($('btnPauseAuc')){
 if($('btnLeaveAuc')){
   $('btnLeaveAuc').onclick=function(){
     // Owners: leave screen — announce "left the room"
-    ask('Leave auction?','You will leave this live screen. You can rejoin from Live list.', function(){
+    ask('Go back?','Leave this live screen? You can rejoin from Live list.', function(){
       try{ presenceLeave(true); }catch(e){}
       try{ stopAuctionLive(); }catch(e){}
       try{ stopTimer(); }catch(e){}

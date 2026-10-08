@@ -2271,6 +2271,26 @@ body.light #screenAuction .stat-btn{
 #playerSearchModal.ps-amazon .ps-name{font-weight:800;font-size:15px;display:block}
 #playerSearchModal.ps-amazon .ps-status{font-size:13px;font-weight:600;color:var(--muted);margin-top:2px;display:block}
 
+
+/* Hard-hide sealed modals (SR + visual) */
+.modal.hidden,
+#voiceRingModal.hidden,
+#voiceHostModal.hidden,
+#voiceLateJoinModal.hidden,
+#micPermModal.hidden,
+#playerSearchModal.hidden{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+  opacity:0!important;
+}
+.modal.hidden *,
+#voiceRingModal.hidden *,
+#voiceHostModal.hidden *,
+#voiceLateJoinModal.hidden *{
+  visibility:hidden!important;
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -3182,7 +3202,9 @@ body.light #screenAuction .stat-btn{
       <p id="psHint" class="sr-only">Type to search roster and squads</p>
     </div>
   </div>
-</div> class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="vrTitle">
+</div>
+
+<div id="voiceRingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="vrTitle" aria-hidden="true" inert>
   <div class="modal-box">
     <h2 id="vrTitle" tabindex="-1" style="margin-top:0">Incoming voice call</h2>
     <p id="vrMsg">Host wants to talk with you.</p>
@@ -5855,6 +5877,15 @@ async function restoreNavAfterRefresh(){
 }
 
 function enterHome(){
+  try{
+    if(typeof closeVoiceRingModal==='function') closeVoiceRingModal();
+    if(typeof closeLateJoinModal==='function') closeLateJoinModal();
+    if(typeof closeVoiceHostModal==='function') closeVoiceHostModal();
+    if(typeof sealModal==='function'){
+      ['voiceRingModal','voiceHostModal','voiceLateJoinModal','micPermModal'].forEach(function(id){ try{ sealModal(id); }catch(e){} });
+    }
+  }catch(e){}
+
   try{ restoreFcmTokenIfGranted(); }catch(e){}
 
   try{ applyShareMeta('home'); }catch(e){}
@@ -12939,6 +12970,16 @@ function sealModal(id){
   m.setAttribute('aria-hidden','true');
   m.setAttribute('inert','');
   try{ m.setAttribute('tabindex','-1'); }catch(e){}
+  try{ m.style.display = 'none'; }catch(e){}
+  // Keep focusable children out of SR tree while sealed
+  try{
+    m.querySelectorAll('button, a, input, textarea, select, [tabindex]').forEach(function(el){
+      if(!el.hasAttribute('data-prev-tabindex')){
+        el.setAttribute('data-prev-tabindex', el.getAttribute('tabindex') != null ? el.getAttribute('tabindex') : '');
+      }
+      el.setAttribute('tabindex','-1');
+    });
+  }catch(e){}
 }
 function unsealModal(id){
   const m = $(id);
@@ -12947,6 +12988,15 @@ function unsealModal(id){
   m.setAttribute('aria-hidden','false');
   m.removeAttribute('inert');
   m.removeAttribute('tabindex');
+  try{ m.style.display = ''; }catch(e){}
+  try{
+    m.querySelectorAll('[data-prev-tabindex]').forEach(function(el){
+      var prev = el.getAttribute('data-prev-tabindex');
+      el.removeAttribute('data-prev-tabindex');
+      if(prev === '') el.removeAttribute('tabindex');
+      else el.setAttribute('tabindex', prev);
+    });
+  }catch(e){}
 }
 function closeVoiceRingModal(){
   if(window._ringTimer){ clearTimeout(window._ringTimer); window._ringTimer = null; }
@@ -12961,6 +13011,12 @@ function closeVoiceHostModal(){
 function showIncomingRing(vc){
   if(!canUseVoiceCall() || isAuctionHostUser()) return;
   if(window._lkRoom) return;
+  // Never on home / outside live auction screen
+  if(!auctionId || !T) return;
+  if(!$('screenAuction') || $('screenAuction').classList.contains('hidden')){
+    if(!$('screenWatch') || $('screenWatch').classList.contains('hidden')) return;
+  }
+  if(!ownerMode) return;
   // Extra guard: only while global phase is ringing
   if(!vc || vc.status !== 'ringing') return;
   const m = $('voiceRingModal');
@@ -12994,6 +13050,16 @@ function showLateJoinPrompt(){
 function syncVoiceCallUi(data){
   updateNavCallBtn();
   if(!user) return;
+  // Home / settings / regs: never surface call UI from stale T.voiceCall
+  try{
+    var onAuc = $('screenAuction') && !$('screenAuction').classList.contains('hidden');
+    var onWatch = $('screenWatch') && !$('screenWatch').classList.contains('hidden');
+    if(!onAuc && !onWatch){
+      closeVoiceRingModal();
+      try{ closeLateJoinModal(); }catch(e){}
+      return;
+    }
+  }catch(e){}
   const vc = (data && data.voiceCall) || (T && T.voiceCall) || null;
   if(T && data && Object.prototype.hasOwnProperty.call(data, 'voiceCall')){
     T.voiceCall = data.voiceCall;
@@ -13464,6 +13530,11 @@ function wireVoiceCallUi(){
   if($('btnCallHostOpts')) $('btnCallHostOpts').onclick = openVoiceHostModal;
 }
 try{ wireVoiceCallUi(); }catch(e){ console.warn('wireVoiceCallUi', e); }
+try{
+  ['voiceRingModal','voiceHostModal','voiceLateJoinModal','micPermModal'].forEach(function(id){
+    if(typeof sealModal==='function') sealModal(id);
+  });
+}catch(e){}
 
 
 

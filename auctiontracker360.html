@@ -6084,6 +6084,7 @@ function stopWait(){
 }
 
 function enterWaitingRoom(id){
+  try{ closeVoiceRingModal(); if(typeof closeLateJoinModal==='function') closeLateJoinModal(); }catch(e){}
   stopWait();
   auctionId = id;
   try{
@@ -7442,6 +7443,7 @@ function stopPresence(){
 
 
 async function openAuction(id){
+  try{ closeVoiceRingModal(); if(typeof closeLateJoinModal==='function') closeLateJoinModal(); }catch(e){}
   if(watchUnsub){watchUnsub();watchUnsub=null;}
   stopAuctionLive();
   const snap=await db.collection('auctions').doc(id).get();
@@ -7534,6 +7536,7 @@ async function openAuction(id){
 }
 
 async function resumeAuction(id, data){
+  try{ closeVoiceRingModal(); if(typeof closeLateJoinModal==='function') closeLateJoinModal(); }catch(e){}
   auctionId=id;
   // Seed without replaying sold/player commentary from last session
   window._liveJoinQuiet=true;
@@ -12876,15 +12879,28 @@ async function ringVoiceOwners(onlyUids){
     if(onlyUids && onlyUids.length && onlyUids.indexOf(o.uid)<0) return;
     targets[o.uid] = { status: 'ringing', at: ringAt, expiresAt: ringAt + 20000 };
   });
+  // Fresh ring wave only — do not keep stale "ringing" on people not in this wave
+  var prevTargets = (T.voiceCall && T.voiceCall.targets) || {};
+  var merged = {};
+  Object.keys(prevTargets).forEach(function(uid){
+    var prev = prevTargets[uid];
+    if(!prev) return;
+    // Keep joined/rejected/removed history; clear old ringing
+    if(prev.status === 'ringing') return;
+    merged[uid] = prev;
+  });
+  Object.keys(targets).forEach(function(uid){ merged[uid] = targets[uid]; });
   T.voiceCall = {
     status: 'ringing',
     hostUid: user.uid,
     hostName: user.displayName || user.email || 'Host',
     at: ringAt,
     ringExpiresAt: ringAt + 20000,
-    targets: Object.assign({}, (T.voiceCall && T.voiceCall.targets) || {}, targets),
+    targets: merged,
     joined: (T.voiceCall && T.voiceCall.joined) || {}
   };
+  // New wave: clients may accept again
+  try{ window._voiceRingOpenedAt = 0; }catch(e){}
   try{
     await cloudSave(false);
     try{ announce('Ringing owners for voice call.'); }catch(e){}
@@ -12945,16 +12961,27 @@ function closeVoiceHostModal(){
 function showIncomingRing(vc){
   if(!canUseVoiceCall() || isAuctionHostUser()) return;
   if(window._lkRoom) return;
+  // Extra guard: only while global phase is ringing
+  if(!vc || vc.status !== 'ringing') return;
   const m = $('voiceRingModal');
   if(!m) return;
   const host = (vc && (vc.hostName || 'Host')) || 'Host';
+  var ringAt = Number(vc.at || 0) || Date.now();
+  try{
+    var tt = vc.targets && user && vc.targets[user.uid];
+    if(tt && tt.at) ringAt = Number(tt.at) || ringAt;
+  }catch(e){}
+  // Never open twice for same wave
+  if(window._voiceRingOpenedAt && window._voiceRingOpenedAt >= ringAt) return;
+  window._voiceRingOpenedAt = ringAt;
   if($('vrMsg')) $('vrMsg').textContent = host + ' wants to talk with you. Join or reject. This closes in 20 seconds.';
   unsealModal('voiceRingModal');
   window._ringShownAt = Date.now();
   if(window._ringTimer) clearTimeout(window._ringTimer);
   window._ringTimer = setTimeout(function(){
+    window._voiceRingHandledAt = Math.max(Number(window._voiceRingHandledAt||0), ringAt);
     closeVoiceRingModal();
-    try{ announce('Missed voice call. Open Call to join if still ongoing.'); }catch(e){}
+    try{ announce('Missed voice call.'); }catch(e){}
   }, 20000);
   try{ playCallSfx('ring'); }catch(e){}
   try{ focusEl($('btnVoiceJoin')); }catch(e){}
@@ -12966,15 +12993,22 @@ function showLateJoinPrompt(){
 }
 function syncVoiceCallUi(data){
   updateNavCallBtn();
+  if(!user) return;
   const vc = (data && data.voiceCall) || (T && T.voiceCall) || null;
-  if(!vc){
+  if(T && data && Object.prototype.hasOwnProperty.call(data, 'voiceCall')){
+    T.voiceCall = data.voiceCall;
+  }
+
+  // Nothing active
+  if(!vc || !vc.status){
     closeVoiceRingModal();
+    try{ closeLateJoinModal(); }catch(e){}
     return;
   }
+
   if(vc.status === 'ended'){
     closeVoiceRingModal();
-    closeLateJoinModal();
-    // End tone ONLY when transitioning into ended from a live/ringing call — never on resume/pause snapshots
+    try{ closeLateJoinModal(); }catch(e){}
     var prevSt = window._vcLastStatus || '';
     window._vcLastStatus = 'ended';
     var endKey = 'vcend|' + (vc.at || 0) + '|' + (vc.hostUid || '');
@@ -12983,52 +13017,88 @@ function syncVoiceCallUi(data){
       window._voiceEndKey = endKey;
       try{ playCallSfx('end'); }catch(e){}
     } else {
-      // Already ended (or resume after pause) — mark key so we never replay
       window._voiceEndKey = endKey;
     }
     if(window._lkRoom){
-      leaveVoiceCall(true);
+      try{ leaveVoiceCall(true); }catch(e){}
     }
     return;
   }
-  // Track active call status for transition detection
+
   if(vc.status === 'live' || vc.status === 'ringing'){
     window._vcLastStatus = vc.status;
   }
-  if(!isAuctionHostUser() && ownerMode && user){
-    const t = (vc.targets && vc.targets[user.uid]) || null;
-    const joined = vc.joined && vc.joined[user.uid];
-    if(t && t.status === 'removed' && window._lkRoom){
-      leaveVoiceCall(true);
-      return;
-    }
-    const exp = (t && t.expiresAt) || vc.ringExpiresAt || 0;
-    const ringAt = (t && t.at) || vc.at || 0;
-    // Rejected: ignore until host rings again with a newer timestamp
-    if(t && t.status === 'rejected'){
-      if(window._voiceRejectedAt && ringAt && ringAt <= window._voiceRejectedAt){
-        closeVoiceRingModal();
-        // stay rejected — do not re-open Join
-      } else if(ringAt && window._voiceRejectedAt && ringAt > window._voiceRejectedAt){
-        // host re-rang after reject — allow new prompt
-        window._voiceRejectedAt = 0;
-      } else {
-        closeVoiceRingModal();
-      }
-    }
-    const stillRinging = t && t.status === 'ringing' && (!exp || Date.now() < exp)
-      && !(window._voiceRejectedAt && ringAt && ringAt <= window._voiceRejectedAt);
-    if(!joined && stillRinging && !window._lkRoom){
-      if(!$('voiceRingModal') || $('voiceRingModal').classList.contains('hidden')){
-        showIncomingRing(vc);
-      }
-    } else if(!joined && t && t.status === 'ringing' && exp && Date.now() >= exp){
-      closeVoiceRingModal();
-    }
+
+  // Host never sees incoming ring
+  if(isAuctionHostUser()){
+    closeVoiceRingModal();
+    try{ paintJoinedList(); }catch(e){}
+    return;
   }
+
+  // Already connected to LiveKit — no dialog
+  if(window._lkRoom){
+    closeVoiceRingModal();
+    try{ closeLateJoinModal(); }catch(e){}
+    return;
+  }
+
+  // Only team owners can be rung
+  if(!ownerMode){
+    closeVoiceRingModal();
+    return;
+  }
+
+  var t = (vc.targets && vc.targets[user.uid]) || null;
+  var joined = !!(vc.joined && vc.joined[user.uid]);
+
+  if(t && t.status === 'removed'){
+    closeVoiceRingModal();
+    return;
+  }
+
+  // Rejoin / already joined in Firestore → never show ring
+  if(joined){
+    closeVoiceRingModal();
+    return;
+  }
+
+  /*
+   * STRICT ring gate (fixes "dialog everywhere" + rejoin ghost rings):
+   * 1) Global call phase must be "ringing" (not live/ended)
+   * 2) This uid must be in targets with status "ringing"
+   * 3) Must be within 20s of ring timestamp (even if expiresAt missing)
+   * 4) Must not have been handled/rejected/missed for this ring wave
+   */
+  var ringAt = Number((t && t.at) || vc.at || 0) || 0;
+  var exp = Number((t && t.expiresAt) || vc.ringExpiresAt || 0) || 0;
+  if(!exp && ringAt) exp = ringAt + 20000;
+  if(!exp) exp = 0;
+
+  var handled = Number(window._voiceRingHandledAt || 0) || 0;
+  var rejected = Number(window._voiceRejectedAt || 0) || 0;
+  var sameWaveHandled = ringAt && (handled >= ringAt || rejected >= ringAt);
+
+  var stillRinging =
+    vc.status === 'ringing'
+    && t
+    && t.status === 'ringing'
+    && !joined
+    && !sameWaveHandled
+    && exp
+    && Date.now() < exp;
+
+  if(stillRinging){
+    if(!$('voiceRingModal') || $('voiceRingModal').classList.contains('hidden')){
+      showIncomingRing(vc);
+    }
+  } else {
+    closeVoiceRingModal();
+  }
+
   try{ paintJoinedList(); }catch(e){}
   try{
-    if(window._lkRoom && user && vc && vc.joined && vc.joined[user.uid] && vc.joined[user.uid].forceMute){
+    if(window._lkRoom && vc.joined && vc.joined[user.uid] && vc.joined[user.uid].forceMute){
       if(!window._lkMuted){
         window._lkMuted = true;
         window._lkRoom.localParticipant.setMicrophoneEnabled(false).catch(function(){});
@@ -13255,6 +13325,7 @@ async function joinVoiceCall(asHost){
       }
     }
     window._voiceRejectedAt = 0;
+    try{ window._voiceRingHandledAt = Date.now(); }catch(e){}
     closeVoiceRingModal();
     closeLateJoinModal();
     if(isAuctionHostUser()){
@@ -13339,7 +13410,8 @@ function wireVoiceCallUi(){
       return;
     }
     const vc = T && T.voiceCall;
-    if(vc && (vc.status==='ringing' || vc.status==='live')){
+    if(vc && vc.status==='live'){
+      // Optional late join only for active live calls (user pressed Call intentionally)
       showLateJoinPrompt();
       return;
     }
@@ -13367,7 +13439,9 @@ function wireVoiceCallUi(){
   if($('btnVoiceReject')){
     $('btnVoiceReject').onclick = async function(){
       window._voiceRejectedAt = Date.now();
+      window._voiceRingHandledAt = Date.now();
       closeVoiceRingModal();
+      try{ stopRingTone && stopRingTone(); }catch(e){}
       closeLateJoinModal();
       if(T && T.voiceCall && T.voiceCall.targets && user){
         T.voiceCall.targets[user.uid] = { status: 'rejected', at: window._voiceRejectedAt };

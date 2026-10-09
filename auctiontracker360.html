@@ -2291,6 +2291,36 @@ body.light #screenAuction .stat-btn{
   visibility:hidden!important;
 }
 
+
+/* Co-owner assign + owners panel */
+.own-team-row{
+  display:grid;grid-template-columns:minmax(72px,28%) 1fr auto;
+  gap:10px;align-items:start;padding:12px;margin:0 0 10px;
+  border:1.5px solid var(--border);border-radius:14px;
+  background:var(--bg-surface,#131a29);
+}
+.own-team-row .ot-name{font-weight:900;font-size:1.05rem;padding-top:4px}
+.own-team-row .ot-seats{display:flex;flex-direction:column;gap:8px;min-width:0}
+.own-seat{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:10px;border:1px solid var(--border);
+  background:rgba(0,0,0,.2);
+}
+.own-seat .os-role{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.own-seat .os-who{font-weight:700;font-size:14px;flex:1;min-width:120px}
+.own-waiting-title{
+  font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--border);
+}
+.own-wait-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 14px;margin:0 0 8px;border-radius:12px;
+  border:1px solid var(--border);background:var(--bg-surface);width:100%;
+  text-align:left;font:inherit;color:inherit;cursor:pointer;
+}
+.own-wait-row:active{transform:scale(.99)}
+.own-bid-toggle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -5355,10 +5385,15 @@ function ask(title,msg,onYes,opts){
     yesBtn.classList.remove('hidden');
   }
   if(noBtn){
-    noBtn.classList.remove('hidden');
-    noBtn.setAttribute('aria-hidden', 'false');
-    noBtn.textContent = opts.noLabel || 'No';
-    noBtn.setAttribute('aria-label', opts.noAria || (opts.noLabel || 'No'));
+    if(opts.hideNo){
+      noBtn.classList.add('hidden');
+      noBtn.setAttribute('aria-hidden', 'true');
+    } else {
+      noBtn.classList.remove('hidden');
+      noBtn.setAttribute('aria-hidden', 'false');
+      noBtn.textContent = opts.noLabel || 'No';
+      noBtn.setAttribute('aria-label', opts.noAria || (opts.noLabel || 'No'));
+    }
   }
   const modal=$('confirmModal');
   if(modal){
@@ -6838,6 +6873,7 @@ function applyAuctionData(data){
     aiInsights: Array.isArray(data.aiInsights) ? data.aiInsights : [],
     aiInsight: data.aiInsight || null,
     voiceCall: data.voiceCall || null,
+    _bidNotices: data._bidNotices || {},
     intermissionSec:0, intermissionUntil:null, // permanent: no auto gap seconds
     playerAdvance: 'manual', // permanent manual — ignore legacy auto
     awaitNextPlayer: keepLotLocal && T ? !!T.awaitNextPlayer : !!data.awaitNextPlayer,
@@ -11731,218 +11767,365 @@ $('btnCreate').onclick=async()=>{ stopAssignLive(); stopWait();
 };
 
 function renderWizard(){
-  const titles=isVirtualPath()
-    ? ['Tournament name','Number of teams','Purse per team','Min & max players','Team names','Auction type','Virtual rules','Import players','Invite & assign','Go live']
-    : ['Tournament name','Number of teams','Purse per team','Min & max players','Team names','Auction type','Import players','Co-organisers','Go live'];
-  // Dynamic titles based on mode chosen after step 5
-  const body=$('wizBody'); body.innerHTML=''; const nav=$('wizNav'); nav.innerHTML='';
-  const labels=wizardLabels();
-  $('wizProgress').textContent='Step '+(step+1)+' of '+labels.length;
-  $('wizTitle').textContent=labels[step]||'Create tournament';
+  const body = $('wizBody'); body.innerHTML = '';
+  const nav = $('wizNav'); nav.innerHTML = '';
+  const labels = wizardLabels();
+  $('wizProgress').textContent = 'Step '+(step+1)+' of '+labels.length;
+  $('wizTitle').textContent = labels[step] || 'Create tournament';
 
-  if(step===0) body.innerHTML='<label for="wName">Tournament name</label><input id="wName" type="text" value="'+(wiz.name||'')+'" autocomplete="off" />';
-  else if(step===1) body.innerHTML='<label for="wCount">Number of teams</label><input id="wCount" type="text" inputmode="numeric" value="'+(wiz.teamCount||'')+'" />';
-  else if(step===2) body.innerHTML='<label for="wPurse">Maximum purse per team</label><input id="wPurse" type="text" inputmode="numeric" value="'+(wiz.purse||'')+'" />';
-  else if(step===3){
-    const ar=wiz.alertRules||{};
-    body.innerHTML='<label for="wMin">Minimum players per team</label><input id="wMin" type="text" inputmode="numeric" value="'+(wiz.minP||'')+'" autocomplete="off" />'+
-      '<label for="wMax">Maximum players per team</label><input id="wMax" type="text" inputmode="numeric" value="'+(wiz.maxP||'')+'" autocomplete="off" />'+
+  // 0 — Basics: name, teams, purse
+  if(step===0){
+    body.innerHTML =
+      '<label for="wName">Tournament name</label>'+
+      '<input id="wName" type="text" value="'+(wiz.name||'')+'" autocomplete="off" />'+
+      '<label for="wCount">Number of teams</label>'+
+      '<input id="wCount" type="text" inputmode="numeric" value="'+(wiz.teamCount||'')+'" />'+
+      '<label for="wPurse">Purse per team</label>'+
+      '<input id="wPurse" type="text" inputmode="numeric" value="'+(wiz.purse||'')+'" />';
+  }
+  // 1 — Team names
+  else if(step===1){
+    var h = '';
+    for(var i = 0; i < (wiz.teamCount||0); i++){
+      h += '<label for="tn'+i+'">Team '+(i+1)+' name</label>'+
+        '<input id="tn'+i+'" type="text" value="'+(wiz.teamNames && wiz.teamNames[i] || '')+'" autocomplete="off" />';
+    }
+    body.innerHTML = h || '<p style="color:var(--muted)">Set number of teams on the previous step.</p>';
+  }
+  // 2 — Min/max + alerts
+  else if(step===2){
+    var ar = wiz.alertRules || {};
+    body.innerHTML =
+      '<label for="wMin">Minimum players per team</label>'+
+      '<input id="wMin" type="text" inputmode="numeric" value="'+(wiz.minP||'')+'" autocomplete="off" />'+
+      '<label for="wMax">Maximum players per team</label>'+
+      '<input id="wMax" type="text" inputmode="numeric" value="'+(wiz.maxP||'')+'" autocomplete="off" />'+
       '<h2 style="font-size:1.05rem;margin-top:16px">Squad and purse alerts</h2>'+
-      '<p style="color:var(--muted);font-size:14px">Announced to host, owners, and viewers when commentary or screen reader alerts are active.</p>'+
       '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="arMin" '+(ar.minPlayers!==false?'checked':'')+' /> Alert when a team reaches minimum players</label>'+
       '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="arMax" '+(ar.maxPlayers!==false?'checked':'')+' /> Alert when a team reaches maximum players</label>'+
       '<label for="arCustom">Custom player counts (comma separated)</label>'+
-      '<input id="arCustom" type="text" inputmode="numeric" placeholder="e.g. 5, 10, 12, 14" value="'+((ar.customCounts||[]).join(', '))+'" autocomplete="off" />'+
-      '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="arPurse" '+(ar.purse!==false?'checked':'')+' /> Purse used alerts (50%, 75%, 90%)</label>'+
-      '<p style="color:var(--muted);font-size:14px;margin-top:16px">After Sold or Unsold, the host presses <strong>Next player</strong> to continue. There is no automatic timer between players.</p>';
+      '<input id="arCustom" type="text" inputmode="numeric" placeholder="e.g. 5, 10, 12" value="'+((ar.customCounts||[]).join(', '))+'" autocomplete="off" />'+
+      '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="arPurse" '+(ar.purse!==false?'checked':'')+' /> Purse used alerts (50%, 75%, 90%)</label>';
   }
-  else if(step===4){
-    let h=''; for(let i=0;i<(wiz.teamCount||0);i++) h+='<label for="tn'+i+'">Team '+(i+1)+' name</label><input id="tn'+i+'" type="text" value="'+(wiz.teamNames[i]||'')+'" />';
-    body.innerHTML=h;
-  }
-  else if(step===5){
-    body.innerHTML='<p>Choose how this tournament will run.</p>'+
+  // 3 — Auction type (+ helpers or owners-per-team)
+  else if(step===3){
+    var r0 = wiz.rules || {};
+    var opt = r0.ownersPerTeam || 1;
+    var style0 = r0.bidStyle || 'two';
+    var html =
+      '<p>Choose how this tournament will run.</p>'+
       '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="radio" name="wMode" value="physical" '+(wiz.mode!=='virtual'?'checked':'')+' /> Physical room (host marks Sold / Unsold)</label>'+
-      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="radio" name="wMode" value="virtual" '+(wiz.mode==='virtual'?'checked':'')+' /> Virtual room (teams raise bids)</label>';
+      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="radio" name="wMode" value="virtual" '+(wiz.mode==='virtual'?'checked':'')+' /> Virtual room (teams raise bids)</label>'+
+      '<div id="wModeExtra" style="margin-top:14px"></div>';
+    body.innerHTML = html;
+    function paintModeExtra(){
+      var modeEl = document.querySelector('input[name="wMode"]:checked');
+      var mode = modeEl ? modeEl.value : 'physical';
+      var box = $('wModeExtra');
+      if(!box) return;
+      if(mode === 'virtual'){
+        box.innerHTML =
+          '<label for="rStyle">Bidding style</label>'+
+          '<select id="rStyle">'+
+          '<option value="two"'+(style0==='two'?' selected':'')+'>2 teams at a time</option>'+
+          '<option value="unlimited"'+(style0==='unlimited'?' selected':'')+'>Unlimited (any team can raise)</option>'+
+          '</select>'+
+          '<label for="rOwnersPerTeam">Owners per team</label>'+
+          '<select id="rOwnersPerTeam" aria-describedby="rOptHelp">'+
+          '<option value="1"'+(opt===1?' selected':'')+'>1 — single owner</option>'+
+          '<option value="2"'+(opt===2?' selected':'')+'>2 — primary + co-owner</option>'+
+          '<option value="3"'+(opt===3?' selected':'')+'>3 — primary + two co-owners</option>'+
+          '</select>'+
+          '<p id="rOptHelp" style="font-size:13px;color:var(--muted)">Extra seats share the same team purse. Only one account can bid at a time (host can switch in More → Owners).</p>';
+      } else {
+        var slots = (T && T.coOrganiserSlots) || 0;
+        box.innerHTML =
+          '<label for="wSlots">Number of helpers (co-organisers)</label>'+
+          '<select id="wSlots">'+
+          [0,1,2,3,4,5].map(function(n){ return '<option value="'+n+'"'+(slots===n?' selected':'')+'>'+n+'</option>'; }).join('')+
+          '</select>';
+      }
+    }
+    paintModeExtra();
+    body.querySelectorAll('input[name="wMode"]').forEach(function(r){
+      r.onchange = function(){ wiz.mode = r.value; paintModeExtra(); };
+    });
   }
-  else if(step===6 && wiz.mode==='virtual'){
-    const r=wiz.rules||{};
-    const style=r.bidStyle||'two';
-    body.innerHTML=
-      '<label for="rStyle">Bidding style</label>'+
-      '<select id="rStyle" aria-describedby="rStyleHelp">'+
-      '<option value="two"'+(style==='two'?' selected':'')+'>2 teams at a time (current flow)</option>'+
-      '<option value="unlimited"'+(style==='unlimited'?' selected':'')+'>No limit (any team can raise)</option>'+
-      '</select>'+
-      '<p id="rStyleHelp" style="font-size:14px;color:var(--muted)">2 teams: only two teams contest at once; after time ends the host extends, sells, or marks unsold. No limit: any eligible team may raise while time remains.</p>'+
+  // 4 virtual — bid rules | physical — import
+  else if(step===4 && wiz.mode==='virtual'){
+    var r = wiz.rules || {};
+    body.innerHTML =
       '<label for="rBase">Base price</label><input id="rBase" type="text" inputmode="numeric" value="'+(r.basePrice||'')+'" autocomplete="off" />'+
       '<label for="rMin">Minimum increase</label><input id="rMin" type="text" inputmode="numeric" value="'+(r.minRaise||'')+'" autocomplete="off" />'+
       '<label for="rMax">Maximum increase (per raise)</label><input id="rMax" type="text" inputmode="numeric" value="'+(r.maxRaise||'')+'" autocomplete="off" />'+
-      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="checkbox" id="rCustomOn" '+(r.customOn?'checked':'')+' /> Use custom bid buttons</label>'+
-      '<div id="rCustomBox" class="'+(r.customOn?'':'hidden')+'"><label for="rCustomVals">Custom increases (comma separated, within min and max)</label><input id="rCustomVals" type="text" value="'+(r.customBids||[]).join(', ')+'" placeholder="e.g. 25, 50, 75" autocomplete="off" /></div>'+
-      '<label style="display:flex;gap:10px;align-items:center;min-height:48px"><input type="checkbox" id="rUltimateOn" '+(r.ultimateOn?'checked':'')+' /> Allow ultimate bid (type any valid amount)</label>'+
-      '<label for="rTimer">Bid timer (seconds)</label><select id="rTimer">'+
-      [10,20,30,40,50,60].map(s=>'<option value="'+s+'"'+(Number(r.contestSeconds||30)===s?' selected':'')+'>'+s+' seconds</option>').join('')+
-      '</select>';
-    $('rCustomOn').onchange=()=>$('rCustomBox').classList.toggle('hidden', !$('rCustomOn').checked);
+      '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="rCustomOn" '+(r.customOn?'checked':'')+' /> Custom raise buttons</label>'+
+      '<label for="rCustomVals">Custom increases (comma separated)</label>'+
+      '<input id="rCustomVals" type="text" value="'+((r.customBids||[]).join(', '))+'" placeholder="e.g. 20, 50, 100" autocomplete="off" />'+
+      '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="rUltimateOn" '+(r.ultimateOn?'checked':'')+' /> Ultimate (custom) bid</label>'+
+      '<label for="rTimer">Contest timer (seconds)</label>'+
+      '<input id="rTimer" type="text" inputmode="numeric" value="'+(r.contestSeconds||30)+'" autocomplete="off" />';
   }
-  else if((step===6 && wiz.mode!=='virtual') || (step===7 && wiz.mode==='virtual')){
-    var regNote = (window._regImportPlayers && window._regImportPlayers.length)
-      ? ('<p id="wRegImportNote" role="status" style="margin:0 0 12px;padding:12px;border-radius:12px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);font-weight:700">Registration records: '+window._regImportPlayers.length+' players ready. Tap Import registration players below, or upload a file instead.</p><button type="button" id="btnImportFromReg" class="btn-ok btn-block" style="margin-bottom:12px">Import registration players ('+window._regImportPlayers.length+')</button>')
-      : '';
-    body.innerHTML=regNote+'<label for="wFile">Players file (CSV or Excel)</label><input id="wFile" type="file" accept=".csv,.xlsx,.xls" /><div id="wHeaders" class="hidden"></div><div id="wImportMsg"></div>';
-    $('wFile').onchange=onFile;
-    if($('btnImportFromReg')){
-      $('btnImportFromReg').onclick=function(){
-        if(!window._regImportPlayers || !window._regImportPlayers.length){ alert('No registration players'); return; }
-        if(!T){ alert('Finish earlier steps first'); return; }
-        T.players = window._regImportPlayers.slice();
-        var msg = $('wImportMsg');
-        if(msg) msg.innerHTML = '<p role="status" style="font-weight:700;color:var(--ok,#10b981)">Registration records: '+T.players.length+' players imported successfully to auction room.</p>';
-        try{ announce('Registration records: '+T.players.length+' players imported successfully to auction room.'); }catch(e){}
-        try{ focusEl(msg||$('wImportMsg')); }catch(e){}
-      };
-      // Auto-import if came from Start auction
-      if(window._regImportAuto){
-        window._regImportAuto = false;
-        setTimeout(function(){ try{ $('btnImportFromReg').click(); }catch(e){} }, 200);
-      }
-    }
+  else if((step===4 && wiz.mode!=='virtual') || (step===5 && wiz.mode==='virtual')){
+    body.innerHTML =
+      '<p>Import the player list (CSV or Excel).</p>'+
+      '<input type="file" id="wFile" accept=".csv,.xlsx,.xls" aria-label="Import players file" />'+
+      '<div id="wMap" style="margin-top:12px"></div>'+
+      '<p id="wImportStatus" role="status" style="margin-top:10px;color:var(--muted)">'+(T&&T.players&&T.players.length ? (T.players.length+' players loaded') : 'No players imported yet')+'</p>';
+    if($('wFile')) $('wFile').onchange = onFile;
   }
-  else if(step===7 && wiz.mode!=='virtual'){
-    body.innerHTML='<p>Optional co-organisers (squad helpers). Share the invite link. Approve helpers below before go live.</p>'+
-      '<label for="wSlots">Maximum helpers</label><select id="wSlots"><option value="0">None</option><option value="1">1</option><option value="2">2</option></select>'+
-      '<div id="physHelperLive" style="margin-top:12px"></div>';
-    setTimeout(()=>renderPhysicalHelperPanel($('physHelperLive')), 0);
+  // 5 physical — helpers panel
+  else if(step===5 && wiz.mode!=='virtual'){
+    body.innerHTML =
+      '<p>Helpers can manage squads after you approve them. Share the auction link.</p>'+
+      '<div id="physHelperLive"></div>';
+    setTimeout(function(){ try{ renderPhysicalHelperPanel($('physHelperLive')); }catch(e){} }, 0);
   }
-  else if(step===8 && wiz.mode==='virtual'){
+  // 6 virtual — assign owners
+  else if(step===6 && wiz.mode==='virtual'){
     try{ if(typeof setupBgmPlay==='function') setupBgmPlay('waiting'); }catch(e){}
     renderVirtualAssign(body);
   }
-  else if((step===8 && wiz.mode!=='virtual') || (step===9 && wiz.mode==='virtual')){
-    let extra='';
+  // Go live
+  else if((step===6 && wiz.mode!=='virtual') || (step===7 && wiz.mode==='virtual')){
+    var extra = '';
     if(wiz.mode==='virtual'){
-      extra='<p>Virtual room: owners raise bids. Host confirms sale when time ends.</p>'+
-        '<label for="meetLink">Voice meeting link (optional Zoom or Meet)</label>'+
+      extra = '<p>Virtual room: owners raise bids. Host confirms sale when time ends.</p>'+
+        '<label for="meetLink">Voice meeting link (optional)</label>'+
         '<input id="meetLink" type="url" placeholder="https://meet.google.com/..." value="'+(T&&T.meetLink||'')+'" />';
     } else {
-      extra='<p>Physical room: you mark Sold or Unsold. Helpers can manage squads after you approve them.</p>'+
+      extra = '<p>Physical room: you mark Sold or Unsold. Helpers can manage squads after approval.</p>'+
         '<div id="physHelperLive"></div>';
     }
-    body.innerHTML='<p><strong>'+((T&&T.players)?T.players.length:0)+' players</strong> ready.</p>'+extra+
+    body.innerHTML = '<p><strong>'+((T&&T.players)?T.players.length:0)+' players</strong> ready.</p>'+extra+
       '<button type="button" id="btnGoLive" class="btn-ok btn-block" style="margin-top:14px">Go live now</button>';
-    $('btnGoLive').onclick=goLive;
-    if(wiz.mode!=='virtual') renderPhysicalHelperPanel($('physHelperLive'));
+    if($('btnGoLive')) $('btnGoLive').onclick = goLive;
+    if(wiz.mode!=='virtual') try{ renderPhysicalHelperPanel($('physHelperLive')); }catch(e){}
   }
 
-  if(step>0){ const b=document.createElement('button'); b.type='button'; b.className='btn-sec'; b.textContent='Back'; b.onclick=()=>{step--;renderWizard();}; nav.appendChild(b); }
-  const lastStep=wiz.mode==='virtual'?9:8;
-  if(step<lastStep && !(step===lastStep)){
-    if(!(wiz.mode==='virtual'&&step===9) && !(wiz.mode!=='virtual'&&step===8)){
-      const n=document.createElement('button'); n.type='button'; n.className='btn-ok';
-      n.textContent='Save and next';
-      n.onclick=wizardNext; nav.appendChild(n);
-    }
+  // Nav
+  if(step > 0){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'btn-sec'; b.textContent = 'Back';
+    b.onclick = function(){ step--; renderWizard(); };
+    nav.appendChild(b);
   }
-  const c=document.createElement('button'); c.type='button'; c.className='btn-sec';
-  c.textContent='Cancel';
-  c.setAttribute('aria-label','Cancel tournament setup');
-  c.onclick=function(){
-    ask(
-      'Cancel tournament?',
-      'Are you sure you want to cancel this tournament? This cannot be undone.',
-      function(){
-        try{ if(typeof setupBgmStop==='function') setupBgmStop(); }catch(e){}
-        try{ wiz=null; step=0; }catch(e){}
-        enterHome();
-      },
-      {
-        yesLabel: 'Yes, cancel',
-        noLabel: 'No, continue',
-        yesAria: 'Yes, cancel this tournament',
-        noAria: 'No, continue setup'
-      }
-    );
+  var lastStep = wiz.mode === 'virtual' ? 7 : 6;
+  if(step < lastStep){
+    var nbtn = document.createElement('button'); nbtn.type = 'button'; nbtn.className = 'btn-ok';
+    nbtn.textContent = 'Save and next';
+    nbtn.onclick = wizardNext;
+    nav.appendChild(nbtn);
+  }
+  var c = document.createElement('button'); c.type = 'button'; c.className = 'btn-sec';
+  c.textContent = 'Cancel';
+  c.setAttribute('aria-label', 'Cancel tournament setup');
+  c.onclick = function(){
+    ask('Cancel tournament?', 'Are you sure you want to cancel this tournament? This cannot be undone.', function(){
+      try{ if(typeof setupBgmStop==='function') setupBgmStop(); }catch(e){}
+      try{ wiz = null; step = 0; }catch(e){}
+      enterHome();
+    }, { yesLabel: 'Yes, cancel', noLabel: 'No, continue', yesAria: 'Yes, cancel this tournament', noAria: 'No, continue setup' });
   };
   nav.appendChild(c);
   focusEl($('wizTitle'));
-  setTimeout(()=>{ const f=body.querySelector('input,select,button'); if(f) focusEl(f); },60);
+  setTimeout(function(){ var f = body.querySelector('input,select,button'); if(f) focusEl(f); }, 60);
+}
+
+/* ===== Co-owner / multi-seat helpers ===== */
+function ownersPerTeamLimit(){
+  try{
+    var n = (T && T.rules && T.rules.ownersPerTeam) || (wiz && wiz.rules && wiz.rules.ownersPerTeam) || 1;
+    n = parseInt(n, 10) || 1;
+    return Math.min(3, Math.max(1, n));
+  }catch(e){ return 1; }
+}
+function ownerDisplayLabel(o){
+  if(!o) return 'Owner';
+  if(o.displayName && String(o.displayName).trim()) return String(o.displayName).trim();
+  var em = String(o.email || '').trim();
+  if(em.indexOf('@') > 0) return em.split('@')[0];
+  return em || 'Owner';
+}
+function ownersOnTeam(teamId){
+  return (T && T.owners || []).filter(function(o){ return o && o.teamId === teamId; })
+    .sort(function(a,b){
+      var sa = a.seat != null ? a.seat : (a.role === 'primary' || !a.role ? 1 : (a.role === 'co2' ? 3 : 2));
+      var sb = b.seat != null ? b.seat : (b.role === 'primary' || !b.role ? 1 : (b.role === 'co2' ? 3 : 2));
+      return sa - sb;
+    });
+}
+function seatMeta(seat){
+  if(seat === 1) return { role: 'primary', label: 'Primary' };
+  if(seat === 2) return { role: 'co1', label: 'Co-owner 1' };
+  return { role: 'co2', label: 'Co-owner 2' };
+}
+function nextFreeSeat(teamId){
+  var max = ownersPerTeamLimit();
+  var used = {};
+  ownersOnTeam(teamId).forEach(function(o){
+    var s = o.seat != null ? o.seat : (o.role === 'primary' || !o.role ? 1 : (o.role === 'co2' ? 3 : 2));
+    used[s] = true;
+  });
+  for(var s = 1; s <= max; s++){ if(!used[s]) return s; }
+  return 0;
+}
+function ensureTeamActiveBidder(teamId){
+  if(!T || !T.teams) return;
+  var team = T.teams.find(function(x){ return x.id === teamId; });
+  if(!team) return;
+  var list = ownersOnTeam(teamId);
+  if(!list.length){ team.activeBidderUid = null; return; }
+  if(team.activeBidderUid && list.some(function(o){ return o.uid === team.activeBidderUid; })) return;
+  // Default: primary (seat 1) or first assigned
+  var prim = list.find(function(o){ return (o.seat === 1) || o.role === 'primary' || !o.role; }) || list[0];
+  team.activeBidderUid = prim ? prim.uid : null;
+}
+function isUserActiveBidder(uid, teamId){
+  if(!uid || !teamId || !T) return false;
+  var team = (T.teams || []).find(function(x){ return x.id === teamId; });
+  if(team && team.activeBidderUid) return team.activeBidderUid === uid;
+  // Legacy single owner without activeBidderUid
+  var list = ownersOnTeam(teamId);
+  if(list.length <= 1) return list.some(function(o){ return o.uid === uid; });
+  var prim = list.find(function(o){ return (o.seat === 1) || o.role === 'primary' || !o.role; });
+  return !!(prim && prim.uid === uid);
+}
+function ownerBidNotices(){
+  if(!T) return;
+  T._bidNotices = T._bidNotices || {};
+}
+function queueOwnerBidNotice(uid, kind, teamName){
+  if(!T || !uid) return;
+  T._bidNotices = T._bidNotices || {};
+  T._bidNotices[uid] = { kind: kind, teamName: teamName || '', at: Date.now() };
+}
+function consumeMyBidNotice(){
+  if(!user || !T || !T._bidNotices) return;
+  var n = T._bidNotices[user.uid];
+  if(!n) return;
+  delete T._bidNotices[user.uid];
+  var team = n.teamName || 'your team';
+  if(n.kind === 'granted'){
+    ask('Bidding enabled', 'Host enabled bidding for you — '+team+'.', function(){}, { yesLabel: 'OK', hideNo: true });
+  } else if(n.kind === 'revoked'){
+    ask('Bidding disabled', 'You can no longer bid for '+team+'. Host disabled your permission.', function(){}, { yesLabel: 'OK', hideNo: true });
+  }
+  try{ cloudSave(true); }catch(e){}
 }
 
 function wizardLabels(){
-  if(wiz.mode==='virtual') return ['Tournament name','Number of teams','Purse','Min & max players','Team names','Auction type','Virtual rules','Import players','Invite & assign teams','Go live'];
-  return ['Tournament name','Number of teams','Purse','Min & max players','Team names','Auction type','Import players','Co-organisers','Go live'];
+  if(wiz.mode==='virtual') return ['Tournament basics','Team names','Squad limits & alerts','Auction type','Bid rules','Import players','Assign owners','Go live'];
+  return ['Tournament basics','Team names','Squad limits & alerts','Auction type','Import players','Co-organisers','Go live'];
 }
 function isVirtualPath(){ return wiz.mode==='virtual'; }
 
 function wizardNext(){
-  if(step===0){ const n=$('wName').value.trim(); if(!n){alert('Enter a tournament name');return;} wiz.name=n; }
-  else if(step===1){ const tc=parseInt(String($('wCount').value).replace(/\D/g,''),10); if(!tc){alert('Enter number of teams');return;} wiz.teamCount=tc; }
-  else if(step===2){ const p=parseInt(String($('wPurse').value).replace(/\D/g,''),10); if(!p){alert('Enter purse');return;} wiz.purse=p; }
-  else if(step===3){
-    const mn=parseInt(String($('wMin').value).replace(/\D/g,''),10);
-    const mx=parseInt(String($('wMax').value).replace(/\D/g,''),10);
-    if(isNaN(mn)||isNaN(mx)||mx<1){alert('Check min and max players');return;}
-    if(mx<mn){alert('Maximum must be at least minimum');return;}
-    wiz.minP=mn; wiz.maxP=mx;
-    const custom=String($('arCustom').value||'').split(/[,\s]+/).map(x=>parseInt(x,10)).filter(n=>n>0);
-    wiz.alertRules={
-      minPlayers: !!$('arMin').checked,
-      maxPlayers: !!$('arMax').checked,
-      customCounts: custom,
-      purse: !!$('arPurse').checked,
-      fired: {}
-    };
-    // Permanent: manual Next player only — no auto gap / seconds
-    wiz.playerAdvance='manual';
-    wiz.intermissionSec=0;
+  // Step map (virtual): 0 basics, 1 names, 2 limits, 3 type, 4 bid rules, 5 import, 6 assign, 7 go live
+  // Step map (physical): 0 basics, 1 names, 2 limits, 3 type, 4 import, 5 helpers, 6 go live
+  if(step===0){
+    var n = ($('wName') && $('wName').value || '').trim();
+    var tc = parseInt(String(($('wCount') && $('wCount').value) || '').replace(/\D/g,''), 10);
+    var purse = parseInt(String(($('wPurse') && $('wPurse').value) || '').replace(/\D/g,''), 10);
+    if(!n){ alert('Enter a tournament name'); return; }
+    if(!tc || tc < 2){ alert('Enter at least 2 teams'); return; }
+    if(!purse){ alert('Enter purse per team'); return; }
+    wiz.name = n; wiz.teamCount = tc; wiz.purse = purse;
   }
-  else if(step===4){
-    wiz.teamNames=[]; for(let i=0;i<wiz.teamCount;i++) wiz.teamNames.push(($('tn'+i).value.trim())||('Team '+(i+1)));
-    T={ title:wiz.name, mode:'physical', status:'setup', teams:wiz.teamNames.map((nm,i)=>({id:'t'+i,name:nm,purse:wiz.purse,remaining:wiz.purse,players:[],minPlayers:wiz.minP,maxPlayers:wiz.maxP,maxReached:false})),
-      players:[], meta:{currentIndex:0}, activeColumns:activeCols, rules:null, bid:null, owners:[], pendingOwners:[], pendingCoOrganisers:[], coOrganiserIds:[], meetLink:'',
+  else if(step===1){
+    wiz.teamNames = [];
+    for(var i = 0; i < wiz.teamCount; i++){
+      wiz.teamNames.push((($('tn'+i) && $('tn'+i).value) || '').trim() || ('Team '+(i+1)));
+    }
+    T = {
+      title: wiz.name, mode: 'physical', status: 'setup',
+      teams: wiz.teamNames.map(function(nm, i){
+        return { id: 't'+i, name: nm, purse: wiz.purse, remaining: wiz.purse, players: [], minPlayers: wiz.minP || 0, maxPlayers: wiz.maxP || 0, maxReached: false, activeBidderUid: null };
+      }),
+      players: [], meta: { currentIndex: 0 }, activeColumns: activeCols, rules: null, bid: null,
+      owners: [], pendingOwners: [], pendingCoOrganisers: [], coOrganiserIds: [], meetLink: '',
       ownerId: (user && user.uid) || '',
       ownerEmail: (user && user.email) || '',
       ownerName: (user && user.displayName) || '',
-      alertRules: wiz.alertRules||{ minPlayers:true, maxPlayers:true, customCounts:[], purse:true, fired:{} },
-      intermissionSec: 0,
-      playerAdvance: 'manual',
-      awaitNextPlayer: false };
+      alertRules: wiz.alertRules || { minPlayers: true, maxPlayers: true, customCounts: [], purse: true, fired: {} },
+      intermissionSec: 0, playerAdvance: 'manual', awaitNextPlayer: false,
+      _bidNotices: {}
+    };
   }
-  else if(step===5){
-    const m=document.querySelector('input[name="wMode"]:checked');
-    wiz.mode=m?m.value:'physical';
-    if(T) T.mode=wiz.mode;
+  else if(step===2){
+    var mn = parseInt(String(($('wMin') && $('wMin').value) || '').replace(/\D/g,''), 10);
+    var mx = parseInt(String(($('wMax') && $('wMax').value) || '').replace(/\D/g,''), 10);
+    if(isNaN(mn) || isNaN(mx) || mx < 1){ alert('Check min and max players'); return; }
+    if(mx < mn){ alert('Maximum must be at least minimum'); return; }
+    wiz.minP = mn; wiz.maxP = mx;
+    var custom = String(($('arCustom') && $('arCustom').value) || '').split(/[,\s]+/).map(function(x){ return parseInt(x,10); }).filter(function(n){ return n > 0; });
+    wiz.alertRules = {
+      minPlayers: !!( $('arMin') && $('arMin').checked ),
+      maxPlayers: !!( $('arMax') && $('arMax').checked ),
+      customCounts: custom,
+      purse: !!( $('arPurse') && $('arPurse').checked ),
+      fired: {}
+    };
+    wiz.playerAdvance = 'manual';
+    wiz.intermissionSec = 0;
+    if(T && T.teams){
+      T.teams.forEach(function(tm){ tm.minPlayers = mn; tm.maxPlayers = mx; });
+      T.alertRules = wiz.alertRules;
+    }
   }
-  else if(step===6 && wiz.mode==='virtual'){
-    const base=parseInt(String($('rBase').value).replace(/\D/g,''),10);
-    const minR=parseInt(String($('rMin').value).replace(/\D/g,''),10);
-    const maxR=parseInt(String($('rMax').value).replace(/\D/g,''),10);
-    if(!base||!minR){ alert('Enter base price and minimum increase'); return; }
-    if(maxR && maxR<minR){ alert('Maximum increase must be at least the minimum'); return; }
-    const customOn=$('rCustomOn').checked;
-    let customBids=[];
+  else if(step===3){
+    var m = document.querySelector('input[name="wMode"]:checked');
+    wiz.mode = m ? m.value : 'physical';
+    if(T) T.mode = wiz.mode;
+    if(wiz.mode === 'virtual'){
+      var style = ($('rStyle') && $('rStyle').value === 'unlimited') ? 'unlimited' : 'two';
+      var opt = parseInt(String(($('rOwnersPerTeam') && $('rOwnersPerTeam').value) || '1'), 10) || 1;
+      opt = Math.min(3, Math.max(1, opt));
+      wiz.rules = Object.assign({}, wiz.rules || {}, { bidStyle: style, ownersPerTeam: opt });
+      if(T) T.rules = Object.assign({}, T.rules || {}, wiz.rules);
+    } else {
+      if($('wSlots')) T.coOrganiserSlots = parseInt($('wSlots').value, 10) || 0;
+    }
+  }
+  else if(step===4 && wiz.mode === 'virtual'){
+    var base = parseInt(String(($('rBase') && $('rBase').value) || '').replace(/\D/g,''), 10);
+    var minR = parseInt(String(($('rMin') && $('rMin').value) || '').replace(/\D/g,''), 10);
+    var maxR = parseInt(String(($('rMax') && $('rMax').value) || '').replace(/\D/g,''), 10);
+    if(!base || !minR){ alert('Enter base price and minimum increase'); return; }
+    if(maxR && maxR < minR){ alert('Maximum increase must be at least the minimum'); return; }
+    var customOn = !!( $('rCustomOn') && $('rCustomOn').checked );
+    var customBids = [];
     if(customOn){
-      customBids=String($('rCustomVals').value||'').split(/[,\s]+/).map(x=>parseInt(x,10)).filter(n=>n&&n>=minR&&(!maxR||n<=maxR));
+      customBids = String(($('rCustomVals') && $('rCustomVals').value) || '').split(/[,\s]+/).map(function(x){ return parseInt(x,10); }).filter(function(n){ return n && n >= minR && (!maxR || n <= maxR); });
       if(!customBids.length){ alert('Enter valid custom increases between min and max'); return; }
     }
-    const bidStyle=$('rStyle').value==='unlimited'?'unlimited':'two';
-    const ultimateOn=!!$('rUltimateOn').checked;
-    wiz.rules={ bidStyle, basePrice:base, minRaise:minR, maxRaise:maxR||minR*10, customOn, customBids, ultimateOn, contestSeconds:parseInt($('rTimer').value,10)||30 };
-    if(T) T.rules=wiz.rules;
+    var ultimateOn = !!( $('rUltimateOn') && $('rUltimateOn').checked );
+    var prev = wiz.rules || {};
+    wiz.rules = {
+      bidStyle: prev.bidStyle || 'two',
+      ownersPerTeam: prev.ownersPerTeam || 1,
+      basePrice: base,
+      minRaise: minR,
+      maxRaise: maxR || minR * 10,
+      customOn: customOn,
+      customBids: customBids,
+      ultimateOn: ultimateOn,
+      contestSeconds: parseInt(($('rTimer') && $('rTimer').value) || '30', 10) || 30
+    };
+    if(T) T.rules = wiz.rules;
   }
-  else if((step===6&&wiz.mode!=='virtual')||(step===7&&wiz.mode==='virtual')){
-    if(!T||!T.players||!T.players.length){ alert('Import players first'); return; }
+  else if((step===4 && wiz.mode !== 'virtual') || (step===5 && wiz.mode === 'virtual')){
+    if(!T || !T.players || !T.players.length){ alert('Import players first'); return; }
   }
-  else if(step===7 && wiz.mode!=='virtual'){
-    if($('wSlots')) T.coOrganiserSlots=parseInt($('wSlots').value,10)||0;
-    T.status='setup';
+  else if(step===5 && wiz.mode !== 'virtual'){
+    if($('wSlots')) T.coOrganiserSlots = parseInt($('wSlots').value, 10) || 0;
+    T.status = 'setup';
     try{ cloudSave(true); }catch(e){}
   }
-  else if(step===8 && wiz.mode==='virtual'){
-    T.status='setup'; cloudSave(true);
+  else if(step===6 && wiz.mode === 'virtual'){
+    T.status = 'setup';
+    try{ cloudSave(true); }catch(e){}
   }
-  step++; renderWizard();
+  step++;
+  renderWizard();
 }
 
 function onFile(ev){
@@ -12045,6 +12228,7 @@ function buildLivePayload(opts){
     aiInsight: T.aiInsight || null,
     aiInsights: Array.isArray(T.aiInsights) ? T.aiInsights : [],
     voiceCall: T.voiceCall || null,
+    _bidNotices: T._bidNotices || {},
     intermissionSec: 0,
     intermissionUntil: T.intermissionUntil || null,
     playerAdvance: 'manual',
@@ -13637,150 +13821,242 @@ function paintPhysicalHelpers(box){
 }
 
 async function renderVirtualAssign(body){
-  stopAssignLive();
-  T.status='setup';
-  if(!T.ownerId && user) T.ownerId = user.uid;
-  if(!T.ownerEmail && user) T.ownerEmail = user.email || '';
-  if(!T.ownerName && user) T.ownerName = user.displayName || '';
+  var box = body;
+  if(!box) return;
   var saveErr = null;
   try{ await cloudSave(false); }catch(e){ saveErr = e; }
-  if(!auctionId){
-    var detail = '';
-    try{
-      detail = (saveErr && (saveErr.code || saveErr.message)) ? String(saveErr.code||'')+' '+String(saveErr.message||'') : '';
-    }catch(e2){}
-    if(/permission|PERMISSION/i.test(detail)){
-      body.innerHTML='<p><strong>Could not create draft auction.</strong></p>'+
-        '<p>Permission denied. Your account may not be marked as organiser. Ask a super admin to approve you, or check Firestore rules.</p>'+
-        '<p style="color:var(--muted);font-size:13px">'+detail.replace(/</g,'')+'</p>';
-    } else if(/network|unavailable|offline/i.test(detail)){
-      body.innerHTML='<p><strong>Could not create draft auction.</strong></p>'+
-        '<p>Network problem. Check internet and try again.</p>';
-    } else {
-      body.innerHTML='<p><strong>Could not create draft auction.</strong></p>'+
-        '<p>Check connection and that you are signed in as an organiser.</p>'+
-        (detail ? '<p style="color:var(--muted);font-size:13px">'+detail.replace(/</g,'')+'</p>' : '');
-    }
-    return;
-  }
-  var pc = (T.players && T.players.length) || 0;
-  body.innerHTML=
-    '<p style="margin:0 0 8px;font-weight:700">'+(T.title||'Auction')+' · Setup</p>'+
-    (pc ? '<p style="color:var(--muted);font-size:13px;margin:0 0 12px">'+pc+' players loaded</p>' : '')+
-    '<button type="button" id="btnShareInv" class="btn-ok btn-block" aria-label="Share invite link">Share invite link</button>'+
-    '<button type="button" id="btnCopyInv" class="btn-sec btn-block" style="margin-top:8px" aria-label="Copy invite link">Copy invite link</button>'+
-    '<div id="assignLive" style="margin-top:14px"></div>';
 
-  function doCopyInvite(){
-    var v = inviteUrl();
+  // Live updates for pending joiners
+  try{
+    if(window._assignUnsub){ try{ window._assignUnsub(); }catch(e){} window._assignUnsub = null; }
+  }catch(e){}
+  if(auctionId && db){
     try{
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(v).then(function(){ alert('Invite link copied'); }).catch(function(){ prompt('Copy this link', v); });
+      window._assignUnsub = db.collection('auctions').doc(auctionId).onSnapshot(function(doc){
+        if(!doc.exists) return;
+        var data = doc.data() || {};
+        var prev = T.pendingOwners || [];
+        T.pendingOwners = data.pendingOwners || [];
+        T.owners = data.owners || T.owners || [];
+        if(data.teams) T.teams = data.teams;
+        if(T.pendingOwners.length > prev.length){
+          var newest = T.pendingOwners[T.pendingOwners.length - 1];
+          try{ sayEvent((newest.displayName || newest.email || 'Someone')+' joined and is waiting for a team assignment.', 'wait'); }catch(e){}
+        }
+        paintAssignUI(box);
+      });
+    }catch(e){ console.warn('assign listen', e); }
+  }
+
+  paintAssignUI(box);
+  if(saveErr){
+    box.insertAdjacentHTML('afterbegin', '<p role="status" style="color:#f87171">Could not save yet: '+String(saveErr.message||saveErr).replace(/</g,'')+'</p>');
+  }
+}
+
+function paintAssignUI(box){
+  if(!box || !T) return;
+  var maxSeats = ownersPerTeamLimit();
+  var pending = T.pendingOwners || [];
+  var owners = T.owners || [];
+  var assignedUids = {};
+  owners.forEach(function(o){ if(o && o.uid) assignedUids[o.uid] = true; });
+
+  // Waiting = pending not yet assigned (+ any edge case)
+  var waiting = [];
+  pending.forEach(function(p){
+    if(!p || !p.uid) return;
+    if(assignedUids[p.uid]) return;
+    waiting.push(p);
+  });
+
+  var h = '<p style="color:var(--muted);font-size:14px;margin:0 0 12px">Share the auction link. Joined accounts appear under Waiting. Assign up to <strong>'+maxSeats+'</strong> owner'+(maxSeats>1?'s':'')+' per team.</p>';
+  h += '<p class="wait-owners-title" style="margin-top:0">Assigned teams</p>';
+
+  (T.teams || []).forEach(function(tm){
+    var seats = ownersOnTeam(tm.id);
+    h += '<div class="own-team-row" role="group" aria-label="'+String(tm.name||'Team').replace(/"/g,'')+'">';
+    h += '<button type="button" class="ot-name btn-sec" data-team-assign="'+tm.id+'" style="text-align:left;min-height:44px" aria-label="Assign to '+String(tm.name||'').replace(/"/g,'')+'">'+String(tm.name||'Team').replace(/</g,'')+'</button>';
+    h += '<div class="ot-seats">';
+    for(var s = 1; s <= maxSeats; s++){
+      var meta = seatMeta(s);
+      var o = seats.find(function(x){
+        var xs = x.seat != null ? x.seat : (x.role === 'primary' || !x.role ? 1 : (x.role === 'co2' ? 3 : 2));
+        return xs === s;
+      });
+      h += '<div class="own-seat">';
+      h += '<span class="os-role">'+meta.label+'</span>';
+      if(o){
+        h += '<span class="os-who">'+String(ownerDisplayLabel(o)).replace(/</g,'')+
+          (o.email ? ' <span style="color:var(--muted);font-weight:600;font-size:12px">'+String(o.email).replace(/</g,'')+'</span>' : '')+'</span>';
+        h += '<button type="button" class="btn-danger btnUnSeat" data-uid="'+o.uid+'" data-team="'+tm.id+'" data-seat="'+s+'" aria-label="Unassign '+meta.label+' from '+String(tm.name||'').replace(/"/g,'')+'" style="min-height:40px;padding:0 12px">Unassign</button>';
       } else {
-        prompt('Copy this link', v);
+        h += '<span class="os-who" style="color:var(--muted)">Empty</span>';
       }
-    }catch(e){ prompt('Copy this link', v); }
-  }
-  if($('btnShareInv')) $('btnShareInv').onclick=async function(){
-    try{
-      await shareWithPreview('owner', Object.assign({}, T, {id: auctionId}), { includeHostEmail: true });
-    }catch(e){
-      doCopyInvite();
+      h += '</div>';
     }
-  };
-  if($('btnCopyInv')) $('btnCopyInv').onclick=function(){ doCopyInvite(); };
+    h += '</div></div>';
+  });
 
-  assignUnsub = db.collection('auctions').doc(auctionId).onSnapshot(doc=>{
-    if(!doc.exists) return;
-    const data=doc.data();
-    const prev=T.pendingOwners||[];
-    T.pendingOwners = data.pendingOwners||[];
-    T.owners = data.owners||[];
-    if(T.pendingOwners.length > prev.length){
-      const newest=T.pendingOwners[T.pendingOwners.length-1];
-      const who=(newest&&(newest.displayName||newest.email))||'A new owner';
-      sayEvent(who+' joined and is waiting for a team assignment.', 'wait');
-    }
-    paintAssignList($('assignLive'));
+  h += '<p class="own-waiting-title">Waiting to assign</p>';
+  if(!waiting.length){
+    h += '<p style="color:var(--muted)">No one waiting. Ask owners to open the invite link.</p>';
+  } else {
+    waiting.forEach(function(p){
+      var lab = ownerDisplayLabel(p);
+      h += '<button type="button" class="own-wait-row" data-wait-uid="'+p.uid+'" aria-label="Assign '+String(lab).replace(/"/g,'')+'">'+
+        '<span><strong>'+String(lab).replace(/</g,'')+'</strong>'+
+        (p.email ? '<br><span style="color:var(--muted);font-size:13px">'+String(p.email).replace(/</g,'')+'</span>' : '')+
+        '</span><span style="color:var(--muted);font-size:13px">Tap to assign</span></button>';
+    });
+  }
+  box.innerHTML = h;
+
+  // Unassign one seat
+  box.querySelectorAll('.btnUnSeat').forEach(function(btn){
+    btn.onclick = function(){
+      var uid = btn.getAttribute('data-uid');
+      var teamId = btn.getAttribute('data-team');
+      var seat = btn.getAttribute('data-seat');
+      ask('Unassign?', 'Remove this account from the team seat? They return to the waiting list.', async function(){
+        T.owners = (T.owners || []).filter(function(o){ return !(o.uid === uid && o.teamId === teamId); });
+        var team = (T.teams || []).find(function(x){ return x.id === teamId; });
+        if(team && team.activeBidderUid === uid) team.activeBidderUid = null;
+        ensureTeamActiveBidder(teamId);
+        try{ await cloudSave(false); announce('Seat unassigned'); paintAssignUI(box); }catch(e){ safeAlert(e); }
+      });
+    };
+  });
+
+  // Tap team name → assign from waiting (primary or co)
+  box.querySelectorAll('[data-team-assign]').forEach(function(btn){
+    btn.onclick = function(){
+      var teamId = btn.getAttribute('data-team-assign');
+      var free = nextFreeSeat(teamId);
+      if(!free){ alert('This team already has '+maxSeats+' owner(s). Unassign a seat first.'); return; }
+      openAssignPicker({ teamId: teamId, seat: free, fromWaiting: true });
+    };
+  });
+
+  // Tap waiting email → pick team
+  box.querySelectorAll('[data-wait-uid]').forEach(function(btn){
+    btn.onclick = function(){
+      openAssignPicker({ uid: btn.getAttribute('data-wait-uid'), fromWaiting: true });
+    };
   });
 }
 
-function paintAssignList(box){
-  if(!box) return;
-  const pending=T.pendingOwners||[];
-  const owners=T.owners||[];
-  // Deduplicate by uid: every joiner in pendingOwners + any assigned owner
-  const seen={};
-  const cards=[];
-  pending.forEach(function(p){
-    if(!p || !p.uid) return;
-    if(seen[p.uid]) return;
-    seen[p.uid]=true;
-    cards.push({ uid:p.uid, email:p.email||'', displayName:p.displayName||'', fromPending:true });
-  });
-  owners.forEach(function(o){
-    if(!o || !o.uid) return;
-    if(seen[o.uid]) return;
-    seen[o.uid]=true;
-    cards.push({ uid:o.uid, email:o.email||'', displayName:o.displayName||'', fromPending:false });
-  });
-  const nAssigned = owners.filter(function(o){ return o && o.teamId; }).length;
-  const nWaiting = cards.filter(function(c){
-    const a = owners.find(function(o){ return o.uid===c.uid && o.teamId; });
-    return !a;
-  }).length;
-  let h='<h3>Join requests and assignments</h3>';
-  h+='<p style="color:var(--muted);font-size:14px;margin:4px 0 8px" role="status">'+cards.length+' joined · '+nAssigned+' assigned · '+nWaiting+' waiting</p>';
-  if(!cards.length){
-    h+='<p style="color:var(--muted)">No owners have joined yet. Share the invite link.</p>';
-  }
-  h+='<div class="assign-cards" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
-  cards.forEach(function(p,i){
-    const assigned=owners.find(o=>o.uid===p.uid && o.teamId);
-    h+='<div class="panel assign-owner-card" style="margin-top:8px" role="group" aria-label="'+(p.displayName||p.email||'Owner')+'">';
-    h+='<strong>'+(p.displayName||p.email||'Owner')+'</strong><br>'+
-      '<span style="color:var(--muted)">'+(p.email||'')+'</span>';
-    if(assigned){
-      h+='<p>Assigned: <strong>'+(assigned.teamName||'')+'</strong></p>'+
-        '<button type="button" class="btn-danger btnUnassign" data-uid="'+p.uid+'">Unassign team</button>';
-    } else {
-      h+='<label for="as'+i+'">Select team</label><select id="as'+i+'" data-uid="'+p.uid+'"><option value="">Choose team</option>';
-      (T.teams||[]).forEach(t=>{
-        const taken=owners.some(o=>o.teamId===t.id && o.uid!==p.uid);
-        if(!taken) h+='<option value="'+t.id+'">'+t.name+'</option>';
-      });
-      h+='</select><button type="button" class="btn-ok btnAssign" data-idx="'+i+'" data-uid="'+p.uid+'">Assign team</button>';
-    }
-    h+='</div>';
-  });
-  h+='</div>';
-  box.innerHTML=h;
+function openAssignPicker(opts){
+  opts = opts || {};
+  var maxSeats = ownersPerTeamLimit();
+  var pending = T.pendingOwners || [];
+  var assignedUids = {};
+  (T.owners || []).forEach(function(o){ if(o && o.uid) assignedUids[o.uid] = true; });
 
-  box.querySelectorAll('.btnAssign').forEach(btn=>{
-    btn.onclick=async()=>{
-      const uid=btn.getAttribute('data-uid');
-      const idx=btn.getAttribute('data-idx');
-      const sel=$('as'+idx);
-      const teamId=sel&&sel.value;
-      if(!teamId){ alert('Select a team'); return; }
-      const team=T.teams.find(t=>t.id===teamId);
-      const p=(T.pendingOwners||[]).find(x=>x.uid===uid)||{};
-      T.owners=T.owners||[];
-      T.owners=T.owners.filter(o=>o.uid!==uid);
-      T.owners.push({uid,email:p.email||'',displayName:p.displayName||'',teamId,teamName:team.name});
-      try{
-        await cloudSave(false);
-        announce('Assigned '+(team.name)+' to '+(p.displayName||p.email||'owner'));
-      }catch(e){ safeAlert(e); }
-    };
-  });
-  box.querySelectorAll('.btnUnassign').forEach(btn=>{
-    btn.onclick=async()=>{
-      const uid=btn.getAttribute('data-uid');
-      T.owners=(T.owners||[]).filter(o=>o.uid!==uid);
-      try{ await cloudSave(false); announce('Team unassigned'); }catch(e){ safeAlert(e); }
-    };
-  });
+  var title = 'Assign owner';
+  var html = '';
+  if(opts.uid && !opts.teamId){
+    // Pick team for this waiting user
+    var person = pending.find(function(p){ return p.uid === opts.uid; }) || {};
+    title = 'Assign '+(ownerDisplayLabel(person));
+    html = '<p style="margin:0 0 10px;color:var(--muted)">Select a team with a free seat.</p>';
+    (T.teams || []).forEach(function(tm){
+      var free = nextFreeSeat(tm.id);
+      if(!free) return;
+      var meta = seatMeta(free);
+      html += '<label style="display:flex;gap:10px;align-items:center;min-height:48px">'+
+        '<input type="radio" name="asTeam" value="'+tm.id+'" data-seat="'+free+'" /> '+
+        '<span><strong>'+String(tm.name||'').replace(/</g,'')+'</strong> — '+meta.label+'</span></label>';
+    });
+  } else if(opts.teamId){
+    var tm = (T.teams || []).find(function(x){ return x.id === opts.teamId; }) || {};
+    var free = opts.seat || nextFreeSeat(opts.teamId);
+    if(!free){ alert('No free seat'); return; }
+    var meta = seatMeta(free);
+    title = free === 1 ? ('Select owner — '+(tm.name||'')) : ('Select co-owner — '+(tm.name||''));
+    html = '<p style="margin:0 0 10px;color:var(--muted)">Waiting accounts only.</p>';
+    var any = false;
+    pending.forEach(function(p){
+      if(!p || !p.uid || assignedUids[p.uid]) return;
+      any = true;
+      html += '<label style="display:flex;gap:10px;align-items:center;min-height:48px">'+
+        '<input type="radio" name="asUid" value="'+p.uid+'" /> '+
+        '<span><strong>'+String(ownerDisplayLabel(p)).replace(/</g,'')+'</strong>'+
+        (p.email ? '<br><span style="color:var(--muted);font-size:13px">'+String(p.email).replace(/</g,'')+'</span>' : '')+
+        '</span></label>';
+    });
+    if(!any) html += '<p style="color:var(--muted)">No one in the waiting list.</p>';
+  }
+
+  // Use ask-like custom modal via confirmModal pattern if available — simple overlay
+  var overlay = $('assignPickOverlay');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'assignPickOverlay';
+    overlay.className = 'modal';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = '<div class="modal-box" style="max-width:420px">'+
+    '<h2 id="asPickTitle" tabindex="-1" style="margin-top:0">'+title+'</h2>'+
+    '<div id="asPickBody">'+html+'</div>'+
+    '<div class="btn-stack" style="margin-top:14px">'+
+    '<button type="button" id="asPickOk" class="btn-ok btn-block">Assign</button>'+
+    '<button type="button" id="asPickCancel" class="btn-sec btn-block">Cancel</button></div></div>';
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden', 'false');
+  try{ focusEl($('asPickTitle')); }catch(e){}
+
+  function closePick(){
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = '';
+  }
+  $('asPickCancel').onclick = closePick;
+  $('asPickOk').onclick = async function(){
+    var teamId = opts.teamId;
+    var uid = opts.uid;
+    var seat = opts.seat || 0;
+    if(!teamId){
+      var r = document.querySelector('input[name="asTeam"]:checked');
+      if(!r){ alert('Select a team'); return; }
+      teamId = r.value;
+      seat = parseInt(r.getAttribute('data-seat'), 10) || nextFreeSeat(teamId);
+    }
+    if(!uid){
+      var r2 = document.querySelector('input[name="asUid"]:checked');
+      if(!r2){ alert('Select an account'); return; }
+      uid = r2.value;
+    }
+    if(!seat) seat = nextFreeSeat(teamId);
+    if(!seat){ alert('No free seat on this team'); return; }
+    var team = (T.teams || []).find(function(x){ return x.id === teamId; });
+    if(!team){ alert('Team not found'); return; }
+    var person = (T.pendingOwners || []).find(function(p){ return p.uid === uid; }) || {};
+    var meta = seatMeta(seat);
+    T.owners = (T.owners || []).filter(function(o){ return o.uid !== uid; });
+    T.owners.push({
+      uid: uid,
+      email: person.email || '',
+      displayName: person.displayName || '',
+      teamId: teamId,
+      teamName: team.name,
+      role: meta.role,
+      seat: seat
+    });
+    if(seat === 1 || !team.activeBidderUid){
+      team.activeBidderUid = uid;
+    }
+    ensureTeamActiveBidder(teamId);
+    try{
+      await cloudSave(false);
+      announce('Assigned '+(team.name)+' — '+meta.label+' — '+(ownerDisplayLabel(person)));
+      closePick();
+      var host = $('wizBody');
+      if(host) paintAssignUI(host);
+    }catch(e){ safeAlert(e); }
+  };
 }
 
 async function goLive(){
@@ -14719,84 +14995,129 @@ function recentLineHtml(recent){
 }
 
 function showOnlineOwners(){
-  // Full joined list: assigned owners + waiting (pendingOwners) — not only those with a team
-  const panel = $('ownersMorePanel') || $('onlinePanelTop') || $('onlinePanel');
+  const panel = $('ownersMorePanel') || $('ownersMorePanelWatch') || $('onlinePanelTop') || $('onlinePanel');
   if(!panel) return;
-  if(!panel.classList.contains('hidden') && panel.innerHTML){
+  if(!panel.classList.contains('hidden') && panel.innerHTML && panel.dataset.open === '1'){
     panel.classList.add('hidden');
-    panel.innerHTML='';
-    try{ focusEl($('btnOwnersMore')); }catch(e){}
+    panel.dataset.open = '0';
+    try{ focusEl($('btnOwnersMore') || $('btnOwnersMoreWatch')); }catch(e){}
     return;
   }
-  const owners = (T && T.owners) || [];
-  const pending = (T && T.pendingOwners) || [];
-  const byUid = {};
-  owners.forEach(function(o){
-    if(!o || !o.uid) return;
-    byUid[o.uid] = {
-      uid: o.uid,
-      displayName: o.displayName || '',
-      email: o.email || '',
-      teamId: o.teamId || null,
-      teamName: o.teamName || '',
-      status: o.teamId ? 'assigned' : 'joined'
-    };
-  });
-  pending.forEach(function(p){
-    if(!p || !p.uid) return;
-    if(byUid[p.uid] && byUid[p.uid].teamId){
-      // keep assigned entry; fill missing name/email
-      if(!byUid[p.uid].displayName) byUid[p.uid].displayName = p.displayName || '';
-      if(!byUid[p.uid].email) byUid[p.uid].email = p.email || '';
-      return;
-    }
-    byUid[p.uid] = {
-      uid: p.uid,
-      displayName: p.displayName || '',
-      email: p.email || '',
-      teamId: null,
-      teamName: '',
-      status: 'waiting'
-    };
-  });
-  const list = Object.keys(byUid).map(function(k){ return byUid[k]; });
-  list.sort(function(a,b){
-    if(a.status === 'assigned' && b.status !== 'assigned') return -1;
-    if(b.status === 'assigned' && a.status !== 'assigned') return 1;
-    return String(a.displayName||a.email).localeCompare(String(b.displayName||b.email));
-  });
-  const nAssigned = list.filter(function(x){ return x.status === 'assigned'; }).length;
-  const nWaiting = list.length - nAssigned;
-  let h = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px">'+
-    '<h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners ('+list.length+')</h3>'+
+  var maxSeats = ownersPerTeamLimit();
+  var isHost = !!(user && T && T.ownerId === user.uid);
+  var h = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px">'+
+    '<h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners</h3>'+
     '<button type="button" id="btnCloseOnline" class="btn-sec" aria-label="Close owners list">Close</button></div>';
-  h += '<p style="color:var(--muted);font-size:13px;margin:8px 0 0" role="status">'+nAssigned+' assigned · '+nWaiting+' waiting for team</p>';
-  if(!list.length){
-    h += '<p style="color:var(--muted);margin:10px 0 0">No owners have joined yet. Share the invite link.</p>';
-  } else {
-    h += '<ul class="plain" style="margin:10px 0 0;max-height:55vh;overflow-y:auto" role="list">';
-    list.forEach(function(o){
-      var nm = (o.displayName || o.email || 'Owner');
-      var team = o.teamName || ((T.teams||[]).find(function(t){ return t.id===o.teamId; })||{}).name || '';
-      var statusLab = o.status === 'assigned'
-        ? ('Team: ' + (team || o.teamId || '—'))
-        : 'Waiting for team assignment';
-      h += '<li style="padding:10px 0;border-bottom:1px solid var(--border)" role="listitem">'+
-        '<strong>'+String(nm).replace(/</g,'')+'</strong>'+
-        (o.email ? '<br><span style="color:var(--muted);font-size:13px">'+String(o.email).replace(/</g,'')+'</span>' : '')+
-        '<br><span style="color:var(--muted)">'+String(statusLab).replace(/</g,'')+'</span></li>';
-    });
-    h += '</ul>';
-  }
+
+  (T && T.teams || []).forEach(function(tm){
+    var seats = ownersOnTeam(tm.id);
+    h += '<div class="own-team-row" role="group" aria-label="'+String(tm.name||'Team').replace(/"/g,'')+'">';
+    h += '<div class="ot-name">'+String(tm.name||'Team').replace(/</g,'')+'</div>';
+    h += '<div class="ot-seats">';
+    for(var s = 1; s <= maxSeats; s++){
+      var meta = seatMeta(s);
+      var o = seats.find(function(x){
+        var xs = x.seat != null ? x.seat : (x.role === 'primary' || !x.role ? 1 : (x.role === 'co2' ? 3 : 2));
+        return xs === s;
+      });
+      h += '<div class="own-seat">';
+      h += '<span class="os-role">'+meta.label+'</span>';
+      if(o){
+        var active = isUserActiveBidder(o.uid, tm.id);
+        h += '<span class="os-who">'+String(ownerDisplayLabel(o)).replace(/</g,'')+
+          (o.email ? '<br><span style="color:var(--muted);font-size:12px">'+String(o.email).replace(/</g,'')+'</span>' : '')+
+          (active ? ' <span style="color:#34d399;font-size:12px">· Bidding</span>' : '')+
+          '</span>';
+        if(isHost && T.status === 'live'){
+          h += '<label class="own-bid-toggle"><input type="checkbox" class="bidAllowToggle" data-uid="'+o.uid+'" data-team="'+tm.id+'" '+(active?'checked':'')+' aria-label="Allow bid for '+String(ownerDisplayLabel(o)).replace(/"/g,'')+'" /> Allow bid</label>';
+        }
+        if(isHost && T.status === 'setup'){
+          h += '<button type="button" class="btn-danger btnUnSeatLive" data-uid="'+o.uid+'" data-team="'+tm.id+'" style="min-height:36px;padding:0 10px" aria-label="Unassign '+meta.label+'">Unassign</button>';
+        }
+      } else {
+        h += '<span class="os-who" style="color:var(--muted)">Empty</span>';
+      }
+      h += '</div>';
+    }
+    h += '</div></div>';
+  });
+
+  // Waiting
+  var assignedUids = {};
+  (T.owners || []).forEach(function(o){ if(o && o.uid) assignedUids[o.uid] = true; });
+  var waiting = (T.pendingOwners || []).filter(function(p){ return p && p.uid && !assignedUids[p.uid]; });
+  h += '<p class="own-waiting-title">Waiting</p>';
+  if(!waiting.length) h += '<p style="color:var(--muted);font-size:13px">No one waiting</p>';
+  else waiting.forEach(function(p){
+    h += '<div class="own-wait-row" style="cursor:default"><span><strong>'+String(ownerDisplayLabel(p)).replace(/</g,'')+'</strong>'+
+      (p.email ? '<br><span style="color:var(--muted);font-size:13px">'+String(p.email).replace(/</g,'')+'</span>' : '')+'</span></div>';
+  });
+
   panel.innerHTML = h;
   panel.classList.remove('hidden');
+  panel.dataset.open = '1';
   panel.removeAttribute('aria-hidden');
   try{ focusEl($('onlineH') || $('btnCloseOnline')); }catch(e){}
   if($('btnCloseOnline')) $('btnCloseOnline').onclick = function(){
-    panel.classList.add('hidden'); panel.innerHTML='';
-    try{ focusEl($('btnOwnersMore')); }catch(e){}
+    panel.classList.add('hidden'); panel.dataset.open = '0';
+    try{ focusEl($('btnOwnersMore') || $('btnOwnersMoreWatch')); }catch(e){}
   };
+
+  panel.querySelectorAll('.bidAllowToggle').forEach(function(tog){
+    tog.onchange = function(){
+      var uid = tog.getAttribute('data-uid');
+      var teamId = tog.getAttribute('data-team');
+      var team = (T.teams || []).find(function(x){ return x.id === teamId; });
+      if(!team){ tog.checked = !tog.checked; return; }
+      if(!tog.checked){
+        // Turning off current active — only if they are active
+        if(team.activeBidderUid !== uid){ tog.checked = true; return; }
+        ask('Disable bidding?', 'This team will have no active bidder until you enable someone.', function(){
+          var prev = team.activeBidderUid;
+          team.activeBidderUid = null;
+          if(prev) queueOwnerBidNotice(prev, 'revoked', team.name);
+          cloudSave(false).then(function(){
+            sayEvent((team.name)+' has no active bidder.', 'host');
+            panel.dataset.open = '0';
+            showOnlineOwners();
+          }).catch(function(e){ safeAlert(e); });
+        }, { onNo: function(){ tog.checked = true; } });
+        return;
+      }
+      // Enable this uid
+      if(team.activeBidderUid === uid) return;
+      var who = (T.owners || []).find(function(o){ return o.uid === uid; });
+      ask('Switch bidder?', 'Allow '+ownerDisplayLabel(who)+' to bid for '+team.name+'? The current bidder will be disabled.', function(){
+        var prev = team.activeBidderUid;
+        team.activeBidderUid = uid;
+        if(prev && prev !== uid) queueOwnerBidNotice(prev, 'revoked', team.name);
+        queueOwnerBidNotice(uid, 'granted', team.name);
+        cloudSave(false).then(function(){
+          sayEvent((team.name)+' — '+ownerDisplayLabel(who)+' joined the bidding.', 'host');
+          // force panel refresh
+          panel.dataset.open = '0';
+          showOnlineOwners();
+          try{ if(typeof renderAuction==='function') renderAuction({ skipFocus: true, skipAnnounce: true }); }catch(e){}
+        }).catch(function(e){ safeAlert(e); });
+      }, { onNo: function(){ tog.checked = false; } });
+    };
+  });
+
+  panel.querySelectorAll('.btnUnSeatLive').forEach(function(btn){
+    btn.onclick = function(){
+      var uid = btn.getAttribute('data-uid');
+      var teamId = btn.getAttribute('data-team');
+      ask('Unassign?', 'Remove this account from the team?', async function(){
+        T.owners = (T.owners || []).filter(function(o){ return !(o.uid === uid && o.teamId === teamId); });
+        var team = (T.teams || []).find(function(x){ return x.id === teamId; });
+        if(team && team.activeBidderUid === uid) team.activeBidderUid = null;
+        try{ await cloudSave(false); panel.dataset.open = '0'; showOnlineOwners(); }catch(e){ safeAlert(e); }
+      });
+    };
+  });
 }
+
+
 function wireMoreOwnersAndSettings(){
   try{
     if($('btnOwnersMore')) $('btnOwnersMore').onclick = function(){ showOnlineOwners(); };
@@ -15162,6 +15483,10 @@ function wireUltimateBid(b, rules, fromComposer){
 
 async function doRaise(targetPrice, inc, isUltimate){
   if(!ownerMode||!myTeamId||!auctionId) return;
+  if(user && !isUserActiveBidder(user.uid, myTeamId)){
+    try{ alert('Host has not enabled bidding for your account on this team.'); }catch(e){}
+    return;
+  }
   try{ window._lastRaiseInc = (inc != null ? String(inc) : '0'); }catch(e){}
   if(T && T.status==='ended'){
     announce('Auction is closed. Bidding is not available.');

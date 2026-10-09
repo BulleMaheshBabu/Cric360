@@ -2321,6 +2321,10 @@ body.light #screenAuction .stat-btn{
 .own-wait-row:active{transform:scale(.99)}
 .own-bid-toggle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
 
+
+.wait-owner-row .meta span{display:block;font-size:13px;color:var(--muted);line-height:1.35;margin-top:2px}
+.wait-owner-row .meta strong{display:block}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -6190,7 +6194,6 @@ async function enterHostSetupRoom(id, data){
   auctionId = id;
   applyAuctionData(data || {});
   try{ await ensurePlayersLoaded(id, data); }catch(e){ console.warn('host setup roster', e); }
-  // Keep status setup — do not invent bid/timer
   if(T){
     T.status = 'setup';
     T.bid = null;
@@ -6200,24 +6203,48 @@ async function enterHostSetupRoom(id, data){
   try{
     sessionStorage.setItem('at_nav_restore', JSON.stringify({ screen:'screenWizard', auctionId:id, at:Date.now() }));
   }catch(e){}
-  // Re-open wizard assign step UI
+  var mode = (data && data.mode) || (T && T.mode) || 'virtual';
   try{
-    if(typeof wiz !== 'undefined'){
-      wiz = wiz || {};
-      wiz.mode = (data && data.mode) || (T && T.mode) || 'virtual';
+    wiz = {
+      name: (T && T.title) || (data && data.title) || '',
+      mode: mode,
+      teamCount: (T && T.teams && T.teams.length) || 0,
+      purse: (T && T.teams && T.teams[0] && T.teams[0].purse) || '',
+      minP: (T && T.teams && T.teams[0] && T.teams[0].minPlayers) || '',
+      maxP: (T && T.teams && T.teams[0] && T.teams[0].maxPlayers) || '',
+      teamNames: (T && T.teams || []).map(function(tm){ return tm.name || ''; }),
+      rules: (T && T.rules) || {},
+      alertRules: (T && T.alertRules) || {},
+      playerAdvance: 'manual',
+      intermissionSec: 0,
+      coOrganiserSlots: (T && T.coOrganiserSlots) || 0
+    };
+    // Virtual: Assign owners (step 6). Physical: helpers (step 5).
+    step = (mode === 'virtual') ? 6 : 5;
+  }catch(e){ console.warn('host setup wiz', e); }
+  showScreen('screenWizard');
+  try{
+    renderWizard();
+  }catch(e){
+    console.warn('renderWizard host setup', e);
+    var body = $('wizBody');
+    if(body && mode === 'virtual') await renderVirtualAssign(body);
+    else if(body) await renderPhysicalHelperPanel(body);
+  }
+  // Ensure host can always advance: inject Go live if nav missing buttons
+  try{
+    var nav = $('wizNav');
+    if(nav && !$('btnGoLiveHostSetup')){
+      var gl = document.createElement('button');
+      gl.type = 'button';
+      gl.id = 'btnGoLiveHostSetup';
+      gl.className = 'btn-ok';
+      gl.textContent = 'Go live';
+      gl.setAttribute('aria-label', 'Go live now');
+      gl.onclick = function(){ try{ goLive(); }catch(e){ safeAlert(e); } };
+      nav.appendChild(gl);
     }
   }catch(e){}
-  showScreen('screenWizard');
-  var body = $('wizBody');
-  if(!body){
-    // Fallback: waiting-style host panel on wait screen
-    showScreen('screenWait');
-    $('waitStatus').textContent = (data && data.title) || 'Auction setup';
-    $('waitHint').textContent = '';
-    $('waitTeam').classList.add('hidden');
-    body = $('waitOwners');
-  }
-  if(body) await renderVirtualAssign(body);
   var pc = (T && T.players && T.players.length) || (data && data.playersCount) || 0;
   try{ announce('Setup. '+(pc||0)+' players. Assign owners then go live.'); }catch(e){}
 }
@@ -6287,10 +6314,12 @@ function renderWaitingRoom(id, data){
     $('waitStatus').textContent = 'Waiting for host to begin';
     $('waitTeam').classList.remove('hidden');
     var teamNm = meOwner.teamName||meOwner.teamId||'Team';
-    var whoNm = meOwner.displayName||meOwner.email||'You';
+    var whoNm = (typeof ownerFullLabel==='function' ? ownerFullLabel(meOwner) : (meOwner.email||meOwner.displayName||'You'));
+    var roleNm = (meOwner.seat===1 || meOwner.role==='primary' || !meOwner.role) ? 'Primary' :
+      (meOwner.role==='co2' || meOwner.seat===3) ? 'Co-owner 2' : 'Co-owner';
     $('waitTeam').innerHTML =
       '<p class="wt-name" id="waitTeamName" tabindex="-1">'+teamNm+'</p>'+
-      '<p class="wt-meta">Owner · '+whoNm+'</p>';
+      '<p class="wt-meta">'+roleNm+' · '+whoNm+'</p>';
     focusEl($('waitTeamName'));
     if(window._ttsAssignKey !== (meOwner.teamId||'')+'|setup'){
       window._ttsAssignKey = (meOwner.teamId||'')+'|setup';
@@ -6312,24 +6341,42 @@ function renderWaitingRoom(id, data){
 
   var h = '<p class="wait-owners-title">Teams in this auction</p>';
   var listed = false;
-  owners.forEach(function(o){
-    if(!o.teamId) return;
-    listed = true;
-    var who = o.displayName||o.email||'Owner';
-    var team = o.teamName||o.teamId;
-    var av = (team||'?').charAt(0).toUpperCase();
-    h += '<div class="wait-owner-row" aria-label="'+team+' team, owner '+who+'">'+
-      '<span class="av" aria-hidden="true">'+av+'</span>'+
-      '<span class="meta"><strong>'+team+'</strong><span>'+who+'</span></span></div>';
+  var byTeam = {};
+  var teamOrder = [];
+  (data.teams || []).forEach(function(tm){
+    if(!tm || !tm.id) return;
+    byTeam[tm.id] = { id: tm.id, name: tm.name || tm.id, people: [] };
+    teamOrder.push(tm.id);
   });
-  if(!listed){
-    (data.teams||[]).forEach(function(tm){
-      listed = true;
-      var nm = tm.name||'Team';
-      var av = nm.charAt(0).toUpperCase();
-      h += '<div class="wait-owner-row" aria-label="'+nm+'"><span class="av" aria-hidden="true">'+av+'</span><span class="meta"><strong>'+nm+'</strong><span>Open</span></span></div>';
-    });
-  }
+  owners.forEach(function(o){
+    if(!o || !o.teamId) return;
+    if(!byTeam[o.teamId]){
+      byTeam[o.teamId] = { id: o.teamId, name: o.teamName || o.teamId, people: [] };
+      teamOrder.push(o.teamId);
+    }
+    byTeam[o.teamId].people.push(o);
+  });
+  teamOrder.forEach(function(tid){
+    var row = byTeam[tid];
+    if(!row) return;
+    listed = true;
+    var nm = row.name || 'Team';
+    var av = String(nm).charAt(0).toUpperCase();
+    var people = row.people || [];
+    var whoLine = '';
+    if(!people.length){
+      whoLine = 'Open';
+    } else {
+      whoLine = people.map(function(o){
+        var role = (o.seat === 1 || o.role === 'primary' || !o.role) ? 'Primary' :
+          (o.role === 'co2' || o.seat === 3) ? 'Co-owner 2' : 'Co-owner';
+        return role + ': ' + (typeof ownerFullLabel === 'function' ? ownerFullLabel(o) : (o.email || o.displayName || 'Owner'));
+      }).join(' · ');
+    }
+    h += '<div class="wait-owner-row" aria-label="'+String(nm).replace(/"/g,'')+' team. '+String(whoLine).replace(/"/g,'')+'">'+
+      '<span class="av" aria-hidden="true">'+av+'</span>'+
+      '<span class="meta"><strong>'+String(nm).replace(/</g,'')+'</strong><span>'+String(whoLine).replace(/</g,'')+'</span></span></div>';
+  });
   if(!listed) h += '<p style="color:var(--muted);text-align:center">No teams assigned yet</p>';
   if($('waitOwners')) $('waitOwners').innerHTML = h;
 }
@@ -14049,8 +14096,8 @@ function paintAssignUI(box){
       h += '<div class="own-seat">';
       h += '<span class="os-role">'+meta.label+'</span>';
       if(o){
-        h += '<span class="os-who">'+String(ownerDisplayLabel(o)).replace(/</g,'')+
-          (o.email ? ' <span style="color:var(--muted);font-weight:600;font-size:12px">'+String(o.email).replace(/</g,'')+'</span>' : '')+'</span>';
+        h += '<span class="os-who"><strong>'+String(ownerDisplayLabel(o)).replace(/</g,'')+'</strong>'+
+          (o.email ? '<br><span style="color:var(--muted);font-weight:600;font-size:12px">'+String(o.email).replace(/</g,'')+'</span>' : '')+'</span>';
         h += '<button type="button" class="btn-danger btnUnSeat" data-uid="'+o.uid+'" data-team="'+tm.id+'" data-seat="'+s+'" aria-label="Unassign '+meta.label+' from '+String(tm.name||'').replace(/"/g,'')+'" style="min-height:40px;padding:0 12px">Unassign</button>';
       } else {
         h += '<span class="os-who" style="color:var(--muted)">Empty</span>';
@@ -14149,16 +14196,15 @@ function openAssignPicker(opts){
   var title = 'Assign owner';
   var html = '';
   if(opts.uid && !opts.teamId){
-    // Pick team for this waiting user
     var person = pending.find(function(p){ return p.uid === opts.uid; }) || {};
-    title = 'Assign '+(ownerDisplayLabel(person));
-    html = '<p style="margin:0 0 10px;color:var(--muted)">Select a team with a free seat.</p>';
+    title = 'Assign '+(ownerFullLabel(person) || ownerDisplayLabel(person));
+    html = '<p style="margin:0 0 10px;color:var(--muted)">Select one team with a free seat.</p>';
     (T.teams || []).forEach(function(tm){
       var free = nextFreeSeat(tm.id);
       if(!free) return;
       var meta = seatMeta(free);
       html += '<label style="display:flex;gap:10px;align-items:center;min-height:48px">'+
-        '<input type="radio" name="asTeam" value="'+tm.id+'" data-seat="'+free+'" /> '+
+        '<input type="checkbox" class="asPickCb" name="asTeam" value="'+tm.id+'" data-seat="'+free+'" /> '+
         '<span><strong>'+String(tm.name||'').replace(/</g,'')+'</strong> — '+meta.label+'</span></label>';
     });
   } else if(opts.teamId){
@@ -14167,13 +14213,13 @@ function openAssignPicker(opts){
     if(!free){ alert('No free seat'); return; }
     var meta = seatMeta(free);
     title = free === 1 ? ('Select owner — '+(tm.name||'')) : ('Select co-owner — '+(tm.name||''));
-    html = '<p style="margin:0 0 10px;color:var(--muted)">Waiting accounts only.</p>';
+    html = '<p style="margin:0 0 10px;color:var(--muted)">Select one account from the waiting list.</p>';
     var any = false;
     pending.forEach(function(p){
       if(!p || !p.uid || assignedUids[p.uid]) return;
       any = true;
       html += '<label style="display:flex;gap:10px;align-items:center;min-height:48px">'+
-        '<input type="radio" name="asUid" value="'+p.uid+'" /> '+
+        '<input type="checkbox" class="asPickCb" name="asUid" value="'+p.uid+'" /> '+
         '<span><strong>'+String(ownerDisplayLabel(p)).replace(/</g,'')+'</strong>'+
         (p.email ? '<br><span style="color:var(--muted);font-size:13px">'+String(p.email).replace(/</g,'')+'</span>' : '')+
         '</span></label>';
@@ -14181,7 +14227,6 @@ function openAssignPicker(opts){
     if(!any) html += '<p style="color:var(--muted)">No one in the waiting list.</p>';
   }
 
-  // Use ask-like custom modal via confirmModal pattern if available — simple overlay
   var overlay = $('assignPickOverlay');
   if(!overlay){
     overlay = document.createElement('div');
@@ -14191,34 +14236,79 @@ function openAssignPicker(opts){
     overlay.setAttribute('aria-modal', 'true');
     document.body.appendChild(overlay);
   }
-  overlay.innerHTML = '<div class="modal-box" style="max-width:420px">'+
+  overlay.innerHTML = '<div class="modal-box" style="max-width:420px" id="asPickBox">'+
     '<h2 id="asPickTitle" tabindex="-1" style="margin-top:0">'+title+'</h2>'+
     '<div id="asPickBody">'+html+'</div>'+
     '<div class="btn-stack" style="margin-top:14px">'+
     '<button type="button" id="asPickOk" class="btn-ok btn-block">Assign</button>'+
     '<button type="button" id="asPickCancel" class="btn-sec btn-block">Cancel</button></div></div>';
   overlay.classList.remove('hidden');
+  overlay.removeAttribute('inert');
   overlay.setAttribute('aria-hidden', 'false');
-  try{ focusEl($('asPickTitle')); }catch(e){}
+  window._modalOpen = true;
+
+  // Inert wizard/background so focus cannot escape behind the dialog
+  var bgIds = ['screenWizard', 'wizNav', 'wizBody'];
+  bgIds.forEach(function(id){
+    var el = $(id);
+    if(el){ try{ el.setAttribute('inert', ''); }catch(e){} }
+  });
+
+  // Single-select checkboxes (one at a time)
+  function wireSingleCb(){
+    var boxes = overlay.querySelectorAll('.asPickCb');
+    boxes.forEach(function(cb){
+      cb.addEventListener('change', function(){
+        if(cb.checked){
+          boxes.forEach(function(other){ if(other !== cb) other.checked = false; });
+        }
+      });
+    });
+  }
+  wireSingleCb();
 
   function closePick(){
     overlay.classList.add('hidden');
     overlay.setAttribute('aria-hidden', 'true');
+    try{ overlay.setAttribute('inert', ''); }catch(e){}
     overlay.innerHTML = '';
+    window._modalOpen = false;
+    bgIds.forEach(function(id){
+      var el = $(id);
+      if(el){ try{ el.removeAttribute('inert'); }catch(e){} }
+    });
+    try{
+      var host = $('wizBody');
+      if(host) focusEl(host.querySelector('button, [tabindex="-1"], h1') || host);
+    }catch(e){}
   }
+
+  try{ focusEl($('asPickTitle')); }catch(e){}
+  // Focus trap
+  overlay.addEventListener('keydown', function onKey(e){
+    if(e.key === 'Escape'){ e.preventDefault(); closePick(); return; }
+    if(e.key !== 'Tab') return;
+    var focusables = overlay.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])');
+    focusables = Array.prototype.slice.call(focusables).filter(function(el){ return !el.disabled && el.offsetParent !== null; });
+    if(!focusables.length) return;
+    var first = focusables[0], last = focusables[focusables.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  });
+
   $('asPickCancel').onclick = closePick;
   $('asPickOk').onclick = async function(){
     var teamId = opts.teamId;
     var uid = opts.uid;
     var seat = opts.seat || 0;
     if(!teamId){
-      var r = document.querySelector('input[name="asTeam"]:checked');
+      var r = overlay.querySelector('input[name="asTeam"]:checked');
       if(!r){ alert('Select a team'); return; }
       teamId = r.value;
       seat = parseInt(r.getAttribute('data-seat'), 10) || nextFreeSeat(teamId);
     }
     if(!uid){
-      var r2 = document.querySelector('input[name="asUid"]:checked');
+      var r2 = overlay.querySelector('input[name="asUid"]:checked');
       if(!r2){ alert('Select an account'); return; }
       uid = r2.value;
     }

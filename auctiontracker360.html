@@ -11883,9 +11883,19 @@ function renderWizard(){
   // 5 physical — helpers panel
   else if(step===5 && wiz.mode!=='virtual'){
     body.innerHTML =
-      '<p>Helpers can manage squads after you approve them. Share the auction link.</p>'+
-      '<div id="physHelperLive"></div>';
-    setTimeout(function(){ try{ renderPhysicalHelperPanel($('physHelperLive')); }catch(e){} }, 0);
+      '<p>Helpers can manage squads after you approve them. Copy or share the invite link below.</p>'+
+      '<div id="physHelperLive"><p style="color:var(--muted)">Preparing helper invite…</p></div>';
+    setTimeout(function(){
+      try{
+        renderPhysicalHelperPanel($('physHelperLive')).catch(function(e){
+          var el = $('physHelperLive');
+          if(el) el.innerHTML = '<p style="color:#f87171">Could not load helpers: '+(e && e.message || e)+'</p>';
+        });
+      }catch(e){
+        var el2 = $('physHelperLive');
+        if(el2) el2.innerHTML = '<p style="color:#f87171">Could not load helpers.</p>';
+      }
+    }, 0);
   }
   // 6 virtual — assign owners
   else if(step===6 && wiz.mode==='virtual'){
@@ -12089,7 +12099,10 @@ function wizardNext(){
       wiz.rules = Object.assign({}, wiz.rules || {}, { bidStyle: style, ownersPerTeam: opt });
       if(T) T.rules = Object.assign({}, T.rules || {}, wiz.rules);
     } else {
-      if($('wSlots')) T.coOrganiserSlots = parseInt($('wSlots').value, 10) || 0;
+      var slots = parseInt(String(($('wSlots') && $('wSlots').value) || '0'), 10);
+      if(isNaN(slots)) slots = 0;
+      if(T) T.coOrganiserSlots = slots;
+      wiz.coOrganiserSlots = slots;
     }
   }
   else if(step===4 && wiz.mode === 'virtual'){
@@ -13816,37 +13829,75 @@ function stopPhysHelperLive(){
 
 async function renderPhysicalHelperPanel(box){
   if(!box) return;
-  stopPhysHelperLive();
-  T.status=T.status||'setup';
-  try{
-    if(typeof cloudSave==='function') await cloudSave(true);
-  }catch(e){}
-  if(!auctionId){
-    box.innerHTML='<p style="color:var(--muted)">Save progress first (Save and next) so an invite link can be created.</p>';
+  try{ if(typeof stopPhysHelperLive==='function') stopPhysHelperLive(); }catch(e){}
+  if(!T){
+    box.innerHTML='<p style="color:var(--muted)">Tournament not ready. Go back and complete earlier steps.</p>';
     return;
   }
-  const url=(typeof inviteUrl==='function')?inviteUrl():(location.origin+location.pathname+'?join='+auctionId);
+  T.status = T.status || 'setup';
+  T.mode = T.mode || 'physical';
+  if(T.coOrganiserSlots == null && wiz && wiz.coOrganiserSlots != null) T.coOrganiserSlots = wiz.coOrganiserSlots;
+  if(T.coOrganiserSlots == null) T.coOrganiserSlots = 2;
+  var saveErr = null;
+  try{
+    if(typeof cloudSave==='function') await cloudSave(false);
+  }catch(e){ saveErr = e; console.error('phys helper cloudSave', e); }
+  if(!auctionId){
+    try{ await cloudSave(false); }catch(e2){ saveErr = saveErr || e2; }
+  }
+  if(!auctionId){
+    box.innerHTML=
+      '<p role="status" style="color:#f87171">Could not create auction yet'+(saveErr ? (': '+(saveErr.message||saveErr)) : '')+'.</p>'+
+      '<p style="color:var(--muted)">Tap Retry, or go Back then Save and next again.</p>'+
+      '<button type="button" id="btnRetryPhysInv" class="btn-ok btn-block">Retry helper link</button>';
+    if($('btnRetryPhysInv')) $('btnRetryPhysInv').onclick = function(){ renderPhysicalHelperPanel(box); };
+    return;
+  }
+  var url = '';
+  try{
+    if(typeof inviteUrl==='function') url = inviteUrl();
+    else if(typeof joinShareUrl==='function') url = joinShareUrl(auctionId);
+    else url = location.origin + location.pathname + '?join=' + encodeURIComponent(auctionId);
+  }catch(e){ url = location.origin + location.pathname + '?join=' + encodeURIComponent(auctionId); }
   box.innerHTML=
     '<p><strong>Helper invite link</strong></p>'+
-    '<input type="text" readonly id="physInv" value="'+url.replace(/"/g,'&quot;')+'" style="width:100%" />'+
-    '<button type="button" id="btnCopyPhysInv" class="btn-sec btn-block">Copy helper invite link</button>'+
-    '<p style="color:var(--muted);font-size:14px">Helpers open the link, sign in, then appear below. Approve to allow squad edits.</p>'+
+    '<input type="text" readonly id="physInv" value="'+String(url).replace(/"/g,'&quot;')+'" style="width:100%;margin-bottom:8px" aria-label="Helper invite link" />'+
+    '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">'+
+    '<button type="button" id="btnCopyPhysInv" class="btn-ok" style="flex:1;min-height:44px">Copy helper invite link</button>'+
+    '<button type="button" id="btnSharePhysInv" class="btn-sec" style="flex:1;min-height:44px">Share invite</button>'+
+    '</div>'+
+    '<p style="color:var(--muted);font-size:14px">Helpers open the link, sign in, then appear below. Approve to allow squad edits. Max helpers: '+(T.coOrganiserSlots||0)+'.</p>'+
     '<div id="physHelperList"></div>';
-  $('btnCopyPhysInv').onclick=()=>{
-    try{ shareWithPreview('helper', Object.assign({}, T, {id: auctionId}), { includeHostEmail: true }); }
-    catch(e){
-      const v=$('physInv').value;
-      if(navigator.clipboard) navigator.clipboard.writeText(v).then(()=>alert('Copied')); else alert(v);
+  if($('btnCopyPhysInv')) $('btnCopyPhysInv').onclick = function(){
+    var v = ($('physInv') && $('physInv').value) || url;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(v).then(function(){ alert('Helper invite link copied'); }).catch(function(){ alert(v); });
+    } else {
+      try{ $('physInv').select(); document.execCommand('copy'); alert('Helper invite link copied'); }catch(e){ alert(v); }
     }
   };
-  physHelperUnsub=db.collection('auctions').doc(auctionId).onSnapshot(doc=>{
-    if(!doc.exists) return;
-    const data=doc.data();
-    T.pendingCoOrganisers=data.pendingCoOrganisers||[];
-    T.coOrganiserIds=data.coOrganiserIds||[];
-    T.coOrganiserEmails=data.coOrganiserEmails||[];
-    paintPhysicalHelpers($('physHelperList'));
-  });
+  if($('btnSharePhysInv')) $('btnSharePhysInv').onclick = function(){
+    try{ shareWithPreview('helper', Object.assign({}, T, {id: auctionId}), { includeHostEmail: true }); }
+    catch(e){
+      var v = ($('physInv') && $('physInv').value) || url;
+      if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(function(){ alert('Copied'); });
+      else alert(v);
+    }
+  };
+  try{
+    if(physHelperUnsub){ try{ physHelperUnsub(); }catch(e){} physHelperUnsub = null; }
+    physHelperUnsub = db.collection('auctions').doc(auctionId).onSnapshot(function(doc){
+      if(!doc.exists) return;
+      var data = doc.data() || {};
+      T.pendingCoOrganisers = data.pendingCoOrganisers || [];
+      T.coOrganiserIds = data.coOrganiserIds || [];
+      T.coOrganiserEmails = data.coOrganiserEmails || [];
+      paintPhysicalHelpers($('physHelperList'));
+    });
+  }catch(e){
+    console.error('phys helper listen', e);
+    box.insertAdjacentHTML('beforeend', '<p style="color:#f87171">Could not listen for helpers: '+(e.message||e)+'</p>');
+  }
 }
 
 function paintPhysicalHelpers(box){
@@ -13900,7 +13951,19 @@ async function renderVirtualAssign(body){
   var box = body;
   if(!box) return;
   var saveErr = null;
-  try{ await cloudSave(false); }catch(e){ saveErr = e; }
+  // Ensure virtual mode + setup status so join link works
+  try{
+    if(T){
+      T.mode = 'virtual';
+      T.status = T.status || 'setup';
+      if(wiz) wiz.mode = 'virtual';
+    }
+  }catch(e){}
+  try{ await cloudSave(false); }catch(e){ saveErr = e; console.error('assign cloudSave', e); }
+  // Second attempt if id still missing
+  if(!auctionId){
+    try{ await cloudSave(false); }catch(e2){ saveErr = saveErr || e2; }
+  }
 
   // Live updates for pending joiners
   try{
@@ -13946,7 +14009,30 @@ function paintAssignUI(box){
     waiting.push(p);
   });
 
-  var h = '<p style="color:var(--muted);font-size:14px;margin:0 0 12px">Share the auction link. Joined accounts appear under Waiting. Assign up to <strong>'+maxSeats+'</strong> owner'+(maxSeats>1?'s':'')+' per team.</p>';
+  var url = '';
+  try{
+    if(auctionId && typeof inviteUrl === 'function') url = inviteUrl();
+    else if(auctionId && typeof joinShareUrl === 'function') url = joinShareUrl(auctionId);
+    else if(auctionId) url = (location.origin + location.pathname + '?join=' + encodeURIComponent(auctionId));
+  }catch(e){ url = ''; }
+
+  var h = '';
+  if(url){
+    h += '<div class="panel" style="margin:0 0 14px;padding:12px;border:1px solid var(--border);border-radius:12px">'+
+      '<p style="margin:0 0 8px"><strong>Owner invite link</strong></p>'+
+      '<label for="ownInv" class="sr-only">Invite link</label>'+
+      '<input type="text" readonly id="ownInv" value="'+String(url).replace(/"/g,'&quot;')+'" style="width:100%;margin-bottom:8px" aria-label="Owner invite link" />'+
+      '<div class="row" style="gap:8px;flex-wrap:wrap">'+
+      '<button type="button" id="btnCopyOwnInv" class="btn-ok" style="flex:1;min-height:44px">Copy invite link</button>'+
+      '<button type="button" id="btnShareOwnInv" class="btn-sec" style="flex:1;min-height:44px">Share invite</button>'+
+      '</div>'+
+      '<p style="color:var(--muted);font-size:13px;margin:8px 0 0">Owners open this link, sign in, then appear under Waiting. Assign them to a team below.</p>'+
+      '</div>';
+  } else {
+    h += '<p role="status" style="color:#f87171;margin:0 0 12px">Invite link not ready yet — saving auction… Use Save and next once, or tap Retry link below.</p>'+
+      '<button type="button" id="btnRetryOwnInv" class="btn-sec btn-block" style="margin-bottom:12px">Retry invite link</button>';
+  }
+  h += '<p style="color:var(--muted);font-size:14px;margin:0 0 12px">Assign up to <strong>'+maxSeats+'</strong> owner'+(maxSeats>1?'s':'')+' per team.</p>';
   h += '<p class="wait-owners-title" style="margin-top:0">Assigned teams</p>';
 
   (T.teams || []).forEach(function(tm){
@@ -13987,6 +14073,37 @@ function paintAssignUI(box){
     });
   }
   box.innerHTML = h;
+
+  if($('btnCopyOwnInv')){
+    $('btnCopyOwnInv').onclick = function(){
+      var v = ($('ownInv') && $('ownInv').value) || url;
+      if(!v){ alert('Link not ready'); return; }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(v).then(function(){ alert('Invite link copied'); }).catch(function(){ alert(v); });
+      } else {
+        try{ $('ownInv').select(); document.execCommand('copy'); alert('Invite link copied'); }catch(e){ alert(v); }
+      }
+    };
+  }
+  if($('btnShareOwnInv')){
+    $('btnShareOwnInv').onclick = function(){
+      try{
+        shareWithPreview('owner', Object.assign({}, T, { id: auctionId }), { includeHostEmail: true });
+      }catch(e){
+        var v = ($('ownInv') && $('ownInv').value) || url;
+        if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(function(){ alert('Copied'); });
+        else alert(v);
+      }
+    };
+  }
+  if($('btnRetryOwnInv')){
+    $('btnRetryOwnInv').onclick = async function(){
+      try{
+        await cloudSave(false);
+        paintAssignUI(box);
+      }catch(e){ safeAlert(e); }
+    };
+  }
 
   // Unassign one seat
   box.querySelectorAll('.btnUnSeat').forEach(function(btn){

@@ -11863,14 +11863,21 @@ function renderWizard(){
       '<input id="rCustomVals" type="text" value="'+((r.customBids||[]).join(', '))+'" placeholder="e.g. 20, 50, 100" autocomplete="off" />'+
       '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="rUltimateOn" '+(r.ultimateOn?'checked':'')+' /> Ultimate (custom) bid</label>'+
       '<label for="rTimer">Contest timer (seconds)</label>'+
-      '<input id="rTimer" type="text" inputmode="numeric" value="'+(r.contestSeconds||30)+'" autocomplete="off" />';
+      '<select id="rTimer" aria-label="Contest timer in seconds">'+
+      [10,20,30,40,50,60,90].map(function(s){
+        var cur = parseInt(r.contestSeconds, 10) || 30;
+        return '<option value="'+s+'"'+(cur===s?' selected':'')+'>'+s+' seconds</option>';
+      }).join('')+
+      '</select>';
   }
   else if((step===4 && wiz.mode!=='virtual') || (step===5 && wiz.mode==='virtual')){
     body.innerHTML =
-      '<p>Import the player list (CSV or Excel).</p>'+
-      '<input type="file" id="wFile" accept=".csv,.xlsx,.xls" aria-label="Import players file" />'+
-      '<div id="wMap" style="margin-top:12px"></div>'+
-      '<p id="wImportStatus" role="status" style="margin-top:10px;color:var(--muted)">'+(T&&T.players&&T.players.length ? (T.players.length+' players loaded') : 'No players imported yet')+'</p>';
+      '<p>Import the player list (CSV or Excel). After you pick a file, select which columns to keep, then Import players.</p>'+
+      '<label for="wFile">Players file</label>'+
+      '<input type="file" id="wFile" accept=".csv,.xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Import players file" />'+
+      '<div id="wHeaders" class="hidden" style="margin-top:12px" role="region" aria-label="Column selection"></div>'+
+      '<div id="wImportMsg" style="margin-top:10px" role="status"></div>'+
+      '<p id="wImportStatus" role="status" style="margin-top:8px;color:var(--muted)">'+(T&&T.players&&T.players.length ? (T.players.length+' players already loaded') : 'No players imported yet')+'</p>';
     if($('wFile')) $('wFile').onchange = onFile;
   }
   // 5 physical — helpers panel
@@ -12129,59 +12136,128 @@ function wizardNext(){
 }
 
 function onFile(ev){
-  const f=ev.target.files[0]; if(!f) return;
-  const name=f.name.toLowerCase();
-  if(name.endsWith('.csv')){
-    const r=new FileReader();
-    r.onload=e=>{ parsedRows=e.target.result.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(x=>x.split(',').map(c=>c.trim().replace(/^"|"$/g,''))); headers=parsedRows[0]||[]; showHeaders(); };
-    r.readAsText(f);
-  } else {
-    const r=new FileReader();
-    r.onload=e=>{ try{ const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); parsedRows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1}).filter(r=>r&&r.length); headers=parsedRows[0]||[]; showHeaders(); }catch(err){alert('Could not read file');} };
-    r.readAsArrayBuffer(f);
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  const name = (f.name || '').toLowerCase();
+  const isCsv = name.endsWith('.csv') || (f.type && f.type.indexOf('csv') >= 0);
+  const isXls = name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm')
+    || (f.type && (f.type.indexOf('sheet') >= 0 || f.type.indexOf('excel') >= 0));
+
+  function fail(msg){
+    try{ alert(msg || 'Could not read file'); }catch(e){}
+    try{
+      var st = $('wImportStatus');
+      if(st) st.textContent = msg || 'Could not read file';
+    }catch(e2){}
   }
+
+  if(isCsv && !isXls){
+    const r = new FileReader();
+    r.onerror = function(){ fail('Could not read this CSV. Try saving again and re-select.'); };
+    r.onload = function(e){
+      try{
+        var text = String(e.target.result || '');
+        parsedRows = text.split(/\r?\n/).map(function(x){ return x.trim(); }).filter(Boolean)
+          .map(function(x){ return x.split(',').map(function(c){ return c.trim().replace(/^"|"$/g, ''); }); });
+        headers = parsedRows[0] || [];
+        if(!headers.length){ fail('CSV has no header row.'); return; }
+        showHeaders();
+      }catch(err){ fail('Could not parse CSV: '+(err && err.message || err)); }
+    };
+    r.readAsText(f);
+    return;
+  }
+
+  // Excel path
+  if(typeof XLSX === 'undefined'){
+    fail('Excel library not loaded. Check your connection and hard-refresh, or save the file as CSV and import that.');
+    return;
+  }
+  const r = new FileReader();
+  r.onerror = function(){ fail('Could not read this Excel file. Try CSV export instead.'); };
+  r.onload = function(e){
+    try{
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, { type: 'array' });
+      if(!wb.SheetNames || !wb.SheetNames.length){ fail('Excel file has no sheets.'); return; }
+      var sheet = wb.Sheets[wb.SheetNames[0]];
+      parsedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false })
+        .filter(function(row){ return row && row.length && row.some(function(c){ return String(c || '').trim() !== ''; }); });
+      headers = (parsedRows[0] || []).map(function(c){ return c == null ? '' : String(c); });
+      if(!headers.length){ fail('First sheet has no header row.'); return; }
+      showHeaders();
+    }catch(err){
+      console.error('xlsx import', err);
+      fail('Could not read Excel file. Save as CSV and try again. ('+(err && err.message || 'error')+')');
+    }
+  };
+  r.readAsArrayBuffer(f);
 }
 function showHeaders(){
-  const box=$('wHeaders'); box.classList.remove('hidden');
-  let h='<h3>Select columns to import</h3>';
-  headers.forEach((x,i)=>{ h+='<label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" class="colcb" value="'+i+'" checked /> '+(x||('Column '+(i+1)))+'</label>'; });
-  h+='<button type="button" id="btnImport" class="btn-ok">Import players</button>';
-  box.innerHTML=h; focusEl(box.querySelector('h3'));
-  $('btnImport').onclick=doImport;
+  var box = $('wHeaders') || $('wMap');
+  if(!box){
+    try{ alert('Import panel missing. Go back one step and open Import again.'); }catch(e){}
+    return;
+  }
+  box.classList.remove('hidden');
+  var h = '<h3 tabindex="-1" id="wHeadersTitle">Select columns to import</h3>';
+  h += '<p style="color:var(--muted);font-size:13px;margin:6px 0 10px">Tick the columns you want. Name is detected automatically when possible.</p>';
+  (headers || []).forEach(function(x, i){
+    h += '<label style="display:flex;gap:8px;align-items:center;min-height:44px">'+
+      '<input type="checkbox" class="colcb" value="'+i+'" checked /> '+
+      String(x || ('Column '+(i+1))).replace(/</g, '')+
+      '</label>';
+  });
+  h += '<button type="button" id="btnImport" class="btn-ok" style="margin-top:10px">Import players</button>';
+  box.innerHTML = h;
+  try{ focusEl($('wHeadersTitle') || box.querySelector('h3')); }catch(e){}
+  if($('btnImport')) $('btnImport').onclick = doImport;
 }
 function doImport(){
-  const checks=[...document.querySelectorAll('.colcb:checked')].map(c=>parseInt(c.value,10));
+  if(!T){ alert('Tournament not ready. Go back and complete earlier steps.'); return; }
+  const checks = Array.prototype.slice.call(document.querySelectorAll('.colcb:checked')).map(function(c){ return parseInt(c.value, 10); });
   if(!checks.length){ alert('Select at least one column'); return; }
-  const names=checks.map(i=>(headers[i]||'').toString().toLowerCase());
-  const map={serial:-1,name:-1,gamerId:-1,state:-1};
-  names.forEach((hn,idx)=>{ if(/serial|^id$|sno/.test(hn)&&map.serial<0)map.serial=checks[idx]; if(/name|player/.test(hn)&&map.name<0)map.name=checks[idx]; if(/gamer|username|ign/.test(hn)&&map.gamerId<0)map.gamerId=checks[idx]; if(/state|region|city/.test(hn)&&map.state<0)map.state=checks[idx]; });
-  if(map.name<0) map.name=checks[0];
-  activeCols={serial:map.serial>=0,name:true,gamerId:map.gamerId>=0,state:map.state>=0};
-  var rawPlayers=parsedRows.slice(1).map(function(r){
+  if(!parsedRows || parsedRows.length < 2){ alert('No data rows found under the header.'); return; }
+  const names = checks.map(function(i){ return (headers[i] || '').toString().toLowerCase(); });
+  const map = { serial: -1, name: -1, gamerId: -1, state: -1 };
+  names.forEach(function(hn, idx){
+    if(/serial|^id$|s\.?\s*no|sno|sl\s*no/.test(hn) && map.serial < 0) map.serial = checks[idx];
+    if(/name|player/.test(hn) && map.name < 0) map.name = checks[idx];
+    if(/gamer|username|ign|game\s*id/.test(hn) && map.gamerId < 0) map.gamerId = checks[idx];
+    if(/state|region|city/.test(hn) && map.state < 0) map.state = checks[idx];
+  });
+  if(map.name < 0) map.name = checks[0];
+  activeCols = { serial: map.serial >= 0, name: true, gamerId: map.gamerId >= 0, state: map.state >= 0 };
+  var rawPlayers = parsedRows.slice(1).map(function(r){
+    r = r || [];
     return {
-      serial:map.serial>=0?String(r[map.serial]||''):'',
-      name:map.name>=0?String(r[map.name]||''):'',
-      gamerId:map.gamerId>=0?String(r[map.gamerId]||''):'',
-      state:map.state>=0?String(r[map.state]||''):'',
-      sold:false, unsold:false
+      serial: map.serial >= 0 ? String(r[map.serial] != null ? r[map.serial] : '') : '',
+      name: map.name >= 0 ? String(r[map.name] != null ? r[map.name] : '') : '',
+      gamerId: map.gamerId >= 0 ? String(r[map.gamerId] != null ? r[map.gamerId] : '') : '',
+      state: map.state >= 0 ? String(r[map.state] != null ? r[map.state] : '') : '',
+      sold: false, unsold: false
     };
-  }).filter(function(p){ return p.name || p.gamerId || p.serial; });
-  // Drop exact duplicate rows (same serial+gamerId+name) so rapid re-import / file dups don't inflate roster
-  var seenImp={};
-  T.players=rawPlayers.filter(function(p){
-    var k=(p.serial||'')+'|'+(p.gamerId||'')+'|'+(p.name||'').toLowerCase().trim();
+  }).filter(function(p){ return (p.name && p.name.trim()) || (p.gamerId && p.gamerId.trim()) || (p.serial && p.serial.trim()); });
+  var seenImp = {};
+  T.players = rawPlayers.filter(function(p){
+    var k = (p.serial || '') + '|' + (p.gamerId || '') + '|' + (p.name || '').toLowerCase().trim();
     if(seenImp[k]) return false;
-    seenImp[k]=true;
+    seenImp[k] = true;
     return true;
   });
   if(rawPlayers.length !== T.players.length){
-    try{ console.warn('Import removed '+(rawPlayers.length-T.players.length)+' duplicate player rows'); }catch(e){}
+    try{ console.warn('Import removed '+(rawPlayers.length - T.players.length)+' duplicate player rows'); }catch(e){}
   }
-  T.activeColumns=activeCols;
-  $('wImportMsg').innerHTML='<p><strong>Imported '+T.players.length+' players.</strong></p>';
-  alert('Import complete. '+T.players.length+' players imported.');
-  announce('Imported '+T.players.length+' players');
+  T.activeColumns = activeCols;
+  var msg = 'Imported '+T.players.length+' players.';
+  try{
+    if($('wImportMsg')) $('wImportMsg').innerHTML = '<p><strong>'+msg+'</strong></p>';
+    if($('wImportStatus')) $('wImportStatus').textContent = msg;
+  }catch(e){}
+  try{ alert('Import complete. '+T.players.length+' players imported.'); }catch(e){}
+  try{ announce('Imported '+T.players.length+' players'); }catch(e){}
 }
+
 
 /* ===== Option 2: Pure Firestore smart modeling =====
  * Live auction doc stays small (bid, meta, teams summary, status…).

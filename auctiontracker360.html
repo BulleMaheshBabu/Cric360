@@ -2325,6 +2325,34 @@ body.light #screenAuction .stat-btn{
 .wait-owner-row .meta span{display:block;font-size:13px;color:var(--muted);line-height:1.35;margin-top:2px}
 .wait-owner-row .meta strong{display:block}
 
+
+/* Team cards — waiting room + owners panel */
+.wait-team-group,.own-team-card{
+  margin:0 0 12px;padding:12px 14px;border:1.5px solid var(--border);
+  border-radius:14px;background:var(--bg-surface,#131a29);
+}
+.wait-team-group.is-mine,.own-team-card.is-mine{
+  border-color:var(--accent,#3b82f6);box-shadow:0 0 0 1px rgba(59,130,246,.25);
+}
+.wait-team-group .wtg-title,.own-team-card .otc-title{
+  font-weight:900;font-size:1.05rem;margin:0 0 8px;
+}
+.wait-team-group .wtg-row,.own-team-card .otc-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:8px 0;border-top:1px solid var(--border);min-height:44px;
+}
+.wait-team-group .wtg-row:first-of-type,.own-team-card .otc-row:first-of-type{border-top:none}
+.wait-team-group .wtg-role,.own-team-card .otc-role{
+  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+}
+.wait-team-group .wtg-email,.own-team-card .otc-email{font-weight:700;font-size:14px;word-break:break-all}
+.own-perm-btn{
+  flex-shrink:0;min-height:40px;padding:0 12px;border-radius:10px;font-weight:800;font-size:13px;
+  border:1px solid var(--border);background:var(--panel);color:inherit;cursor:pointer;
+}
+.own-perm-btn.is-on{background:#065f46;border-color:#34d399;color:#ecfdf5}
+.own-perm-btn.is-off{opacity:.9}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.9.1/dist/livekit-client.umd.min.js" crossorigin="anonymous"></script>
 </head>
@@ -6317,19 +6345,11 @@ function renderWaitingRoom(id, data){
     var whoNm = String(meOwner.email || '').trim() || 'You';
     var roleNm = (meOwner.seat===1 || meOwner.role==='primary' || !meOwner.role) ? 'Primary' :
       (meOwner.role==='co2' || meOwner.seat===3) ? 'Co-owner 2' : 'Co-owner';
-    // List primary + co-owners for this team on the card
-    var mates = (owners || []).filter(function(o){ return o && o.teamId === meOwner.teamId; })
-      .sort(function(a,b){
-        var sa = a.seat != null ? a.seat : 1; var sb = b.seat != null ? b.seat : 1; return sa - sb;
-      });
-    var matesHtml = mates.map(function(o){
-      var r = (o.seat===1 || o.role==='primary' || !o.role) ? 'Primary' : (o.seat===3 || o.role==='co2' ? 'Co-owner 2' : 'Co-owner');
-      return r + ': ' + String(o.email || '').trim();
-    }).join('<br>');
+    // Top card: only YOUR team name + your role (details live in team cards below — no duplicate)
     $('waitTeam').innerHTML =
       '<p class="wt-name" id="waitTeamName" tabindex="-1">'+teamNm+'</p>'+
       '<p class="wt-meta">'+roleNm+' · '+whoNm+'</p>'+
-      (matesHtml ? '<p class="wt-meta" style="margin-top:8px;line-height:1.45">'+matesHtml+'</p>' : '');
+      '<p class="wt-meta" style="margin-top:4px">Waiting for host to begin</p>';
     focusEl($('waitTeamName'));
     if(window._ttsAssignKey !== (meOwner.teamId||'')+'|setup'){
       window._ttsAssignKey = (meOwner.teamId||'')+'|setup';
@@ -6376,23 +6396,30 @@ function renderWaitingRoom(id, data){
     if(!row) return;
     listed = true;
     var nm = row.name || 'Team';
-    var av = String(nm).charAt(0).toUpperCase();
-    var people = row.people || [];
-    var whoLine = '';
+    var people = (row.people || []).slice().sort(function(a,b){
+      var sa = a.seat != null ? a.seat : 1; var sb = b.seat != null ? b.seat : 1; return sa - sb;
+    });
+    var isMine = !!(user && meOwner && meOwner.teamId === tid);
+    var ariaPeople = people.map(function(o){
+      var role = (o.seat === 1 || o.role === 'primary' || !o.role) ? 'Primary' :
+        (o.role === 'co2' || o.seat === 3) ? 'Co-owner 2' : 'Co-owner';
+      return role + ' ' + String(o.email || '').trim();
+    }).join(', ');
+    h += '<div class="wait-team-group'+(isMine?' is-mine':'')+'" role="group" aria-label="'+String(nm).replace(/"/g,'')+' team'+(isMine?' your team':'')+'. '+String(ariaPeople).replace(/"/g,'')+'">';
+    h += '<p class="wtg-title">'+String(nm).replace(/</g,'')+(isMine?' · your team':'')+'</p>';
     if(!people.length){
-      whoLine = 'Open';
+      h += '<p style="color:var(--muted);margin:0;font-size:13px">No owners yet</p>';
     } else {
-      whoLine = people.map(function(o){
+      people.forEach(function(o){
         var role = (o.seat === 1 || o.role === 'primary' || !o.role) ? 'Primary' :
           (o.role === 'co2' || o.seat === 3) ? 'Co-owner 2' : 'Co-owner';
         var em = String(o.email || '').trim() || 'Owner';
-        return role + ': ' + em;
-      }).join(' · ');
+        h += '<div class="wtg-row">'+
+          '<div><div class="wtg-role">'+role+'</div><div class="wtg-email">'+em.replace(/</g,'')+'</div></div>'+
+          '</div>';
+      });
     }
-    var isMine = !!(user && meOwner && meOwner.teamId === tid);
-    h += '<div class="wait-owner-row" style="'+(isMine?'border:1.5px solid var(--accent,#3b82f6);':'')+'" aria-label="'+String(nm).replace(/"/g,'')+' team. '+String(whoLine).replace(/"/g,'')+(isMine?' Your team.':'')+'">'+
-      '<span class="av" aria-hidden="true">'+av+'</span>'+
-      '<span class="meta"><strong>'+String(nm).replace(/</g,'')+(isMine?' (your team)':'')+'</strong><span>'+String(whoLine).replace(/</g,'')+'</span></span></div>';
+    h += '</div>';
   });
   if(!listed) h += '<p style="color:var(--muted);text-align:center">No teams assigned yet</p>';
   if($('waitOwners')) $('waitOwners').innerHTML = h;
@@ -12105,15 +12132,19 @@ function queueOwnerBidNotice(uid, kind, teamName){
 function consumeMyBidNotice(){
   if(!user || !T || !T._bidNotices) return;
   var n = T._bidNotices[user.uid];
-  if(!n) return;
-  delete T._bidNotices[user.uid];
+  if(!n || !n.kind) return;
+  var key = String(user.uid) + '|' + String(n.at || '') + '|' + String(n.kind);
+  if(window._consumedBidNoticeKey === key) return;
+  window._consumedBidNoticeKey = key;
   var team = n.teamName || 'your team';
-  if(n.kind === 'granted'){
-    ask('Bidding enabled', 'Host enabled bidding for you — '+team+'.', function(){}, { yesLabel: 'OK', hideNo: true });
-  } else if(n.kind === 'revoked'){
-    ask('Bidding disabled', 'You can no longer bid for '+team+'. Host disabled your permission.', function(){}, { yesLabel: 'OK', hideNo: true });
-  }
-  try{ cloudSave(true); }catch(e){}
+  // Defer so it is not swallowed by a simultaneous re-render
+  setTimeout(function(){
+    if(n.kind === 'granted'){
+      ask('Bidding enabled', 'Host enabled bidding for you on '+team+'. You can place bids now.', function(){}, { yesLabel: 'OK', hideNo: true });
+    } else if(n.kind === 'revoked'){
+      ask('Bidding disabled', 'You can no longer bid for '+team+'. Host disabled your permission.', function(){}, { yesLabel: 'OK', hideNo: true });
+    }
+  }, 120);
 }
 
 function wizardLabels(){
@@ -15349,61 +15380,65 @@ function recentLineHtml(recent){
 function showOnlineOwners(){
   const panel = $('ownersMorePanel') || $('ownersMorePanelWatch') || $('onlinePanelTop') || $('onlinePanel');
   if(!panel) return;
-  if(!panel.classList.contains('hidden') && panel.innerHTML && panel.dataset.open === '1'){
+  if(!panel.classList.contains('hidden') && panel.dataset.open === '1'){
     panel.classList.add('hidden');
     panel.dataset.open = '0';
     try{ focusEl($('btnOwnersMore') || $('btnOwnersMoreWatch')); }catch(e){}
     return;
   }
-  var maxSeats = ownersPerTeamLimit();
   var isHost = !!(user && T && T.ownerId === user.uid);
-  var h = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px">'+
-    '<h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Owners</h3>'+
+  var maxSeats = ownersPerTeamLimit();
+  var h = '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">'+
+    '<h3 id="onlineH" tabindex="-1" style="margin:0;font-size:1rem">Teams & owners</h3>'+
     '<button type="button" id="btnCloseOnline" class="btn-sec" aria-label="Close owners list">Close</button></div>';
 
   (T && T.teams || []).forEach(function(tm){
     var seats = ownersOnTeam(tm.id);
-    h += '<div class="own-team-row" role="group" aria-label="'+String(tm.name||'Team').replace(/"/g,'')+'">';
-    h += '<div class="ot-name">'+String(tm.name||'Team').replace(/</g,'')+'</div>';
-    h += '<div class="ot-seats">';
-    for(var s = 1; s <= maxSeats; s++){
-      var meta = seatMeta(s);
-      var o = seats.find(function(x){
-        var xs = x.seat != null ? x.seat : (x.role === 'primary' || !x.role ? 1 : (x.role === 'co2' ? 3 : 2));
-        return xs === s;
-      });
-      h += '<div class="own-seat">';
-      h += '<span class="os-role">'+meta.label+'</span>';
-      if(o){
+    h += '<div class="own-team-card" role="group" aria-label="'+String(tm.name||'Team').replace(/"/g,'')+'">';
+    h += '<p class="otc-title">'+String(tm.name||'Team').replace(/</g,'')+'</p>';
+    if(!seats.length){
+      h += '<p style="color:var(--muted);margin:0;font-size:13px">No owners assigned</p>';
+    } else {
+      seats.forEach(function(o){
+        var role = (o.seat === 1 || o.role === 'primary' || !o.role) ? 'Primary' :
+          (o.role === 'co2' || o.seat === 3) ? 'Co-owner 2' : 'Co-owner';
+        var em = String(o.email || '').trim() || ('uid:'+String(o.uid||'').slice(0,8));
         var active = isUserActiveBidder(o.uid, tm.id);
-        h += '<span class="os-who">'+String(o.email||ownerDisplayLabel(o)).replace(/</g,'')+
-          (o.email ? '<br><span style="color:var(--muted);font-size:12px">'+String(o.email).replace(/</g,'')+'</span>' : '')+
-          (active ? ' <span style="color:#34d399;font-size:12px">· Bidding</span>' : '')+
-          '</span>';
+        h += '<div class="otc-row">';
+        h += '<div style="min-width:0;flex:1">'+
+          '<div class="otc-role">'+role+(active?' · bidding':'')+'</div>'+
+          '<div class="otc-email">'+em.replace(/</g,'')+'</div></div>';
         if(isHost && T.status === 'live'){
-          h += '<label class="own-bid-toggle"><input type="checkbox" class="bidAllowToggle" data-uid="'+o.uid+'" data-team="'+tm.id+'" '+(active?'checked':'')+' aria-label="Allow bid for '+String(ownerDisplayLabel(o)).replace(/"/g,'')+'" /> Allow bid</label>';
+          // One button only — no separate checkbox (avoids double focus)
+          if(active){
+            h += '<button type="button" class="own-perm-btn is-on bidPermBtn" data-uid="'+o.uid+'" data-team="'+tm.id+'" data-on="1" aria-label="Bidding on for '+em.replace(/"/g,'')+'. Activate to disable">Bidding on</button>';
+          } else {
+            h += '<button type="button" class="own-perm-btn is-off bidPermBtn" data-uid="'+o.uid+'" data-team="'+tm.id+'" data-on="0" aria-label="Enable bidding for '+em.replace(/"/g,'')+'">Enable bid</button>';
+          }
+        } else if(active){
+          h += '<span style="color:#34d399;font-size:12px;font-weight:800">Bidding</span>';
         }
-        if(isHost && T.status === 'setup'){
-          h += '<button type="button" class="btn-danger btnUnSeatLive" data-uid="'+o.uid+'" data-team="'+tm.id+'" style="min-height:36px;padding:0 10px" aria-label="Unassign '+meta.label+'">Unassign</button>';
-        }
-      } else {
-        h += '<span class="os-who" style="color:var(--muted)">Empty</span>';
-      }
-      h += '</div>';
+        h += '</div>';
+      });
     }
-    h += '</div></div>';
+    // empty seats hint
+    var filled = seats.length;
+    if(filled < maxSeats && T.status === 'setup'){
+      h += '<p style="color:var(--muted);font-size:12px;margin:6px 0 0">'+(maxSeats-filled)+' seat(s) open</p>';
+    }
+    h += '</div>';
   });
 
-  // Waiting
   var assignedUids = {};
   (T.owners || []).forEach(function(o){ if(o && o.uid) assignedUids[o.uid] = true; });
   var waiting = (T.pendingOwners || []).filter(function(p){ return p && p.uid && !assignedUids[p.uid]; });
-  h += '<p class="own-waiting-title">Waiting</p>';
-  if(!waiting.length) h += '<p style="color:var(--muted);font-size:13px">No one waiting</p>';
-  else waiting.forEach(function(p){
-    h += '<div class="own-wait-row" style="cursor:default"><span><strong>'+String(ownerDisplayLabel(p)).replace(/</g,'')+'</strong>'+
-      (p.email ? '<br><span style="color:var(--muted);font-size:13px">'+String(p.email).replace(/</g,'')+'</span>' : '')+'</span></div>';
-  });
+  if(waiting.length){
+    h += '<p class="own-waiting-title">Waiting</p>';
+    waiting.forEach(function(p){
+      var em = String(p.email || '').trim() || 'Owner';
+      h += '<div class="own-wait-row" style="cursor:default"><span class="otc-email">'+em.replace(/</g,'')+'</span></div>';
+    });
+  }
 
   panel.innerHTML = h;
   panel.classList.remove('hidden');
@@ -15415,55 +15450,48 @@ function showOnlineOwners(){
     try{ focusEl($('btnOwnersMore') || $('btnOwnersMoreWatch')); }catch(e){}
   };
 
-  panel.querySelectorAll('.bidAllowToggle').forEach(function(tog){
-    tog.onchange = function(){
-      var uid = tog.getAttribute('data-uid');
-      var teamId = tog.getAttribute('data-team');
+  panel.querySelectorAll('.bidPermBtn').forEach(function(btn){
+    btn.onclick = function(){
+      var uid = btn.getAttribute('data-uid');
+      var teamId = btn.getAttribute('data-team');
+      var isOn = btn.getAttribute('data-on') === '1';
       var team = (T.teams || []).find(function(x){ return x.id === teamId; });
-      if(!team){ tog.checked = !tog.checked; return; }
-      if(!tog.checked){
-        // Turning off current active — only if they are active
-        if(team.activeBidderUid !== uid){ tog.checked = true; return; }
-        ask('Disable bidding?', 'This team will have no active bidder until you enable someone.', function(){
+      if(!team) return;
+      var who = (T.owners || []).find(function(o){ return o.uid === uid; }) || {};
+      var em = String(who.email || '').trim() || 'owner';
+
+      if(isOn){
+        // Disable this active bidder
+        ask('Disable bidding?', 'Turn off bidding for '+em+' on '+team.name+'?', function(){
           var prev = team.activeBidderUid;
           team.activeBidderUid = null;
           if(prev) queueOwnerBidNotice(prev, 'revoked', team.name);
+          var lineOff = team.name + ' has no active bidder.';
+          T.lastAlert = { text: lineOff, at: Date.now(), kind: 'bidder' };
           cloudSave(false).then(function(){
-            sayEvent((team.name)+' has no active bidder.', 'host');
+            try{ sayEvent(lineOff, 'bid'); }catch(e){}
             panel.dataset.open = '0';
             showOnlineOwners();
+            try{ if(typeof renderAuction==='function') renderAuction({ skipFocus: true, skipAnnounce: true }); }catch(e){}
           }).catch(function(e){ safeAlert(e); });
-        }, { onNo: function(){ tog.checked = true; } });
+        });
         return;
       }
-      // Enable this uid
-      if(team.activeBidderUid === uid) return;
-      var who = (T.owners || []).find(function(o){ return o.uid === uid; });
-      ask('Switch bidder?', 'Allow '+ownerDisplayLabel(who)+' to bid for '+team.name+'? The current bidder will be disabled.', function(){
+
+      // Enable this uid (switches off previous)
+      ask('Enable bidding?', 'Allow '+em+' to bid for '+team.name+'? Anyone else on this team will be disabled.', function(){
         var prev = team.activeBidderUid;
         team.activeBidderUid = uid;
         if(prev && prev !== uid) queueOwnerBidNotice(prev, 'revoked', team.name);
         queueOwnerBidNotice(uid, 'granted', team.name);
+        var line = team.name + ' — ' + em + ' joined the bidding.';
+        T.lastAlert = { text: line, at: Date.now(), kind: 'bidder' };
         cloudSave(false).then(function(){
-          sayEvent((team.name)+' — '+ownerDisplayLabel(who)+' joined the bidding.', 'host');
-          // force panel refresh
+          try{ sayEvent(line, 'bid'); }catch(e){}
           panel.dataset.open = '0';
           showOnlineOwners();
           try{ if(typeof renderAuction==='function') renderAuction({ skipFocus: true, skipAnnounce: true }); }catch(e){}
         }).catch(function(e){ safeAlert(e); });
-      }, { onNo: function(){ tog.checked = false; } });
-    };
-  });
-
-  panel.querySelectorAll('.btnUnSeatLive').forEach(function(btn){
-    btn.onclick = function(){
-      var uid = btn.getAttribute('data-uid');
-      var teamId = btn.getAttribute('data-team');
-      ask('Unassign?', 'Remove this account from the team?', async function(){
-        T.owners = (T.owners || []).filter(function(o){ return !(o.uid === uid && o.teamId === teamId); });
-        var team = (T.teams || []).find(function(x){ return x.id === teamId; });
-        if(team && team.activeBidderUid === uid) team.activeBidderUid = null;
-        try{ await cloudSave(false); panel.dataset.open = '0'; showOnlineOwners(); }catch(e){ safeAlert(e); }
       });
     };
   });

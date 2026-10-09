@@ -6140,21 +6140,38 @@ async function handleJoinInvite(){
     if(data.mode==='virtual'){
       const pending=data.pendingOwners||[];
       const owners=data.owners||[];
+      const status = String(data.status || '');
       // Already approved owner (even if they open invite link again)
       const asOwner = owners.find(function(o){ return o.uid===user.uid && o.teamId; });
       if(asOwner){
         try{ history.replaceState({},'',location.pathname);}catch(e){}
         joinAuctionId=null;
-        if(String(data.status||'')==='live'){
+        if(status === 'live'){
           await resumeAuction(id, data);
         } else {
           enterWaitingRoom(id);
         }
         return;
       }
+      // Auction already live — unapproved accounts join as viewers only (no pending, no host TTS)
+      if(status === 'live' || status === 'ended'){
+        try{ history.replaceState({},'',location.pathname);}catch(e){}
+        joinAuctionId=null;
+        ask(
+          'Auction has begun',
+          'This auction has already started. You are joining as a viewer for this account. You cannot bid unless the host assigned you a team before go-live.',
+          function(){
+            try{ resumeAuction(id, data); }catch(e){
+              try{ openWatch(id); }catch(e2){ enterHome(); }
+            }
+          },
+          { yesLabel: 'OK', hideNo: true }
+        );
+        return;
+      }
+      // Setup only: request team assignment
       const already = pending.some(function(p){ return p.uid===user.uid; }) || owners.some(function(o){ return o.uid===user.uid; });
       if(!already){
-        // viaInvite marks this as a real join-request for the host (manual openers are viewers only)
         pending.push({uid:user.uid,email:user.email||'',displayName:user.displayName||'',at:Date.now(), viaInvite:true});
         await ref.set({pendingOwners:pending},{merge:true});
       }
@@ -7038,6 +7055,7 @@ function applyAuctionData(data){
   ownerMode=!!(user && data.mode==='virtual' && ow && ow.teamId);
   myTeamId=ow?ow.teamId:null;
   try{ if(typeof syncVoiceCallUi==='function') syncVoiceCallUi(data); }catch(e){}
+  try{ if(typeof consumeMyBidNotice==='function') consumeMyBidNotice(); }catch(e){}
   // Refresh Insights album when published list changes
   try{
     const sig = JSON.stringify((T.aiInsights||[]).map(function(x){ return x && (x.id||x.at); }));
@@ -7134,15 +7152,20 @@ function applyAuctionData(data){
       sayEvent('Auction closed. Bidding is no longer available.', 'host');
     }
 
-    // New franchise owner join request (host on assign / setup) — invite-link only
-    if(data.pendingOwners && Array.isArray(data.pendingOwners)){
+        // New franchise owner join — setup only, invite-link joiners only (never after go-live)
+    if(data.pendingOwners && Array.isArray(data.pendingOwners)
+        && String(data.status||'') === 'setup'){
       const n=data.pendingOwners.length;
       if(window._pendingOwnerCount!=null && n>window._pendingOwnerCount){
         const newest=data.pendingOwners[n-1];
-        const who=(newest&& (newest.displayName||newest.email))||'A new owner';
-        sayEvent(who+' joined and is waiting for a team assignment.', 'wait');
+        if(newest && newest.viaInvite !== false){
+          const who=(newest.email||newest.displayName||'Someone');
+          sayEvent(who+' joined and is waiting for a team assignment.', 'wait');
+        }
       }
       window._pendingOwnerCount=n;
+    } else if(String(data.status||'') !== 'setup'){
+      window._pendingOwnerCount = (data.pendingOwners && data.pendingOwners.length) || 0;
     }
   }catch(e){}
 
@@ -12130,21 +12153,49 @@ function queueOwnerBidNotice(uid, kind, teamName){
   T._bidNotices[uid] = { kind: kind, teamName: teamName || '', at: Date.now() };
 }
 function consumeMyBidNotice(){
-  if(!user || !T || !T._bidNotices) return;
-  var n = T._bidNotices[user.uid];
-  if(!n || !n.kind) return;
-  var key = String(user.uid) + '|' + String(n.at || '') + '|' + String(n.kind);
-  if(window._consumedBidNoticeKey === key) return;
-  window._consumedBidNoticeKey = key;
-  var team = n.teamName || 'your team';
-  // Defer so it is not swallowed by a simultaneous re-render
-  setTimeout(function(){
-    if(n.kind === 'granted'){
-      ask('Bidding enabled', 'Host enabled bidding for you on '+team+'. You can place bids now.', function(){}, { yesLabel: 'OK', hideNo: true });
-    } else if(n.kind === 'revoked'){
-      ask('Bidding disabled', 'You can no longer bid for '+team+'. Host disabled your permission.', function(){}, { yesLabel: 'OK', hideNo: true });
+  if(!user || !T) return;
+  // Path A: explicit notice from host toggle
+  var n = (T._bidNotices && T._bidNotices[user.uid]) ? T._bidNotices[user.uid] : null;
+  if(n && n.kind){
+    var key = String(user.uid) + '|' + String(n.at || '') + '|' + String(n.kind);
+    if(window._consumedBidNoticeKey !== key){
+      window._consumedBidNoticeKey = key;
+      var team = n.teamName || 'your team';
+      setTimeout(function(){
+        try{
+          if(n.kind === 'granted'){
+            ask('Bidding enabled', 'Host enabled bidding for you on '+team+'. You can place bids now.', function(){}, { yesLabel: 'OK', hideNo: true });
+          } else if(n.kind === 'revoked'){
+            ask('Bidding disabled', 'You can no longer bid for '+team+'. Host disabled your permission.', function(){}, { yesLabel: 'OK', hideNo: true });
+          }
+        }catch(e){ console.warn('bid notice dialog', e); }
+      }, 200);
     }
-  }, 120);
+  }
+  // Path B: activeBidderUid flipped for my team (backup if notice map missing)
+  try{
+    if(!myTeamId || !ownerMode) return;
+    var teamObj = (T.teams || []).find(function(x){ return x.id === myTeamId; });
+    if(!teamObj) return;
+    var active = teamObj.activeBidderUid || null;
+    var prev = window._myLastActiveBidderUid;
+    window._myLastActiveBidderUid = active;
+    if(prev === undefined) return; // first snapshot — no popup
+    if(prev === active) return;
+    var tname = teamObj.name || 'your team';
+    var key2 = 'act|' + String(active) + '|' + String(prev);
+    if(window._consumedActiveSwitchKey === key2) return;
+    window._consumedActiveSwitchKey = key2;
+    setTimeout(function(){
+      try{
+        if(active === user.uid){
+          ask('Bidding enabled', 'Host enabled bidding for you on '+tname+'. You can place bids now.', function(){}, { yesLabel: 'OK', hideNo: true });
+        } else if(prev === user.uid && active !== user.uid){
+          ask('Bidding disabled', 'You can no longer bid for '+tname+'. Host disabled your permission.', function(){}, { yesLabel: 'OK', hideNo: true });
+        }
+      }catch(e){}
+    }, 220);
+  }catch(e){}
 }
 
 function wizardLabels(){
@@ -14101,7 +14152,7 @@ async function renderVirtualAssign(body){
         T.pendingOwners = data.pendingOwners || [];
         T.owners = data.owners || T.owners || [];
         if(data.teams) T.teams = data.teams;
-        if(T.pendingOwners.length > prev.length){
+        if(T.pendingOwners.length > prev.length && String(T.status||'') === 'setup'){
           var newest = T.pendingOwners[T.pendingOwners.length - 1];
           var who = (newest && newest.email) || 'Someone';
           try{ sayEvent(who + ' joined and is waiting for a team assignment.', 'wait'); }catch(e){}
@@ -15484,7 +15535,7 @@ function showOnlineOwners(){
         team.activeBidderUid = uid;
         if(prev && prev !== uid) queueOwnerBidNotice(prev, 'revoked', team.name);
         queueOwnerBidNotice(uid, 'granted', team.name);
-        var line = team.name + ' — ' + em + ' joined the bidding.';
+        var line = team.name + ' team changed their owner to ' + em + '.';
         T.lastAlert = { text: line, at: Date.now(), kind: 'bidder' };
         cloudSave(false).then(function(){
           try{ sayEvent(line, 'bid'); }catch(e){}
